@@ -38,6 +38,8 @@ make macos-jacobian-point-bench
 ./macos/rck_macos jacobian-point-bench --iterations 256 --min-ms 50
 make macos-jacobian-walk-bench
 ./macos/rck_macos jacobian-walk-bench --iterations 256 --min-ms 50 --jumps 16
+make macos-jacobian-kangaroo-small-bench
+./macos/rck_macos jacobian-kangaroo-small-bench --iterations 1 --min-ms 50 --range 8 --jumps 8 --dp-bits 0 --max-steps 4096
 make macos-jacobian-kangaroo-multi-small-bench
 ./macos/rck_macos jacobian-kangaroo-multi-small-bench --target-count 4 --iterations 1 --min-ms 50 --range 8 --jumps 8 --dp-bits 0 --max-steps 4096
 ```
@@ -47,6 +49,8 @@ make macos-jacobian-kangaroo-multi-small-bench
 `macos-jacobian-point-bench` keeps the walk point in Jacobian coordinates and performs mixed Jacobian-plus-affine additions of `G`, moving the expensive field inversion out of the inner loop. The JSON includes an affine reference throughput and `speedup_vs_affine` so improvements are measured against the simpler point-add baseline.
 
 `macos-jacobian-walk-bench` uses a deterministic jump table of affine points and applies mixed Jacobian additions selected from the current projective state. It tracks scalar distance in parallel and validates the final point against a scalar oracle. This is a walk-core benchmark, not yet a full kangaroo solver with distinguished points or collision handling.
+
+`macos-jacobian-kangaroo-small-bench` generates one deterministic synthetic target and measures tiny single-target kangaroo solves per second with the hash-bucket DP lookup. It reports `architecture=single_target`, `dp_lookup=hash`, tame/wild state counts, and DP table size so it can be compared directly with the shared-tame multi-target benchmark.
 
 `macos-jacobian-kangaroo-multi-small-bench` generates deterministic synthetic targets, places one solvable target at the final index, and measures tiny shared-tame multi-target solves per second with the hash-bucket DP lookup. Use `--target-count` to compare 1, 2, 4, 8, or larger target sets while keeping the same bounded range and jump parameters.
 

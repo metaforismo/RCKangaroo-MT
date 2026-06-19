@@ -800,6 +800,95 @@ static std::vector<EcPoint> BuildSyntheticMultiTargets(unsigned int target_count
 	return targets;
 }
 
+std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
+{
+	if (!iterations)
+		iterations = 1;
+
+	u64 start = 0;
+	u64 limit = RangeLimit(range_bits);
+	bool correctness = true;
+	std::string reason;
+	if (!limit)
+	{
+		correctness = false;
+		reason = "range_bits must be <= 24";
+	}
+
+	u64 solved_private_key = limit ? start + (limit > 7 ? 7 : limit - 1) : start;
+	EcPoint target;
+	if (limit)
+	{
+		EcInt solved_k;
+		solved_k.Set(solved_private_key);
+		target = Ec::MultiplyG(solved_k);
+	}
+
+	u64 operations = 0;
+	u64 total_dp_count = 0;
+	unsigned int last_dp_count = 0;
+	unsigned int found_target_index = 0;
+	u64 found_private_key = 0;
+	auto t0 = std::chrono::steady_clock::now();
+	auto t1 = t0;
+	if (limit)
+	{
+		do
+		{
+			for (unsigned int i = 0; i < iterations; i++)
+			{
+				RCKSmallSolveResult result = RCKSolveSmallJacobianKangaroo(target, start, range_bits, jump_count, dp_bits, max_steps);
+				operations++;
+				last_dp_count = result.dp_count;
+				total_dp_count += result.dp_count;
+				found_target_index = result.target_index;
+				found_private_key = result.private_key;
+				if (!result.found || (result.private_key != solved_private_key) || (result.target_index != 0))
+				{
+					correctness = false;
+					reason = "single-target solve mismatch";
+				}
+			}
+			t1 = std::chrono::steady_clock::now();
+		} while (min_ms && (std::chrono::duration<double, std::milli>(t1 - t0).count() < (double)min_ms));
+	}
+
+	double seconds = std::chrono::duration<double>(t1 - t0).count();
+	double ops_per_sec = seconds > 0 ? operations / seconds : 0.0;
+	double avg_dp_count = operations > 0 ? (double)total_dp_count / (double)operations : 0.0;
+
+	std::ostringstream out;
+	out.setf(std::ios::fixed);
+	out.precision(6);
+	out << "{\"backend\":\"macos_cpu\",";
+	out << "\"operation\":\"jacobian_kangaroo_small\",";
+	out << "\"architecture\":\"single_target\",";
+	out << "\"dp_lookup\":\"hash\",";
+	out << "\"iterations\":" << operations << ",";
+	out << "\"sample_count\":" << iterations << ",";
+	out << "\"min_ms\":" << min_ms << ",";
+	out << "\"target_count\":1,";
+	out << "\"tame_states\":1,";
+	out << "\"wild_states\":1,";
+	out << "\"range_bits\":" << range_bits << ",";
+	out << "\"jump_count\":" << jump_count << ",";
+	out << "\"dp_bits\":" << dp_bits << ",";
+	out << "\"max_steps\":" << max_steps << ",";
+	out << "\"seconds\":" << seconds << ",";
+	out << "\"ops_per_sec\":" << ops_per_sec << ",";
+	out << "\"avg_dp_count\":" << avg_dp_count << ",";
+	out << "\"last_dp_count\":" << last_dp_count << ",";
+	out << "\"start_scalar\":\"0x" << std::hex << start << std::dec << "\",";
+	out << "\"expected_private_key\":\"0x" << std::hex << solved_private_key << std::dec << "\",";
+	out << "\"found_target_index\":" << found_target_index << ",";
+	out << "\"found_private_key\":\"0x" << std::hex << found_private_key << std::dec << "\",";
+	out << "\"correctness\":" << (correctness ? "true" : "false");
+	if (!correctness)
+		out << ",\"reason\":\"" << reason << "\"";
+	out << "}";
+	return out.str();
+}
+
 std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int target_count, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
 {
 	if (!iterations)

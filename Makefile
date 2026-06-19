@@ -2,7 +2,7 @@ CUDA_PATH ?= /usr/local/cuda-12.0
 CC := g++
 NVCC := $(CUDA_PATH)/bin/nvcc
 
-.PHONY: all clean check-host check-portable-ec macos-build macos-check macos-bench macos-point-bench macos-jacobian-point-bench macos-jacobian-walk-bench macos-jacobian-kangaroo-small-test macos-jacobian-kangaroo-multi-small-test macos-jacobian-kangaroo-multi-small-bench macos-jacobian-kangaroo-multi-small-bench-run macos-jacobian-kangaroo-multi-small-bench-test macos-cpu-field-test macos-cpu-field-bench macos-metal-kernels-check macos-metal-field-test macos-metal-field-bench macos-metal-field-mul-test macos-metal-field-mul-bench
+.PHONY: all clean check-host check-portable-ec macos-build macos-check macos-bench macos-point-bench macos-jacobian-point-bench macos-jacobian-walk-bench macos-jacobian-kangaroo-small-test macos-jacobian-kangaroo-small-bench macos-jacobian-kangaroo-small-bench-run macos-jacobian-kangaroo-small-bench-test macos-jacobian-kangaroo-multi-small-test macos-jacobian-kangaroo-multi-small-bench macos-jacobian-kangaroo-multi-small-bench-run macos-jacobian-kangaroo-multi-small-bench-test macos-cpu-field-test macos-cpu-field-bench macos-metal-kernels-check macos-metal-field-test macos-metal-field-bench macos-metal-field-mul-test macos-metal-field-mul-bench
 
 CCFLAGS := -O3 -I$(CUDA_PATH)/include
 NVCCFLAGS := -O3 -gencode=arch=compute_89,code=compute_89 -gencode=arch=compute_86,code=compute_86 -gencode=arch=compute_75,code=compute_75 -gencode=arch=compute_61,code=compute_61
@@ -50,6 +50,7 @@ macos-check: check-host macos-build
 	sh tests/check_jacobian_point_bench_cli.sh
 	sh tests/check_jacobian_walk_bench_cli.sh
 	sh tests/check_jacobian_kangaroo_small_cli.sh
+	sh tests/check_jacobian_kangaroo_small_bench_cli.sh
 	sh tests/check_jacobian_kangaroo_multi_small_cli.sh
 	sh tests/check_jacobian_kangaroo_multi_small_bench_cli.sh
 	sh tests/check_cpu_field_cli.sh
@@ -72,6 +73,15 @@ macos-jacobian-walk-bench: macos-build
 
 macos-jacobian-kangaroo-small-test: macos-build
 	sh tests/check_jacobian_kangaroo_small_cli.sh
+
+macos-jacobian-kangaroo-small-bench: macos-build
+	./$(MACOS_TARGET) jacobian-kangaroo-small-bench --iterations 1 --min-ms 50 --range 8 --jumps 8 --dp-bits 0 --max-steps 4096
+
+macos-jacobian-kangaroo-small-bench-run:
+	./$(MACOS_TARGET) jacobian-kangaroo-small-bench --iterations 1 --min-ms 50 --range 8 --jumps 8 --dp-bits 0 --max-steps 4096
+
+macos-jacobian-kangaroo-small-bench-test: macos-build
+	sh tests/check_jacobian_kangaroo_small_bench_cli.sh
 
 macos-jacobian-kangaroo-multi-small-test: macos-build
 	sh tests/check_jacobian_kangaroo_multi_small_cli.sh

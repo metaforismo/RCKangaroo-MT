@@ -18,6 +18,7 @@ static void PrintUsage()
 	printf("  rck_macos solve-small --range N --start HEX --pubkey PUBKEY\n");
 	printf("  rck_macos jacobian-kangaroo-small --range N --start HEX --pubkey PUBKEY [--jumps N] [--dp-bits N] [--max-steps N]\n");
 	printf("  rck_macos jacobian-kangaroo-multi-small --range N --start HEX --targets FILE [--jumps N] [--dp-bits N] [--max-steps N]\n");
+	printf("  rck_macos jacobian-kangaroo-small-bench [--iterations N] [--min-ms N] [--range N] [--jumps N] [--dp-bits N] [--max-steps N]\n");
 	printf("  rck_macos jacobian-kangaroo-multi-small-bench --target-count N [--iterations N] [--min-ms N] [--range N] [--jumps N] [--dp-bits N] [--max-steps N]\n");
 	printf("  rck_macos bench --iterations N\n");
 	printf("  rck_macos point-bench --iterations N [--min-ms N]\n");
@@ -262,6 +263,58 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 		printf("%s\n", RCKBenchJson(iterations).c_str());
+	}
+	else if (strcmp(argv[1], "jacobian-kangaroo-small-bench") == 0)
+	{
+		const char* iter_s = NULL;
+		const char* min_ms_s = NULL;
+		const char* range_s = NULL;
+		const char* jumps_s = NULL;
+		const char* dp_bits_s = NULL;
+		const char* max_steps_s = NULL;
+		unsigned int iterations = 1;
+		unsigned int min_ms = 0;
+		unsigned int range_bits = 8;
+		unsigned int jumps = 8;
+		unsigned int dp_bits = 0;
+		unsigned int max_steps = 4096;
+		if (ReadOption(argc, argv, "--iterations", &iter_s) && !ParseU32(iter_s, &iterations))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--min-ms", &min_ms_s) && !ParseU32(min_ms_s, &min_ms))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--range", &range_s) && !ParseU32(range_s, &range_bits))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--jumps", &jumps_s) && !ParseU32(jumps_s, &jumps))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--dp-bits", &dp_bits_s) && !ParseU32(dp_bits_s, &dp_bits))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--max-steps", &max_steps_s) && !ParseU32(max_steps_s, &max_steps))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		printf("%s\n", RCKJacobianKangarooSmallBenchJson(iterations, min_ms, range_bits, jumps, dp_bits, max_steps).c_str());
 	}
 	else if (strcmp(argv[1], "jacobian-kangaroo-multi-small-bench") == 0)
 	{

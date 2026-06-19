@@ -25,4 +25,5 @@ std::string RCKBenchJson(unsigned int iterations);
 std::string RCKPointAddBenchJson(unsigned int iterations, unsigned int min_ms = 0);
 std::string RCKJacobianPointAddBenchJson(unsigned int iterations, unsigned int min_ms = 0);
 std::string RCKJacobianWalkBenchJson(unsigned int iterations, unsigned int min_ms = 0, unsigned int jump_count = 16);
+std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned int min_ms = 0, unsigned int range_bits = 8, unsigned int jump_count = 8, unsigned int dp_bits = 0, unsigned int max_steps = 4096);
 std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsigned int min_ms = 0, unsigned int target_count = 4, unsigned int range_bits = 8, unsigned int jump_count = 8, unsigned int dp_bits = 0, unsigned int max_steps = 4096);
