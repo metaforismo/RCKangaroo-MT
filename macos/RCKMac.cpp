@@ -125,6 +125,52 @@ static EcPoint JacobianToAffine(JacobianPoint p)
 	return out;
 }
 
+static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<JacobianPoint>& wilds, std::vector<EcPoint>& affines, std::vector<EcInt>& prefixes, std::vector<unsigned char>& active)
+{
+	size_t point_count = wilds.size() + 1;
+	affines.clear();
+	affines.resize(point_count);
+	prefixes.clear();
+	prefixes.resize(point_count);
+	active.clear();
+	active.resize(point_count, 0);
+
+	EcInt acc;
+	acc.Set(1);
+	unsigned int active_count = 0;
+	for (size_t i = 0; i < point_count; i++)
+	{
+		const JacobianPoint& p = i ? wilds[i - 1] : tame;
+		EcInt z = p.z;
+		if (p.infinity || z.IsZero())
+			continue;
+
+		prefixes[i] = acc;
+		acc = FieldMul(acc, z);
+		active[i] = 1;
+		active_count++;
+	}
+
+	if (!active_count)
+		return;
+
+	acc.InvModP();
+	for (size_t remaining = point_count; remaining > 0; remaining--)
+	{
+		size_t i = remaining - 1;
+		if (!active[i])
+			continue;
+
+		const JacobianPoint& p = i ? wilds[i - 1] : tame;
+		EcInt z_inv = FieldMul(acc, prefixes[i]);
+		acc = FieldMul(acc, p.z);
+		EcInt z2 = FieldSquare(z_inv);
+		EcInt z3 = FieldMul(z2, z_inv);
+		affines[i].x = FieldMul(p.x, z2);
+		affines[i].y = FieldMul(p.y, z3);
+	}
+}
+
 static JacobianPoint JacobianAddAffine(JacobianPoint p, EcPoint q)
 {
 	if (p.infinity)
@@ -728,10 +774,18 @@ RCKSmallSolveResult RCKSolveSmallJacobianKangarooMulti(const std::vector<EcPoint
 	KangarooDpBuckets buckets;
 	buckets.reserve((max_steps + 2) * (targets.size() + 1));
 	u64 dp_count = 0;
+	std::vector<EcPoint> affine_points;
+	std::vector<EcInt> affine_prefixes;
+	std::vector<unsigned char> affine_active;
+	affine_points.reserve(targets.size() + 1);
+	affine_prefixes.reserve(targets.size() + 1);
+	affine_active.reserve(targets.size() + 1);
 
 	for (unsigned int step = 0; step <= max_steps; step++)
 	{
-		EcPoint tame_affine = JacobianToAffine(tame);
+		JacobianBatchToAffine(tame, wilds, affine_points, affine_prefixes, affine_active);
+
+		EcPoint tame_affine = affine_points[0];
 		if (IsDistinguished(tame_affine, dp_bits))
 		{
 			KangarooPointKey key = RawPointKey(tame_affine);
@@ -750,7 +804,7 @@ RCKSmallSolveResult RCKSolveSmallJacobianKangarooMulti(const std::vector<EcPoint
 
 		for (unsigned int target_index = 0; target_index < wilds.size(); target_index++)
 		{
-			EcPoint wild_affine = JacobianToAffine(wilds[target_index]);
+			EcPoint wild_affine = affine_points[target_index + 1];
 			if (IsDistinguished(wild_affine, dp_bits))
 			{
 				KangarooPointKey key = RawPointKey(wild_affine);
@@ -1014,6 +1068,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"operation\":\"jacobian_kangaroo_multi_small\",";
 	out << "\"architecture\":\"shared_tame\",";
 	out << "\"dp_lookup\":\"hash\",";
+	out << "\"affine_conversion\":\"batch\",";
 	out << "\"iterations\":" << operations << ",";
 	out << "\"sample_count\":" << iterations << ",";
 	out << "\"min_ms\":" << min_ms << ",";

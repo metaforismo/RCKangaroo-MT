@@ -233,7 +233,7 @@ int main(int argc, char* argv[])
 		RCKSmallSolveResult result = RCKSolveSmallJacobianKangarooMulti(targets, start, range_bits, jumps, dp_bits, max_steps);
 		if (result.found)
 		{
-			printf("FOUND private_key=%llu private_key_hex=%llX target_index=%u method=jacobian_kangaroo_multi_small architecture=shared_tame dp_lookup=hash target_count=%u tame_states=%u wild_states=%u dp_count=%u\n",
+			printf("FOUND private_key=%llu private_key_hex=%llX target_index=%u method=jacobian_kangaroo_multi_small architecture=shared_tame dp_lookup=hash affine_conversion=batch target_count=%u tame_states=%u wild_states=%u dp_count=%u\n",
 				result.private_key,
 				result.private_key,
 				result.target_index,
@@ -244,7 +244,7 @@ int main(int argc, char* argv[])
 		}
 		else
 		{
-			printf("NOT FOUND method=jacobian_kangaroo_multi_small architecture=shared_tame dp_lookup=hash target_count=%u tame_states=%u wild_states=%u dp_count=%u\n",
+			printf("NOT FOUND method=jacobian_kangaroo_multi_small architecture=shared_tame dp_lookup=hash affine_conversion=batch target_count=%u tame_states=%u wild_states=%u dp_count=%u\n",
 				result.target_count,
 				result.tame_state_count,
 				result.wild_state_count,
