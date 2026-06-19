@@ -5,3 +5,6 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-19T21:33:40Z	c167ffc	metal_field_add	metal	field_add_mod_p	0	0.000000	false	skip	Metal secp256k1 field_add_mod_p correctness and throughput gate
 2026-06-19T21:35:52Z	c167ffc	baseline	cpu	multiply_g	64	85790.884718	true	keep	CPU multiply_g baseline with correctness gates
 2026-06-19T21:36:03Z	c167ffc	metal_field_add	metal	field_add_mod_p	0	0.000000	false	skip	Metal secp256k1 field_add_mod_p correctness and throughput gate
+2026-06-19T21:44:58Z	93e7017	cpu_field_mul	macos_cpu	field_mul_mod_p	4096	117589642.006144	true	keep	Apple Silicon CPU secp256k1 field_mul_mod_p benchmark against EcInt reference
+2026-06-19T21:47:07Z	93e7017	cpu_field_mul	macos_cpu	field_mul_mod_p	4096	120321955.231773	true	keep	Apple Silicon CPU secp256k1 field_mul_mod_p benchmark against EcInt reference
+2026-06-19T21:47:22Z	93e7017	metal_field_add	metal	field_add_mod_p	0	0.000000	false	skip	Metal secp256k1 field_add_mod_p correctness and throughput gate

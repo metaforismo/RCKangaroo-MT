@@ -1,0 +1,6 @@
+{
+  "name": "cpu_field_mul",
+  "description": "Apple Silicon CPU secp256k1 field_mul_mod_p benchmark against EcInt reference",
+  "bench_target": "macos-cpu-field-bench",
+  "min_improvement_ratio": 0.01
+}

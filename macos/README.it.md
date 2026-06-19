@@ -1,6 +1,6 @@
 # Strumenti nativi per macOS
 
-RCKangaroo-MT usa ancora NVIDIA CUDA per il solver kangaroo completo ad alte prestazioni, ma la cartella `macos/` ora contiene strumenti nativi Apple Silicon per preparazione target, check secp256k1, solve CPU tiny-range, benchmark, smoke test Metal e prime primitive aritmetiche Metal.
+RCKangaroo-MT usa ancora NVIDIA CUDA per il solver kangaroo completo ad alte prestazioni, ma la cartella `macos/` ora contiene strumenti nativi Apple Silicon per preparazione target, check secp256k1, solve CPU tiny-range, aritmetica di campo CPU, benchmark, smoke test Metal e prime primitive aritmetiche Metal.
 
 ## Build e check
 
@@ -8,7 +8,13 @@ RCKangaroo-MT usa ancora NVIDIA CUDA per il solver kangaroo completo ad alte pre
 make macos-check
 ```
 
-Questo compila `macos/rck_macos`, esegue vettori secp256k1 host, valida il parsing target, lancia il selftest CPU nativo e prova il check Metal field-add quando Metal e' visibile.
+Questo compila `macos/rck_macos`, esegue vettori secp256k1 host, valida il parsing target, lancia il selftest CPU nativo, controlla l'aritmetica di campo CPU e prova il check Metal field-add quando Metal e' visibile.
+
+La build macOS usa `-O3` di default. Puoi fare override quando serve:
+
+```sh
+make macos-check MACOS_CXXFLAGS="-std=c++17 -O0 -g -I."
+```
 
 Esempio tiny-range CPU:
 
@@ -21,6 +27,15 @@ Benchmark CPU:
 ```sh
 make macos-bench
 ```
+
+Check e benchmark CPU per l'aritmetica nel campo secp256k1:
+
+```sh
+./macos/rck_macos cpu-field-test
+make macos-cpu-field-bench
+```
+
+Il percorso CPU field usa quattro limb little-endian da 64 bit e carry arithmetic con `unsigned __int128`. Il benchmark riporta throughput `field_mul_mod_p` e throughput reference `EcInt` per confronto.
 
 Smoke test Metal:
 
@@ -75,6 +90,7 @@ Usa autoresearch dalla root della repo:
 
 ```sh
 python3 autoresearch/runner.py --experiment baseline --budget-sec 5
+python3 autoresearch/runner.py --experiment cpu_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_add --budget-sec 5
 ```
 

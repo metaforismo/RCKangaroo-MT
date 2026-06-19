@@ -1,6 +1,6 @@
 # macOS native tools
 
-RCKangaroo-MT still uses NVIDIA CUDA for the full high-performance kangaroo solver, but the `macos/` folder now provides native Apple Silicon tooling for target preparation, secp256k1 correctness checks, tiny-range CPU solves, benchmarks, Metal runtime smoke tests, and early Metal field arithmetic.
+RCKangaroo-MT still uses NVIDIA CUDA for the full high-performance kangaroo solver, but the `macos/` folder now provides native Apple Silicon tooling for target preparation, secp256k1 correctness checks, tiny-range CPU solves, CPU field arithmetic, benchmarks, Metal runtime smoke tests, and early Metal field arithmetic.
 
 ## Build and Check
 
@@ -8,7 +8,13 @@ RCKangaroo-MT still uses NVIDIA CUDA for the full high-performance kangaroo solv
 make macos-check
 ```
 
-This builds `macos/rck_macos`, runs host secp256k1 vector checks, validates target parsing, runs the native CPU selftest, and runs the Metal field-add check when Metal is visible.
+This builds `macos/rck_macos`, runs host secp256k1 vector checks, validates target parsing, runs the native CPU selftest, checks CPU field arithmetic, and runs the Metal field-add check when Metal is visible.
+
+The default macOS build uses `-O3`. Override it when needed:
+
+```sh
+make macos-check MACOS_CXXFLAGS="-std=c++17 -O0 -g -I."
+```
 
 Run a tiny-range CPU solve:
 
@@ -21,6 +27,15 @@ Run a CPU benchmark:
 ```sh
 make macos-bench
 ```
+
+Run CPU secp256k1 field arithmetic checks and the multiplication benchmark:
+
+```sh
+./macos/rck_macos cpu-field-test
+make macos-cpu-field-bench
+```
+
+The CPU field path uses four little-endian 64-bit limbs and `unsigned __int128` carry arithmetic. The benchmark reports `field_mul_mod_p` throughput and an `EcInt` reference throughput for comparison.
 
 Run the Metal smoke test:
 
@@ -75,6 +90,7 @@ Use autoresearch from the repo root:
 
 ```sh
 python3 autoresearch/runner.py --experiment baseline --budget-sec 5
+python3 autoresearch/runner.py --experiment cpu_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_add --budget-sec 5
 ```
 

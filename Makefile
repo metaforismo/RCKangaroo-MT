@@ -2,7 +2,7 @@ CUDA_PATH ?= /usr/local/cuda-12.0
 CC := g++
 NVCC := $(CUDA_PATH)/bin/nvcc
 
-.PHONY: all clean check-host check-portable-ec macos-build macos-check macos-bench macos-metal-field-test macos-metal-field-bench
+.PHONY: all clean check-host check-portable-ec macos-build macos-check macos-bench macos-cpu-field-test macos-cpu-field-bench macos-metal-field-test macos-metal-field-bench
 
 CCFLAGS := -O3 -I$(CUDA_PATH)/include
 NVCCFLAGS := -O3 -gencode=arch=compute_89,code=compute_89 -gencode=arch=compute_86,code=compute_86 -gencode=arch=compute_75,code=compute_75 -gencode=arch=compute_61,code=compute_61
@@ -37,18 +37,26 @@ check-host: check-portable-ec
 check-portable-ec:
 	sh tests/check_portable_ec.sh
 
-MACOS_SRC := macos/rck_macos.cpp macos/RCKMac.cpp macos/MetalSmoke.mm macos/MetalField.mm Ec.cpp utils.cpp TargetSet.cpp
+MACOS_SRC := macos/rck_macos.cpp macos/RCKMac.cpp macos/CpuField.cpp macos/MetalSmoke.mm macos/MetalField.mm Ec.cpp utils.cpp TargetSet.cpp
+MACOS_CXXFLAGS ?= -std=c++17 -O3 -I.
 MACOS_LDFLAGS := -framework Foundation -framework Metal
 
 macos-build:
-	$(CXX) -std=c++17 -O2 -I. $(MACOS_SRC) -o $(MACOS_TARGET) $(MACOS_LDFLAGS)
+	$(CXX) $(MACOS_CXXFLAGS) $(MACOS_SRC) -o $(MACOS_TARGET) $(MACOS_LDFLAGS)
 
 macos-check: check-host macos-build
 	./$(MACOS_TARGET) selftest
+	sh tests/check_cpu_field_cli.sh
 	sh tests/check_metal_field_cli.sh
 
 macos-bench: macos-build
 	./$(MACOS_TARGET) bench --iterations 64
+
+macos-cpu-field-test: macos-build
+	sh tests/check_cpu_field_cli.sh
+
+macos-cpu-field-bench: macos-build
+	./$(MACOS_TARGET) cpu-field-bench --iterations 4096
 
 macos-metal-field-test: macos-build
 	sh tests/check_metal_field_cli.sh

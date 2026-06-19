@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include "macos/CpuField.h"
 #include "macos/RCKMac.h"
 #include "macos/MetalField.h"
 #include "macos/MetalSmoke.h"
@@ -14,6 +15,8 @@ static void PrintUsage()
 	printf("  rck_macos selftest\n");
 	printf("  rck_macos solve-small --range N --start HEX --pubkey PUBKEY\n");
 	printf("  rck_macos bench --iterations N\n");
+	printf("  rck_macos cpu-field-test\n");
+	printf("  rck_macos cpu-field-bench --iterations N\n");
 	printf("  rck_macos metal-smoke\n");
 	printf("  rck_macos metal-field-test\n");
 	printf("  rck_macos metal-field-bench --iterations N\n");
@@ -115,6 +118,28 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 		printf("%s\n", RCKBenchJson(iterations).c_str());
+	}
+	else if (strcmp(argv[1], "cpu-field-test") == 0)
+	{
+		if (RCKCpuFieldSelfTest(error))
+			printf("cpu field ok\n");
+		else
+		{
+			printf("cpu field failed: %s\n", error.c_str());
+			rc = 1;
+		}
+	}
+	else if (strcmp(argv[1], "cpu-field-bench") == 0)
+	{
+		const char* iter_s = NULL;
+		unsigned int iterations = 4096;
+		if (ReadOption(argc, argv, "--iterations", &iter_s) && !ParseU32(iter_s, &iterations))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		printf("%s\n", RCKCpuFieldBenchJson(iterations).c_str());
 	}
 	else if (strcmp(argv[1], "metal-smoke") == 0)
 	{
