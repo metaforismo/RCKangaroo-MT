@@ -10,3 +10,4 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-19T21:47:22Z	93e7017	metal_field_add	metal	field_add_mod_p	0	0.000000	false	skip	Metal secp256k1 field_add_mod_p correctness and throughput gate
 2026-06-19T21:57:58Z	1b068d6	metal_field_mul	metal	field_mul_mod_p	0	0.000000	false	skip	Metal secp256k1 field_mul_mod_p correctness and throughput gate
 2026-06-19T22:08:30Z	6342ba7	cpu_field_mul	macos_cpu	field_mul_mod_p	6037504	120721510.047432	true	discard	Apple Silicon CPU secp256k1 field_mul_mod_p benchmark against EcInt reference
+2026-06-19T22:13:57Z	26722c5	point_add_g	macos_cpu	point_add_g	25088	497584.440554	true	keep	Apple Silicon CPU affine point-add walk benchmark against MultiplyG final-point oracle
