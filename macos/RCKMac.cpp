@@ -8,6 +8,12 @@ static bool PointMatches(EcPoint a, EcPoint b)
 	return a.IsEqual(b);
 }
 
+static u64 MixPointChecksum(u64 checksum, const EcPoint& p, u64 index)
+{
+	return checksum + p.x.data[0] + (p.x.data[1] ^ p.x.data[2]) + p.x.data[3] +
+		p.y.data[0] + (p.y.data[1] ^ p.y.data[2]) + p.y.data[3] + index;
+}
+
 static unsigned long long RangeLimit(unsigned int range_bits)
 {
 	if (range_bits > 24)
@@ -148,5 +154,57 @@ std::string RCKBenchJson(unsigned int iterations)
 	out << "\"seconds\":" << seconds << ",";
 	out << "\"ops_per_sec\":" << ops_per_sec << ",";
 	out << "\"correctness\":" << (correctness ? "true" : "false") << "}";
+	return out.str();
+}
+
+std::string RCKPointAddBenchJson(unsigned int iterations, unsigned int min_ms)
+{
+	if (!iterations)
+		iterations = 1;
+
+	EcInt one;
+	one.Set(1);
+	EcPoint g = Ec::MultiplyG(one);
+	EcPoint p = Ec::DoublePoint(g);
+
+	u64 checksum = 0;
+	u64 operations = 0;
+	auto t0 = std::chrono::steady_clock::now();
+	auto t1 = t0;
+	do
+	{
+		for (unsigned int i = 0; i < iterations; i++)
+		{
+			p = Ec::AddPoints(p, g);
+			checksum = MixPointChecksum(checksum, p, operations + i);
+		}
+		operations += iterations;
+		t1 = std::chrono::steady_clock::now();
+	} while (min_ms && (std::chrono::duration<double, std::milli>(t1 - t0).count() < (double)min_ms));
+
+	EcInt expected_k;
+	expected_k.Set(operations + 2);
+	EcPoint expected = Ec::MultiplyG(expected_k);
+	bool correctness = PointMatches(p, expected);
+
+	double seconds = std::chrono::duration<double>(t1 - t0).count();
+	double ops_per_sec = seconds > 0 ? operations / seconds : 0.0;
+
+	std::ostringstream out;
+	out.setf(std::ios::fixed);
+	out.precision(6);
+	out << "{\"backend\":\"macos_cpu\",";
+	out << "\"operation\":\"point_add_g\",";
+	out << "\"iterations\":" << operations << ",";
+	out << "\"sample_count\":" << iterations << ",";
+	out << "\"min_ms\":" << min_ms << ",";
+	out << "\"seconds\":" << seconds << ",";
+	out << "\"ops_per_sec\":" << ops_per_sec << ",";
+	out << "\"checksum\":\"0x" << std::hex << checksum << std::dec << "\",";
+	out << "\"final_scalar\":\"0x" << std::hex << (operations + 2) << std::dec << "\",";
+	out << "\"correctness\":" << (correctness ? "true" : "false");
+	if (!correctness)
+		out << ",\"reason\":\"final point mismatch against MultiplyG reference\"";
+	out << "}";
 	return out.str();
 }

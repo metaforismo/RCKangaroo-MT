@@ -15,6 +15,14 @@ make macos-check
 make macos-bench
 ```
 
+Run the CPU point-add walk experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment point_add_g --budget-sec 5
+```
+
+This records `macos_cpu` `point_add_g` throughput. The benchmark starts from `2G`, repeatedly adds `G`, and checks the final point against `MultiplyG(n+2)` so it tracks a point-operation primitive closer to kangaroo walk cost.
+
 Run the Metal field-add experiment:
 
 ```sh
@@ -44,4 +52,4 @@ Results are written to:
 - `autoresearch/results.tsv`
 - `autoresearch/benchmarks.jsonl`
 
-The current CPU baseline metric is `multiply_g` operations per second. CPU field multiplication plus Metal field addition/multiplication are tracked as separate fixed-gate experiments.
+The current CPU baseline metric is `multiply_g` operations per second. CPU point-add walk, CPU field multiplication, and Metal field addition/multiplication are tracked as separate fixed-gate experiments.

@@ -16,3 +16,4 @@ bool RCKSelfTest(std::string& error);
 RCKSmallSolveResult RCKSolveSmallSingle(EcPoint target, unsigned long long start, unsigned int range_bits);
 RCKSmallSolveResult RCKSolveSmallMulti(const std::vector<EcPoint>& targets, unsigned long long start, unsigned int range_bits);
 std::string RCKBenchJson(unsigned int iterations);
+std::string RCKPointAddBenchJson(unsigned int iterations, unsigned int min_ms = 0);

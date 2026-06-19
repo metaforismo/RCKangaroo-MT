@@ -1,0 +1,6 @@
+{
+  "name": "point_add_g",
+  "description": "Apple Silicon CPU affine point-add walk benchmark against MultiplyG final-point oracle",
+  "bench_target": "macos-point-bench",
+  "min_improvement_ratio": 0.01
+}

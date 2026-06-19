@@ -26,7 +26,11 @@ Benchmark CPU:
 
 ```sh
 make macos-bench
+make macos-point-bench
+./macos/rck_macos point-bench --iterations 256 --min-ms 50
 ```
+
+`macos-bench` misura il throughput dello scalar `MultiplyG`. `macos-point-bench` misura un walk seriale di addizioni affini: parte da `2G`, aggiunge ripetutamente `G`, e valida il punto finale con un oracle `MultiplyG(n+2)`. E' ancora aritmetica CPU affine, non il percorso solver Metal/Jacobian finale, ma rappresenta meglio il costo del kangaroo walk rispetto alle sole operazioni field isolate.
 
 Check e benchmark CPU per l'aritmetica nel campo secp256k1:
 
@@ -94,6 +98,7 @@ Usa autoresearch dalla root della repo:
 
 ```sh
 python3 autoresearch/runner.py --experiment baseline --budget-sec 5
+python3 autoresearch/runner.py --experiment point_add_g --budget-sec 5
 python3 autoresearch/runner.py --experiment cpu_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_add --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_mul --budget-sec 5
