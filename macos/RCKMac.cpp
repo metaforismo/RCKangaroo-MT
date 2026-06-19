@@ -800,6 +800,59 @@ static std::vector<EcPoint> BuildSyntheticMultiTargets(unsigned int target_count
 	return targets;
 }
 
+struct KangarooSingleBenchReference
+{
+	double ops_per_sec;
+	bool correctness;
+	std::string reason;
+};
+
+static KangarooSingleBenchReference MeasureSingleTargetKangarooSmall(unsigned int iterations, unsigned int min_ms, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
+{
+	KangarooSingleBenchReference reference;
+	reference.ops_per_sec = 0.0;
+	reference.correctness = true;
+
+	if (!iterations)
+		iterations = 1;
+
+	u64 start = 0;
+	u64 limit = RangeLimit(range_bits);
+	if (!limit)
+	{
+		reference.correctness = false;
+		reference.reason = "range_bits must be <= 24";
+		return reference;
+	}
+
+	u64 solved_private_key = start + (limit > 7 ? 7 : limit - 1);
+	EcInt solved_k;
+	solved_k.Set(solved_private_key);
+	EcPoint target = Ec::MultiplyG(solved_k);
+
+	u64 operations = 0;
+	auto t0 = std::chrono::steady_clock::now();
+	auto t1 = t0;
+	do
+	{
+		for (unsigned int i = 0; i < iterations; i++)
+		{
+			RCKSmallSolveResult result = RCKSolveSmallJacobianKangaroo(target, start, range_bits, jump_count, dp_bits, max_steps);
+			operations++;
+			if (!result.found || (result.private_key != solved_private_key) || (result.target_index != 0))
+			{
+				reference.correctness = false;
+				reference.reason = "single-target reference solve mismatch";
+			}
+		}
+		t1 = std::chrono::steady_clock::now();
+	} while (min_ms && (std::chrono::duration<double, std::milli>(t1 - t0).count() < (double)min_ms));
+
+	double seconds = std::chrono::duration<double>(t1 - t0).count();
+	reference.ops_per_sec = seconds > 0 ? operations / seconds : 0.0;
+	return reference;
+}
+
 std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
 {
 	if (!iterations)
@@ -912,6 +965,12 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	std::vector<EcPoint> targets;
 	if (limit)
 		targets = BuildSyntheticMultiTargets(target_count, start, limit, solved_private_key);
+	KangarooSingleBenchReference single_reference = MeasureSingleTargetKangarooSmall(iterations, min_ms, range_bits, jump_count, dp_bits, max_steps);
+	if (limit && !single_reference.correctness)
+	{
+		correctness = false;
+		reason = single_reference.reason;
+	}
 
 	u64 operations = 0;
 	u64 total_dp_count = 0;
@@ -945,6 +1004,8 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	double seconds = std::chrono::duration<double>(t1 - t0).count();
 	double ops_per_sec = seconds > 0 ? operations / seconds : 0.0;
 	double avg_dp_count = operations > 0 ? (double)total_dp_count / (double)operations : 0.0;
+	double speedup_vs_single = single_reference.ops_per_sec > 0.0 ? ops_per_sec / single_reference.ops_per_sec : 0.0;
+	double target_throughput_vs_single = single_reference.ops_per_sec > 0.0 ? (ops_per_sec * (double)target_count) / single_reference.ops_per_sec : 0.0;
 
 	std::ostringstream out;
 	out.setf(std::ios::fixed);
@@ -965,6 +1026,9 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"max_steps\":" << max_steps << ",";
 	out << "\"seconds\":" << seconds << ",";
 	out << "\"ops_per_sec\":" << ops_per_sec << ",";
+	out << "\"single_target_ops_per_sec\":" << single_reference.ops_per_sec << ",";
+	out << "\"speedup_vs_single\":" << speedup_vs_single << ",";
+	out << "\"target_throughput_vs_single\":" << target_throughput_vs_single << ",";
 	out << "\"avg_dp_count\":" << avg_dp_count << ",";
 	out << "\"last_dp_count\":" << last_dp_count << ",";
 	out << "\"start_scalar\":\"0x" << std::hex << start << std::dec << "\",";

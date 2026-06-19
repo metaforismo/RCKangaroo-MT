@@ -52,7 +52,7 @@ make macos-jacobian-kangaroo-multi-small-bench
 
 `macos-jacobian-kangaroo-small-bench` generates one deterministic synthetic target and measures tiny single-target kangaroo solves per second with the hash-bucket DP lookup. It reports `architecture=single_target`, `dp_lookup=hash`, tame/wild state counts, and DP table size so it can be compared directly with the shared-tame multi-target benchmark.
 
-`macos-jacobian-kangaroo-multi-small-bench` generates deterministic synthetic targets, places one solvable target at the final index, and measures tiny shared-tame multi-target solves per second with the hash-bucket DP lookup. Use `--target-count` to compare 1, 2, 4, 8, or larger target sets while keeping the same bounded range and jump parameters.
+`macos-jacobian-kangaroo-multi-small-bench` generates deterministic synthetic targets, places one solvable target at the final index, and measures tiny shared-tame multi-target solves per second with the hash-bucket DP lookup. It also runs a same-parameter single-target baseline and reports `single_target_ops_per_sec`, `speedup_vs_single`, and `target_throughput_vs_single`; the last field multiplies multi solves per second by target count before comparing with the single-target baseline. Use `--target-count` to compare 1, 2, 4, 8, or larger target sets while keeping the same bounded range and jump parameters.
 
 Run CPU secp256k1 field arithmetic checks and the multiplication benchmark:
 
