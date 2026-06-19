@@ -7,9 +7,13 @@
 
 struct RCKSmallSolveResult
 {
-	bool found;
-	unsigned long long private_key;
-	unsigned int target_index;
+	bool found = false;
+	unsigned long long private_key = 0;
+	unsigned int target_index = 0;
+	unsigned int target_count = 0;
+	unsigned int tame_state_count = 0;
+	unsigned int wild_state_count = 0;
+	unsigned int dp_count = 0;
 };
 
 bool RCKSelfTest(std::string& error);

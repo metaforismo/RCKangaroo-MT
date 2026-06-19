@@ -437,6 +437,7 @@ struct KangarooDp
 	std::string key;
 	u64 distance;
 	bool tame;
+	unsigned int target_index;
 };
 
 static std::string PointKey(EcPoint p)
@@ -498,12 +499,52 @@ static bool CheckKangarooCollision(const std::vector<KangarooDp>& table,
 	return false;
 }
 
-static void RecordKangarooDp(std::vector<KangarooDp>& table, const std::string& key, bool tame, u64 distance)
+static bool CheckKangarooMultiCollision(const std::vector<KangarooDp>& table,
+	const std::string& key,
+	bool tame,
+	unsigned int target_index,
+	u64 distance,
+	u64 start,
+	u64 limit,
+	const std::vector<EcPoint>& targets,
+	u64* candidate,
+	unsigned int* matched_target_index)
+{
+	for (size_t i = 0; i < table.size(); i++)
+	{
+		const KangarooDp& other = table[i];
+		if ((other.tame == tame) || (other.key != key))
+			continue;
+
+		unsigned int check_target_index = tame ? other.target_index : target_index;
+		if (check_target_index >= targets.size())
+			continue;
+
+		u64 tame_distance = tame ? distance : other.distance;
+		u64 wild_distance = tame ? other.distance : distance;
+		if (tame_distance < wild_distance)
+			continue;
+
+		u64 found = tame_distance - wild_distance;
+		if ((found < start) || (found >= start + limit))
+			continue;
+		if (!VerifyCandidate(targets[check_target_index], found))
+			continue;
+
+		*candidate = found;
+		*matched_target_index = check_target_index;
+		return true;
+	}
+	return false;
+}
+
+static void RecordKangarooDp(std::vector<KangarooDp>& table, const std::string& key, bool tame, u64 distance, unsigned int target_index = 0)
 {
 	KangarooDp dp;
 	dp.key = key;
 	dp.tame = tame;
 	dp.distance = distance;
+	dp.target_index = target_index;
 	table.push_back(dp);
 }
 
@@ -592,20 +633,95 @@ RCKSmallSolveResult RCKSolveSmallJacobianKangaroo(EcPoint target, unsigned long 
 RCKSmallSolveResult RCKSolveSmallJacobianKangarooMulti(const std::vector<EcPoint>& targets, unsigned long long start, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
 {
 	RCKSmallSolveResult result;
-	result.found = false;
-	result.private_key = 0;
-	result.target_index = 0;
+	result.target_count = (unsigned int)targets.size();
+	result.tame_state_count = targets.empty() ? 0 : 1;
+	result.wild_state_count = (unsigned int)targets.size();
 
-	for (unsigned int target_index = 0; target_index < targets.size(); target_index++)
+	u64 limit = RangeLimit(range_bits);
+	if (targets.empty() || !limit || !max_steps)
+		return result;
+	if (jump_count < 2)
+		jump_count = 2;
+	if (jump_count > 32)
+		jump_count = 32;
+
+	std::vector<EcPoint> jumps;
+	std::vector<u64> jump_distances;
+	jumps.reserve(jump_count);
+	jump_distances.reserve(jump_count);
+	for (unsigned int i = 0; i < jump_count; i++)
 	{
-		RCKSmallSolveResult one = RCKSolveSmallJacobianKangaroo(targets[target_index], start, range_bits, jump_count, dp_bits, max_steps);
-		if (one.found)
-		{
-			one.target_index = target_index;
-			return one;
-		}
+		u64 distance = JumpDistance(i);
+		EcInt k;
+		k.Set(distance);
+		jump_distances.push_back(distance);
+		jumps.push_back(Ec::MultiplyG(k));
 	}
 
+	u64 end = start + limit - 1;
+	EcInt end_k;
+	end_k.Set(end);
+	JacobianPoint tame = JacobianFromAffine(Ec::MultiplyG(end_k));
+	u64 tame_distance = end;
+
+	std::vector<JacobianPoint> wilds;
+	std::vector<u64> wild_distances;
+	wilds.reserve(targets.size());
+	wild_distances.reserve(targets.size());
+	for (size_t i = 0; i < targets.size(); i++)
+	{
+		wilds.push_back(JacobianFromAffine(targets[i]));
+		wild_distances.push_back(0);
+	}
+
+	std::vector<KangarooDp> table;
+	table.reserve((max_steps + 2) * (targets.size() + 1));
+
+	for (unsigned int step = 0; step <= max_steps; step++)
+	{
+		EcPoint tame_affine = JacobianToAffine(tame);
+		if (IsDistinguished(tame_affine, dp_bits))
+		{
+			std::string key = PointKey(tame_affine);
+			u64 candidate = 0;
+			unsigned int matched_target_index = 0;
+			if (CheckKangarooMultiCollision(table, key, true, 0, tame_distance, start, limit, targets, &candidate, &matched_target_index))
+			{
+				result.found = true;
+				result.private_key = candidate;
+				result.target_index = matched_target_index;
+				result.dp_count = (unsigned int)table.size();
+				return result;
+			}
+			RecordKangarooDp(table, key, true, tame_distance);
+		}
+
+		for (unsigned int target_index = 0; target_index < wilds.size(); target_index++)
+		{
+			EcPoint wild_affine = JacobianToAffine(wilds[target_index]);
+			if (IsDistinguished(wild_affine, dp_bits))
+			{
+				std::string key = PointKey(wild_affine);
+				u64 candidate = 0;
+				unsigned int matched_target_index = 0;
+				if (CheckKangarooMultiCollision(table, key, false, target_index, wild_distances[target_index], start, limit, targets, &candidate, &matched_target_index))
+				{
+					result.found = true;
+					result.private_key = candidate;
+					result.target_index = matched_target_index;
+					result.dp_count = (unsigned int)table.size();
+					return result;
+				}
+				RecordKangarooDp(table, key, false, wild_distances[target_index], target_index);
+			}
+		}
+
+		KangarooStep(tame, &tame_distance, jumps, jump_distances);
+		for (unsigned int target_index = 0; target_index < wilds.size(); target_index++)
+			KangarooStep(wilds[target_index], &wild_distances[target_index], jumps, jump_distances);
+	}
+
+	result.dp_count = (unsigned int)table.size();
 	return result;
 }
 

@@ -26,7 +26,7 @@ Run a tiny-range CPU solve:
 
 `jacobian-kangaroo-small` is a bounded toy solver for tiny ranges. It runs tame/wild walks with a deterministic jump table, keeps walk states in Jacobian coordinates, records distinguished points, and verifies any collision-derived candidate against `MultiplyG`. It is intended for correctness and architecture experiments only; it is not the full CUDA/Metal kangaroo engine.
 
-`jacobian-kangaroo-multi-small` loads a target file with the shared target parser and runs the bounded Jacobian kangaroo solver across the targets until one candidate verifies. This version is intentionally sequential and tiny-range only; it preserves target indexes and exercises the multi-target CLI/data path on macOS without pretending to be the future shared-tame GPU/Metal engine.
+`jacobian-kangaroo-multi-small` loads a target file with the shared target parser and runs one bounded tame walk plus one wild walk per target in the same Jacobian kangaroo loop. The tame distinguished-point table is shared across all wild targets, collision candidates are verified against the matching target index, and the CLI reports `architecture=shared_tame`, target counts, active tame/wild state counts, and DP table size. This is still tiny-range CPU code for correctness and architecture experiments; it is not the full CUDA/Metal engine.
 
 Run a CPU benchmark:
 

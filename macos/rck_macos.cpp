@@ -230,10 +230,23 @@ int main(int argc, char* argv[])
 
 		RCKSmallSolveResult result = RCKSolveSmallJacobianKangarooMulti(targets, start, range_bits, jumps, dp_bits, max_steps);
 		if (result.found)
-			printf("FOUND private_key=%llu private_key_hex=%llX target_index=%u method=jacobian_kangaroo_multi_small\n", result.private_key, result.private_key, result.target_index);
+		{
+			printf("FOUND private_key=%llu private_key_hex=%llX target_index=%u method=jacobian_kangaroo_multi_small architecture=shared_tame target_count=%u tame_states=%u wild_states=%u dp_count=%u\n",
+				result.private_key,
+				result.private_key,
+				result.target_index,
+				result.target_count,
+				result.tame_state_count,
+				result.wild_state_count,
+				result.dp_count);
+		}
 		else
 		{
-			printf("NOT FOUND method=jacobian_kangaroo_multi_small\n");
+			printf("NOT FOUND method=jacobian_kangaroo_multi_small architecture=shared_tame target_count=%u tame_states=%u wild_states=%u dp_count=%u\n",
+				result.target_count,
+				result.tame_state_count,
+				result.wild_state_count,
+				result.dp_count);
 			rc = 2;
 		}
 	}
