@@ -28,28 +28,44 @@ u64 _umul128(u64 m1, u64 m2, u64* hi)
 
 u64 __shiftright128 (u64 LowPart, u64 HighPart, u8 Shift)
 {
+#if defined(__x86_64__) || defined(__i386__)
    u64 ret;
-   __asm__ ("shrd {%[Shift],%[HighPart],%[LowPart]|%[LowPart], %[HighPart], %[Shift]}" 
+   __asm__ ("shrd {%[Shift],%[HighPart],%[LowPart]|%[LowPart], %[HighPart], %[Shift]}"
       : [ret] "=r" (ret)
       : [LowPart] "0" (LowPart), [HighPart] "r" (HighPart), [Shift] "Jc" (Shift)
       : "cc");
    return ret;
+#else
+	if (!Shift)
+		return LowPart;
+	return (LowPart >> Shift) | (HighPart << (64 - Shift));
+#endif
 }
 
 u64 __shiftleft128 (u64 LowPart, u64 HighPart, u8 Shift)
 {
+#if defined(__x86_64__) || defined(__i386__)
    u64 ret;
-   __asm__ ("shld {%[Shift],%[LowPart],%[HighPart]|%[HighPart], %[LowPart], %[Shift]}" 
+   __asm__ ("shld {%[Shift],%[LowPart],%[HighPart]|%[HighPart], %[LowPart], %[Shift]}"
       : [ret] "=r" (ret)
       : [LowPart] "r" (LowPart), [HighPart] "0" (HighPart), [Shift] "Jc" (Shift)
       : "cc");
    return ret;
-}   
+#else
+	if (!Shift)
+		return HighPart;
+	return (HighPart << Shift) | (LowPart >> (64 - Shift));
+#endif
+}
 
 u64 GetTickCount64()
 {
 	struct timespec ts;
+#ifdef __APPLE__
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+#else
 	clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+#endif
 	return (u64)(ts.tv_nsec / 1000000) + ((u64)ts.tv_sec * 1000ull);
 }
 #endif

@@ -30,7 +30,9 @@
 	#include <math.h>
 	#include <pthread.h>
 	#include <unistd.h>
-	#include <x86intrin.h>
+	#if defined(__x86_64__) || defined(__i386__)
+		#include <x86intrin.h>
+	#endif
 	#define DWORD           u32
 	#define CSHANDLER		pthread_mutex_t
 	#define INIT_CS(cs)		{pthread_mutexattr_t attr; pthread_mutexattr_init(&attr); pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE); pthread_mutex_init((cs), &attr);}
@@ -40,13 +42,28 @@
 	#define HHANDLER		pthread_t
  
 	u64 GetTickCount64();
-	static void Sleep(int x) { usleep(x * 1000); }      
+	static void Sleep(int x) { usleep(x * 1000); }
     void _BitScanReverse64(u32* index, u64 msk);
-    void _BitScanForward64(u32* index, u64 msk);       
+    void _BitScanForward64(u32* index, u64 msk);
     typedef __uint128_t uint128_t;
     u64 _umul128(u64 m1, u64 m2, u64* hi);
     u64 __shiftright128 (u64 LowPart, u64 HighPart, u8 Shift);
     u64 __shiftleft128 (u64 LowPart, u64 HighPart, u8 Shift);
+	#if !defined(__x86_64__) && !defined(__i386__)
+	static inline u8 _addcarry_u64(u8 carry, u64 a, u64 b, u64* out)
+	{
+		uint128_t sum = (uint128_t)a + b + carry;
+		*out = (u64)sum;
+		return (u8)(sum >> 64);
+	}
+
+	static inline u8 _subborrow_u64(u8 borrow, u64 a, u64 b, u64* out)
+	{
+		uint128_t sub = (uint128_t)b + borrow;
+		*out = (u64)(a - (u64)sub);
+		return (a < sub) ? 1 : 0;
+	}
+	#endif
 #endif
 
 class CriticalSection
