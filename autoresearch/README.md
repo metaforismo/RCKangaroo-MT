@@ -23,6 +23,14 @@ python3 autoresearch/runner.py --experiment metal_field_add --budget-sec 5
 
 If a Metal device is not visible, the experiment records `status=skip` instead of failing. On Apple Silicon with device access, it runs the `field_add_mod_p` Metal microkernel and compares every output against the CPU oracle.
 
+Run the Metal field multiplication experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_field_mul --budget-sec 5
+```
+
+Like field-add, this records `status=skip` when no Metal device is visible. On Apple Silicon with device access, it runs `field_mul_mod_p` and compares every output against the CPU field oracle.
+
 Run the CPU field multiplication experiment:
 
 ```sh
@@ -36,4 +44,4 @@ Results are written to:
 - `autoresearch/results.tsv`
 - `autoresearch/benchmarks.jsonl`
 
-The current CPU baseline metric is `multiply_g` operations per second. CPU field multiplication and Metal field addition are tracked as separate fixed-gate experiments.
+The current CPU baseline metric is `multiply_g` operations per second. CPU field multiplication plus Metal field addition/multiplication are tracked as separate fixed-gate experiments.

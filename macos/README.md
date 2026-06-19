@@ -45,14 +45,17 @@ Run the Metal smoke test:
 
 If no Metal device is visible in the current execution environment, the command reports a skip instead of failing. On a normal Apple Silicon runtime with device access, it compiles and runs a minimal Metal compute kernel.
 
-Run the Metal secp256k1 field-add check and benchmark:
+Run the Metal secp256k1 field-add and field-mul checks and benchmarks:
 
 ```sh
 ./macos/rck_macos metal-field-test
 make macos-metal-field-bench
+./macos/rck_macos metal-field-mul-test
+make macos-metal-field-mul-bench
+make macos-metal-kernels-check
 ```
 
-The field-add kernel uses four little-endian 64-bit limbs modulo the secp256k1 prime and compares Metal output against the CPU oracle. In restricted CI or sandboxed sessions without a visible Metal device, it reports a clean skip.
+The field kernels use four little-endian 64-bit limbs modulo the secp256k1 prime and compare Metal output against CPU oracles. `field_mul_mod_p` uses 32-bit decomposition internally for portable 64x64 multiplication inside Metal. In restricted CI or sandboxed sessions without a visible Metal device, runtime checks report a clean skip. `macos-metal-kernels-check` compiles the extracted Metal source when the Metal Toolchain is installed; otherwise it reports a clean toolchain skip.
 
 ## Prepare a target list
 
@@ -92,6 +95,7 @@ Use autoresearch from the repo root:
 python3 autoresearch/runner.py --experiment baseline --budget-sec 5
 python3 autoresearch/runner.py --experiment cpu_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_add --budget-sec 5
+python3 autoresearch/runner.py --experiment metal_field_mul --budget-sec 5
 ```
 
 Autoresearch records Metal device absence as `status=skip`, not as a crash, so the same experiment can run on both local Apple Silicon and headless CI.

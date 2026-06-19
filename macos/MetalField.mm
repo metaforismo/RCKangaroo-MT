@@ -12,6 +12,8 @@
 #include <sstream>
 #include <vector>
 
+#include "macos/MetalFieldKernels.h"
+
 typedef std::array<uint64_t, 4> FieldElement;
 
 static const FieldElement kSecp256k1P = {
@@ -20,6 +22,8 @@ static const FieldElement kSecp256k1P = {
 	0xFFFFFFFFFFFFFFFFULL,
 	0xFFFFFFFFFFFFFFFFULL,
 };
+
+static FieldElement DeterministicElement(uint64_t i, uint64_t salt);
 
 static std::string NSErrorToString(NSError* err)
 {
@@ -53,6 +57,36 @@ static void SubtractP(FieldElement& v)
 	}
 }
 
+static inline uint64_t Mul64(uint64_t a, uint64_t b, uint64_t* hi)
+{
+	unsigned __int128 product = (unsigned __int128)a * (unsigned __int128)b;
+	*hi = (uint64_t)(product >> 64);
+	return (uint64_t)product;
+}
+
+static inline uint8_t AddCarry(uint8_t carry, uint64_t a, uint64_t b, uint64_t* out)
+{
+	unsigned __int128 sum = (unsigned __int128)a + (unsigned __int128)b + carry;
+	*out = (uint64_t)sum;
+	return (uint8_t)(sum >> 64);
+}
+
+static inline uint8_t SubBorrow(uint8_t borrow, uint64_t a, uint64_t b, uint64_t* out)
+{
+	uint64_t sub = b + borrow;
+	*out = a - sub;
+	return (uint8_t)((a < b) || (borrow && a == b));
+}
+
+static void SubtractP5(uint64_t v[5])
+{
+	uint8_t borrow = SubBorrow(0, v[0], kSecp256k1P[0], v + 0);
+	borrow = SubBorrow(borrow, v[1], kSecp256k1P[1], v + 1);
+	borrow = SubBorrow(borrow, v[2], kSecp256k1P[2], v + 2);
+	borrow = SubBorrow(borrow, v[3], kSecp256k1P[3], v + 3);
+	SubBorrow(borrow, v[4], 0, v + 4);
+}
+
 static FieldElement CpuFieldAdd(const FieldElement& a, const FieldElement& b)
 {
 	FieldElement out;
@@ -69,6 +103,61 @@ static FieldElement CpuFieldAdd(const FieldElement& a, const FieldElement& b)
 
 	if (carry || GreaterOrEqualP(out))
 		SubtractP(out);
+	return out;
+}
+
+static void Mul256By64(const uint64_t input[4], uint64_t multiplier, uint64_t result[5])
+{
+	uint64_t h1, h2;
+	result[0] = Mul64(input[0], multiplier, &h1);
+	uint8_t carry = AddCarry(0, Mul64(input[1], multiplier, &h2), h1, result + 1);
+	carry = AddCarry(carry, Mul64(input[2], multiplier, &h1), h2, result + 2);
+	carry = AddCarry(carry, Mul64(input[3], multiplier, &h2), h1, result + 3);
+	AddCarry(carry, 0, h2, result + 4);
+}
+
+static void Add320To256(uint64_t* in_out, const uint64_t val[5])
+{
+	uint8_t carry = AddCarry(0, in_out[0], val[0], in_out);
+	carry = AddCarry(carry, in_out[1], val[1], in_out + 1);
+	carry = AddCarry(carry, in_out[2], val[2], in_out + 2);
+	carry = AddCarry(carry, in_out[3], val[3], in_out + 3);
+	AddCarry(carry, 0, val[4], in_out + 4);
+}
+
+static FieldElement CpuFieldMul(const FieldElement& a, const FieldElement& b)
+{
+	static const uint64_t p_rev = 0x00000001000003D1ULL;
+	uint64_t buff[8] = {0};
+	uint64_t tmp[5] = {0};
+	uint64_t high = 0;
+
+	Mul256By64(b.data(), a[0], buff);
+	Mul256By64(b.data(), a[1], tmp);
+	Add320To256(buff + 1, tmp);
+	Mul256By64(b.data(), a[2], tmp);
+	Add320To256(buff + 2, tmp);
+	Mul256By64(b.data(), a[3], tmp);
+	Add320To256(buff + 3, tmp);
+
+	Mul256By64(buff + 4, p_rev, tmp);
+	uint8_t carry = AddCarry(0, buff[0], tmp[0], buff + 0);
+	carry = AddCarry(carry, buff[1], tmp[1], buff + 1);
+	carry = AddCarry(carry, buff[2], tmp[2], buff + 2);
+	tmp[4] += AddCarry(carry, buff[3], tmp[3], buff + 3);
+
+	uint64_t reduced[5] = {0};
+	carry = AddCarry(0, buff[0], Mul64(tmp[4], p_rev, &high), reduced + 0);
+	carry = AddCarry(carry, buff[1], high, reduced + 1);
+	carry = AddCarry(carry, 0, buff[2], reduced + 2);
+	reduced[4] = AddCarry(carry, buff[3], 0, reduced + 3);
+
+	FieldElement out = {reduced[0], reduced[1], reduced[2], reduced[3]};
+	while (reduced[4] || GreaterOrEqualP(out))
+	{
+		SubtractP5(reduced);
+		out = {reduced[0], reduced[1], reduced[2], reduced[3]};
+	}
 	return out;
 }
 
@@ -115,7 +204,8 @@ static std::string JsonEscape(const std::string& s)
 	return oss.str();
 }
 
-static std::string MetalFieldBenchJson(unsigned int iterations,
+static std::string MetalFieldBenchJson(const char* operation,
+	unsigned int iterations,
 	double seconds,
 	double ops_per_sec,
 	bool correctness,
@@ -124,7 +214,7 @@ static std::string MetalFieldBenchJson(unsigned int iterations,
 {
 	std::ostringstream oss;
 	oss << std::fixed << std::setprecision(6);
-	oss << "{\"backend\":\"metal\",\"operation\":\"field_add_mod_p\",";
+	oss << "{\"backend\":\"metal\",\"operation\":\"" << operation << "\",";
 	oss << "\"iterations\":" << iterations << ",";
 	oss << "\"seconds\":" << seconds << ",";
 	oss << "\"ops_per_sec\":" << ops_per_sec << ",";
@@ -136,56 +226,17 @@ static std::string MetalFieldBenchJson(unsigned int iterations,
 	return oss.str();
 }
 
-static NSString* FieldAddSource()
+static NSString* FieldSource()
 {
-	return
-		@"#include <metal_stdlib>\n"
-		@"using namespace metal;\n"
-		@"static inline bool ge_p(ulong r0, ulong r1, ulong r2, ulong r3) {\n"
-		@"  const ulong p0 = 0xFFFFFFFEFFFFFC2FUL;\n"
-		@"  const ulong p1 = 0xFFFFFFFFFFFFFFFFUL;\n"
-		@"  const ulong p2 = 0xFFFFFFFFFFFFFFFFUL;\n"
-		@"  const ulong p3 = 0xFFFFFFFFFFFFFFFFUL;\n"
-		@"  if (r3 != p3) return r3 > p3;\n"
-		@"  if (r2 != p2) return r2 > p2;\n"
-		@"  if (r1 != p1) return r1 > p1;\n"
-		@"  return r0 >= p0;\n"
-		@"}\n"
-		@"static inline void sub_p(thread ulong& r0, thread ulong& r1, thread ulong& r2, thread ulong& r3) {\n"
-		@"  const ulong p0 = 0xFFFFFFFEFFFFFC2FUL;\n"
-		@"  const ulong p1 = 0xFFFFFFFFFFFFFFFFUL;\n"
-		@"  const ulong p2 = 0xFFFFFFFFFFFFFFFFUL;\n"
-		@"  const ulong p3 = 0xFFFFFFFFFFFFFFFFUL;\n"
-		@"  ulong b = 0;\n"
-		@"  ulong before = r0; r0 = before - p0 - b; b = (before < p0) || (b && before == p0);\n"
-		@"  before = r1; r1 = before - p1 - b; b = (before < p1) || (b && before == p1);\n"
-		@"  before = r2; r2 = before - p2 - b; b = (before < p2) || (b && before == p2);\n"
-		@"  before = r3; r3 = before - p3 - b;\n"
-		@"}\n"
-		@"kernel void field_add_mod_p(device const ulong* a [[buffer(0)]],\n"
-		@"                            device const ulong* b [[buffer(1)]],\n"
-		@"                            device ulong* out [[buffer(2)]],\n"
-		@"                            constant uint& count [[buffer(3)]],\n"
-		@"                            uint id [[thread_position_in_grid]]) {\n"
-		@"  if (id >= count) return;\n"
-		@"  uint base = id * 4;\n"
-		@"  ulong a0 = a[base + 0], a1 = a[base + 1], a2 = a[base + 2], a3 = a[base + 3];\n"
-		@"  ulong b0 = b[base + 0], b1 = b[base + 1], b2 = b[base + 2], b3 = b[base + 3];\n"
-		@"  ulong r0 = a0 + b0;\n"
-		@"  ulong c = r0 < a0;\n"
-		@"  ulong t = a1 + b1; ulong c1 = t < a1; ulong r1 = t + c; c = c1 || (r1 < t);\n"
-		@"  t = a2 + b2; c1 = t < a2; ulong r2 = t + c; c = c1 || (r2 < t);\n"
-		@"  t = a3 + b3; c1 = t < a3; ulong r3 = t + c; c = c1 || (r3 < t);\n"
-		@"  if (c || ge_p(r0, r1, r2, r3)) sub_p(r0, r1, r2, r3);\n"
-		@"  out[base + 0] = r0; out[base + 1] = r1; out[base + 2] = r2; out[base + 3] = r3;\n"
-		@"}\n";
+	return [NSString stringWithUTF8String:RCKMetalFieldKernelsSource];
 }
 
-static bool RunFieldAddKernel(const std::vector<FieldElement>& a,
+static bool RunFieldKernel(const std::vector<FieldElement>& a,
 	const std::vector<FieldElement>& b,
 	std::vector<FieldElement>& out,
 	std::string& error,
-	double* seconds)
+	double* seconds,
+	const char* function_name)
 {
 	if (a.size() != b.size() || a.empty())
 	{
@@ -203,17 +254,17 @@ static bool RunFieldAddKernel(const std::vector<FieldElement>& a,
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldAddSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
 			return false;
 		}
 
-		id<MTLFunction> function = [library newFunctionWithName:@"field_add_mod_p"];
+		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{
-			error = "failed to load field_add_mod_p function";
+			error = std::string("failed to load ") + function_name + " function";
 			return false;
 		}
 
@@ -288,7 +339,7 @@ bool RCKMetalFieldAddSelfTest(std::string& error)
 	b.push_back({0xFFFFFFFEFFFFFC2EULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL});
 
 	std::vector<FieldElement> out;
-	if (!RunFieldAddKernel(a, b, out, error, NULL))
+	if (!RunFieldKernel(a, b, out, error, NULL, "field_add_mod_p"))
 		return false;
 
 	for (size_t i = 0; i < a.size(); ++i)
@@ -297,6 +348,39 @@ bool RCKMetalFieldAddSelfTest(std::string& error)
 		if (out[i] != expected)
 		{
 			error = "field add mismatch at vector " + std::to_string(i) +
+				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
+			return false;
+		}
+	}
+	return true;
+}
+
+bool RCKMetalFieldMulSelfTest(std::string& error)
+{
+	std::vector<FieldElement> a;
+	std::vector<FieldElement> b;
+	a.push_back({1, 0, 0, 0});
+	b.push_back({2, 0, 0, 0});
+	a.push_back({0xFFFFFFFEFFFFFC2EULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL});
+	b.push_back({0xFFFFFFFEFFFFFC2EULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL});
+	a.push_back({0xFFFFFFFFFFFFFFFFULL, 0, 0, 0});
+	b.push_back({0xFFFFFFFFFFFFFFFFULL, 0, 0, 0});
+	for (uint64_t i = 0; i < 16; ++i)
+	{
+		a.push_back(DeterministicElement(i, 0xCAFEULL));
+		b.push_back(DeterministicElement(i, 0xBEEFULL));
+	}
+
+	std::vector<FieldElement> out;
+	if (!RunFieldKernel(a, b, out, error, NULL, "field_mul_mod_p"))
+		return false;
+
+	for (size_t i = 0; i < a.size(); ++i)
+	{
+		FieldElement expected = CpuFieldMul(a[i], b[i]);
+		if (out[i] != expected)
+		{
+			error = "field mul mismatch at vector " + std::to_string(i) +
 				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
 			return false;
 		}
@@ -335,11 +419,11 @@ std::string RCKMetalFieldAddBenchJson(unsigned int iterations)
 	std::vector<FieldElement> out;
 	std::string error;
 	double seconds = 0.0;
-	if (!RunFieldAddKernel(a, b, out, error, &seconds))
+	if (!RunFieldKernel(a, b, out, error, &seconds, "field_add_mod_p"))
 	{
 		if (error == "no Metal device available")
-			return MetalFieldBenchJson(0, 0.0, 0.0, false, true, error);
-		return MetalFieldBenchJson(iterations, seconds, 0.0, false, false, error);
+			return MetalFieldBenchJson("field_add_mod_p", 0, 0.0, 0.0, false, true, error);
+		return MetalFieldBenchJson("field_add_mod_p", iterations, seconds, 0.0, false, false, error);
 	}
 
 	for (unsigned int i = 0; i < iterations; ++i)
@@ -349,10 +433,50 @@ std::string RCKMetalFieldAddBenchJson(unsigned int iterations)
 		{
 			std::string reason = "mismatch at vector " + std::to_string(i) +
 				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
-			return MetalFieldBenchJson(iterations, seconds, 0.0, false, false, reason);
+			return MetalFieldBenchJson("field_add_mod_p", iterations, seconds, 0.0, false, false, reason);
 		}
 	}
 
 	double ops_per_sec = seconds > 0.0 ? (double)iterations / seconds : 0.0;
-	return MetalFieldBenchJson(iterations, seconds, ops_per_sec, true, false, "");
+	return MetalFieldBenchJson("field_add_mod_p", iterations, seconds, ops_per_sec, true, false, "");
+}
+
+std::string RCKMetalFieldMulBenchJson(unsigned int iterations)
+{
+	if (iterations == 0)
+		iterations = 1;
+
+	std::vector<FieldElement> a;
+	std::vector<FieldElement> b;
+	a.reserve(iterations);
+	b.reserve(iterations);
+	for (unsigned int i = 0; i < iterations; ++i)
+	{
+		a.push_back(DeterministicElement(i, 0xCAFEULL));
+		b.push_back(DeterministicElement(i, 0xBEEFULL));
+	}
+
+	std::vector<FieldElement> out;
+	std::string error;
+	double seconds = 0.0;
+	if (!RunFieldKernel(a, b, out, error, &seconds, "field_mul_mod_p"))
+	{
+		if (error == "no Metal device available")
+			return MetalFieldBenchJson("field_mul_mod_p", 0, 0.0, 0.0, false, true, error);
+		return MetalFieldBenchJson("field_mul_mod_p", iterations, seconds, 0.0, false, false, error);
+	}
+
+	for (unsigned int i = 0; i < iterations; ++i)
+	{
+		FieldElement expected = CpuFieldMul(a[i], b[i]);
+		if (out[i] != expected)
+		{
+			std::string reason = "mismatch at vector " + std::to_string(i) +
+				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
+			return MetalFieldBenchJson("field_mul_mod_p", iterations, seconds, 0.0, false, false, reason);
+		}
+	}
+
+	double ops_per_sec = seconds > 0.0 ? (double)iterations / seconds : 0.0;
+	return MetalFieldBenchJson("field_mul_mod_p", iterations, seconds, ops_per_sec, true, false, "");
 }

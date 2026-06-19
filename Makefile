@@ -2,7 +2,7 @@ CUDA_PATH ?= /usr/local/cuda-12.0
 CC := g++
 NVCC := $(CUDA_PATH)/bin/nvcc
 
-.PHONY: all clean check-host check-portable-ec macos-build macos-check macos-bench macos-cpu-field-test macos-cpu-field-bench macos-metal-field-test macos-metal-field-bench
+.PHONY: all clean check-host check-portable-ec macos-build macos-check macos-bench macos-cpu-field-test macos-cpu-field-bench macos-metal-kernels-check macos-metal-field-test macos-metal-field-bench macos-metal-field-mul-test macos-metal-field-mul-bench
 
 CCFLAGS := -O3 -I$(CUDA_PATH)/include
 NVCCFLAGS := -O3 -gencode=arch=compute_89,code=compute_89 -gencode=arch=compute_86,code=compute_86 -gencode=arch=compute_75,code=compute_75 -gencode=arch=compute_61,code=compute_61
@@ -47,7 +47,9 @@ macos-build:
 macos-check: check-host macos-build
 	./$(MACOS_TARGET) selftest
 	sh tests/check_cpu_field_cli.sh
+	sh tests/check_metal_kernels.sh
 	sh tests/check_metal_field_cli.sh
+	sh tests/check_metal_field_mul_cli.sh
 
 macos-bench: macos-build
 	./$(MACOS_TARGET) bench --iterations 64
@@ -58,8 +60,17 @@ macos-cpu-field-test: macos-build
 macos-cpu-field-bench: macos-build
 	./$(MACOS_TARGET) cpu-field-bench --iterations 4096
 
+macos-metal-kernels-check:
+	sh tests/check_metal_kernels.sh
+
 macos-metal-field-test: macos-build
 	sh tests/check_metal_field_cli.sh
 
 macos-metal-field-bench: macos-build
 	./$(MACOS_TARGET) metal-field-bench --iterations 1024
+
+macos-metal-field-mul-test: macos-build
+	sh tests/check_metal_field_mul_cli.sh
+
+macos-metal-field-mul-bench: macos-build
+	./$(MACOS_TARGET) metal-field-mul-bench --iterations 1024
