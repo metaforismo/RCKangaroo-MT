@@ -5,6 +5,7 @@
 #include <string>
 
 #include "macos/RCKMac.h"
+#include "macos/MetalSmoke.h"
 
 static void PrintUsage()
 {
@@ -12,6 +13,7 @@ static void PrintUsage()
 	printf("  rck_macos selftest\n");
 	printf("  rck_macos solve-small --range N --start HEX --pubkey PUBKEY\n");
 	printf("  rck_macos bench --iterations N\n");
+	printf("  rck_macos metal-smoke\n");
 }
 
 static bool ReadOption(int argc, char* argv[], const char* name, const char** value)
@@ -110,6 +112,21 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 		printf("%s\n", RCKBenchJson(iterations).c_str());
+	}
+	else if (strcmp(argv[1], "metal-smoke") == 0)
+	{
+		if (RCKMetalSmoke(error))
+			printf("metal smoke ok\n");
+		else
+		{
+			if (error == "no Metal device available")
+				printf("metal smoke skipped: %s\n", error.c_str());
+			else
+			{
+				printf("metal smoke failed: %s\n", error.c_str());
+				rc = 1;
+			}
+		}
 	}
 	else
 	{

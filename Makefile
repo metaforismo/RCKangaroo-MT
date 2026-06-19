@@ -37,10 +37,11 @@ check-host: check-portable-ec
 check-portable-ec:
 	sh tests/check_portable_ec.sh
 
-MACOS_SRC := macos/rck_macos.cpp macos/RCKMac.cpp Ec.cpp utils.cpp TargetSet.cpp
+MACOS_SRC := macos/rck_macos.cpp macos/RCKMac.cpp macos/MetalSmoke.mm Ec.cpp utils.cpp TargetSet.cpp
+MACOS_LDFLAGS := -framework Foundation -framework Metal
 
 macos-build:
-	$(CXX) -std=c++17 -O2 -I. $(MACOS_SRC) -o $(MACOS_TARGET)
+	$(CXX) -std=c++17 -O2 -I. $(MACOS_SRC) -o $(MACOS_TARGET) $(MACOS_LDFLAGS)
 
 macos-check: check-host macos-build
 	./$(MACOS_TARGET) selftest
