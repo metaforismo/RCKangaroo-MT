@@ -1,6 +1,6 @@
 # macOS native tools
 
-RCKangaroo-MT still uses NVIDIA CUDA for the full high-performance kangaroo solver, but the `macos/` folder now provides native Apple Silicon tooling for target preparation, secp256k1 correctness checks, tiny-range CPU solves, benchmarks, and Metal runtime smoke tests.
+RCKangaroo-MT still uses NVIDIA CUDA for the full high-performance kangaroo solver, but the `macos/` folder now provides native Apple Silicon tooling for target preparation, secp256k1 correctness checks, tiny-range CPU solves, benchmarks, Metal runtime smoke tests, and early Metal field arithmetic.
 
 ## Build and Check
 
@@ -8,7 +8,7 @@ RCKangaroo-MT still uses NVIDIA CUDA for the full high-performance kangaroo solv
 make macos-check
 ```
 
-This builds `macos/rck_macos`, runs host secp256k1 vector checks, validates target parsing, and runs the native CPU selftest.
+This builds `macos/rck_macos`, runs host secp256k1 vector checks, validates target parsing, runs the native CPU selftest, and runs the Metal field-add check when Metal is visible.
 
 Run a tiny-range CPU solve:
 
@@ -29,6 +29,15 @@ Run the Metal smoke test:
 ```
 
 If no Metal device is visible in the current execution environment, the command reports a skip instead of failing. On a normal Apple Silicon runtime with device access, it compiles and runs a minimal Metal compute kernel.
+
+Run the Metal secp256k1 field-add check and benchmark:
+
+```sh
+./macos/rck_macos metal-field-test
+make macos-metal-field-bench
+```
+
+The field-add kernel uses four little-endian 64-bit limbs modulo the secp256k1 prime and compares Metal output against the CPU oracle. In restricted CI or sandboxed sessions without a visible Metal device, it reports a clean skip.
 
 ## Prepare a target list
 
@@ -66,6 +75,9 @@ Use autoresearch from the repo root:
 
 ```sh
 python3 autoresearch/runner.py --experiment baseline --budget-sec 5
+python3 autoresearch/runner.py --experiment metal_field_add --budget-sec 5
 ```
+
+Autoresearch records Metal device absence as `status=skip`, not as a crash, so the same experiment can run on both local Apple Silicon and headless CI.
 
 If you want to generate tames for the full solver, do that on the CUDA host. With multi-target mode, existing tames must already exist; generate them separately before using `-targets`.

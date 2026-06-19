@@ -2,3 +2,6 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-19T21:17:21Z	e53e7ec	baseline	cpu	multiply_g	64	69669.342768	true	keep	CPU multiply_g baseline with correctness gates
 2026-06-19T21:22:09Z	8bf2459	baseline	cpu	multiply_g	64	68882.012646	true	discard	CPU multiply_g baseline with correctness gates
 2026-06-19T21:23:09Z	0ddf57b	baseline	cpu	multiply_g	64	68175.765646	true	discard	CPU multiply_g baseline with correctness gates
+2026-06-19T21:33:40Z	c167ffc	metal_field_add	metal	field_add_mod_p	0	0.000000	false	skip	Metal secp256k1 field_add_mod_p correctness and throughput gate
+2026-06-19T21:35:52Z	c167ffc	baseline	cpu	multiply_g	64	85790.884718	true	keep	CPU multiply_g baseline with correctness gates
+2026-06-19T21:36:03Z	c167ffc	metal_field_add	metal	field_add_mod_p	0	0.000000	false	skip	Metal secp256k1 field_add_mod_p correctness and throughput gate

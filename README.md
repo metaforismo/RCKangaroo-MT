@@ -6,7 +6,7 @@ Upstream project: https://github.com/RetiredC/RCKangaroo
 RetiredCoder research collection: https://github.com/RetiredC
 Discussion thread: https://bitcointalk.org/index.php?topic=5517607
 
-This fork keeps the original single-target, benchmark, and tames workflows, and adds an experimental multi-target mode plus macOS-native correctness, benchmark, Metal smoke, and autoresearch tools.
+This fork keeps the original single-target, benchmark, and tames workflows, and adds an experimental multi-target mode plus macOS-native correctness, benchmark, Metal arithmetic, and autoresearch tools.
 
 ## Features
 
@@ -18,7 +18,7 @@ This fork keeps the original single-target, benchmark, and tames workflows, and 
 - Target loader for compressed `02...` / `03...` and uncompressed `04...` secp256k1 public keys.
 - Per-DP target metadata so solved collisions can be verified against the matching target.
 - macOS CPU oracle for tiny-range correctness checks and local benchmarks.
-- Metal smoke backend for Apple Silicon runtime verification.
+- Metal smoke and secp256k1 field-add microkernel checks for Apple Silicon runtime verification.
 - Autoresearch runner for fixed-gate optimization experiments.
 
 ## Requirements
@@ -33,8 +33,8 @@ Apple Silicon/macOS cannot run CUDA kernels on the Apple GPU. This repo now incl
 |---|---|---|
 | CUDA | Full solver | Original RCKangaroo CUDA kangaroo engine with multi-target additions. |
 | macOS CPU | Working | Tiny-range oracle, secp256k1 correctness tests, baseline benchmarks. |
-| macOS Metal | Smoke backend | Builds and runs a minimal Metal compute kernel when a Metal device is visible. Arithmetic kernels are the next step. |
-| Autoresearch | Working | Runs fixed-gate checks and benchmarks, then logs keep/discard experiment rows. |
+| macOS Metal | Early arithmetic backend | Builds and runs Metal smoke plus `field_add_mod_p` microkernel checks when a Metal device is visible. |
+| Autoresearch | Working | Runs fixed-gate checks and benchmarks, then logs keep/discard/skip experiment rows. |
 
 ## Build on Linux CUDA
 
@@ -129,7 +129,10 @@ Build and test the native macOS path:
 make macos-check
 make macos-bench
 ./macos/rck_macos metal-smoke
+./macos/rck_macos metal-field-test
+make macos-metal-field-bench
 python3 autoresearch/runner.py --experiment baseline --budget-sec 5
+python3 autoresearch/runner.py --experiment metal_field_add --budget-sec 5
 ```
 
 More details:
@@ -149,8 +152,8 @@ This remains a proof-of-concept style GPU solver. It does not add networking, di
 - Added target-file loader and target offset mapping.
 - Added GPU-side target id output for distinguished points.
 - Added multi-target collision verification and target-aware result output.
-- Added macOS target preparation tools.
-- Added host-only parser checks.
+- Added macOS target preparation, CPU oracle, Metal smoke, and Metal field-add tools.
+- Added host-only parser checks and fixed-gate autoresearch experiments.
 
 ### Upstream v3.1
 

@@ -115,6 +115,7 @@ def main() -> int:
         print(f"failed to parse benchmark JSON: {exc}", file=sys.stderr)
         return 1
 
+    skipped = bool(metrics.get("skipped"))
     correctness = bool(metrics.get("correctness"))
     backend = str(metrics.get("backend", "unknown"))
     operation = str(metrics.get("operation", "unknown"))
@@ -122,7 +123,9 @@ def main() -> int:
     previous = best_previous(backend, operation)
     min_ratio = float(experiment.get("min_improvement_ratio", 0.0))
 
-    if not correctness:
+    if skipped:
+        status = "skip"
+    elif not correctness:
         status = "crash"
     elif previous is None:
         status = "keep"
@@ -144,6 +147,8 @@ def main() -> int:
         "seconds": float(metrics.get("seconds", 0.0)),
         "ops_per_sec": ops_per_sec,
         "correctness": correctness,
+        "skipped": skipped,
+        "reason": str(metrics.get("reason", "")),
         "status": status,
         "machine": platform.platform(),
     }
@@ -151,7 +156,7 @@ def main() -> int:
     append_results(row)
     append_benchmark(row)
     print(f"status: {status} ops_per_sec: {ops_per_sec:.6f}")
-    return 0 if correctness else 1
+    return 0 if correctness or skipped else 1
 
 
 if __name__ == "__main__":
