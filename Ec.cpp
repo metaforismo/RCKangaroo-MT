@@ -362,8 +362,13 @@ bool EcInt::SetHexStr(const char* str)
 
 void EcInt::GetHexStr(char* str)
 {
+	static const char* hex = "0123456789ABCDEF";
 	for (int i = 0; i < 32; i++)
-		sprintf(str + 2 * i, "%02X", ((u8*)data)[31 - i]);
+	{
+		u8 b = ((u8*)data)[31 - i];
+		str[2 * i] = hex[b >> 4];
+		str[2 * i + 1] = hex[b & 0x0F];
+	}
 	str[64] = 0;
 }
 

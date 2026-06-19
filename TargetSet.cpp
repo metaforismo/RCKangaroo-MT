@@ -4,7 +4,6 @@
 
 #include "TargetSet.h"
 
-#include <cstdio>
 #include <fstream>
 
 void TTargetSet::Clear()
@@ -63,9 +62,7 @@ bool TTargetSet::LoadFromFile(const char* fn, EcInt& start)
 		EcPoint p;
 		if (!p.SetHexStr(s.c_str()))
 		{
-			char err[128];
-			sprintf(err, "invalid public key at line %u", line_no);
-			LastError = err;
+			LastError = "invalid public key at line " + std::to_string(line_no);
 			Targets.clear();
 			return false;
 		}
