@@ -20,7 +20,10 @@ Esempio tiny-range CPU:
 
 ```sh
 ./macos/rck_macos solve-small --range 8 --start 0 --pubkey 025CBDF0646E5DB4EAA398F365F2EA7A0E3D419B7E0330E39CE92BDDEDCAC4F9BC
+./macos/rck_macos jacobian-kangaroo-small --range 8 --start 0 --pubkey 025CBDF0646E5DB4EAA398F365F2EA7A0E3D419B7E0330E39CE92BDDEDCAC4F9BC --jumps 8 --dp-bits 0 --max-steps 4096
 ```
+
+`jacobian-kangaroo-small` e' un solver bounded toy per range minuscoli. Esegue walk tame/wild con jump table deterministica, mantiene gli stati in coordinate Jacobian, registra distinguished points e verifica ogni candidato ricavato da collisione con `MultiplyG`. Serve per correttezza ed esperimenti architetturali; non e' il motore kangaroo CUDA/Metal completo.
 
 Benchmark CPU:
 

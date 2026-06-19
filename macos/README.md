@@ -20,7 +20,10 @@ Run a tiny-range CPU solve:
 
 ```sh
 ./macos/rck_macos solve-small --range 8 --start 0 --pubkey 025CBDF0646E5DB4EAA398F365F2EA7A0E3D419B7E0330E39CE92BDDEDCAC4F9BC
+./macos/rck_macos jacobian-kangaroo-small --range 8 --start 0 --pubkey 025CBDF0646E5DB4EAA398F365F2EA7A0E3D419B7E0330E39CE92BDDEDCAC4F9BC --jumps 8 --dp-bits 0 --max-steps 4096
 ```
+
+`jacobian-kangaroo-small` is a bounded toy solver for tiny ranges. It runs tame/wild walks with a deterministic jump table, keeps walk states in Jacobian coordinates, records distinguished points, and verifies any collision-derived candidate against `MultiplyG`. It is intended for correctness and architecture experiments only; it is not the full CUDA/Metal kangaroo engine.
 
 Run a CPU benchmark:
 

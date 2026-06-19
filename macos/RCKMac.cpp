@@ -432,6 +432,163 @@ std::string RCKJacobianWalkBenchJson(unsigned int iterations, unsigned int min_m
 	return out.str();
 }
 
+struct KangarooDp
+{
+	std::string key;
+	u64 distance;
+	bool tame;
+};
+
+static std::string PointKey(EcPoint p)
+{
+	char x[65];
+	char y[65];
+	p.x.GetHexStr(x);
+	p.y.GetHexStr(y);
+	return std::string(x) + ":" + std::string(y);
+}
+
+static bool IsDistinguished(EcPoint p, unsigned int dp_bits)
+{
+	if (!dp_bits)
+		return true;
+	if (dp_bits >= 63)
+		dp_bits = 62;
+	u64 mask = (1ull << dp_bits) - 1;
+	return (p.x.data[0] & mask) == 0;
+}
+
+static bool VerifyCandidate(EcPoint target, u64 candidate)
+{
+	EcInt k;
+	k.Set(candidate);
+	EcPoint p = Ec::MultiplyG(k);
+	return PointMatches(p, target);
+}
+
+static bool CheckKangarooCollision(const std::vector<KangarooDp>& table,
+	const std::string& key,
+	bool tame,
+	u64 distance,
+	u64 start,
+	u64 limit,
+	EcPoint target,
+	u64* candidate)
+{
+	for (size_t i = 0; i < table.size(); i++)
+	{
+		const KangarooDp& other = table[i];
+		if ((other.tame == tame) || (other.key != key))
+			continue;
+
+		u64 tame_distance = tame ? distance : other.distance;
+		u64 wild_distance = tame ? other.distance : distance;
+		if (tame_distance < wild_distance)
+			continue;
+
+		u64 found = tame_distance - wild_distance;
+		if ((found < start) || (found >= start + limit))
+			continue;
+		if (!VerifyCandidate(target, found))
+			continue;
+
+		*candidate = found;
+		return true;
+	}
+	return false;
+}
+
+static void RecordKangarooDp(std::vector<KangarooDp>& table, const std::string& key, bool tame, u64 distance)
+{
+	KangarooDp dp;
+	dp.key = key;
+	dp.tame = tame;
+	dp.distance = distance;
+	table.push_back(dp);
+}
+
+static void KangarooStep(JacobianPoint& p, u64* distance, const std::vector<EcPoint>& jumps, const std::vector<u64>& jump_distances)
+{
+	unsigned int jump_index = JacobianJumpIndex(p, (unsigned int)jumps.size());
+	p = JacobianAddAffine(p, jumps[jump_index]);
+	*distance += jump_distances[jump_index];
+}
+
+RCKSmallSolveResult RCKSolveSmallJacobianKangaroo(EcPoint target, unsigned long long start, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
+{
+	RCKSmallSolveResult result;
+	result.found = false;
+	result.private_key = 0;
+	result.target_index = 0;
+
+	u64 limit = RangeLimit(range_bits);
+	if (!limit || !max_steps)
+		return result;
+	if (jump_count < 2)
+		jump_count = 2;
+	if (jump_count > 32)
+		jump_count = 32;
+
+	std::vector<EcPoint> jumps;
+	std::vector<u64> jump_distances;
+	jumps.reserve(jump_count);
+	jump_distances.reserve(jump_count);
+	for (unsigned int i = 0; i < jump_count; i++)
+	{
+		u64 distance = JumpDistance(i);
+		EcInt k;
+		k.Set(distance);
+		jump_distances.push_back(distance);
+		jumps.push_back(Ec::MultiplyG(k));
+	}
+
+	u64 end = start + limit - 1;
+	EcInt end_k;
+	end_k.Set(end);
+	JacobianPoint tame = JacobianFromAffine(Ec::MultiplyG(end_k));
+	JacobianPoint wild = JacobianFromAffine(target);
+	u64 tame_distance = end;
+	u64 wild_distance = 0;
+	std::vector<KangarooDp> table;
+	table.reserve(max_steps + 2);
+
+	for (unsigned int step = 0; step <= max_steps; step++)
+	{
+		EcPoint tame_affine = JacobianToAffine(tame);
+		if (IsDistinguished(tame_affine, dp_bits))
+		{
+			std::string key = PointKey(tame_affine);
+			u64 candidate = 0;
+			if (CheckKangarooCollision(table, key, true, tame_distance, start, limit, target, &candidate))
+			{
+				result.found = true;
+				result.private_key = candidate;
+				return result;
+			}
+			RecordKangarooDp(table, key, true, tame_distance);
+		}
+
+		EcPoint wild_affine = JacobianToAffine(wild);
+		if (IsDistinguished(wild_affine, dp_bits))
+		{
+			std::string key = PointKey(wild_affine);
+			u64 candidate = 0;
+			if (CheckKangarooCollision(table, key, false, wild_distance, start, limit, target, &candidate))
+			{
+				result.found = true;
+				result.private_key = candidate;
+				return result;
+			}
+			RecordKangarooDp(table, key, false, wild_distance);
+		}
+
+		KangarooStep(tame, &tame_distance, jumps, jump_distances);
+		KangarooStep(wild, &wild_distance, jumps, jump_distances);
+	}
+
+	return result;
+}
+
 std::string RCKJacobianPointAddBenchJson(unsigned int iterations, unsigned int min_ms)
 {
 	if (!iterations)

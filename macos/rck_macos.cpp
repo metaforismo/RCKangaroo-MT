@@ -14,6 +14,7 @@ static void PrintUsage()
 	printf("Usage:\n");
 	printf("  rck_macos selftest\n");
 	printf("  rck_macos solve-small --range N --start HEX --pubkey PUBKEY\n");
+	printf("  rck_macos jacobian-kangaroo-small --range N --start HEX --pubkey PUBKEY [--jumps N] [--dp-bits N] [--max-steps N]\n");
 	printf("  rck_macos bench --iterations N\n");
 	printf("  rck_macos point-bench --iterations N [--min-ms N]\n");
 	printf("  rck_macos jacobian-point-bench --iterations N [--min-ms N]\n");
@@ -109,6 +110,60 @@ int main(int argc, char* argv[])
 		else
 		{
 			printf("NOT FOUND\n");
+			rc = 2;
+		}
+	}
+	else if (strcmp(argv[1], "jacobian-kangaroo-small") == 0)
+	{
+		const char* range_s = NULL;
+		const char* start_s = NULL;
+		const char* pubkey_s = NULL;
+		const char* jumps_s = NULL;
+		const char* dp_bits_s = NULL;
+		const char* max_steps_s = NULL;
+		unsigned int range_bits = 0;
+		unsigned int jumps = 8;
+		unsigned int dp_bits = 0;
+		unsigned int max_steps = 4096;
+		unsigned long long start = 0;
+		EcPoint target;
+
+		if (!ReadOption(argc, argv, "--range", &range_s) ||
+			!ReadOption(argc, argv, "--start", &start_s) ||
+			!ReadOption(argc, argv, "--pubkey", &pubkey_s) ||
+			!ParseU32(range_s, &range_bits) ||
+			!ParseHexU64(start_s, &start) ||
+			!target.SetHexStr(pubkey_s))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--jumps", &jumps_s) && !ParseU32(jumps_s, &jumps))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--dp-bits", &dp_bits_s) && !ParseU32(dp_bits_s, &dp_bits))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--max-steps", &max_steps_s) && !ParseU32(max_steps_s, &max_steps))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+
+		RCKSmallSolveResult result = RCKSolveSmallJacobianKangaroo(target, start, range_bits, jumps, dp_bits, max_steps);
+		if (result.found)
+			printf("FOUND private_key=%llu private_key_hex=%llX target_index=%u method=jacobian_kangaroo_small\n", result.private_key, result.private_key, result.target_index);
+		else
+		{
+			printf("NOT FOUND method=jacobian_kangaroo_small\n");
 			rc = 2;
 		}
 	}
