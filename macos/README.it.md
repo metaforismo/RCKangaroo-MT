@@ -38,6 +38,8 @@ make macos-jacobian-point-bench
 ./macos/rck_macos jacobian-point-bench --iterations 256 --min-ms 50
 make macos-jacobian-walk-bench
 ./macos/rck_macos jacobian-walk-bench --iterations 256 --min-ms 50 --jumps 16
+make macos-jacobian-kangaroo-multi-small-bench
+./macos/rck_macos jacobian-kangaroo-multi-small-bench --target-count 4 --iterations 1 --min-ms 50 --range 8 --jumps 8 --dp-bits 0 --max-steps 4096
 ```
 
 `macos-bench` misura il throughput dello scalar `MultiplyG`. `macos-point-bench` misura un walk seriale di addizioni affini: parte da `2G`, aggiunge ripetutamente `G`, e valida il punto finale con un oracle `MultiplyG(n+2)`. E' ancora aritmetica CPU affine, non il percorso solver Metal/Jacobian finale, ma rappresenta meglio il costo del kangaroo walk rispetto alle sole operazioni field isolate.
@@ -45,6 +47,8 @@ make macos-jacobian-walk-bench
 `macos-jacobian-point-bench` mantiene il punto del walk in coordinate Jacobian ed esegue addizioni mixed Jacobian-piu'-affine di `G`, spostando la costosa inversione di campo fuori dal loop interno. Il JSON include throughput affine di riferimento e `speedup_vs_affine`, così il miglioramento e' misurato contro il baseline point-add piu' semplice.
 
 `macos-jacobian-walk-bench` usa una jump table deterministica di punti affini e applica addizioni mixed Jacobian selezionate dallo stato proiettivo corrente. Traccia in parallelo la distanza scalare e valida il punto finale con un oracle scalare. E' un benchmark del core della walk, non ancora un solver kangaroo completo con distinguished points o collision handling.
+
+`macos-jacobian-kangaroo-multi-small-bench` genera target sintetici deterministici, mette un target risolvibile all'ultimo indice e misura solve tiny multi-target shared-tame al secondo. Usa `--target-count` per confrontare 1, 2, 4, 8 o piu' target mantenendo range bounded e parametri jump uguali.
 
 Check e benchmark CPU per l'aritmetica nel campo secp256k1:
 
@@ -115,6 +119,7 @@ python3 autoresearch/runner.py --experiment baseline --budget-sec 5
 python3 autoresearch/runner.py --experiment point_add_g --budget-sec 5
 python3 autoresearch/runner.py --experiment jacobian_point_add_g --budget-sec 5
 python3 autoresearch/runner.py --experiment jacobian_jump_walk --budget-sec 5
+python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5
 python3 autoresearch/runner.py --experiment cpu_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_add --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_mul --budget-sec 5

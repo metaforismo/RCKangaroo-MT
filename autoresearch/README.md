@@ -39,6 +39,14 @@ python3 autoresearch/runner.py --experiment jacobian_jump_walk --budget-sec 5
 
 This records `macos_cpu` `jacobian_jump_walk` throughput. The benchmark precomputes affine jump points, keeps the walk state in Jacobian coordinates, tracks scalar distance in parallel, and checks the final point against a scalar oracle. It is a deterministic walk-core benchmark, not a full DP/collision kangaroo solver yet.
 
+Run the CPU shared-tame tiny multi-target kangaroo experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5
+```
+
+This records `macos_cpu` `jacobian_kangaroo_multi_small` solves per second. The benchmark generates deterministic synthetic targets, places one solvable target at the final index, and reports `architecture=shared_tame`, target count, tame/wild state counts, and DP table size.
+
 Run the Metal field-add experiment:
 
 ```sh
@@ -68,4 +76,4 @@ Results are written to:
 - `autoresearch/results.tsv`
 - `autoresearch/benchmarks.jsonl`
 
-The current CPU baseline metric is `multiply_g` operations per second. CPU affine point-add walk, CPU Jacobian mixed-add walk, CPU Jacobian jump-table walk, CPU field multiplication, and Metal field addition/multiplication are tracked as separate fixed-gate experiments.
+The current CPU baseline metric is `multiply_g` operations per second. CPU affine point-add walk, CPU Jacobian mixed-add walk, CPU Jacobian jump-table walk, CPU shared-tame tiny multi-target kangaroo, CPU field multiplication, and Metal field addition/multiplication are tracked as separate fixed-gate experiments.

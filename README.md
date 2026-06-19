@@ -136,6 +136,7 @@ make macos-jacobian-walk-bench
 ./macos/rck_macos jacobian-walk-bench --iterations 256 --min-ms 50 --jumps 16
 ./macos/rck_macos jacobian-kangaroo-small --range 8 --start 0 --pubkey 025CBDF0646E5DB4EAA398F365F2EA7A0E3D419B7E0330E39CE92BDDEDCAC4F9BC --jumps 8 --dp-bits 0 --max-steps 4096
 ./macos/rck_macos jacobian-kangaroo-multi-small --range 8 --start 2 --targets tests/jacobian_kangaroo_multi_targets.txt --jumps 8 --dp-bits 0 --max-steps 4096
+make macos-jacobian-kangaroo-multi-small-bench
 ./macos/rck_macos cpu-field-test
 make macos-cpu-field-bench
 ./macos/rck_macos cpu-field-bench --iterations 4096 --min-ms 50
@@ -148,12 +149,13 @@ python3 autoresearch/runner.py --experiment baseline --budget-sec 5
 python3 autoresearch/runner.py --experiment point_add_g --budget-sec 5
 python3 autoresearch/runner.py --experiment jacobian_point_add_g --budget-sec 5
 python3 autoresearch/runner.py --experiment jacobian_jump_walk --budget-sec 5
+python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5
 python3 autoresearch/runner.py --experiment cpu_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_add --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_mul --budget-sec 5
 ```
 
-The macOS `jacobian-kangaroo-multi-small` command is a tiny-range CPU architecture probe: it runs one shared tame walk plus one wild walk per target and reports `architecture=shared_tame` with target/walk-state counts.
+The macOS `jacobian-kangaroo-multi-small` command is a tiny-range CPU architecture probe: it runs one shared tame walk plus one wild walk per target and reports `architecture=shared_tame` with target/walk-state counts. The matching benchmark generates deterministic synthetic targets and measures shared-tame solves per second for a fixed target count.
 
 More details:
 

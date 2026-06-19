@@ -725,6 +725,117 @@ RCKSmallSolveResult RCKSolveSmallJacobianKangarooMulti(const std::vector<EcPoint
 	return result;
 }
 
+static std::vector<EcPoint> BuildSyntheticMultiTargets(unsigned int target_count, u64 start, u64 limit, u64 solved_private_key)
+{
+	std::vector<EcPoint> targets;
+	targets.reserve(target_count);
+	u64 end = start + limit - 1;
+
+	for (unsigned int i = 0; i + 1 < target_count; i++)
+	{
+		u64 scalar = (i == 0 && start > 1) ? start - 1 : end + 17 + i;
+		if (((scalar >= start) && (scalar < start + limit)) || (scalar == solved_private_key))
+			scalar = end + 1024 + i;
+
+		EcInt k;
+		k.Set(scalar);
+		targets.push_back(Ec::MultiplyG(k));
+	}
+
+	EcInt solved_k;
+	solved_k.Set(solved_private_key);
+	targets.push_back(Ec::MultiplyG(solved_k));
+	return targets;
+}
+
+std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int target_count, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
+{
+	if (!iterations)
+		iterations = 1;
+	if (!target_count)
+		target_count = 1;
+	if (target_count > 64)
+		target_count = 64;
+
+	u64 start = 2;
+	u64 limit = RangeLimit(range_bits);
+	bool correctness = true;
+	std::string reason;
+	if (!limit)
+	{
+		correctness = false;
+		reason = "range_bits must be <= 24";
+	}
+
+	u64 solved_private_key = limit ? start + (limit > 5 ? 5 : limit - 1) : start;
+	std::vector<EcPoint> targets;
+	if (limit)
+		targets = BuildSyntheticMultiTargets(target_count, start, limit, solved_private_key);
+
+	u64 operations = 0;
+	u64 total_dp_count = 0;
+	unsigned int last_dp_count = 0;
+	unsigned int found_target_index = 0;
+	u64 found_private_key = 0;
+	auto t0 = std::chrono::steady_clock::now();
+	auto t1 = t0;
+	if (limit)
+	{
+		do
+		{
+			for (unsigned int i = 0; i < iterations; i++)
+			{
+				RCKSmallSolveResult result = RCKSolveSmallJacobianKangarooMulti(targets, start, range_bits, jump_count, dp_bits, max_steps);
+				operations++;
+				last_dp_count = result.dp_count;
+				total_dp_count += result.dp_count;
+				found_target_index = result.target_index;
+				found_private_key = result.private_key;
+				if (!result.found || (result.private_key != solved_private_key) || (result.target_index != target_count - 1))
+				{
+					correctness = false;
+					reason = "shared-tame multi-target solve mismatch";
+				}
+			}
+			t1 = std::chrono::steady_clock::now();
+		} while (min_ms && (std::chrono::duration<double, std::milli>(t1 - t0).count() < (double)min_ms));
+	}
+
+	double seconds = std::chrono::duration<double>(t1 - t0).count();
+	double ops_per_sec = seconds > 0 ? operations / seconds : 0.0;
+	double avg_dp_count = operations > 0 ? (double)total_dp_count / (double)operations : 0.0;
+
+	std::ostringstream out;
+	out.setf(std::ios::fixed);
+	out.precision(6);
+	out << "{\"backend\":\"macos_cpu\",";
+	out << "\"operation\":\"jacobian_kangaroo_multi_small\",";
+	out << "\"architecture\":\"shared_tame\",";
+	out << "\"iterations\":" << operations << ",";
+	out << "\"sample_count\":" << iterations << ",";
+	out << "\"min_ms\":" << min_ms << ",";
+	out << "\"target_count\":" << target_count << ",";
+	out << "\"tame_states\":1,";
+	out << "\"wild_states\":" << target_count << ",";
+	out << "\"range_bits\":" << range_bits << ",";
+	out << "\"jump_count\":" << jump_count << ",";
+	out << "\"dp_bits\":" << dp_bits << ",";
+	out << "\"max_steps\":" << max_steps << ",";
+	out << "\"seconds\":" << seconds << ",";
+	out << "\"ops_per_sec\":" << ops_per_sec << ",";
+	out << "\"avg_dp_count\":" << avg_dp_count << ",";
+	out << "\"last_dp_count\":" << last_dp_count << ",";
+	out << "\"start_scalar\":\"0x" << std::hex << start << std::dec << "\",";
+	out << "\"expected_private_key\":\"0x" << std::hex << solved_private_key << std::dec << "\",";
+	out << "\"found_target_index\":" << found_target_index << ",";
+	out << "\"found_private_key\":\"0x" << std::hex << found_private_key << std::dec << "\",";
+	out << "\"correctness\":" << (correctness ? "true" : "false");
+	if (!correctness)
+		out << ",\"reason\":\"" << reason << "\"";
+	out << "}";
+	return out.str();
+}
+
 std::string RCKJacobianPointAddBenchJson(unsigned int iterations, unsigned int min_ms)
 {
 	if (!iterations)
