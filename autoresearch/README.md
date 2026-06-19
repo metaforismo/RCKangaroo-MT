@@ -23,6 +23,14 @@ python3 autoresearch/runner.py --experiment point_add_g --budget-sec 5
 
 This records `macos_cpu` `point_add_g` throughput. The benchmark starts from `2G`, repeatedly adds `G`, and checks the final point against `MultiplyG(n+2)` so it tracks a point-operation primitive closer to kangaroo walk cost.
 
+Run the CPU Jacobian mixed-add walk experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment jacobian_point_add_g --budget-sec 5
+```
+
+This records `macos_cpu` `jacobian_point_add_g` throughput and compares it against an affine point-add reference sample via `speedup_vs_affine`. It is the first macOS path that avoids one field inversion per walk step.
+
 Run the Metal field-add experiment:
 
 ```sh
@@ -52,4 +60,4 @@ Results are written to:
 - `autoresearch/results.tsv`
 - `autoresearch/benchmarks.jsonl`
 
-The current CPU baseline metric is `multiply_g` operations per second. CPU point-add walk, CPU field multiplication, and Metal field addition/multiplication are tracked as separate fixed-gate experiments.
+The current CPU baseline metric is `multiply_g` operations per second. CPU affine point-add walk, CPU Jacobian mixed-add walk, CPU field multiplication, and Metal field addition/multiplication are tracked as separate fixed-gate experiments.

@@ -130,6 +130,8 @@ make macos-check
 make macos-bench
 make macos-point-bench
 ./macos/rck_macos point-bench --iterations 256 --min-ms 50
+make macos-jacobian-point-bench
+./macos/rck_macos jacobian-point-bench --iterations 256 --min-ms 50
 ./macos/rck_macos cpu-field-test
 make macos-cpu-field-bench
 ./macos/rck_macos cpu-field-bench --iterations 4096 --min-ms 50
@@ -140,6 +142,7 @@ make macos-metal-field-bench
 make macos-metal-field-mul-bench
 python3 autoresearch/runner.py --experiment baseline --budget-sec 5
 python3 autoresearch/runner.py --experiment point_add_g --budget-sec 5
+python3 autoresearch/runner.py --experiment jacobian_point_add_g --budget-sec 5
 python3 autoresearch/runner.py --experiment cpu_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_add --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_mul --budget-sec 5

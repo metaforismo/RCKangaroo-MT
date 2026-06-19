@@ -1,0 +1,6 @@
+{
+  "name": "jacobian_point_add_g",
+  "description": "Apple Silicon CPU Jacobian mixed point-add walk benchmark with affine reference speedup",
+  "bench_target": "macos-jacobian-point-bench",
+  "min_improvement_ratio": 0.01
+}
