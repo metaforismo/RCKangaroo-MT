@@ -135,6 +135,7 @@ make macos-jacobian-point-bench
 make macos-jacobian-walk-bench
 ./macos/rck_macos jacobian-walk-bench --iterations 256 --min-ms 50 --jumps 16
 ./macos/rck_macos jacobian-kangaroo-small --range 8 --start 0 --pubkey 025CBDF0646E5DB4EAA398F365F2EA7A0E3D419B7E0330E39CE92BDDEDCAC4F9BC --jumps 8 --dp-bits 0 --max-steps 4096
+./macos/rck_macos jacobian-kangaroo-multi-small --range 8 --start 2 --targets tests/jacobian_kangaroo_multi_targets.txt --jumps 8 --dp-bits 0 --max-steps 4096
 ./macos/rck_macos cpu-field-test
 make macos-cpu-field-bench
 ./macos/rck_macos cpu-field-bench --iterations 4096 --min-ms 50

@@ -589,6 +589,26 @@ RCKSmallSolveResult RCKSolveSmallJacobianKangaroo(EcPoint target, unsigned long 
 	return result;
 }
 
+RCKSmallSolveResult RCKSolveSmallJacobianKangarooMulti(const std::vector<EcPoint>& targets, unsigned long long start, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
+{
+	RCKSmallSolveResult result;
+	result.found = false;
+	result.private_key = 0;
+	result.target_index = 0;
+
+	for (unsigned int target_index = 0; target_index < targets.size(); target_index++)
+	{
+		RCKSmallSolveResult one = RCKSolveSmallJacobianKangaroo(targets[target_index], start, range_bits, jump_count, dp_bits, max_steps);
+		if (one.found)
+		{
+			one.target_index = target_index;
+			return one;
+		}
+	}
+
+	return result;
+}
+
 std::string RCKJacobianPointAddBenchJson(unsigned int iterations, unsigned int min_ms)
 {
 	if (!iterations)
