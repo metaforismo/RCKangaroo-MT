@@ -1,6 +1,7 @@
 .worktrees/
 *.o
 rckangaroo
+/macos/rck_macos
 RESULTS.TXT
 benchmarks.jsonl
 run.log

@@ -2,7 +2,7 @@ CUDA_PATH ?= /usr/local/cuda-12.0
 CC := g++
 NVCC := $(CUDA_PATH)/bin/nvcc
 
-.PHONY: all clean check-host check-portable-ec
+.PHONY: all clean check-host check-portable-ec macos-build macos-check macos-bench
 
 CCFLAGS := -O3 -I$(CUDA_PATH)/include
 NVCCFLAGS := -O3 -gencode=arch=compute_89,code=compute_89 -gencode=arch=compute_86,code=compute_86 -gencode=arch=compute_75,code=compute_75 -gencode=arch=compute_61,code=compute_61
@@ -44,3 +44,6 @@ macos-build:
 
 macos-check: check-host macos-build
 	./$(MACOS_TARGET) selftest
+
+macos-bench: macos-build
+	./$(MACOS_TARGET) bench --iterations 64

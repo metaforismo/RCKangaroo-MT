@@ -1,0 +1,6 @@
+{
+  "name": "baseline",
+  "description": "CPU multiply_g baseline with correctness gates",
+  "bench_target": "macos-bench",
+  "min_improvement_ratio": 0.01
+}
