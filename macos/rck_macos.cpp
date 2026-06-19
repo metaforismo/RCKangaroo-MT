@@ -17,6 +17,7 @@ static void PrintUsage()
 	printf("  rck_macos bench --iterations N\n");
 	printf("  rck_macos point-bench --iterations N [--min-ms N]\n");
 	printf("  rck_macos jacobian-point-bench --iterations N [--min-ms N]\n");
+	printf("  rck_macos jacobian-walk-bench --iterations N [--min-ms N] [--jumps N]\n");
 	printf("  rck_macos cpu-field-test\n");
 	printf("  rck_macos cpu-field-bench --iterations N [--min-ms N]\n");
 	printf("  rck_macos metal-smoke\n");
@@ -162,6 +163,34 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 		printf("%s\n", RCKJacobianPointAddBenchJson(iterations, min_ms).c_str());
+	}
+	else if (strcmp(argv[1], "jacobian-walk-bench") == 0)
+	{
+		const char* iter_s = NULL;
+		const char* min_ms_s = NULL;
+		const char* jumps_s = NULL;
+		unsigned int iterations = 256;
+		unsigned int min_ms = 0;
+		unsigned int jumps = 16;
+		if (ReadOption(argc, argv, "--iterations", &iter_s) && !ParseU32(iter_s, &iterations))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--min-ms", &min_ms_s) && !ParseU32(min_ms_s, &min_ms))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--jumps", &jumps_s) && !ParseU32(jumps_s, &jumps))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		printf("%s\n", RCKJacobianWalkBenchJson(iterations, min_ms, jumps).c_str());
 	}
 	else if (strcmp(argv[1], "cpu-field-test") == 0)
 	{

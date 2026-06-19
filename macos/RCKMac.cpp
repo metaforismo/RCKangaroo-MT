@@ -61,12 +61,50 @@ static u64 MixJacobianChecksum(u64 checksum, const JacobianPoint& p, u64 index)
 		p.z.data[0] + (p.z.data[1] ^ p.z.data[2]) + p.z.data[3] + index;
 }
 
+static unsigned int JacobianJumpIndex(const JacobianPoint& p, unsigned int jump_count)
+{
+	u64 mixed = p.x.data[0] ^ (p.x.data[1] << 7) ^ (p.y.data[0] >> 3) ^ p.z.data[0];
+	mixed ^= mixed >> 33;
+	mixed *= 0xff51afd7ed558ccdULL;
+	mixed ^= mixed >> 33;
+	return (unsigned int)(mixed % jump_count);
+}
+
+static u64 JumpDistance(unsigned int index)
+{
+	return 1ull << index;
+}
+
 static JacobianPoint JacobianFromAffine(EcPoint p)
 {
 	JacobianPoint out;
 	out.x = p.x;
 	out.y = p.y;
 	out.z.Set(1);
+	out.infinity = false;
+	return out;
+}
+
+static JacobianPoint JacobianDouble(JacobianPoint p)
+{
+	JacobianPoint out;
+	if (p.infinity || p.y.IsZero())
+	{
+		out.infinity = true;
+		return out;
+	}
+
+	EcInt xx = FieldSquare(p.x);
+	EcInt yy = FieldSquare(p.y);
+	EcInt yyyy = FieldSquare(yy);
+	EcInt s = FieldDouble(FieldSub(FieldSub(FieldSquare(FieldAdd(p.x, yy)), xx), yyyy));
+	EcInt m = FieldAdd(FieldDouble(xx), xx);
+	EcInt t = FieldSub(FieldSquare(m), FieldDouble(s));
+	EcInt eight_yyyy = FieldDouble(FieldDouble(FieldDouble(yyyy)));
+
+	out.x = t;
+	out.y = FieldSub(FieldMul(m, FieldSub(s, t)), eight_yyyy);
+	out.z = FieldSub(FieldSub(FieldSquare(FieldAdd(p.y, p.z)), yy), FieldSquare(p.z));
 	out.infinity = false;
 	return out;
 }
@@ -101,6 +139,8 @@ static JacobianPoint JacobianAddAffine(JacobianPoint p, EcPoint q)
 	JacobianPoint out;
 	if (h.IsZero())
 	{
+		if (r.IsZero())
+			return JacobianDouble(p);
 		out.infinity = true;
 		return out;
 	}
@@ -310,6 +350,84 @@ std::string RCKPointAddBenchJson(unsigned int iterations, unsigned int min_ms)
 	out << "\"correctness\":" << (correctness ? "true" : "false");
 	if (!correctness)
 		out << ",\"reason\":\"final point mismatch against MultiplyG reference\"";
+	out << "}";
+	return out.str();
+}
+
+std::string RCKJacobianWalkBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int jump_count)
+{
+	if (!iterations)
+		iterations = 1;
+	if (jump_count < 2)
+		jump_count = 2;
+	if (jump_count > 32)
+		jump_count = 32;
+
+	std::vector<EcPoint> jump_points;
+	std::vector<u64> jump_distances;
+	jump_points.reserve(jump_count);
+	jump_distances.reserve(jump_count);
+	for (unsigned int i = 0; i < jump_count; i++)
+	{
+		u64 distance = JumpDistance(i);
+		EcInt k;
+		k.Set(distance);
+		jump_distances.push_back(distance);
+		jump_points.push_back(Ec::MultiplyG(k));
+	}
+
+	EcInt start_k;
+	start_k.Set(2);
+	JacobianPoint p = JacobianFromAffine(Ec::MultiplyG(start_k));
+
+	u64 checksum = 0;
+	u64 operations = 0;
+	u64 scalar_distance = 0;
+	auto t0 = std::chrono::steady_clock::now();
+	auto t1 = t0;
+	do
+	{
+		for (unsigned int i = 0; i < iterations; i++)
+		{
+			unsigned int jump_index = JacobianJumpIndex(p, jump_count);
+			p = JacobianAddAffine(p, jump_points[jump_index]);
+			scalar_distance += jump_distances[jump_index];
+			checksum = MixJacobianChecksum(checksum, p, scalar_distance ^ (operations + i));
+		}
+		operations += iterations;
+		t1 = std::chrono::steady_clock::now();
+	} while (min_ms && (std::chrono::duration<double, std::milli>(t1 - t0).count() < (double)min_ms));
+
+	u64 final_scalar = 2 + scalar_distance;
+	EcInt expected_k;
+	expected_k.Set(final_scalar);
+	EcPoint final_point = JacobianToAffine(p);
+	EcPoint expected = Ec::MultiplyG(expected_k);
+	bool correctness = PointMatches(final_point, expected);
+
+	double seconds = std::chrono::duration<double>(t1 - t0).count();
+	double ops_per_sec = seconds > 0 ? operations / seconds : 0.0;
+	double avg_jump_distance = operations > 0 ? (double)scalar_distance / (double)operations : 0.0;
+
+	std::ostringstream out;
+	out.setf(std::ios::fixed);
+	out.precision(6);
+	out << "{\"backend\":\"macos_cpu\",";
+	out << "\"operation\":\"jacobian_jump_walk\",";
+	out << "\"iterations\":" << operations << ",";
+	out << "\"sample_count\":" << iterations << ",";
+	out << "\"min_ms\":" << min_ms << ",";
+	out << "\"jump_count\":" << jump_count << ",";
+	out << "\"seconds\":" << seconds << ",";
+	out << "\"ops_per_sec\":" << ops_per_sec << ",";
+	out << "\"avg_jump_distance\":" << avg_jump_distance << ",";
+	out << "\"start_scalar\":\"0x2\",";
+	out << "\"scalar_distance\":\"0x" << std::hex << scalar_distance << std::dec << "\",";
+	out << "\"final_scalar\":\"0x" << std::hex << final_scalar << std::dec << "\",";
+	out << "\"checksum\":\"0x" << std::hex << checksum << std::dec << "\",";
+	out << "\"correctness\":" << (correctness ? "true" : "false");
+	if (!correctness)
+		out << ",\"reason\":\"final walk point mismatch against scalar oracle\"";
 	out << "}";
 	return out.str();
 }

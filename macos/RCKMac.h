@@ -18,3 +18,4 @@ RCKSmallSolveResult RCKSolveSmallMulti(const std::vector<EcPoint>& targets, unsi
 std::string RCKBenchJson(unsigned int iterations);
 std::string RCKPointAddBenchJson(unsigned int iterations, unsigned int min_ms = 0);
 std::string RCKJacobianPointAddBenchJson(unsigned int iterations, unsigned int min_ms = 0);
+std::string RCKJacobianWalkBenchJson(unsigned int iterations, unsigned int min_ms = 0, unsigned int jump_count = 16);

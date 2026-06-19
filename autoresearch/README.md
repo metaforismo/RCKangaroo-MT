@@ -31,6 +31,14 @@ python3 autoresearch/runner.py --experiment jacobian_point_add_g --budget-sec 5
 
 This records `macos_cpu` `jacobian_point_add_g` throughput and compares it against an affine point-add reference sample via `speedup_vs_affine`. It is the first macOS path that avoids one field inversion per walk step.
 
+Run the CPU Jacobian jump-table walk experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment jacobian_jump_walk --budget-sec 5
+```
+
+This records `macos_cpu` `jacobian_jump_walk` throughput. The benchmark precomputes affine jump points, keeps the walk state in Jacobian coordinates, tracks scalar distance in parallel, and checks the final point against a scalar oracle. It is a deterministic walk-core benchmark, not a full DP/collision kangaroo solver yet.
+
 Run the Metal field-add experiment:
 
 ```sh
@@ -60,4 +68,4 @@ Results are written to:
 - `autoresearch/results.tsv`
 - `autoresearch/benchmarks.jsonl`
 
-The current CPU baseline metric is `multiply_g` operations per second. CPU affine point-add walk, CPU Jacobian mixed-add walk, CPU field multiplication, and Metal field addition/multiplication are tracked as separate fixed-gate experiments.
+The current CPU baseline metric is `multiply_g` operations per second. CPU affine point-add walk, CPU Jacobian mixed-add walk, CPU Jacobian jump-table walk, CPU field multiplication, and Metal field addition/multiplication are tracked as separate fixed-gate experiments.
