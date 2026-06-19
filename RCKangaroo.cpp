@@ -13,6 +13,7 @@
 #include "defs.h"
 #include "utils.h"
 #include "GpuKang.h"
+#include "TargetSet.h"
 
 
 EcJMP EcJumps1[JMP_CNT];
@@ -37,6 +38,8 @@ volatile int PntIndex;
 TFastBase db;
 EcPoint gPntToSolve;
 EcInt gPrivKey;
+TTargetSet gTargetSet;
+u32 gSolvedTargetId;
 
 volatile u64 TotalOps;
 u32 TotalSolved;
@@ -51,9 +54,11 @@ bool gStartSet;
 EcPoint gPubKey;
 u8 gGPUs_Mask[MAX_GPU_CNT];
 char gTamesFileName[1024];
+char gTargetsFileName[1024];
 double gMax;
 bool gGenMode; //tames generation mode
 bool gIsOpsLimit;
+bool gMultiTargetMode;
 
 #pragma pack(push, 1)
 struct DBRec
@@ -61,6 +66,7 @@ struct DBRec
 	u8 x[12];
 	u8 d[22];
 	u8 type; //0 - tame, 1 - wild1, 2 - wild2
+	u32 target_id;
 };
 #pragma pack(pop)
 
@@ -210,6 +216,9 @@ void CheckNewPoints()
 		memcpy(nrec.x, p, 12);
 		memcpy(nrec.d, p + 16, 22);
 		nrec.type = gGenMode ? TAME : p[40];
+		memcpy(&nrec.target_id, p + 44, sizeof(nrec.target_id));
+		if (!db.StoresTargetIds())
+			nrec.target_id = 0;
 
 		DBRec* pref = (DBRec*)db.FindOrAddDataBlock((u8*)&nrec);
 		if (gGenMode)
@@ -218,8 +227,9 @@ void CheckNewPoints()
 		{
 			//in db we dont store first 3 bytes so restore them
 			DBRec tmp_pref;
+			memset(&tmp_pref, 0, sizeof(tmp_pref));
 			memcpy(&tmp_pref, &nrec, 3);
-			memcpy(((u8*)&tmp_pref) + 3, pref, sizeof(DBRec) - 3);
+			memcpy(((u8*)&tmp_pref) + 3, pref, db.GetStoredRecLen());
 			pref = &tmp_pref;
 
 			if (pref->type == nrec.type)
@@ -233,6 +243,9 @@ void CheckNewPoints()
 				//else
 				//	ToLog("key found by same wild");
 			}
+
+			if (gMultiTargetMode && (pref->type != TAME) && (nrec.type != TAME) && (pref->target_id != nrec.target_id))
+				continue;
 
 			EcInt w, t;
 			int TameType, WildType;
@@ -255,7 +268,20 @@ void CheckNewPoints()
 				WildType = nrec.type;
 			}
 
-			bool res = Collision_SOTA(gPntToSolve, t, TameType, w, WildType, false) || Collision_SOTA(gPntToSolve, t, TameType, w, WildType, true);
+			u32 target_id = 0;
+			if (gMultiTargetMode)
+			{
+				target_id = (pref->type != TAME) ? pref->target_id : nrec.target_id;
+				if (target_id >= gTargetSet.Count())
+				{
+					printf("Collision Error: target id out of range\r\n");
+					gTotalErrors++;
+					continue;
+				}
+			}
+
+			EcPoint pnt_to_check = gMultiTargetMode ? gTargetSet.GetPoint(target_id) : gPntToSolve;
+			bool res = Collision_SOTA(pnt_to_check, t, TameType, w, WildType, false) || Collision_SOTA(pnt_to_check, t, TameType, w, WildType, true);
 			if (!res)
 			{
 				bool w12 = ((pref->type == WILD1) && (nrec.type == WILD2)) || ((pref->type == WILD2) && (nrec.type == WILD1));
@@ -268,6 +294,7 @@ void CheckNewPoints()
 				}
 				continue;
 			}
+			gSolvedTargetId = target_id;
 			gSolved = true;
 			break;
 		}
@@ -309,7 +336,7 @@ void ShowStats(u64 tm_start, double exp_ops, double dp_val)
 	printf("%sSpeed: %d MKeys/s, Err: %d, DPs: %lluK/%lluK, Time: %llud:%02dh:%02dm/%llud:%02dh:%02dm\r\n", gGenMode ? "GEN: " : (IsBench ? "BENCH: " : "MAIN: "), speed, gTotalErrors, db.GetBlockCnt()/1000, est_dps_cnt/1000, days, hours, min, exp_days, exp_hours, exp_min);
 }
 
-bool SolvePoint(EcPoint PntToSolve, int Range, int DP, EcInt* pk_res)
+bool SolvePoint(EcPoint PntToSolve, int Range, int DP, EcInt* pk_res, TTargetSet* TargetSet = NULL)
 {
 	if ((Range < 32) || (Range > 180))
 	{
@@ -322,10 +349,15 @@ bool SolvePoint(EcPoint PntToSolve, int Range, int DP, EcInt* pk_res)
 		return false;
 	}
 
+	bool is_multi_target = TargetSet && TargetSet->Count();
+	db.SetTargetIdStorage(is_multi_target);
+
 	printf("\r\nSolving point: Range %d bits, DP %d, start...\r\n", Range, DP);
+	if (is_multi_target)
+		printf("Multi-target mode: %u mapped targets loaded.\r\n", TargetSet->Count());
 	double ops = 1.15 * pow(2.0, Range / 2.0);
 	double dp_val = (double)(1ull << DP);
-	double ram = (32 + 4 + 4) * ops / dp_val; //+4 for grow allocation and memory fragmentation
+	double ram = (db.GetStoredRecLen() + 4 + 4) * ops / dp_val; //+4 for grow allocation and memory fragmentation
 	ram += sizeof(TListRec) * 256 * 256 * 256; //3byte-prefix table
 	ram /= (1024 * 1024 * 1024); //GB
 	printf("SOTA method, estimated ops: 2^%.3f, RAM for DPs: %.3f GB. DP and GPU overheads not included!\r\n", log2(ops), ram);
@@ -334,7 +366,7 @@ bool SolvePoint(EcPoint PntToSolve, int Range, int DP, EcInt* pk_res)
 	if (gMax > 0)
 	{
 		MaxTotalOps = gMax * ops;
-		double ram_max = (32 + 4 + 4) * MaxTotalOps / dp_val; //+4 for grow allocation and memory fragmentation
+		double ram_max = (db.GetStoredRecLen() + 4 + 4) * MaxTotalOps / dp_val; //+4 for grow allocation and memory fragmentation
 		ram_max += sizeof(TListRec) * 256 * 256 * 256; //3byte-prefix table
 		ram_max /= (1024 * 1024 * 1024); //GB
 		printf("Max allowed number of ops: 2^%.3f, max RAM for DPs: %.3f GB\r\n", log2(MaxTotalOps), ram_max);
@@ -417,7 +449,7 @@ bool SolvePoint(EcPoint PntToSolve, int Range, int DP, EcInt* pk_res)
 
 //prepare GPUs
 	for (int i = 0; i < GpuCnt; i++)
-		if (!GpuKangs[i]->Prepare(PntToSolve, Range, DP, EcJumps1, EcJumps2, EcJumps3))
+		if (!GpuKangs[i]->Prepare(PntToSolve, Range, DP, EcJumps1, EcJumps2, EcJumps3, TargetSet))
 		{
 			GpuKangs[i]->Failed = true;
 			printf("GPU %d Prepare failed\r\n", GpuKangs[i]->CudaIndex);
@@ -434,6 +466,7 @@ bool SolvePoint(EcPoint PntToSolve, int Range, int DP, EcInt* pk_res)
 
 	u32 ThreadID;
 	gSolved = false;
+	gSolvedTargetId = 0;
 	ThrCnt = GpuCnt;
 	for (int i = 0; i < GpuCnt; i++)
 	{
@@ -529,6 +562,11 @@ bool ParseCommandLine(int argc, char* argv[])
 		else
 		if (strcmp(argument, "-dp") == 0)
 		{
+			if (ci >= argc)
+			{
+				printf("error: missed value after -dp option\r\n");
+				return false;
+			}
 			int val = atoi(argv[ci]);
 			ci++;
 			if ((val < 14) || (val > 60))
@@ -541,6 +579,11 @@ bool ParseCommandLine(int argc, char* argv[])
 		else
 		if (strcmp(argument, "-range") == 0)
 		{
+			if (ci >= argc)
+			{
+				printf("error: missed value after -range option\r\n");
+				return false;
+			}
 			int val = atoi(argv[ci]);
 			ci++;
 			if ((val < 32) || (val > 170))
@@ -552,7 +595,12 @@ bool ParseCommandLine(int argc, char* argv[])
 		}
 		else
 		if (strcmp(argument, "-start") == 0)
-		{	
+		{
+			if (ci >= argc)
+			{
+				printf("error: missed value after -start option\r\n");
+				return false;
+			}
 			if (!gStart.SetHexStr(argv[ci]))
 			{
 				printf("error: invalid value for -start option\r\n");
@@ -564,6 +612,11 @@ bool ParseCommandLine(int argc, char* argv[])
 		else
 		if (strcmp(argument, "-pubkey") == 0)
 		{
+			if (ci >= argc)
+			{
+				printf("error: missed value after -pubkey option\r\n");
+				return false;
+			}
 			if (!gPubKey.SetHexStr(argv[ci]))
 			{
 				printf("error: invalid value for -pubkey option\r\n");
@@ -574,12 +627,35 @@ bool ParseCommandLine(int argc, char* argv[])
 		else
 		if (strcmp(argument, "-tames") == 0)
 		{
-			strcpy(gTamesFileName, argv[ci]);
+			if (ci >= argc)
+			{
+				printf("error: missed value after -tames option\r\n");
+				return false;
+			}
+			strncpy(gTamesFileName, argv[ci], sizeof(gTamesFileName) - 1);
+			gTamesFileName[sizeof(gTamesFileName) - 1] = 0;
+			ci++;
+		}
+		else
+		if (strcmp(argument, "-targets") == 0)
+		{
+			if (ci >= argc)
+			{
+				printf("error: missed value after -targets option\r\n");
+				return false;
+			}
+			strncpy(gTargetsFileName, argv[ci], sizeof(gTargetsFileName) - 1);
+			gTargetsFileName[sizeof(gTargetsFileName) - 1] = 0;
 			ci++;
 		}
 		else
 		if (strcmp(argument, "-max") == 0)
 		{
+			if (ci >= argc)
+			{
+				printf("error: missed value after -max option\r\n");
+				return false;
+			}
 			double val = atof(argv[ci]);
 			ci++;
 			if (val < 0.001)
@@ -595,14 +671,29 @@ bool ParseCommandLine(int argc, char* argv[])
 			return false;
 		}
 	}
-	if (!gPubKey.x.IsZero())
+	if (!gPubKey.x.IsZero() && gTargetsFileName[0])
+	{
+		printf("error: use either -pubkey or -targets, not both\r\n");
+		return false;
+	}
+	if (!gPubKey.x.IsZero() || gTargetsFileName[0])
 		if (!gStartSet || !gRange || !gDP)
 		{
 			printf("error: you must also specify -dp, -range and -start options\r\n");
 			return false;
 		}
+	if (gTargetsFileName[0] && !IsFileExist(gTargetsFileName))
+	{
+		printf("error: targets file does not exist\r\n");
+		return false;
+	}
 	if (gTamesFileName[0] && !IsFileExist(gTamesFileName))
 	{
+		if (gTargetsFileName[0])
+		{
+			printf("error: tames file does not exist; generate tames separately before using -targets\r\n");
+			return false;
+		}
 		if (gMax == 0.0)
 		{
 			printf("error: you must also specify -max option to generate tames\r\n");
@@ -641,9 +732,12 @@ int main(int argc, char* argv[])
 	gRange = 0;
 	gStartSet = false;
 	gTamesFileName[0] = 0;
+	gTargetsFileName[0] = 0;
 	gMax = 0.0;
 	gGenMode = false;
 	gIsOpsLimit = false;
+	gMultiTargetMode = false;
+	gSolvedTargetId = 0;
 	memset(gGPUs_Mask, 1, sizeof(gGPUs_Mask));
 	if (!ParseCommandLine(argc, argv))
 		return 0;
@@ -656,13 +750,79 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
+	if (gTargetsFileName[0])
+	{
+		printf("Loading multi-target public keys from %s...\r\n", gTargetsFileName);
+		if (!gTargetSet.LoadFromFile(gTargetsFileName, gStart))
+		{
+			printf("error: %s\r\n", gTargetSet.GetLastError());
+			return 0;
+		}
+		gMultiTargetMode = true;
+		printf("Successfully loaded %u targets into memory.\r\n\r\n", gTargetSet.Count());
+		printf("Initializing Multi-Target Math Architecture...\r\n");
+		printf("Successfully mapped %u targets against the Base Point.\r\n", gTargetSet.Count());
+	}
+
 	pPntList = (u8*)malloc(MAX_CNT_LIST * GPU_DP_SIZE);
 	pPntList2 = (u8*)malloc(MAX_CNT_LIST * GPU_DP_SIZE);
 	TotalOps = 0;
 	TotalSolved = 0;
 	gTotalErrors = 0;
-	IsBench = gPubKey.x.IsZero();
+	IsBench = gPubKey.x.IsZero() && !gMultiTargetMode;
 
+	if (gMultiTargetMode && !gGenMode)
+	{
+		printf("\r\nMULTI-TARGET MAIN MODE\r\n\r\n");
+		EcInt pk_found;
+		EcPoint PntToSolve = gTargetSet.GetPoint(0);
+
+		char sx[100];
+		gStart.GetHexStr(sx);
+		printf("Solving %u mapped public keys\r\nOffset: %s\r\n", gTargetSet.Count(), sx);
+
+		if (!SolvePoint(PntToSolve, gRange, gDP, &pk_found, &gTargetSet))
+		{
+			if (!gIsOpsLimit)
+				printf("FATAL ERROR: SolvePoint failed\r\n");
+			goto label_end;
+		}
+		pk_found.AddModP(gStart);
+
+		EcPoint target_pnt = gTargetSet.GetPoint(gSolvedTargetId);
+		if (!gStart.IsZero())
+		{
+			EcPoint PntOfs = ec.MultiplyG(gStart);
+			target_pnt = ec.AddPoints(target_pnt, PntOfs);
+		}
+		EcPoint tmp = ec.MultiplyG(pk_found);
+		if (!tmp.IsEqual(target_pnt))
+		{
+			printf("FATAL ERROR: SolvePoint found incorrect key\r\n");
+			goto label_end;
+		}
+
+		char x[100], y[100], s[100];
+		target_pnt.x.GetHexStr(x);
+		target_pnt.y.GetHexStr(y);
+		pk_found.GetHexStr(s);
+		printf("\r\nTARGET INDEX: %u\r\nTARGET SOURCE LINE: %u\r\nX: %s\r\nY: %s\r\nPRIVATE KEY: %s\r\n\r\n",
+			gSolvedTargetId, gTargetSet.GetSourceLine(gSolvedTargetId), x, y, s);
+		FILE* fp = fopen("RESULTS.TXT", "a");
+		if (fp)
+		{
+			fprintf(fp, "TARGET INDEX: %u\nTARGET SOURCE LINE: %u\nX: %s\nY: %s\nPRIVATE KEY: %s\n",
+				gSolvedTargetId, gTargetSet.GetSourceLine(gSolvedTargetId), x, y, s);
+			fclose(fp);
+		}
+		else
+		{
+			printf("WARNING: Cannot save the key to RESULTS.TXT!\r\n");
+			while (1)
+				Sleep(100);
+		}
+	}
+	else
 	if (!IsBench && !gGenMode)
 	{
 		printf("\r\nMAIN MODE\r\n\r\n");

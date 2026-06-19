@@ -496,6 +496,7 @@ __device__ __forceinline__ void BuildDP(const TKparams& Kparams, int kang_ind, u
 	*(int4*)&DPs[4] = ((int4*)d)[0];
 	*(u64*)&DPs[8] = d[2];
 	DPs[10] = 3 * kang_ind / Kparams.KangCnt; //kang type
+	DPs[11] = Kparams.IsMultiTarget ? Kparams.TargetIds[kang_ind] : 0;
 }
 
 __device__ __forceinline__ bool ProcessJumpDistance(u32 step_ind, u32 d_cur, u64* d, u32 kang_ind, u64* jmp1_d, u64* jmp2_d, const TKparams& Kparams, u64* table, u32* cur_ind, u8 iter)

@@ -7,6 +7,7 @@
 #pragma once
 
 #include "Ec.h"
+#include "TargetSet.h"
 
 #define STATS_WND_SIZE	16
 
@@ -43,6 +44,8 @@ private:
 	EcJMP* EcJumps1;
 	EcJMP* EcJumps2;
 	EcJMP* EcJumps3;
+	TTargetSet* TargetSet;
+	u32* HostTargetIds;
 
 	EcPoint PntA;
 	EcPoint PntB;
@@ -65,7 +68,7 @@ public:
 	bool IsOldGpu;
 
 	int CalcKangCnt();
-	bool Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJumps1, EcJMP* _EcJumps2, EcJMP* _EcJumps3);
+	bool Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJumps1, EcJMP* _EcJumps2, EcJMP* _EcJumps3, TTargetSet* _TargetSet = NULL);
 	void Stop();
 	void Execute();
 

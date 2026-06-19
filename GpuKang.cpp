@@ -25,7 +25,7 @@ int RCGpuKang::CalcKangCnt()
 }
 
 //executes in main thread
-bool RCGpuKang::Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJumps1, EcJMP* _EcJumps2, EcJMP* _EcJumps3)
+bool RCGpuKang::Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJumps1, EcJMP* _EcJumps2, EcJMP* _EcJumps3, TTargetSet* _TargetSet)
 {
 	PntToSolve = _PntToSolve;
 	Range = _Range;
@@ -33,6 +33,8 @@ bool RCGpuKang::Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJump
 	EcJumps1 = _EcJumps1;
 	EcJumps2 = _EcJumps2;
 	EcJumps3 = _EcJumps3;
+	TargetSet = _TargetSet;
+	HostTargetIds = NULL;
 	StopFlag = false;
 	Failed = false;
 	u64 total_mem = 0;
@@ -55,6 +57,7 @@ bool RCGpuKang::Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJump
 	Kparams.KernelB_LDS_Size = 64 * JMP_CNT;
 	Kparams.KernelC_LDS_Size = 96 * JMP_CNT;
 	Kparams.IsGenMode = gGenMode;
+	Kparams.IsMultiTarget = TargetSet && TargetSet->Count();
 
 //allocate gpu mem
 	u64 size;
@@ -102,6 +105,15 @@ bool RCGpuKang::Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJump
 	if (err != cudaSuccess)
 	{
 		printf("GPU %d Allocate pKangs memory failed: %s\n", CudaIndex, cudaGetErrorString(err));
+		return false;
+	}
+
+	size = sizeof(u32) * (u64)KangCnt;
+	total_mem += size;
+	err = cudaMalloc((void**)&Kparams.TargetIds, size);
+	if (err != cudaSuccess)
+	{
+		printf("GPU %d Allocate TargetIds memory failed: %s\n", CudaIndex, cudaGetErrorString(err));
 		return false;
 	}
 
@@ -259,8 +271,10 @@ void RCGpuKang::Release()
 {
 	free(RndPnts);
 	free(DPs_out);
+	free(HostTargetIds);
 	cudaFree(Kparams.LoopedKangs);
 	cudaFree(Kparams.dbg_buf);
+	cudaFree(Kparams.TargetIds);
 	cudaFree(Kparams.LoopTable);
 	cudaFree(Kparams.LastPnts);
 	cudaFree(Kparams.L1S2);
@@ -317,6 +331,8 @@ bool RCGpuKang::Start()
 	PntB.y.NegModP();
 
 	RndPnts = (TPointPriv*)malloc(KangCnt * 96);
+	HostTargetIds = (u32*)malloc(sizeof(u32) * KangCnt);
+	memset(HostTargetIds, 0, sizeof(u32) * KangCnt);
 	GenerateRndDistances();
 /* 
 	//we can calc start points on CPU
@@ -356,15 +372,47 @@ bool RCGpuKang::Start()
 	u8 buf_PntA[64], buf_PntB[64];
 	PntA.SaveToBuffer64(buf_PntA);
 	PntB.SaveToBuffer64(buf_PntB);
+	u32 target_cnt = (TargetSet && TargetSet->Count()) ? TargetSet->Count() : 0;
+	u32 tame_cnt = KangCnt / 3;
+	u32 wild2_start = 2 * KangCnt / 3;
 	for (int i = 0; i < KangCnt; i++)
 	{
-		if (i < KangCnt / 3)
+		if (i < (int)tame_cnt)
 			memset(RndPnts[i].x, 0, 64);
 		else
-			if (i < 2 * KangCnt / 3)
-				memcpy(RndPnts[i].x, buf_PntA, 64);
+		{
+			if (target_cnt)
+			{
+				u32 group_start = (i < (int)wild2_start) ? tame_cnt : wild2_start;
+				u32 group_cnt = (i < (int)wild2_start) ? (wild2_start - tame_cnt) : (KangCnt - wild2_start);
+				u32 group_ind = i - group_start;
+				u32 target_id = (u32)(((u64)group_ind * target_cnt) / group_cnt);
+				if (target_id >= target_cnt)
+					target_id = target_cnt - 1;
+				HostTargetIds[i] = target_id;
+				EcPoint target = TargetSet->GetPoint(target_id);
+				EcPoint a = ec.AddPoints(target, NegPntHalfRange);
+				EcPoint b = a;
+				b.y.NegModP();
+				if (i < (int)wild2_start)
+					a.SaveToBuffer64((u8*)RndPnts[i].x);
+				else
+					b.SaveToBuffer64((u8*)RndPnts[i].x);
+			}
 			else
-				memcpy(RndPnts[i].x, buf_PntB, 64);
+			{
+				if (i < (int)wild2_start)
+					memcpy(RndPnts[i].x, buf_PntA, 64);
+				else
+					memcpy(RndPnts[i].x, buf_PntB, 64);
+			}
+		}
+	}
+	err = cudaMemcpy(Kparams.TargetIds, HostTargetIds, sizeof(u32) * KangCnt, cudaMemcpyHostToDevice);
+	if (err != cudaSuccess)
+	{
+		printf("GPU %d, cudaMemcpy TargetIds failed: %s\n", CudaIndex, cudaGetErrorString(err));
+		return false;
 	}
 	//copy to gpu
 	err = cudaMemcpy(Kparams.Kangs, RndPnts, KangCnt * 96, cudaMemcpyHostToDevice);

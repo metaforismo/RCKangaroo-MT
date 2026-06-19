@@ -1,80 +1,156 @@
-(c) 2024, RetiredCoder (RC)
+# RCKangaroo-MT
 
-RCKangaroo is free and open-source (GPLv3).
-This software demonstrates efficient GPU implementation of SOTA Kangaroo method for solving ECDLP. 
-It's part #3 of my research, you can find more details here: https://github.com/RetiredC
+RCKangaroo-MT is a GPLv3 fork of RetiredCoder's `RCKangaroo v3.1`, based on the CUDA SOTA Kangaroo implementation for solving ECDLP on secp256k1.
 
+Upstream project: https://github.com/RetiredC/RCKangaroo
+RetiredCoder research collection: https://github.com/RetiredC
 Discussion thread: https://bitcointalk.org/index.php?topic=5517607
 
-<b>Features:</b>
+This fork keeps the original single-target, benchmark, and tames workflows, and adds an experimental multi-target mode plus macOS companion tools for preparing target lists.
 
-- Lowest K=1.15, it means 1.8 times less required operations compared to classic method with K=2.1, also it means that you need 1.8 times less memory to store DPs.
-- Fast, about 8GKeys/s on RTX 4090, 4GKeys/s on RTX 3090.
-- Keeps DP overhead as small as possible.
-- Supports ranges up to 170 bits.
-- Both Windows and Linux are supported.
+## Features
 
-<b>Limitations:</b>
+- Original RCKangaroo v3.1 CUDA SOTA Kangaroo implementation.
+- Single public-key solving with `-pubkey`.
+- Benchmark mode when no target is supplied.
+- Tames generation/loading with `-tames` and `-max`.
+- Multi-target public-key solving with `-targets`.
+- Target loader for compressed `02...` / `03...` and uncompressed `04...` secp256k1 public keys.
+- Per-DP target metadata so solved collisions can be verified against the matching target.
+- macOS companion script for validating and normalizing target files.
 
-- No advanced features like networking, saving/loading DPs, etc.
+## Requirements
 
-<b>Command line parameters:</b>
+The solver requires NVIDIA CUDA. Linux and Windows CUDA builds are the intended runtime targets.
 
-<b>-gpu</b>		which GPUs are used, for example, "035" means that GPUs #0, #3 and #5 are used. If not specified, all available GPUs are used. 
+Apple Silicon/macOS cannot run the CUDA solver on the Apple GPU. Use the `macos/` tools to prepare target files on a Mac, then run the solver on a CUDA host.
 
-<b>-pubkey</b>		public key to solve, both compressed and uncompressed keys are supported. If not specified, software starts in benchmark mode and solves random keys. 
+## Build on Linux CUDA
 
-<b>-start</b>		start offset of the key, in hex. Mandatory if "-pubkey" option is specified. For example, for puzzle #85 start offset is "1000000000000000000000". 
+Edit `CUDA_PATH` in `Makefile` if your CUDA installation is not in `/usr/local/cuda-12.0`.
 
-<b>-range</b>		bit range of private the key. Mandatory if "-pubkey" option is specified. For example, for puzzle #85 bit range is "84" (84 bits). Must be in range 32...170. 
+```sh
+make
+```
 
-<b>-dp</b>		DP bits. Must be in range 14...60. Low DP bits values cause larger DB but reduces DP overhead and vice versa. 
+Host-only checks that do not require CUDA:
 
-<b>-max</b>		option to limit max number of operations. For example, value 5.5 limits number of operations to 5.5 * 1.15 * sqrt(range), software stops when the limit is reached. 
+```sh
+make check-host
+```
 
-<b>-tames</b>		filename with tames. If file not found, software generates tames (option "-max" is required) and saves them to the file. If the file is found, software loads tames to speedup solving. 
+## Command line
 
-When public key is solved, software displays it and also writes it to "RESULTS.TXT" file. 
+```text
+-gpu      GPU ids to use, for example "035" for GPUs 0, 3, and 5.
+-pubkey   Single public key to solve. Compressed and uncompressed keys are supported.
+-targets  Text file with one public key per line for multi-target mode.
+-start    Start offset of the key interval, in hex.
+-range    Private-key range in bits. Must be 32...170 in CLI parsing.
+-dp       Distinguished point bits. Must be 14...60.
+-max      Stop after max * 1.15 * sqrt(range) operations.
+-tames    Load or generate a tames file.
+```
 
-Sample command line for puzzle #85:
+`-pubkey` and `-targets` are mutually exclusive. Both require `-start`, `-range`, and `-dp`.
 
-RCKangaroo.exe -dp 16 -range 84 -start 1000000000000000000000 -pubkey 0329c4574a4fd8c810b7e42a4b398882b381bcd85e40c6883712912d167c83e73a
+## Single-target example
 
-Sample command to generate tames:
+```sh
+./rckangaroo -dp 16 -range 84 -start 1000000000000000000000 -pubkey 0329c4574a4fd8c810b7e42a4b398882b381bcd85e40c6883712912d167c83e73a
+```
 
-RCKangaroo.exe -dp 16 -range 76 -tames tames76.dat -max 10
+## Multi-target example
 
-Then you can restart software with same parameters to see less K in benchmark mode or add "-tames tames76.dat" to solve some public key in 76-bit range faster.
+Prepare a file with one public key per line:
 
-<b>Some notes:</b>
+```text
+# comments and blank lines are allowed
+0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+0379BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+```
 
-Fastest ECDLP solvers will always use SOTA/SOTA+ method, as it's 1.4/1.5 times faster and requires less memory for DPs compared to the best 3-way kangaroos with K=1.6. 
-Even if you already have a faster implementation of kangaroo jumps, incorporating SOTA method will improve it further. 
-While adding the necessary loop-handling code will cause you to lose about 5–15% of your current speed, the SOTA method itself will provide a 40% performance increase. 
-Overall, this translates to roughly a 25% net improvement, which should not be ignored if your goal is to build a truly fast solver. 
+Run:
 
+```sh
+./rckangaroo -dp 16 -range 84 -start 1000000000000000000000 -targets targets.cleaned.txt
+```
 
-<b>Changelog:</b>
+The startup output includes:
 
-v3.1:
+```text
+Loading multi-target public keys from targets.cleaned.txt...
+Successfully loaded N targets into memory.
 
-- fixed "gpu illegal memory access" bug.
-- some small improvements.
+Initializing Multi-Target Math Architecture...
+Successfully mapped N targets against the Base Point.
+```
 
-v3.0:
+When a key is found, the solver prints and appends to `RESULTS.TXT`:
 
-- added "-tames" and "-max" options.
-- fixed some bugs.
+```text
+TARGET INDEX
+TARGET SOURCE LINE
+X
+Y
+PRIVATE KEY
+```
 
-v2.0:
+## Multi-target notes
 
-- added support for 30xx, 20xx and 1xxx cards.
-- some minor changes.
+The loader maps every target by subtracting the configured `-start` offset. Wild kangaroos are then started from target-specific points and carry a `target_id` through GPU distinguished-point output. Tame kangaroos remain universal, so one tame DP can resolve a collision for any target wild. The current mode stops at the first solved target.
 
-v1.1:
+For very large target files, all targets are loaded and indexed, but the effective per-target wild density depends on GPU count and kangaroo count. More GPUs increase the active wild population.
 
-- added ability to start software on 30xx cards.
+Existing tames files from the original v3.1 format are still used by the normal single-target flow. In multi-target mode, use tames generated by this fork and generate them separately before using `-targets`.
 
-v1.0:
+## macOS companion workflow
 
-- initial release.
+Validate and normalize a target list on macOS:
+
+```sh
+python3 macos/prepare_targets.py stripped.txt -o targets.cleaned.txt
+```
+
+More details:
+
+- English: `macos/README.md`
+- Italiano: `macos/README.it.md`
+
+## Original limitations
+
+This remains a proof-of-concept style GPU solver. It does not add networking, distributed coordination, checkpointing of all DPs, or an Apple GPU backend.
+
+## Changelog
+
+### RCKangaroo-MT
+
+- Added `-targets` multi-target mode.
+- Added target-file loader and target offset mapping.
+- Added GPU-side target id output for distinguished points.
+- Added multi-target collision verification and target-aware result output.
+- Added macOS target preparation tools.
+- Added host-only parser checks.
+
+### Upstream v3.1
+
+- Fixed "gpu illegal memory access" bug.
+- Small improvements.
+
+### Upstream v3.0
+
+- Added `-tames` and `-max` options.
+- Fixed bugs.
+
+### Upstream v2.0
+
+- Added support for 30xx, 20xx, and 1xxx cards.
+- Minor changes.
+
+### Upstream v1.1
+
+- Added ability to start software on 30xx cards.
+
+### Upstream v1.0
+
+- Initial release.

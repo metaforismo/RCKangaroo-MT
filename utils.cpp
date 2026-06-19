@@ -56,7 +56,8 @@ u64 GetTickCount64()
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define DB_REC_LEN			32
+#define DB_REC_LEN_LEGACY	32
+#define DB_REC_LEN_TARGETS	36
 #define DB_FIND_LEN			9
 #define DB_MIN_GROW_CNT		2
 
@@ -64,12 +65,10 @@ u64 GetTickCount64()
 //everything will be stable up to about 8TB RAM
 
 #define MEM_PAGE_SIZE		(128 * 1024)
-#define RECS_IN_PAGE		(MEM_PAGE_SIZE / DB_REC_LEN)
-#define MAX_PAGES_CNT		(0xFFFFFFFF / RECS_IN_PAGE)
-
 MemPool::MemPool()
 {
 	pnt = 0;
+	RecLen = DB_REC_LEN_LEGACY;
 }
 
 MemPool::~MemPool()
@@ -86,34 +85,48 @@ void MemPool::Clear()
 	pnt = 0;
 }
 
+u32 MemPool::RecsInPage() const
+{
+	return MEM_PAGE_SIZE / RecLen;
+}
+
+void MemPool::SetRecordLen(u32 rec_len)
+{
+	Clear();
+	RecLen = rec_len;
+}
+
 void* MemPool::AllocRec(u32* cmp_ptr)
 {
 	void* mem;
-	if (pages.empty() || (pnt + DB_REC_LEN > MEM_PAGE_SIZE))
+	if (pages.empty() || (pnt + RecLen > MEM_PAGE_SIZE))
 	{
-		if (pages.size() >= MAX_PAGES_CNT)
+		if (pages.size() >= (0xFFFFFFFF / RecsInPage()))
 			return NULL; //overflow
 		pages.push_back(malloc(MEM_PAGE_SIZE));
 		pnt = 0;
 	}
 	u32 page_ind = (u32)pages.size() - 1;
 	mem = (u8*)pages[page_ind] + pnt;
-	*cmp_ptr = (page_ind * RECS_IN_PAGE) | (pnt / DB_REC_LEN);
-	pnt += DB_REC_LEN;
+	*cmp_ptr = (page_ind * RecsInPage()) | (pnt / RecLen);
+	pnt += RecLen;
 	return mem;
 }
 
 void* MemPool::GetRecPtr(u32 cmp_ptr)
 {
-	u32 page_ind = cmp_ptr / RECS_IN_PAGE;
-	u32 rec_ind = cmp_ptr % RECS_IN_PAGE;
-	return (u8*)pages[page_ind] + DB_REC_LEN * rec_ind;
+	u32 recs_in_page = RecsInPage();
+	u32 page_ind = cmp_ptr / recs_in_page;
+	u32 rec_ind = cmp_ptr % recs_in_page;
+	return (u8*)pages[page_ind] + RecLen * rec_ind;
 }
 
 TFastBase::TFastBase()
 {
 	memset(lists, 0, sizeof(lists));
 	memset(Header, 0, sizeof(Header));
+	RecLen = DB_REC_LEN_LEGACY;
+	StoreTargetIds = false;
 }
 
 TFastBase::~TFastBase()
@@ -136,6 +149,29 @@ void TFastBase::Clear()
 			}
 		mps[i].Clear();
 	}
+}
+
+void TFastBase::SetTargetIdStorage(bool enabled)
+{
+	u32 rec_len = enabled ? DB_REC_LEN_TARGETS : DB_REC_LEN_LEGACY;
+	if ((rec_len == RecLen) && (enabled == StoreTargetIds))
+		return;
+
+	Clear();
+	RecLen = rec_len;
+	StoreTargetIds = enabled;
+	for (int i = 0; i < 256; i++)
+		mps[i].SetRecordLen(RecLen);
+}
+
+u32 TFastBase::GetStoredRecLen() const
+{
+	return RecLen;
+}
+
+bool TFastBase::StoresTargetIds() const
+{
+	return StoreTargetIds;
 }
 
 u64 TFastBase::GetBlockCnt()
@@ -192,7 +228,7 @@ u8* TFastBase::AddDataBlock(u8* data, int pos)
 	u32 cmp_ptr;
 	void* ptr = mps[data[0]].AllocRec(&cmp_ptr);
 	list->data[first] = cmp_ptr;
-	memcpy(ptr, data + 3, DB_REC_LEN);
+	memcpy(ptr, data + 3, RecLen);
 	list->cnt++;
 	return (u8*)ptr;
 }
@@ -260,7 +296,7 @@ bool TFastBase::LoadFromFile(char* fn)
 						u32 cmp_ptr;
 						void* ptr = mps[i].AllocRec(&cmp_ptr);
 						list->data[m] = cmp_ptr;
-						if (fread(ptr, 1, DB_REC_LEN, fp) != DB_REC_LEN)
+						if (fread(ptr, 1, RecLen, fp) != RecLen)
 						{
 							fclose(fp);
 							return false;
@@ -291,7 +327,7 @@ bool TFastBase::SaveToFile(char* fn)
 				for (int m = 0; m < list->cnt; m++)
 				{
 					void* ptr = mps[i].GetRecPtr(list->data[m]);
-					if (fwrite(ptr, 1, DB_REC_LEN, fp) != DB_REC_LEN)
+					if (fwrite(ptr, 1, RecLen, fp) != RecLen)
 					{
 						fclose(fp);
 						return false;

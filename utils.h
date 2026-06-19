@@ -75,9 +75,12 @@ class MemPool
 private:
 	std::vector <void*> pages;
 	u32 pnt;
+	u32 RecLen;
+	u32 RecsInPage() const;
 public:
 	MemPool();
 	~MemPool();
+	void SetRecordLen(u32 rec_len);
 	void Clear();
 	inline void* AllocRec(u32* cmp_ptr);
 	inline void* GetRecPtr(u32 cmp_ptr);
@@ -88,12 +91,17 @@ class TFastBase
 private:
 	MemPool mps[256];
 	TListRec lists[256][256][256];
+	u32 RecLen;
+	bool StoreTargetIds;
 	int lower_bound(TListRec* list, int mps_ind, u8* data);
 public:
 	u8 Header[256];
 
 	TFastBase();
 	~TFastBase();
+	void SetTargetIdStorage(bool enabled);
+	u32 GetStoredRecLen() const;
+	bool StoresTargetIds() const;
 	void Clear();
 	u8* AddDataBlock(u8* data, int pos = -1);
 	u8* FindDataBlock(u8* data);

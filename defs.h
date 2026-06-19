@@ -92,9 +92,11 @@ struct TKparams
 	u32* L1S2;
 	u64* LastPnts;
 	u64* LoopTable;
+	u32* TargetIds;
 	u32* dbg_buf;
 	u32* LoopedKangs;
 	bool IsGenMode; //tames generation mode
+	bool IsMultiTarget;
 
 	u32 KernelA_LDS_Size;
 	u32 KernelB_LDS_Size;

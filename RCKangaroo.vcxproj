@@ -150,6 +150,7 @@
     </ClCompile>
     <ClCompile Include="GpuKang.cpp" />
     <ClCompile Include="RCKangaroo.cpp" />
+    <ClCompile Include="TargetSet.cpp" />
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -157,6 +158,7 @@
     <ClInclude Include="Ec.h" />
     <ClInclude Include="GpuKang.h" />
     <ClInclude Include="RCGpuUtils.h" />
+    <ClInclude Include="TargetSet.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <ItemGroup>
