@@ -1,0 +1,6 @@
+.worktrees/
+*.o
+rckangaroo
+RESULTS.TXT
+benchmarks.jsonl
+run.log
