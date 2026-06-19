@@ -3,5 +3,5 @@
 rckangaroo
 /macos/rck_macos
 RESULTS.TXT
-benchmarks.jsonl
+/benchmarks.jsonl
 run.log

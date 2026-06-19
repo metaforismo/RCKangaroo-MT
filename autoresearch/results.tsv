@@ -1,2 +1,3 @@
 timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness	status	description
 2026-06-19T21:17:21Z	e53e7ec	baseline	cpu	multiply_g	64	69669.342768	true	keep	CPU multiply_g baseline with correctness gates
+2026-06-19T21:22:09Z	8bf2459	baseline	cpu	multiply_g	64	68882.012646	true	discard	CPU multiply_g baseline with correctness gates

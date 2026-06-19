@@ -2,11 +2,11 @@
 
 RCKangaroo-MT e' un fork GPLv3 di `RCKangaroo v3.1` di RetiredCoder, basato sull'implementazione CUDA del metodo SOTA Kangaroo per ECDLP su secp256k1.
 
-Progetto upstream: https://github.com/RetiredC/RCKangaroo  
-Raccolta RetiredCoder: https://github.com/RetiredC  
+Progetto upstream: https://github.com/RetiredC/RCKangaroo
+Raccolta RetiredCoder: https://github.com/RetiredC
 Thread di discussione: https://bitcointalk.org/index.php?topic=5517607
 
-Questo fork mantiene single-target, benchmark e tames del progetto originale, e aggiunge una modalita multi-target sperimentale piu strumenti companion per macOS.
+Questo fork mantiene single-target, benchmark e tames del progetto originale, e aggiunge una modalita multi-target sperimentale piu strumenti macOS nativi per correttezza, benchmark, smoke test Metal e autoresearch.
 
 ## Funzionalita
 
@@ -17,13 +17,24 @@ Questo fork mantiene single-target, benchmark e tames del progetto originale, e 
 - Risoluzione multi-target con `-targets`.
 - Loader target per public key secp256k1 compresse `02...` / `03...` e non compresse `04...`.
 - Metadati target per ogni distinguished point, cosi' la collisione risolta viene verificata contro il target corretto.
-- Script macOS per validare e normalizzare liste target.
+- Oracle CPU macOS per tiny-range, test di correttezza e benchmark locali.
+- Backend Metal smoke per verificare il runtime Apple Silicon.
+- Runner autoresearch per esperimenti con gate fissi e risultati misurabili.
 
 ## Requisiti
 
-Il solver richiede NVIDIA CUDA. Linux e Windows con CUDA sono i target runtime previsti.
+Il solver completo ad alte prestazioni richiede NVIDIA CUDA. Linux e Windows con CUDA sono i target runtime previsti per il motore kangaroo originale.
 
-Apple Silicon/macOS non puo eseguire il solver CUDA sulla GPU Apple. Usa gli strumenti in `macos/` per preparare i target su Mac, poi esegui il solver su una macchina CUDA.
+Apple Silicon/macOS non puo eseguire kernel CUDA sulla GPU Apple. Questa repo ora include un percorso separato per preparazione target, correttezza host, tiny-range CPU, benchmark, smoke test Metal e autoresearch.
+
+## Matrice backend
+
+| Backend | Stato | Scopo |
+|---|---|---|
+| CUDA | Solver completo | Motore kangaroo CUDA originale con aggiunte multi-target. |
+| macOS CPU | Funzionante | Oracle tiny-range, test secp256k1, benchmark baseline. |
+| macOS Metal | Smoke backend | Compila ed esegue un kernel Metal minimo quando un device Metal e' visibile. I kernel aritmetici sono il passo successivo. |
+| Autoresearch | Funzionante | Esegue check e benchmark con gate fissi e registra righe keep/discard. |
 
 ## Build su Linux CUDA
 
@@ -112,6 +123,15 @@ Valida e normalizza una lista target su macOS:
 python3 macos/prepare_targets.py stripped.txt -o targets.cleaned.txt
 ```
 
+Build e test del percorso nativo macOS:
+
+```sh
+make macos-check
+make macos-bench
+./macos/rck_macos metal-smoke
+python3 autoresearch/runner.py --experiment baseline --budget-sec 5
+```
+
 Dettagli:
 
 - English: `macos/README.md`
@@ -119,4 +139,4 @@ Dettagli:
 
 ## Limiti
 
-Questo resta un solver GPU in stile proof-of-concept. Non aggiunge networking, coordinamento distribuito, checkpoint completi di tutte le DP o backend Apple GPU.
+Questo resta un solver GPU in stile proof-of-concept. Non aggiunge networking, coordinamento distribuito, checkpoint completi di tutte le DP o un backend kangaroo Apple GPU completo, ancora.

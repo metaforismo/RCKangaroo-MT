@@ -1,6 +1,34 @@
-# macOS companion tools
+# macOS native tools
 
-RCKangaroo-MT still requires NVIDIA CUDA for the actual solver. Apple Silicon GPUs do not run CUDA kernels, so the `macos/` folder is a companion workflow for preparing target files on a MacBook before running the solver on a CUDA machine.
+RCKangaroo-MT still uses NVIDIA CUDA for the full high-performance kangaroo solver, but the `macos/` folder now provides native Apple Silicon tooling for target preparation, secp256k1 correctness checks, tiny-range CPU solves, benchmarks, and Metal runtime smoke tests.
+
+## Build and Check
+
+```sh
+make macos-check
+```
+
+This builds `macos/rck_macos`, runs host secp256k1 vector checks, validates target parsing, and runs the native CPU selftest.
+
+Run a tiny-range CPU solve:
+
+```sh
+./macos/rck_macos solve-small --range 8 --start 0 --pubkey 025CBDF0646E5DB4EAA398F365F2EA7A0E3D419B7E0330E39CE92BDDEDCAC4F9BC
+```
+
+Run a CPU benchmark:
+
+```sh
+make macos-bench
+```
+
+Run the Metal smoke test:
+
+```sh
+./macos/rck_macos metal-smoke
+```
+
+If no Metal device is visible in the current execution environment, the command reports a skip instead of failing. On a normal Apple Silicon runtime with device access, it compiles and runs a minimal Metal compute kernel.
 
 ## Prepare a target list
 
@@ -34,4 +62,10 @@ Then copy `targets.cleaned.txt` to the CUDA host and run:
 
 The macOS script is intentionally pure Python and uses only the standard library. It does not need Homebrew, CUDA, OpenSSL, or third-party Python packages.
 
-If you want to generate tames, do that on the CUDA host. With multi-target mode, existing tames must already exist; generate them separately before using `-targets`.
+Use autoresearch from the repo root:
+
+```sh
+python3 autoresearch/runner.py --experiment baseline --budget-sec 5
+```
+
+If you want to generate tames for the full solver, do that on the CUDA host. With multi-target mode, existing tames must already exist; generate them separately before using `-targets`.

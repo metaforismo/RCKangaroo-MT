@@ -6,7 +6,7 @@ Upstream project: https://github.com/RetiredC/RCKangaroo
 RetiredCoder research collection: https://github.com/RetiredC
 Discussion thread: https://bitcointalk.org/index.php?topic=5517607
 
-This fork keeps the original single-target, benchmark, and tames workflows, and adds an experimental multi-target mode plus macOS companion tools for preparing target lists.
+This fork keeps the original single-target, benchmark, and tames workflows, and adds an experimental multi-target mode plus macOS-native correctness, benchmark, Metal smoke, and autoresearch tools.
 
 ## Features
 
@@ -17,13 +17,24 @@ This fork keeps the original single-target, benchmark, and tames workflows, and 
 - Multi-target public-key solving with `-targets`.
 - Target loader for compressed `02...` / `03...` and uncompressed `04...` secp256k1 public keys.
 - Per-DP target metadata so solved collisions can be verified against the matching target.
-- macOS companion script for validating and normalizing target files.
+- macOS CPU oracle for tiny-range correctness checks and local benchmarks.
+- Metal smoke backend for Apple Silicon runtime verification.
+- Autoresearch runner for fixed-gate optimization experiments.
 
 ## Requirements
 
-The solver requires NVIDIA CUDA. Linux and Windows CUDA builds are the intended runtime targets.
+The full high-performance solver requires NVIDIA CUDA. Linux and Windows CUDA builds are the intended runtime targets for the original kangaroo engine.
 
-Apple Silicon/macOS cannot run the CUDA solver on the Apple GPU. Use the `macos/` tools to prepare target files on a Mac, then run the solver on a CUDA host.
+Apple Silicon/macOS cannot run CUDA kernels on the Apple GPU. This repo now includes a separate macOS path for target preparation, host correctness, tiny-range CPU solving, benchmarks, Metal runtime smoke tests, and autoresearch.
+
+## Backend Matrix
+
+| Backend | Status | Purpose |
+|---|---|---|
+| CUDA | Full solver | Original RCKangaroo CUDA kangaroo engine with multi-target additions. |
+| macOS CPU | Working | Tiny-range oracle, secp256k1 correctness tests, baseline benchmarks. |
+| macOS Metal | Smoke backend | Builds and runs a minimal Metal compute kernel when a Metal device is visible. Arithmetic kernels are the next step. |
+| Autoresearch | Working | Runs fixed-gate checks and benchmarks, then logs keep/discard experiment rows. |
 
 ## Build on Linux CUDA
 
@@ -112,6 +123,15 @@ Validate and normalize a target list on macOS:
 python3 macos/prepare_targets.py stripped.txt -o targets.cleaned.txt
 ```
 
+Build and test the native macOS path:
+
+```sh
+make macos-check
+make macos-bench
+./macos/rck_macos metal-smoke
+python3 autoresearch/runner.py --experiment baseline --budget-sec 5
+```
+
 More details:
 
 - English: `macos/README.md`
@@ -119,7 +139,7 @@ More details:
 
 ## Original limitations
 
-This remains a proof-of-concept style GPU solver. It does not add networking, distributed coordination, checkpointing of all DPs, or an Apple GPU backend.
+This remains a proof-of-concept style GPU solver. It does not add networking, distributed coordination, checkpointing of all DPs, or a full Apple GPU kangaroo backend yet.
 
 ## Changelog
 
