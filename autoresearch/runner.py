@@ -144,6 +144,8 @@ def main() -> int:
         "backend": backend,
         "operation": operation,
         "iterations": int(metrics.get("iterations", 0)),
+        "sample_count": int(metrics.get("sample_count", 0)),
+        "min_ms": int(metrics.get("min_ms", 0)),
         "seconds": float(metrics.get("seconds", 0.0)),
         "ops_per_sec": ops_per_sec,
         "correctness": correctness,

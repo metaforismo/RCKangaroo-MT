@@ -209,6 +209,11 @@ static std::string FieldToHex(const CpuFieldElement& v)
 	return oss.str();
 }
 
+static uint64_t MixChecksum(uint64_t checksum, const CpuFieldElement& v, uint64_t index)
+{
+	return checksum + v[0] + (v[1] ^ v[2]) + v[3] + index;
+}
+
 static bool CheckVector(const CpuFieldElement& a, const CpuFieldElement& b, std::string& error)
 {
 	EcInt ea = ToEcInt(a);
@@ -273,10 +278,12 @@ bool RCKCpuFieldSelfTest(std::string& error)
 	return true;
 }
 
-static std::string CpuFieldBenchJson(unsigned int iterations,
-	double seconds,
-	double ops_per_sec,
-	double reference_seconds,
+static std::string CpuFieldBenchJson(uint64_t operations,
+		unsigned int sample_count,
+		unsigned int min_ms,
+		double seconds,
+		double ops_per_sec,
+		double reference_seconds,
 	double reference_ops_per_sec,
 	uint64_t checksum,
 	bool correctness,
@@ -286,7 +293,9 @@ static std::string CpuFieldBenchJson(unsigned int iterations,
 	oss << std::fixed << std::setprecision(6);
 	oss << "{\"backend\":\"macos_cpu\",";
 	oss << "\"operation\":\"field_mul_mod_p\",";
-	oss << "\"iterations\":" << iterations << ",";
+	oss << "\"iterations\":" << operations << ",";
+	oss << "\"sample_count\":" << sample_count << ",";
+	oss << "\"min_ms\":" << min_ms << ",";
 	oss << "\"seconds\":" << seconds << ",";
 	oss << "\"ops_per_sec\":" << ops_per_sec << ",";
 	oss << "\"reference_backend\":\"ecint\",";
@@ -301,14 +310,14 @@ static std::string CpuFieldBenchJson(unsigned int iterations,
 	return oss.str();
 }
 
-std::string RCKCpuFieldBenchJson(unsigned int iterations)
+std::string RCKCpuFieldBenchJson(unsigned int iterations, unsigned int min_ms)
 {
 	if (!iterations)
 		iterations = 1;
 
 	std::string error;
 	if (!RCKCpuFieldSelfTest(error))
-		return CpuFieldBenchJson(iterations, 0.0, 0.0, 0.0, 0.0, 0, false, error);
+		return CpuFieldBenchJson(0, iterations, min_ms, 0.0, 0.0, 0.0, 0.0, 0, false, error);
 
 	std::vector<CpuFieldElement> a;
 	std::vector<CpuFieldElement> b;
@@ -321,31 +330,40 @@ std::string RCKCpuFieldBenchJson(unsigned int iterations)
 	}
 
 	uint64_t checksum = 0;
+	uint64_t operations = 0;
 	auto t0 = std::chrono::steady_clock::now();
-	for (unsigned int i = 0; i < iterations; ++i)
+	auto t1 = t0;
+	do
 	{
-		CpuFieldElement out = FieldMul(a[i], b[i]);
-		checksum ^= out[0] ^ out[1] ^ out[2] ^ out[3];
-	}
-	auto t1 = std::chrono::steady_clock::now();
+		for (unsigned int i = 0; i < iterations; ++i)
+		{
+			CpuFieldElement out = FieldMul(a[i], b[i]);
+			checksum = MixChecksum(checksum, out, operations + i);
+		}
+		operations += iterations;
+		t1 = std::chrono::steady_clock::now();
+	} while (min_ms && (std::chrono::duration<double, std::milli>(t1 - t0).count() < (double)min_ms));
 
 	uint64_t reference_checksum = 0;
 	auto r0 = std::chrono::steady_clock::now();
-	for (unsigned int i = 0; i < iterations; ++i)
+	for (uint64_t done = 0; done < operations;)
 	{
-		EcInt ea = ToEcInt(a[i]);
-		EcInt eb = ToEcInt(b[i]);
-		ea.MulModP(eb);
-		CpuFieldElement out = FromEcIntCanonical(ea);
-		reference_checksum ^= out[0] ^ out[1] ^ out[2] ^ out[3];
+		for (unsigned int i = 0; i < iterations; ++i, ++done)
+		{
+			EcInt ea = ToEcInt(a[i]);
+			EcInt eb = ToEcInt(b[i]);
+			ea.MulModP(eb);
+			CpuFieldElement out = FromEcIntCanonical(ea);
+			reference_checksum = MixChecksum(reference_checksum, out, done);
+		}
 	}
 	auto r1 = std::chrono::steady_clock::now();
 
 	double seconds = std::chrono::duration<double>(t1 - t0).count();
 	double reference_seconds = std::chrono::duration<double>(r1 - r0).count();
-	double ops_per_sec = seconds > 0.0 ? (double)iterations / seconds : 0.0;
-	double reference_ops_per_sec = reference_seconds > 0.0 ? (double)iterations / reference_seconds : 0.0;
+	double ops_per_sec = seconds > 0.0 ? (double)operations / seconds : 0.0;
+	double reference_ops_per_sec = reference_seconds > 0.0 ? (double)operations / reference_seconds : 0.0;
 	bool correctness = checksum == reference_checksum;
 	std::string reason = correctness ? "" : "checksum mismatch against EcInt reference";
-	return CpuFieldBenchJson(iterations, seconds, ops_per_sec, reference_seconds, reference_ops_per_sec, checksum, correctness, reason);
+	return CpuFieldBenchJson(operations, iterations, min_ms, seconds, ops_per_sec, reference_seconds, reference_ops_per_sec, checksum, correctness, reason);
 }

@@ -37,7 +37,7 @@ Run the CPU field multiplication experiment:
 python3 autoresearch/runner.py --experiment cpu_field_mul --budget-sec 5
 ```
 
-This records `macos_cpu` `field_mul_mod_p` throughput and includes `EcInt` reference throughput plus `speedup_vs_ecint` in `autoresearch/benchmarks.jsonl`.
+This records `macos_cpu` `field_mul_mod_p` throughput and includes `EcInt` reference throughput plus `speedup_vs_ecint` in `autoresearch/benchmarks.jsonl`. The default make target uses `--min-ms 50`, so the native timing loop repeats the deterministic sample set long enough to reduce microbenchmark noise.
 
 Results are written to:
 

@@ -130,6 +130,7 @@ make macos-check
 make macos-bench
 ./macos/rck_macos cpu-field-test
 make macos-cpu-field-bench
+./macos/rck_macos cpu-field-bench --iterations 4096 --min-ms 50
 ./macos/rck_macos metal-smoke
 ./macos/rck_macos metal-field-test
 make macos-metal-field-bench

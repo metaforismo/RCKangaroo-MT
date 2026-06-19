@@ -33,9 +33,10 @@ Run CPU secp256k1 field arithmetic checks and the multiplication benchmark:
 ```sh
 ./macos/rck_macos cpu-field-test
 make macos-cpu-field-bench
+./macos/rck_macos cpu-field-bench --iterations 4096 --min-ms 50
 ```
 
-The CPU field path uses four little-endian 64-bit limbs and `unsigned __int128` carry arithmetic. The benchmark reports `field_mul_mod_p` throughput and an `EcInt` reference throughput for comparison.
+The CPU field path uses four little-endian 64-bit limbs and `unsigned __int128` carry arithmetic. The benchmark reports `field_mul_mod_p` throughput and an `EcInt` reference throughput for comparison. `--iterations` controls the deterministic sample set size; `--min-ms` repeats that sample set until the native measurement has run for at least that many milliseconds, which gives autoresearch less noisy timing data.
 
 Run the Metal smoke test:
 

@@ -16,7 +16,7 @@ static void PrintUsage()
 	printf("  rck_macos solve-small --range N --start HEX --pubkey PUBKEY\n");
 	printf("  rck_macos bench --iterations N\n");
 	printf("  rck_macos cpu-field-test\n");
-	printf("  rck_macos cpu-field-bench --iterations N\n");
+	printf("  rck_macos cpu-field-bench --iterations N [--min-ms N]\n");
 	printf("  rck_macos metal-smoke\n");
 	printf("  rck_macos metal-field-test\n");
 	printf("  rck_macos metal-field-bench --iterations N\n");
@@ -134,14 +134,22 @@ int main(int argc, char* argv[])
 	else if (strcmp(argv[1], "cpu-field-bench") == 0)
 	{
 		const char* iter_s = NULL;
+		const char* min_ms_s = NULL;
 		unsigned int iterations = 4096;
+		unsigned int min_ms = 0;
 		if (ReadOption(argc, argv, "--iterations", &iter_s) && !ParseU32(iter_s, &iterations))
 		{
 			PrintUsage();
 			DeInitEc();
 			return 1;
 		}
-		printf("%s\n", RCKCpuFieldBenchJson(iterations).c_str());
+		if (ReadOption(argc, argv, "--min-ms", &min_ms_s) && !ParseU32(min_ms_s, &min_ms))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		printf("%s\n", RCKCpuFieldBenchJson(iterations, min_ms).c_str());
 	}
 	else if (strcmp(argv[1], "metal-smoke") == 0)
 	{

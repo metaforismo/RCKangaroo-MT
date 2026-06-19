@@ -47,6 +47,7 @@ macos-build:
 macos-check: check-host macos-build
 	./$(MACOS_TARGET) selftest
 	sh tests/check_cpu_field_cli.sh
+	sh tests/check_cpu_field_bench_cli.sh
 	sh tests/check_metal_kernels.sh
 	sh tests/check_metal_field_cli.sh
 	sh tests/check_metal_field_mul_cli.sh
@@ -58,7 +59,7 @@ macos-cpu-field-test: macos-build
 	sh tests/check_cpu_field_cli.sh
 
 macos-cpu-field-bench: macos-build
-	./$(MACOS_TARGET) cpu-field-bench --iterations 4096
+	./$(MACOS_TARGET) cpu-field-bench --iterations 4096 --min-ms 50
 
 macos-metal-kernels-check:
 	sh tests/check_metal_kernels.sh
