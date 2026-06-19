@@ -164,10 +164,10 @@ int main(int argc, char* argv[])
 
 		RCKSmallSolveResult result = RCKSolveSmallJacobianKangaroo(target, start, range_bits, jumps, dp_bits, max_steps);
 		if (result.found)
-			printf("FOUND private_key=%llu private_key_hex=%llX target_index=%u method=jacobian_kangaroo_small\n", result.private_key, result.private_key, result.target_index);
+			printf("FOUND private_key=%llu private_key_hex=%llX target_index=%u method=jacobian_kangaroo_small dp_lookup=hash dp_count=%u\n", result.private_key, result.private_key, result.target_index, result.dp_count);
 		else
 		{
-			printf("NOT FOUND method=jacobian_kangaroo_small\n");
+			printf("NOT FOUND method=jacobian_kangaroo_small dp_lookup=hash dp_count=%u\n", result.dp_count);
 			rc = 2;
 		}
 	}

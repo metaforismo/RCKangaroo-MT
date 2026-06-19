@@ -24,7 +24,7 @@ Esempio tiny-range CPU:
 ./macos/rck_macos jacobian-kangaroo-multi-small --range 8 --start 2 --targets tests/jacobian_kangaroo_multi_targets.txt --jumps 8 --dp-bits 0 --max-steps 4096
 ```
 
-`jacobian-kangaroo-small` e' un solver bounded toy per range minuscoli. Esegue walk tame/wild con jump table deterministica, mantiene gli stati in coordinate Jacobian, registra distinguished points e verifica ogni candidato ricavato da collisione con `MultiplyG`. Serve per correttezza ed esperimenti architetturali; non e' il motore kangaroo CUDA/Metal completo.
+`jacobian-kangaroo-small` e' un solver bounded toy per range minuscoli. Esegue walk tame/wild con jump table deterministica, mantiene gli stati in coordinate Jacobian, registra distinguished points in bucket hash su chiave punto raw (`dp_lookup=hash`), riporta la dimensione della tabella DP come `dp_count` e verifica ogni candidato ricavato da collisione con `MultiplyG`. Serve per correttezza ed esperimenti architetturali; non e' il motore kangaroo CUDA/Metal completo.
 
 `jacobian-kangaroo-multi-small` carica un file target con il parser condiviso ed esegue un tame walk bounded piu' un wild walk per target nello stesso loop kangaroo Jacobian. La tabella dei distinguished point tame e' condivisa fra tutti i wild target e indicizzata con bucket hash (`dp_lookup=hash`), così i collision check scandiscono solo i DP con la stessa chiave punto. I candidati da collisione vengono verificati contro l'indice target corretto, e la CLI riporta conteggio target, stati tame/wild attivi e dimensione della tabella DP. Resta codice CPU tiny-range per correttezza ed esperimenti architetturali; non e' il motore CUDA/Metal completo.
 

@@ -155,7 +155,7 @@ python3 autoresearch/runner.py --experiment metal_field_add --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_mul --budget-sec 5
 ```
 
-The macOS `jacobian-kangaroo-multi-small` command is a tiny-range CPU architecture probe: it runs one shared tame walk plus one wild walk per target and reports `architecture=shared_tame`, `dp_lookup=hash`, and target/walk-state counts. The matching benchmark generates deterministic synthetic targets and measures shared-tame solves per second for a fixed target count.
+The macOS `jacobian-kangaroo-small` and `jacobian-kangaroo-multi-small` commands are tiny-range CPU architecture probes. The single-target solver records distinguished points in raw point-key hash buckets and reports `dp_lookup=hash` plus `dp_count`; the multi-target solver runs one shared tame walk plus one wild walk per target and reports `architecture=shared_tame`, `dp_lookup=hash`, and target/walk-state counts. The matching benchmark generates deterministic synthetic targets and measures shared-tame solves per second for a fixed target count.
 
 More details:
 
