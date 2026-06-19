@@ -26,7 +26,7 @@ Run a tiny-range CPU solve:
 
 `jacobian-kangaroo-small` is a bounded toy solver for tiny ranges. It runs tame/wild walks with a deterministic jump table, keeps walk states in Jacobian coordinates, records distinguished points, and verifies any collision-derived candidate against `MultiplyG`. It is intended for correctness and architecture experiments only; it is not the full CUDA/Metal kangaroo engine.
 
-`jacobian-kangaroo-multi-small` loads a target file with the shared target parser and runs one bounded tame walk plus one wild walk per target in the same Jacobian kangaroo loop. The tame distinguished-point table is shared across all wild targets, collision candidates are verified against the matching target index, and the CLI reports `architecture=shared_tame`, target counts, active tame/wild state counts, and DP table size. This is still tiny-range CPU code for correctness and architecture experiments; it is not the full CUDA/Metal engine.
+`jacobian-kangaroo-multi-small` loads a target file with the shared target parser and runs one bounded tame walk plus one wild walk per target in the same Jacobian kangaroo loop. The tame distinguished-point table is shared across all wild targets and indexed by hash buckets (`dp_lookup=hash`) so collision checks only scan DPs for the same point key. Collision candidates are verified against the matching target index, and the CLI reports target counts, active tame/wild state counts, and DP table size. This is still tiny-range CPU code for correctness and architecture experiments; it is not the full CUDA/Metal engine.
 
 Run a CPU benchmark:
 
@@ -48,7 +48,7 @@ make macos-jacobian-kangaroo-multi-small-bench
 
 `macos-jacobian-walk-bench` uses a deterministic jump table of affine points and applies mixed Jacobian additions selected from the current projective state. It tracks scalar distance in parallel and validates the final point against a scalar oracle. This is a walk-core benchmark, not yet a full kangaroo solver with distinguished points or collision handling.
 
-`macos-jacobian-kangaroo-multi-small-bench` generates deterministic synthetic targets, places one solvable target at the final index, and measures tiny shared-tame multi-target solves per second. Use `--target-count` to compare 1, 2, 4, 8, or larger target sets while keeping the same bounded range and jump parameters.
+`macos-jacobian-kangaroo-multi-small-bench` generates deterministic synthetic targets, places one solvable target at the final index, and measures tiny shared-tame multi-target solves per second with the hash-bucket DP lookup. Use `--target-count` to compare 1, 2, 4, 8, or larger target sets while keeping the same bounded range and jump parameters.
 
 Run CPU secp256k1 field arithmetic checks and the multiplication benchmark:
 

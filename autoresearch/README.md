@@ -45,7 +45,7 @@ Run the CPU shared-tame tiny multi-target kangaroo experiment:
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5
 ```
 
-This records `macos_cpu` `jacobian_kangaroo_multi_small` solves per second. The benchmark generates deterministic synthetic targets, places one solvable target at the final index, and reports `architecture=shared_tame`, target count, tame/wild state counts, and DP table size.
+This records `macos_cpu` `jacobian_kangaroo_multi_small` solves per second. The benchmark generates deterministic synthetic targets, places one solvable target at the final index, and reports `architecture=shared_tame`, `dp_lookup=hash`, target count, tame/wild state counts, and DP table size.
 
 Run the Metal field-add experiment:
 

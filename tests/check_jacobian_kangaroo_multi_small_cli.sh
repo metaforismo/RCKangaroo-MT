@@ -15,7 +15,7 @@ if [ "$status" -ne 0 ]; then
 fi
 
 case "$output" in
-	*"FOUND private_key=7 private_key_hex=7"*"target_index=1"*"method=jacobian_kangaroo_multi_small"*"architecture=shared_tame"*"target_count=2"*"tame_states=1"*"wild_states=2"*)
+	*"FOUND private_key=7 private_key_hex=7"*"target_index=1"*"method=jacobian_kangaroo_multi_small"*"architecture=shared_tame"*"dp_lookup=hash"*"target_count=2"*"tame_states=1"*"wild_states=2"*)
 		exit 0
 		;;
 	*)

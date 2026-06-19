@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <sstream>
+#include <unordered_map>
 
 static bool PointMatches(EcPoint a, EcPoint b)
 {
@@ -440,6 +441,56 @@ struct KangarooDp
 	unsigned int target_index;
 };
 
+struct KangarooPointKey
+{
+	u64 x[4];
+	u64 y[4];
+
+	bool operator==(const KangarooPointKey& other) const
+	{
+		for (unsigned int i = 0; i < 4; i++)
+		{
+			if ((x[i] != other.x[i]) || (y[i] != other.y[i]))
+				return false;
+		}
+		return true;
+	}
+};
+
+struct KangarooPointKeyHash
+{
+	size_t operator()(const KangarooPointKey& key) const
+	{
+		u64 hash = 0x9e3779b97f4a7c15ULL;
+		for (unsigned int i = 0; i < 4; i++)
+		{
+			hash ^= key.x[i] + 0x9e3779b97f4a7c15ULL + (hash << 6) + (hash >> 2);
+			hash ^= key.y[i] + 0x9e3779b97f4a7c15ULL + (hash << 6) + (hash >> 2);
+		}
+		return (size_t)hash;
+	}
+};
+
+struct KangarooMultiDp
+{
+	u64 distance;
+	bool tame;
+	unsigned int target_index;
+};
+
+typedef std::unordered_map<KangarooPointKey, std::vector<KangarooMultiDp>, KangarooPointKeyHash> KangarooDpBuckets;
+
+static KangarooPointKey RawPointKey(const EcPoint& p)
+{
+	KangarooPointKey key;
+	for (unsigned int i = 0; i < 4; i++)
+	{
+		key.x[i] = p.x.data[i];
+		key.y[i] = p.y.data[i];
+	}
+	return key;
+}
+
 static std::string PointKey(EcPoint p)
 {
 	char x[65];
@@ -499,8 +550,8 @@ static bool CheckKangarooCollision(const std::vector<KangarooDp>& table,
 	return false;
 }
 
-static bool CheckKangarooMultiCollision(const std::vector<KangarooDp>& table,
-	const std::string& key,
+static bool CheckKangarooMultiCollision(const KangarooDpBuckets& buckets,
+	const KangarooPointKey& key,
 	bool tame,
 	unsigned int target_index,
 	u64 distance,
@@ -510,10 +561,15 @@ static bool CheckKangarooMultiCollision(const std::vector<KangarooDp>& table,
 	u64* candidate,
 	unsigned int* matched_target_index)
 {
-	for (size_t i = 0; i < table.size(); i++)
+	KangarooDpBuckets::const_iterator bucket_it = buckets.find(key);
+	if (bucket_it == buckets.end())
+		return false;
+
+	const std::vector<KangarooMultiDp>& bucket = bucket_it->second;
+	for (size_t i = 0; i < bucket.size(); i++)
 	{
-		const KangarooDp& other = table[i];
-		if ((other.tame == tame) || (other.key != key))
+		const KangarooMultiDp& other = bucket[i];
+		if (other.tame == tame)
 			continue;
 
 		unsigned int check_target_index = tame ? other.target_index : target_index;
@@ -546,6 +602,16 @@ static void RecordKangarooDp(std::vector<KangarooDp>& table, const std::string& 
 	dp.distance = distance;
 	dp.target_index = target_index;
 	table.push_back(dp);
+}
+
+static void RecordKangarooDp(KangarooDpBuckets& buckets, const KangarooPointKey& key, bool tame, u64 distance, unsigned int target_index, u64* dp_count)
+{
+	KangarooMultiDp dp;
+	dp.tame = tame;
+	dp.distance = distance;
+	dp.target_index = target_index;
+	buckets[key].push_back(dp);
+	(*dp_count)++;
 }
 
 static void KangarooStep(JacobianPoint& p, u64* distance, const std::vector<EcPoint>& jumps, const std::vector<u64>& jump_distances)
@@ -674,26 +740,27 @@ RCKSmallSolveResult RCKSolveSmallJacobianKangarooMulti(const std::vector<EcPoint
 		wild_distances.push_back(0);
 	}
 
-	std::vector<KangarooDp> table;
-	table.reserve((max_steps + 2) * (targets.size() + 1));
+	KangarooDpBuckets buckets;
+	buckets.reserve((max_steps + 2) * (targets.size() + 1));
+	u64 dp_count = 0;
 
 	for (unsigned int step = 0; step <= max_steps; step++)
 	{
 		EcPoint tame_affine = JacobianToAffine(tame);
 		if (IsDistinguished(tame_affine, dp_bits))
 		{
-			std::string key = PointKey(tame_affine);
+			KangarooPointKey key = RawPointKey(tame_affine);
 			u64 candidate = 0;
 			unsigned int matched_target_index = 0;
-			if (CheckKangarooMultiCollision(table, key, true, 0, tame_distance, start, limit, targets, &candidate, &matched_target_index))
+			if (CheckKangarooMultiCollision(buckets, key, true, 0, tame_distance, start, limit, targets, &candidate, &matched_target_index))
 			{
 				result.found = true;
 				result.private_key = candidate;
 				result.target_index = matched_target_index;
-				result.dp_count = (unsigned int)table.size();
+				result.dp_count = (unsigned int)dp_count;
 				return result;
 			}
-			RecordKangarooDp(table, key, true, tame_distance);
+			RecordKangarooDp(buckets, key, true, tame_distance, 0, &dp_count);
 		}
 
 		for (unsigned int target_index = 0; target_index < wilds.size(); target_index++)
@@ -701,18 +768,18 @@ RCKSmallSolveResult RCKSolveSmallJacobianKangarooMulti(const std::vector<EcPoint
 			EcPoint wild_affine = JacobianToAffine(wilds[target_index]);
 			if (IsDistinguished(wild_affine, dp_bits))
 			{
-				std::string key = PointKey(wild_affine);
+				KangarooPointKey key = RawPointKey(wild_affine);
 				u64 candidate = 0;
 				unsigned int matched_target_index = 0;
-				if (CheckKangarooMultiCollision(table, key, false, target_index, wild_distances[target_index], start, limit, targets, &candidate, &matched_target_index))
+				if (CheckKangarooMultiCollision(buckets, key, false, target_index, wild_distances[target_index], start, limit, targets, &candidate, &matched_target_index))
 				{
 					result.found = true;
 					result.private_key = candidate;
 					result.target_index = matched_target_index;
-					result.dp_count = (unsigned int)table.size();
+					result.dp_count = (unsigned int)dp_count;
 					return result;
 				}
-				RecordKangarooDp(table, key, false, wild_distances[target_index], target_index);
+				RecordKangarooDp(buckets, key, false, wild_distances[target_index], target_index, &dp_count);
 			}
 		}
 
@@ -721,7 +788,7 @@ RCKSmallSolveResult RCKSolveSmallJacobianKangarooMulti(const std::vector<EcPoint
 			KangarooStep(wilds[target_index], &wild_distances[target_index], jumps, jump_distances);
 	}
 
-	result.dp_count = (unsigned int)table.size();
+	result.dp_count = (unsigned int)dp_count;
 	return result;
 }
 
@@ -811,6 +878,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "{\"backend\":\"macos_cpu\",";
 	out << "\"operation\":\"jacobian_kangaroo_multi_small\",";
 	out << "\"architecture\":\"shared_tame\",";
+	out << "\"dp_lookup\":\"hash\",";
 	out << "\"iterations\":" << operations << ",";
 	out << "\"sample_count\":" << iterations << ",";
 	out << "\"min_ms\":" << min_ms << ",";

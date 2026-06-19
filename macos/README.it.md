@@ -26,7 +26,7 @@ Esempio tiny-range CPU:
 
 `jacobian-kangaroo-small` e' un solver bounded toy per range minuscoli. Esegue walk tame/wild con jump table deterministica, mantiene gli stati in coordinate Jacobian, registra distinguished points e verifica ogni candidato ricavato da collisione con `MultiplyG`. Serve per correttezza ed esperimenti architetturali; non e' il motore kangaroo CUDA/Metal completo.
 
-`jacobian-kangaroo-multi-small` carica un file target con il parser condiviso ed esegue un tame walk bounded piu' un wild walk per target nello stesso loop kangaroo Jacobian. La tabella dei distinguished point tame e' condivisa fra tutti i wild target, i candidati da collisione vengono verificati contro l'indice target corretto, e la CLI riporta `architecture=shared_tame`, conteggio target, stati tame/wild attivi e dimensione della tabella DP. Resta codice CPU tiny-range per correttezza ed esperimenti architetturali; non e' il motore CUDA/Metal completo.
+`jacobian-kangaroo-multi-small` carica un file target con il parser condiviso ed esegue un tame walk bounded piu' un wild walk per target nello stesso loop kangaroo Jacobian. La tabella dei distinguished point tame e' condivisa fra tutti i wild target e indicizzata con bucket hash (`dp_lookup=hash`), così i collision check scandiscono solo i DP con la stessa chiave punto. I candidati da collisione vengono verificati contro l'indice target corretto, e la CLI riporta conteggio target, stati tame/wild attivi e dimensione della tabella DP. Resta codice CPU tiny-range per correttezza ed esperimenti architetturali; non e' il motore CUDA/Metal completo.
 
 Benchmark CPU:
 
@@ -48,7 +48,7 @@ make macos-jacobian-kangaroo-multi-small-bench
 
 `macos-jacobian-walk-bench` usa una jump table deterministica di punti affini e applica addizioni mixed Jacobian selezionate dallo stato proiettivo corrente. Traccia in parallelo la distanza scalare e valida il punto finale con un oracle scalare. E' un benchmark del core della walk, non ancora un solver kangaroo completo con distinguished points o collision handling.
 
-`macos-jacobian-kangaroo-multi-small-bench` genera target sintetici deterministici, mette un target risolvibile all'ultimo indice e misura solve tiny multi-target shared-tame al secondo. Usa `--target-count` per confrontare 1, 2, 4, 8 o piu' target mantenendo range bounded e parametri jump uguali.
+`macos-jacobian-kangaroo-multi-small-bench` genera target sintetici deterministici, mette un target risolvibile all'ultimo indice e misura solve tiny multi-target shared-tame al secondo con lookup DP a bucket hash. Usa `--target-count` per confrontare 1, 2, 4, 8 o piu' target mantenendo range bounded e parametri jump uguali.
 
 Check e benchmark CPU per l'aritmetica nel campo secp256k1:
 
