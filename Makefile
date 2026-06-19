@@ -2,7 +2,7 @@ CUDA_PATH ?= /usr/local/cuda-12.0
 CC := g++
 NVCC := $(CUDA_PATH)/bin/nvcc
 
-.PHONY: all clean check-host check-portable-ec macos-build macos-check macos-bench macos-point-bench macos-jacobian-point-bench macos-jacobian-walk-bench macos-jacobian-kangaroo-small-test macos-jacobian-kangaroo-small-bench macos-jacobian-kangaroo-small-bench-run macos-jacobian-kangaroo-small-bench-test macos-jacobian-kangaroo-multi-small-test macos-jacobian-kangaroo-multi-small-bench macos-jacobian-kangaroo-multi-small-bench-run macos-jacobian-kangaroo-multi-small-bench-test macos-cpu-field-test macos-cpu-field-bench macos-metal-kernels-check macos-metal-field-test macos-metal-field-bench macos-metal-field-mul-test macos-metal-field-mul-bench
+.PHONY: all clean check-host check-portable-ec check-autoresearch macos-build macos-check macos-bench macos-point-bench macos-jacobian-point-bench macos-jacobian-walk-bench macos-jacobian-kangaroo-small-test macos-jacobian-kangaroo-small-bench macos-jacobian-kangaroo-small-bench-run macos-jacobian-kangaroo-small-bench-test macos-jacobian-kangaroo-multi-small-test macos-jacobian-kangaroo-multi-small-bench macos-jacobian-kangaroo-multi-small-bench-run macos-jacobian-kangaroo-multi-small-bench-test macos-cpu-field-test macos-cpu-field-bench macos-metal-kernels-check macos-metal-field-test macos-metal-field-bench macos-metal-field-mul-test macos-metal-field-mul-bench
 
 CCFLAGS := -O3 -I$(CUDA_PATH)/include
 NVCCFLAGS := -O3 -gencode=arch=compute_89,code=compute_89 -gencode=arch=compute_86,code=compute_86 -gencode=arch=compute_75,code=compute_75 -gencode=arch=compute_61,code=compute_61
@@ -37,6 +37,9 @@ check-host: check-portable-ec
 check-portable-ec:
 	sh tests/check_portable_ec.sh
 
+check-autoresearch:
+	python3 tests/check_autoresearch_metric_passthrough.py
+
 MACOS_SRC := macos/rck_macos.cpp macos/RCKMac.cpp macos/CpuField.cpp macos/MetalSmoke.mm macos/MetalField.mm Ec.cpp utils.cpp TargetSet.cpp
 MACOS_CXXFLAGS ?= -std=c++17 -O3 -I.
 MACOS_LDFLAGS := -framework Foundation -framework Metal
@@ -44,7 +47,7 @@ MACOS_LDFLAGS := -framework Foundation -framework Metal
 macos-build:
 	$(CXX) $(MACOS_CXXFLAGS) $(MACOS_SRC) -o $(MACOS_TARGET) $(MACOS_LDFLAGS)
 
-macos-check: check-host macos-build
+macos-check: check-host check-autoresearch macos-build
 	./$(MACOS_TARGET) selftest
 	sh tests/check_point_bench_cli.sh
 	sh tests/check_jacobian_point_bench_cli.sh

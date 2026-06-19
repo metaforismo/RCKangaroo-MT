@@ -1,4 +1,5 @@
 .worktrees/
+__pycache__/
 *.o
 rckangaroo
 /macos/rck_macos

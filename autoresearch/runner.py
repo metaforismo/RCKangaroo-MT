@@ -89,6 +89,59 @@ def append_benchmark(row: dict) -> None:
         fp.write(json.dumps(row, sort_keys=True) + "\n")
 
 
+def build_benchmark_row(
+    *,
+    experiment: dict,
+    metrics: dict,
+    budget_sec: int,
+    commit: str,
+    machine: str,
+    previous: float | None,
+    timestamp: str,
+) -> dict:
+    skipped = bool(metrics.get("skipped"))
+    correctness = bool(metrics.get("correctness"))
+    backend = str(metrics.get("backend", "unknown"))
+    operation = str(metrics.get("operation", "unknown"))
+    ops_per_sec = float(metrics.get("ops_per_sec", 0.0))
+    min_ratio = float(experiment.get("min_improvement_ratio", 0.0))
+
+    if skipped:
+        status = "skip"
+    elif not correctness:
+        status = "crash"
+    elif previous is None:
+        status = "keep"
+    elif ops_per_sec > previous * (1.0 + min_ratio):
+        status = "keep"
+    else:
+        status = "discard"
+
+    row = dict(metrics)
+    row.update(
+        {
+            "timestamp": timestamp,
+            "commit": commit,
+            "experiment": experiment["name"],
+            "description": experiment.get("description", ""),
+            "budget_sec": budget_sec,
+            "backend": backend,
+            "operation": operation,
+            "iterations": int(metrics.get("iterations", 0)),
+            "sample_count": int(metrics.get("sample_count", 0)),
+            "min_ms": int(metrics.get("min_ms", 0)),
+            "seconds": float(metrics.get("seconds", 0.0)),
+            "ops_per_sec": ops_per_sec,
+            "correctness": correctness,
+            "skipped": skipped,
+            "reason": str(metrics.get("reason", "")),
+            "status": status,
+            "machine": machine,
+        }
+    )
+    return row
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run a fixed-gate RCKangaroo-MT experiment.")
     parser.add_argument("--experiment", required=True, help="Experiment name under autoresearch/experiments.")
@@ -115,50 +168,24 @@ def main() -> int:
         print(f"failed to parse benchmark JSON: {exc}", file=sys.stderr)
         return 1
 
-    skipped = bool(metrics.get("skipped"))
-    correctness = bool(metrics.get("correctness"))
     backend = str(metrics.get("backend", "unknown"))
     operation = str(metrics.get("operation", "unknown"))
-    ops_per_sec = float(metrics.get("ops_per_sec", 0.0))
     previous = best_previous(backend, operation)
-    min_ratio = float(experiment.get("min_improvement_ratio", 0.0))
-
-    if skipped:
-        status = "skip"
-    elif not correctness:
-        status = "crash"
-    elif previous is None:
-        status = "keep"
-    elif ops_per_sec > previous * (1.0 + min_ratio):
-        status = "keep"
-    else:
-        status = "discard"
-
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    row = {
-        "timestamp": now,
-        "commit": git_commit(),
-        "experiment": experiment["name"],
-        "description": experiment.get("description", ""),
-        "budget_sec": args.budget_sec,
-        "backend": backend,
-        "operation": operation,
-        "iterations": int(metrics.get("iterations", 0)),
-        "sample_count": int(metrics.get("sample_count", 0)),
-        "min_ms": int(metrics.get("min_ms", 0)),
-        "seconds": float(metrics.get("seconds", 0.0)),
-        "ops_per_sec": ops_per_sec,
-        "correctness": correctness,
-        "skipped": skipped,
-        "reason": str(metrics.get("reason", "")),
-        "status": status,
-        "machine": platform.platform(),
-    }
+    row = build_benchmark_row(
+        experiment=experiment,
+        metrics=metrics,
+        budget_sec=args.budget_sec,
+        commit=git_commit(),
+        machine=platform.platform(),
+        previous=previous,
+        timestamp=now,
+    )
 
     append_results(row)
     append_benchmark(row)
-    print(f"status: {status} ops_per_sec: {ops_per_sec:.6f}")
-    return 0 if correctness or skipped else 1
+    print(f"status: {row['status']} ops_per_sec: {row['ops_per_sec']:.6f}")
+    return 0 if row["correctness"] or row["skipped"] else 1
 
 
 if __name__ == "__main__":
