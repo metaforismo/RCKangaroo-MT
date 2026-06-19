@@ -14,3 +14,4 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-19T22:21:08Z	b18eb86	jacobian_point_add_g	macos_cpu	jacobian_point_add_g	180736	3614226.079864	true	keep	Apple Silicon CPU Jacobian mixed point-add walk benchmark with affine reference speedup
 2026-06-19T22:29:16Z	074375a	jacobian_jump_walk	macos_cpu	jacobian_jump_walk	163584	3268359.869310	true	keep	Apple Silicon CPU deterministic Jacobian jump-table walk benchmark with scalar-distance oracle
 2026-06-19T23:06:25Z	b3e82a9	jacobian_kangaroo_multi_small	macos_cpu	jacobian_kangaroo_multi_small	100	1982.945047	true	keep	Apple Silicon CPU shared-tame tiny multi-target kangaroo benchmark
+2026-06-19T23:15:01Z	c08210b	jacobian_kangaroo_multi_small	macos_cpu	jacobian_kangaroo_multi_small	122	2426.418125	true	keep	Apple Silicon CPU shared-tame tiny multi-target kangaroo benchmark
