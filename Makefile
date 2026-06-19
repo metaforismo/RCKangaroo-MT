@@ -15,6 +15,7 @@ CPP_OBJECTS := $(CPU_SRC:.cpp=.o)
 CU_OBJECTS := $(GPU_SRC:.cu=.o)
 
 TARGET := rckangaroo
+MACOS_TARGET := macos/rck_macos
 
 all: $(TARGET)
 
@@ -35,3 +36,11 @@ check-host: check-portable-ec
 
 check-portable-ec:
 	sh tests/check_portable_ec.sh
+
+MACOS_SRC := macos/rck_macos.cpp macos/RCKMac.cpp Ec.cpp utils.cpp TargetSet.cpp
+
+macos-build:
+	$(CXX) -std=c++17 -O2 -I. $(MACOS_SRC) -o $(MACOS_TARGET)
+
+macos-check: check-host macos-build
+	./$(MACOS_TARGET) selftest
