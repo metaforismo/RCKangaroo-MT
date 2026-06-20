@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -80,6 +83,41 @@ assert aggregated["ops_per_sec_max"] == 150.0
 assert aggregated["runner_sample_count"] == 3
 assert aggregated["iterations"] == 10
 assert aggregated["correctness"] is True
+
+call_order: list[str] = []
+baseline_cwd = Path("/tmp/rck-baseline")
+candidate_cwd = Path("/tmp/rck-candidate")
+sample_ops = {
+    "baseline": [80.0, 100.0, 120.0],
+    "candidate": [84.0, 105.0, 126.0],
+}
+
+
+def fake_run_command(args: list[str], timeout: int, cwd: Path = runner.ROOT) -> subprocess.CompletedProcess[str]:
+    assert args == ["make", "fake-bench"]
+    label = "baseline" if cwd == baseline_cwd else "candidate"
+    call_order.append(label)
+    ops = sample_ops[label].pop(0)
+    payload = dict(metrics, ops_per_sec=ops, iterations=int(ops))
+    return subprocess.CompletedProcess(args, 0, stdout=f"{runner.json.dumps(payload)}\n")
+
+
+original_run_command = runner.run_command
+runner.run_command = fake_run_command
+try:
+    with contextlib.redirect_stdout(io.StringIO()):
+        paired_baseline_metrics, paired_candidate_metrics = runner.run_paired_experiment_samples(
+            dict(experiment, bench_target="fake-bench", sample_runs=3),
+            timeout=10,
+            baseline_cwd=baseline_cwd,
+            candidate_cwd=candidate_cwd,
+        )
+finally:
+    runner.run_command = original_run_command
+
+assert call_order == ["baseline", "candidate", "baseline", "candidate", "baseline", "candidate"]
+assert paired_baseline_metrics["ops_per_sec"] == 100.0
+assert paired_candidate_metrics["ops_per_sec"] == 105.0
 
 with tempfile.TemporaryDirectory() as tmp:
     original_results = runner.RESULTS

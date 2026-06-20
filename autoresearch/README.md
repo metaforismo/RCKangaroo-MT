@@ -16,7 +16,7 @@ Use a paired baseline when local CPU load is noisy and a candidate should be com
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5 --paired-baseline-ref main
 ```
 
-With `--paired-baseline-ref`, the runner creates a temporary detached worktree for that ref, runs the same correctness checks and benchmark target there, then runs the candidate benchmark. The JSON row records `paired_baseline_ref`, `paired_baseline_ops_per_sec`, and `paired_speedup`; keep/discard uses the paired baseline when it is correct and not skipped, otherwise it falls back to previous kept rows.
+With `--paired-baseline-ref`, the runner creates a temporary detached worktree for that ref, runs the same correctness checks, then alternates each baseline benchmark sample with the matching candidate sample. The JSON row records `paired_baseline_ref`, `paired_baseline_ops_per_sec`, and `paired_speedup`; keep/discard uses the paired baseline when it is correct and not skipped, otherwise it falls back to previous kept rows.
 
 ```sh
 make macos-check

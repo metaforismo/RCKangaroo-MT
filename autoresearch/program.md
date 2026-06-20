@@ -60,7 +60,7 @@ For noisy local performance work, run with a paired ref:
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5 --paired-baseline-ref main
 ```
 
-When the paired baseline is correct, keep/discard compares against that fresh same-run baseline and records `paired_baseline_ops_per_sec` plus `paired_speedup` in `benchmarks.jsonl`.
+When the paired baseline is correct, keep/discard compares against that fresh same-run baseline and records `paired_baseline_ops_per_sec` plus `paired_speedup` in `benchmarks.jsonl`. Paired runs alternate baseline and candidate samples so CPU load and thermal drift affect both sides more evenly.
 
 ## Results
 

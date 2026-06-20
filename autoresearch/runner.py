@@ -193,24 +193,43 @@ def build_benchmark_row(
     return row
 
 
-def run_experiment_samples(experiment: dict, timeout: int, cwd: Path) -> dict:
+def run_experiment_sample(experiment: dict, timeout: int, cwd: Path) -> dict:
     bench_target = experiment.get("bench_target", "macos-bench")
+    bench = run_command(["make", bench_target], timeout=timeout, cwd=cwd)
+    print(bench.stdout, end="")
+    if bench.returncode != 0:
+        raise RuntimeError(f"benchmark target failed with status {bench.returncode}")
+
+    return parse_last_json(bench.stdout)
+
+
+def run_experiment_samples(experiment: dict, timeout: int, cwd: Path) -> dict:
     sample_runs = max(1, int(experiment.get("sample_runs", 1)))
     metric_samples: list[dict] = []
     for sample_index in range(sample_runs):
         if sample_runs > 1:
             print(f"sample {sample_index + 1}/{sample_runs}:")
-        bench = run_command(["make", bench_target], timeout=timeout, cwd=cwd)
-        print(bench.stdout, end="")
-        if bench.returncode != 0:
-            raise RuntimeError(f"benchmark target failed with status {bench.returncode}")
-
-        metric_samples.append(parse_last_json(bench.stdout))
+        metric_samples.append(run_experiment_sample(experiment, timeout, cwd))
 
     return aggregate_metric_samples(metric_samples)
 
 
-def run_paired_baseline(experiment: dict, timeout: int, ref: str) -> dict:
+def run_paired_experiment_samples(experiment: dict, timeout: int, baseline_cwd: Path, candidate_cwd: Path) -> tuple[dict, dict]:
+    sample_runs = max(1, int(experiment.get("sample_runs", 1)))
+    baseline_samples: list[dict] = []
+    candidate_samples: list[dict] = []
+    for sample_index in range(sample_runs):
+        if sample_runs > 1:
+            print(f"paired sample {sample_index + 1}/{sample_runs} baseline:")
+        baseline_samples.append(run_experiment_sample(experiment, timeout, baseline_cwd))
+        if sample_runs > 1:
+            print(f"paired sample {sample_index + 1}/{sample_runs} candidate:")
+        candidate_samples.append(run_experiment_sample(experiment, timeout, candidate_cwd))
+
+    return aggregate_metric_samples(baseline_samples), aggregate_metric_samples(candidate_samples)
+
+
+def run_paired_baseline_and_candidate(experiment: dict, timeout: int, ref: str, candidate_cwd: Path) -> tuple[dict, dict]:
     with tempfile.TemporaryDirectory(prefix="rck-paired-baseline-") as tmp:
         worktree_path = Path(tmp) / "baseline"
         add = run_command(["git", "worktree", "add", "--detach", str(worktree_path), ref], timeout=timeout)
@@ -221,7 +240,7 @@ def run_paired_baseline(experiment: dict, timeout: int, ref: str) -> dict:
             if check.returncode != 0:
                 raise RuntimeError(check.stdout)
             print(f"paired baseline ref {ref} ({git_commit(worktree_path)}):")
-            return run_experiment_samples(experiment, timeout, worktree_path)
+            return run_paired_experiment_samples(experiment, timeout, worktree_path, candidate_cwd)
         finally:
             remove = run_command(["git", "worktree", "remove", "--force", str(worktree_path)], timeout=timeout)
             if remove.returncode != 0:
@@ -244,15 +263,11 @@ def main() -> int:
         return check.returncode
 
     paired_baseline = None
-    if args.paired_baseline_ref:
-        try:
-            paired_baseline = run_paired_baseline(experiment, timeout, args.paired_baseline_ref)
-        except Exception as exc:
-            print(f"failed to run paired baseline: {exc}", file=sys.stderr)
-            return 1
-
     try:
-        metrics = run_experiment_samples(experiment, timeout, ROOT)
+        if args.paired_baseline_ref:
+            paired_baseline, metrics = run_paired_baseline_and_candidate(experiment, timeout, args.paired_baseline_ref, ROOT)
+        else:
+            metrics = run_experiment_samples(experiment, timeout, ROOT)
     except Exception as exc:
         print(f"failed to parse benchmark JSON: {exc}", file=sys.stderr)
         return 1
