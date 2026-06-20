@@ -248,6 +248,11 @@ static const char* JacobianBatchZCheckMode()
 	return "infinity_flag";
 }
 
+static const char* JacobianBatchFieldOpsMode()
+{
+	return "inplace";
+}
+
 static const char* JacobianBatchBufferMode()
 {
 	return "resize_reuse";
@@ -284,7 +289,7 @@ static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<J
 		}
 
 		prefixes[i] = acc;
-		acc = FieldMul(acc, z);
+		acc.MulModP(z);
 	}
 
 	if (all_active)
@@ -294,13 +299,19 @@ static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<J
 		{
 			size_t i = remaining - 1;
 			const JacobianPoint& p = i ? wilds[i - 1] : tame;
-			EcInt z_inv = i ? FieldMul(acc, prefixes[i]) : acc;
+			EcInt z_inv = acc;
 			if (i)
-				acc = FieldMul(acc, p.z);
-			EcInt z2 = FieldSquare(z_inv);
-			EcInt z3 = FieldMul(z2, z_inv);
-			affines[i].x = FieldMul(p.x, z2);
-			affines[i].y = FieldMul(p.y, z3);
+				z_inv.MulModP(prefixes[i]);
+			if (i)
+				acc.MulModP(p.z);
+			EcInt z2 = z_inv;
+			z2.MulModP(z_inv);
+			EcInt z3 = z2;
+			z3.MulModP(z_inv);
+			affines[i].x = p.x;
+			affines[i].x.MulModP(z2);
+			affines[i].y = p.y;
+			affines[i].y.MulModP(z3);
 		}
 		return;
 	}
@@ -319,7 +330,7 @@ static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<J
 		}
 
 		prefixes[i] = acc;
-		acc = FieldMul(acc, z);
+		acc.MulModP(z);
 		active[i] = 1;
 		active_count++;
 	}
@@ -335,13 +346,19 @@ static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<J
 			continue;
 
 		const JacobianPoint& p = i ? wilds[i - 1] : tame;
-		EcInt z_inv = i ? FieldMul(acc, prefixes[i]) : acc;
+		EcInt z_inv = acc;
 		if (i)
-			acc = FieldMul(acc, p.z);
-		EcInt z2 = FieldSquare(z_inv);
-		EcInt z3 = FieldMul(z2, z_inv);
-		affines[i].x = FieldMul(p.x, z2);
-		affines[i].y = FieldMul(p.y, z3);
+			z_inv.MulModP(prefixes[i]);
+		if (i)
+			acc.MulModP(p.z);
+		EcInt z2 = z_inv;
+		z2.MulModP(z_inv);
+		EcInt z3 = z2;
+		z3.MulModP(z_inv);
+		affines[i].x = p.x;
+		affines[i].x.MulModP(z2);
+		affines[i].y = p.y;
+		affines[i].y.MulModP(z3);
 	}
 }
 
@@ -1536,6 +1553,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"affine_conversion\":\"batch\",";
 	out << "\"affine_z_access\":\"" << JacobianBatchZAccessMode() << "\",";
 	out << "\"affine_z_check\":\"" << JacobianBatchZCheckMode() << "\",";
+	out << "\"affine_field_ops\":\"" << JacobianBatchFieldOpsMode() << "\",";
 	out << "\"affine_buffer\":\"" << JacobianBatchBufferMode() << "\",";
 	out << "\"affine_active_path\":\"" << JacobianBatchActivePathMode() << "\",";
 	out << "\"affine_tail_update\":\"" << JacobianBatchTailUpdateMode() << "\",";
@@ -1703,6 +1721,7 @@ std::string RCKJacobianBatchAffineBenchJson(unsigned int iterations, unsigned in
 	out << "\"affine_conversion\":\"batch\",";
 	out << "\"affine_z_access\":\"" << JacobianBatchZAccessMode() << "\",";
 	out << "\"affine_z_check\":\"" << JacobianBatchZCheckMode() << "\",";
+	out << "\"affine_field_ops\":\"" << JacobianBatchFieldOpsMode() << "\",";
 	out << "\"affine_buffer\":\"" << JacobianBatchBufferMode() << "\",";
 	out << "\"affine_active_path\":\"" << JacobianBatchActivePathMode() << "\",";
 	out << "\"affine_tail_update\":\"" << JacobianBatchTailUpdateMode() << "\",";

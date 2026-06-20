@@ -2,7 +2,7 @@ CUDA_PATH ?= /usr/local/cuda-12.0
 CC := g++
 NVCC := $(CUDA_PATH)/bin/nvcc
 
-.PHONY: all clean check-host check-portable-ec check-autoresearch macos-lto-flags-check macos-jump-index-source-check macos-ecint-carry-source-check macos-hotpath-microbatch-source-check macos-affine-z-check-source-check macos-build macos-check macos-bench macos-point-bench macos-jacobian-point-bench macos-jacobian-batch-affine-bench macos-jacobian-batch-affine-bench-run macos-jacobian-walk-bench macos-jacobian-kangaroo-small-test macos-jacobian-kangaroo-small-bench macos-jacobian-kangaroo-small-bench-run macos-jacobian-kangaroo-small-bench-test macos-jacobian-kangaroo-multi-small-test macos-jacobian-kangaroo-multi-small-bench macos-jacobian-kangaroo-multi-small-bench-run macos-jacobian-kangaroo-multi16-small-bench macos-jacobian-kangaroo-multi16-small-bench-run macos-jacobian-kangaroo-multi-small-bench-test macos-cpu-field-test macos-cpu-field-bench macos-metal-kernels-check macos-metal-field-test macos-metal-field-bench macos-metal-field-mul-test macos-metal-field-mul-bench macos-metal-field-square-test macos-metal-field-square-bench macos-metal-field-sub-test macos-metal-field-sub-bench macos-metal-field-double-test macos-metal-field-double-bench macos-metal-field-neg-test macos-metal-field-neg-bench macos-metal-field-mul4-test macos-metal-field-mul4-bench
+.PHONY: all clean check-host check-portable-ec check-autoresearch macos-lto-flags-check macos-jump-index-source-check macos-ecint-carry-source-check macos-hotpath-microbatch-source-check macos-affine-z-check-source-check macos-affine-inplace-field-source-check macos-build macos-check macos-bench macos-point-bench macos-jacobian-point-bench macos-jacobian-batch-affine-bench macos-jacobian-batch-affine-bench-run macos-jacobian-walk-bench macos-jacobian-kangaroo-small-test macos-jacobian-kangaroo-small-bench macos-jacobian-kangaroo-small-bench-run macos-jacobian-kangaroo-small-bench-test macos-jacobian-kangaroo-multi-small-test macos-jacobian-kangaroo-multi-small-bench macos-jacobian-kangaroo-multi-small-bench-run macos-jacobian-kangaroo-multi16-small-bench macos-jacobian-kangaroo-multi16-small-bench-run macos-jacobian-kangaroo-multi-small-bench-test macos-cpu-field-test macos-cpu-field-bench macos-metal-kernels-check macos-metal-field-test macos-metal-field-bench macos-metal-field-mul-test macos-metal-field-mul-bench macos-metal-field-square-test macos-metal-field-square-bench macos-metal-field-sub-test macos-metal-field-sub-bench macos-metal-field-double-test macos-metal-field-double-bench macos-metal-field-neg-test macos-metal-field-neg-bench macos-metal-field-mul4-test macos-metal-field-mul4-bench
 
 CCFLAGS := -O3 -I$(CUDA_PATH)/include
 NVCCFLAGS := -O3 -gencode=arch=compute_89,code=compute_89 -gencode=arch=compute_86,code=compute_86 -gencode=arch=compute_75,code=compute_75 -gencode=arch=compute_61,code=compute_61
@@ -64,10 +64,13 @@ macos-hotpath-microbatch-source-check:
 macos-affine-z-check-source-check:
 	sh tests/check_affine_z_check_source.sh
 
+macos-affine-inplace-field-source-check:
+	sh tests/check_affine_inplace_field_source.sh
+
 macos-build:
 	$(CXX) $(MACOS_CXXFLAGS) $(MACOS_SRC) -o $(MACOS_TARGET) $(MACOS_LDFLAGS)
 
-macos-check: check-host check-autoresearch macos-lto-flags-check macos-jump-index-source-check macos-ecint-carry-source-check macos-hotpath-microbatch-source-check macos-affine-z-check-source-check macos-build
+macos-check: check-host check-autoresearch macos-lto-flags-check macos-jump-index-source-check macos-ecint-carry-source-check macos-hotpath-microbatch-source-check macos-affine-z-check-source-check macos-affine-inplace-field-source-check macos-build
 	./$(MACOS_TARGET) selftest
 	sh tests/check_point_bench_cli.sh
 	sh tests/check_jacobian_point_bench_cli.sh

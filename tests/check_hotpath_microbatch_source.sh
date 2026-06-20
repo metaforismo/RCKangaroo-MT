@@ -28,7 +28,7 @@ if ! grep -q "reserve + (reserve / 2)" macos/RCKMac.cpp; then
 	exit 1
 fi
 
-if ! grep -q "i ? FieldMul(acc, prefixes\\[i\\]) : acc" macos/RCKMac.cpp; then
+if ! grep -q "EcInt z_inv = acc" macos/RCKMac.cpp || ! grep -q "z_inv.MulModP(prefixes\\[i\\])" macos/RCKMac.cpp; then
 	printf '%s\n' "Jacobian batch affine should skip the final prefix multiply"
 	exit 1
 fi
