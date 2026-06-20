@@ -207,6 +207,31 @@ Commit: `1d8455d` (`feat: track Metal jump-walk distances`)
   - `threadgroup_limit=256`
   - `threads_per_threadgroup=256`
 
+### Metal Projective DP Candidate Flags
+
+Commit: `31c38cf` (`feat: emit Metal jump-walk DP candidates`)
+
+- Added optional `--dp-bits N` to the Metal jump-table walk benchmark.
+- The kernel emits one projective distinguished-point candidate flag per final
+  walk state using low bits of projective `x[0]`.
+- The CPU oracle verifies point, distance, and the exact same projective DP
+  predicate. This is intentionally not yet an affine DP key or collision-table
+  insert path.
+- Bench JSON includes `dp_tracking=projective_x_limb0`, `dp_bits`,
+  `dp_count`, and `dp_checksum`.
+- Local M3 autoresearch result with `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - median `35,573,689.248061 mixed-add steps/sec`
+  - min `29,957,098.382191 mixed-add steps/sec`
+  - max `36,883,132.894670 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:

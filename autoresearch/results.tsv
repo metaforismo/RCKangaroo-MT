@@ -63,3 +63,4 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-20T23:05:15Z	2c2c9b5	metal_jacobian_jump_walk	metal	jacobian_affine_walk_jump_table	1572864	29322230.463689	true	keep	Metal Jacobian jump-table walk correctness and throughput gate
 2026-06-20T23:10:10Z	c41c6d7	metal_jacobian_jump_walk	metal	jacobian_affine_walk_jump_table	1966080	38210997.361683	true	keep	Metal Jacobian jump-table walk correctness and throughput gate
 2026-06-20T23:22:37Z	1d8455d	metal_jacobian_jump_walk_distance	metal	jacobian_affine_walk_jump_table	1572864	30127453.595735	true	keep	Metal Jacobian jump-table walk with scalar-distance accumulation gate
+2026-06-20T23:32:41Z	31c38cf	metal_jacobian_jump_walk_dp	metal	jacobian_affine_walk_jump_table	1835008	35573689.248061	true	keep	Metal Jacobian jump-table walk with projective distinguished-point candidate flags
