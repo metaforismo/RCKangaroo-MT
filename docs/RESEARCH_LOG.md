@@ -135,6 +135,12 @@ These did not pass the performance gate or had a correctness/architecture issue:
   Treat 384 as inconclusive, not as a new baseline.
 - Metal field autoresearch experiments use three runner samples so keep/discard
   decisions are based on median throughput instead of a single noisy GPU run.
+- `macos-metal-jacobian-tg512`: a single direct run suggested a possible win
+  for the point-level `jacobian_add_affine` kernel, but paired autoresearch
+  rejected it. Candidate tg512 median was `15,788,868.363001 ops/sec` versus
+  baseline tg256 `23,401,670.068526 ops/sec`, `paired_speedup=0.674690`,
+  `status=discard`, `correctness=true`. Keep Jacobian add at the current
+  256-thread default until a broader retest shows a stable win.
 
 ## Next Research Targets
 
