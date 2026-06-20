@@ -9,6 +9,7 @@ import platform
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -18,10 +19,10 @@ RESULTS = ROOT / "autoresearch" / "results.tsv"
 BENCHMARKS = ROOT / "autoresearch" / "benchmarks.jsonl"
 
 
-def run_command(args: list[str], timeout: int) -> subprocess.CompletedProcess[str]:
+def run_command(args: list[str], timeout: int, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         args,
-        cwd=ROOT,
+        cwd=cwd,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -71,8 +72,8 @@ def aggregate_metric_samples(samples: list[dict]) -> dict:
     return median_sample
 
 
-def git_commit() -> str:
-    proc = run_command(["git", "rev-parse", "--short", "HEAD"], timeout=10)
+def git_commit(cwd: Path = ROOT) -> str:
+    proc = run_command(["git", "rev-parse", "--short", "HEAD"], timeout=10, cwd=cwd)
     if proc.returncode != 0:
         return "unknown"
     return proc.stdout.strip()
@@ -126,6 +127,8 @@ def build_benchmark_row(
     commit: str,
     machine: str,
     previous: float | None,
+    paired_baseline: dict | None,
+    paired_baseline_ref: str,
     timestamp: str,
 ) -> dict:
     skipped = bool(metrics.get("skipped"))
@@ -134,11 +137,22 @@ def build_benchmark_row(
     operation = str(metrics.get("operation", "unknown"))
     ops_per_sec = float(metrics.get("ops_per_sec", 0.0))
     min_ratio = float(experiment.get("min_improvement_ratio", 0.0))
+    paired_ops: float | None = None
+    paired_usable = False
+    if paired_baseline is not None:
+        paired_ops = float(paired_baseline.get("ops_per_sec", 0.0))
+        paired_usable = (
+            bool(paired_baseline.get("correctness"))
+            and not bool(paired_baseline.get("skipped"))
+            and paired_ops > 0.0
+        )
 
     if skipped:
         status = "skip"
     elif not correctness:
         status = "crash"
+    elif paired_usable:
+        status = "keep" if ops_per_sec > paired_ops * (1.0 + min_ratio) else "discard"
     elif previous is None:
         status = "keep"
     elif ops_per_sec > previous * (1.0 + min_ratio):
@@ -168,13 +182,57 @@ def build_benchmark_row(
             "machine": machine,
         }
     )
+    if paired_baseline is not None:
+        row.update(
+            {
+                "paired_baseline_ref": paired_baseline_ref,
+                "paired_baseline_ops_per_sec": paired_ops or 0.0,
+                "paired_speedup": (ops_per_sec / paired_ops) if paired_ops else 0.0,
+            }
+        )
     return row
+
+
+def run_experiment_samples(experiment: dict, timeout: int, cwd: Path) -> dict:
+    bench_target = experiment.get("bench_target", "macos-bench")
+    sample_runs = max(1, int(experiment.get("sample_runs", 1)))
+    metric_samples: list[dict] = []
+    for sample_index in range(sample_runs):
+        if sample_runs > 1:
+            print(f"sample {sample_index + 1}/{sample_runs}:")
+        bench = run_command(["make", bench_target], timeout=timeout, cwd=cwd)
+        print(bench.stdout, end="")
+        if bench.returncode != 0:
+            raise RuntimeError(f"benchmark target failed with status {bench.returncode}")
+
+        metric_samples.append(parse_last_json(bench.stdout))
+
+    return aggregate_metric_samples(metric_samples)
+
+
+def run_paired_baseline(experiment: dict, timeout: int, ref: str) -> dict:
+    with tempfile.TemporaryDirectory(prefix="rck-paired-baseline-") as tmp:
+        worktree_path = Path(tmp) / "baseline"
+        add = run_command(["git", "worktree", "add", "--detach", str(worktree_path), ref], timeout=timeout)
+        if add.returncode != 0:
+            raise RuntimeError(add.stdout)
+        try:
+            check = run_command(["make", "macos-check"], timeout=timeout, cwd=worktree_path)
+            if check.returncode != 0:
+                raise RuntimeError(check.stdout)
+            print(f"paired baseline ref {ref} ({git_commit(worktree_path)}):")
+            return run_experiment_samples(experiment, timeout, worktree_path)
+        finally:
+            remove = run_command(["git", "worktree", "remove", "--force", str(worktree_path)], timeout=timeout)
+            if remove.returncode != 0:
+                print(remove.stdout, file=sys.stderr)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run a fixed-gate RCKangaroo-MT experiment.")
     parser.add_argument("--experiment", required=True, help="Experiment name under autoresearch/experiments.")
     parser.add_argument("--budget-sec", type=int, default=60, help="Experiment budget metadata and timeout hint.")
+    parser.add_argument("--paired-baseline-ref", default="", help="Optional git ref to benchmark in a temporary paired baseline worktree.")
     args = parser.parse_args()
 
     experiment = load_experiment(args.experiment)
@@ -185,24 +243,19 @@ def main() -> int:
         print(check.stdout)
         return check.returncode
 
-    bench_target = experiment.get("bench_target", "macos-bench")
-    sample_runs = max(1, int(experiment.get("sample_runs", 1)))
-    metric_samples: list[dict] = []
-    for sample_index in range(sample_runs):
-        if sample_runs > 1:
-            print(f"sample {sample_index + 1}/{sample_runs}:")
-        bench = run_command(["make", bench_target], timeout=timeout)
-        print(bench.stdout, end="")
-        if bench.returncode != 0:
-            return bench.returncode
-
+    paired_baseline = None
+    if args.paired_baseline_ref:
         try:
-            metric_samples.append(parse_last_json(bench.stdout))
+            paired_baseline = run_paired_baseline(experiment, timeout, args.paired_baseline_ref)
         except Exception as exc:
-            print(f"failed to parse benchmark JSON: {exc}", file=sys.stderr)
+            print(f"failed to run paired baseline: {exc}", file=sys.stderr)
             return 1
 
-    metrics = aggregate_metric_samples(metric_samples)
+    try:
+        metrics = run_experiment_samples(experiment, timeout, ROOT)
+    except Exception as exc:
+        print(f"failed to parse benchmark JSON: {exc}", file=sys.stderr)
+        return 1
 
     backend = str(metrics.get("backend", "unknown"))
     operation = str(metrics.get("operation", "unknown"))
@@ -215,12 +268,17 @@ def main() -> int:
         commit=git_commit(),
         machine=platform.platform(),
         previous=previous,
+        paired_baseline=paired_baseline,
+        paired_baseline_ref=args.paired_baseline_ref,
         timestamp=now,
     )
 
     append_results(row)
     append_benchmark(row)
-    print(f"status: {row['status']} ops_per_sec: {row['ops_per_sec']:.6f}")
+    paired = ""
+    if paired_baseline is not None:
+        paired = f" paired_baseline_ops_per_sec: {row['paired_baseline_ops_per_sec']:.6f} paired_speedup: {row['paired_speedup']:.6f}"
+    print(f"status: {row['status']} ops_per_sec: {row['ops_per_sec']:.6f}{paired}")
     return 0 if row["correctness"] or row["skipped"] else 1
 
 

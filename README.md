@@ -155,6 +155,7 @@ python3 autoresearch/runner.py --experiment jacobian_batch_affine --budget-sec 5
 python3 autoresearch/runner.py --experiment jacobian_jump_walk --budget-sec 5
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_small --budget-sec 5
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5
+python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5 --paired-baseline-ref main
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi16_small --budget-sec 5
 python3 autoresearch/runner.py --experiment cpu_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_add --budget-sec 5

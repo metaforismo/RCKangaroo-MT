@@ -40,6 +40,8 @@ row = runner.build_benchmark_row(
     commit="abc123",
     machine="test-machine",
     previous=70.0,
+    paired_baseline=None,
+    paired_baseline_ref="",
     timestamp="2026-01-01T00:00:00Z",
 )
 
@@ -49,6 +51,22 @@ assert row["speedup_vs_single"] == 4.0
 assert row["target_throughput_vs_single"] == 16.0
 assert row["commit"] == "abc123"
 assert row["machine"] == "test-machine"
+
+paired_row = runner.build_benchmark_row(
+    experiment=experiment,
+    metrics=dict(metrics, ops_per_sec=84.0),
+    budget_sec=5,
+    commit="abc124",
+    machine="test-machine",
+    previous=100.0,
+    paired_baseline=dict(metrics, ops_per_sec=80.0),
+    paired_baseline_ref="main",
+    timestamp="2026-01-01T00:00:01Z",
+)
+assert paired_row["status"] == "keep"
+assert paired_row["paired_baseline_ref"] == "main"
+assert paired_row["paired_baseline_ops_per_sec"] == 80.0
+assert paired_row["paired_speedup"] == 1.05
 
 samples = [
     dict(metrics, iterations=5, seconds=0.10, ops_per_sec=50.0),

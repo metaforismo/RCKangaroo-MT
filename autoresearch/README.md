@@ -10,6 +10,14 @@ python3 autoresearch/runner.py --experiment baseline --budget-sec 5
 
 The runner executes correctness checks before benchmarks. Experiments may set `sample_runs`; when present, the runner executes the benchmark target repeatedly and records median `ops_per_sec` plus `ops_per_sec_min`, `ops_per_sec_max`, and `runner_sample_count` in `autoresearch/benchmarks.jsonl`.
 
+Use a paired baseline when local CPU load is noisy and a candidate should be compared against a fresh build of another ref in the same run:
+
+```sh
+python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5 --paired-baseline-ref main
+```
+
+With `--paired-baseline-ref`, the runner creates a temporary detached worktree for that ref, runs the same correctness checks and benchmark target there, then runs the candidate benchmark. The JSON row records `paired_baseline_ref`, `paired_baseline_ops_per_sec`, and `paired_speedup`; keep/discard uses the paired baseline when it is correct and not skipped, otherwise it falls back to previous kept rows.
+
 ```sh
 make macos-check
 make macos-bench

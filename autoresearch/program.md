@@ -54,6 +54,14 @@ The runner compares an experiment against previous kept rows for the same backen
 
 The first valid baseline is kept.
 
+For noisy local performance work, run with a paired ref:
+
+```sh
+python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5 --paired-baseline-ref main
+```
+
+When the paired baseline is correct, keep/discard compares against that fresh same-run baseline and records `paired_baseline_ops_per_sec` plus `paired_speedup` in `benchmarks.jsonl`.
+
 ## Results
 
 - `autoresearch/results.tsv`: human-readable experiment ledger.
