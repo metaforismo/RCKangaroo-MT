@@ -23,6 +23,8 @@ make macos-check
 make macos-bench
 ```
 
+`macos-check` builds with ThinLTO by default through `MACOS_LTO_FLAGS=-flto=thin`, so paired runs compare the same source with the candidate's current macOS build policy. Disable it for a diagnostic run with `make macos-check MACOS_LTO_FLAGS=`.
+
 Run the CPU point-add walk experiment:
 
 ```sh

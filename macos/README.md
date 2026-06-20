@@ -10,10 +10,11 @@ make macos-check
 
 This builds `macos/rck_macos`, runs host secp256k1 vector checks, validates target parsing, runs the native CPU selftest, checks CPU field arithmetic, and runs the Metal field-add/sub/double/mul4/neg/mul/square checks when Metal is visible.
 
-The default macOS build uses `-O3`. Override it when needed:
+The default macOS build uses `-O3` plus ThinLTO (`MACOS_LTO_FLAGS=-flto=thin`). ThinLTO lets clang optimize the Jacobian and secp256k1 field call graph across translation units, which is especially useful for the CPU fallback on Apple Silicon. Override or disable it when needed:
 
 ```sh
 make macos-check MACOS_CXXFLAGS="-std=c++17 -O0 -g -I."
+make macos-check MACOS_LTO_FLAGS=
 ```
 
 Run a tiny-range CPU solve:
