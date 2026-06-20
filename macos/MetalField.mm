@@ -844,6 +844,8 @@ static void PackAffineTable(const std::vector<CpuAffinePoint>& q,
 	}
 }
 
+static uint64_t ProjectiveDpMask(unsigned int dp_bits);
+
 static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 	const std::vector<CpuAffinePoint>& jumps,
 	const std::vector<uint64_t>& jump_distances,
@@ -942,13 +944,13 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		id<MTLBuffer> out_dp_flags_buffer = [device newBufferWithLength:dp_flags_out_bytes options:MTLResourceStorageModeShared];
 		uint32_t count = (uint32_t)p.size();
 		uint32_t step_count = steps_per_sample;
-		uint32_t dp_bit_count = dp_bits;
+		uint64_t dp_mask = ProjectiveDpMask(dp_bits);
 		id<MTLBuffer> count_buffer = [device newBufferWithBytes:&count length:sizeof(count) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> steps_buffer = [device newBufferWithBytes:&step_count length:sizeof(step_count) options:MTLResourceStorageModeShared];
-		id<MTLBuffer> dp_bits_buffer = [device newBufferWithBytes:&dp_bit_count length:sizeof(dp_bit_count) options:MTLResourceStorageModeShared];
+		id<MTLBuffer> dp_mask_buffer = [device newBufferWithBytes:&dp_mask length:sizeof(dp_mask) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> jump_indices_buffer = [device newBufferWithBytes:jump_indices.data() length:indices_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> jump_distances_buffer = [device newBufferWithBytes:jump_distances.data() length:distance_bytes options:MTLResourceStorageModeShared];
-		if (!p_buffer || !q_buffer || !p_inf_buffer || !out_buffer || !out_inf_buffer || !out_distances_buffer || !out_dp_flags_buffer || !count_buffer || !steps_buffer || !dp_bits_buffer || !jump_indices_buffer || !jump_distances_buffer)
+		if (!p_buffer || !q_buffer || !p_inf_buffer || !out_buffer || !out_inf_buffer || !out_distances_buffer || !out_dp_flags_buffer || !count_buffer || !steps_buffer || !dp_mask_buffer || !jump_indices_buffer || !jump_distances_buffer)
 		{
 			error = "failed to allocate Metal jacobian jump walk buffers";
 			return false;
@@ -974,7 +976,7 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		[encoder setBuffer:jump_indices_buffer offset:0 atIndex:7];
 		[encoder setBuffer:jump_distances_buffer offset:0 atIndex:8];
 		[encoder setBuffer:out_distances_buffer offset:0 atIndex:9];
-		[encoder setBuffer:dp_bits_buffer offset:0 atIndex:10];
+		[encoder setBuffer:dp_mask_buffer offset:0 atIndex:10];
 		[encoder setBuffer:out_dp_flags_buffer offset:0 atIndex:11];
 		[encoder dispatchThreads:MTLSizeMake(count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
 		[encoder endEncoding];
@@ -1383,6 +1385,14 @@ static unsigned int NormalizeMetalDpBits(unsigned int dp_bits)
 	return dp_bits > 32 ? 32 : dp_bits;
 }
 
+static uint64_t ProjectiveDpMask(unsigned int dp_bits)
+{
+	dp_bits = NormalizeMetalDpBits(dp_bits);
+	if (dp_bits == 0)
+		return 0;
+	return (1ULL << dp_bits) - 1ULL;
+}
+
 static void BuildDeterministicJumpIndices(unsigned int sample_count,
 	unsigned int steps_per_sample,
 	unsigned int jump_count,
@@ -1431,9 +1441,7 @@ static uint32_t ProjectiveDpFlag(const CpuJacobianPoint& p, unsigned int dp_bits
 {
 	if (p.infinity)
 		return 0;
-	if (dp_bits == 0)
-		return 1;
-	uint64_t mask = (1ULL << dp_bits) - 1ULL;
+	uint64_t mask = ProjectiveDpMask(dp_bits);
 	return (p.x[0] & mask) == 0 ? 1U : 0U;
 }
 

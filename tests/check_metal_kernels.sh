@@ -137,17 +137,19 @@ if ! awk '
 	in_walk && /device const ulong\* jump_distances/ { found_distances = 1 }
 	in_walk && /device ulong\* out_distances/ { found_out_distances = 1 }
 	in_walk && /device uint\* out_dp_flags/ { found_out_dp_flags = 1 }
-	in_walk && /constant uint& dp_bits/ { found_dp_bits = 1 }
+	in_walk && /constant ulong& dp_mask/ { found_dp_mask = 1 }
 	in_walk && /jacobian_add_affine_values/ { found_step = 1 }
 	in_walk && /for \(uint step/ { found_loop = 1 }
 	in_walk && /distance \+= jump_distances\[jump_index\]/ { found_accumulate = 1 }
 	in_walk && /out_distances\[id\] = distance/ { found_store = 1 }
 	in_walk && /out_dp_flags\[id\]/ { found_dp_store = 1 }
+	in_walk && /\(x0 & dp_mask\) == 0/ { found_dp_mask_test = 1 }
+	in_walk && /(1UL << dp_bits|dp_bits == 0)/ { found_hot_dp_mask_build = 1 }
 	in_walk && /% jump_count/ { found_hot_mod = 1 }
 	in_walk && /^}/ { in_walk = 0 }
-	END { exit (found_indices && found_distances && found_out_distances && found_out_dp_flags && found_dp_bits && found_step && found_loop && found_accumulate && found_store && found_dp_store && !found_hot_mod) ? 0 : 1 }
+	END { exit (found_indices && found_distances && found_out_distances && found_out_dp_flags && found_dp_mask && found_step && found_loop && found_accumulate && found_store && found_dp_store && found_dp_mask_test && !found_hot_dp_mask_build && !found_hot_mod) ? 0 : 1 }
 ' "$tmp_source"; then
-	printf '%s\n' "jacobian_affine_walk_jump_table does not emit distance-aware DP candidate flags"
+	printf '%s\n' "jacobian_affine_walk_jump_table does not use a precomputed DP mask for distance-aware DP candidate flags"
 	exit 1
 fi
 
