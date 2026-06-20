@@ -90,6 +90,7 @@ macos-check: check-host check-autoresearch check-quality-gates macos-lto-flags-c
 	sh tests/check_cpu_field_bench_cli.sh
 	sh tests/check_metal_kernels.sh
 	sh tests/check_metal_field_cli.sh
+	sh tests/check_metal_field_bench_cli.sh
 	sh tests/check_metal_field_mul_cli.sh
 	sh tests/check_metal_field_square_cli.sh
 	sh tests/check_metal_field_sub_cli.sh
@@ -158,40 +159,40 @@ macos-metal-field-test: macos-build
 	sh tests/check_metal_field_cli.sh
 
 macos-metal-field-bench: macos-build
-	./$(MACOS_TARGET) metal-field-bench --iterations 1024
+	./$(MACOS_TARGET) metal-field-bench --iterations 1048576 --min-ms 50
 
 macos-metal-field-mul-test: macos-build
 	sh tests/check_metal_field_mul_cli.sh
 
 macos-metal-field-mul-bench: macos-build
-	./$(MACOS_TARGET) metal-field-mul-bench --iterations 1024
+	./$(MACOS_TARGET) metal-field-mul-bench --iterations 1048576 --min-ms 50
 
 macos-metal-field-square-test: macos-build
 	sh tests/check_metal_field_square_cli.sh
 
 macos-metal-field-square-bench: macos-build
-	./$(MACOS_TARGET) metal-field-square-bench --iterations 1024
+	./$(MACOS_TARGET) metal-field-square-bench --iterations 1048576 --min-ms 50
 
 macos-metal-field-sub-test: macos-build
 	sh tests/check_metal_field_sub_cli.sh
 
 macos-metal-field-sub-bench: macos-build
-	./$(MACOS_TARGET) metal-field-sub-bench --iterations 1024
+	./$(MACOS_TARGET) metal-field-sub-bench --iterations 1048576 --min-ms 50
 
 macos-metal-field-double-test: macos-build
 	sh tests/check_metal_field_double_cli.sh
 
 macos-metal-field-double-bench: macos-build
-	./$(MACOS_TARGET) metal-field-double-bench --iterations 1024
+	./$(MACOS_TARGET) metal-field-double-bench --iterations 1048576 --min-ms 50
 
 macos-metal-field-neg-test: macos-build
 	sh tests/check_metal_field_neg_cli.sh
 
 macos-metal-field-neg-bench: macos-build
-	./$(MACOS_TARGET) metal-field-neg-bench --iterations 1024
+	./$(MACOS_TARGET) metal-field-neg-bench --iterations 1048576 --min-ms 50
 
 macos-metal-field-mul4-test: macos-build
 	sh tests/check_metal_field_mul4_cli.sh
 
 macos-metal-field-mul4-bench: macos-build
-	./$(MACOS_TARGET) metal-field-mul4-bench --iterations 1024
+	./$(MACOS_TARGET) metal-field-mul4-bench --iterations 1048576 --min-ms 50

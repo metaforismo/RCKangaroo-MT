@@ -205,6 +205,43 @@ static FieldElement CpuFieldSquare(const FieldElement& a)
 	return CpuFieldMul(a, a);
 }
 
+typedef FieldElement (*ExpectedFieldFn)(const FieldElement& a, const FieldElement& b);
+
+static FieldElement ExpectedAdd(const FieldElement& a, const FieldElement& b)
+{
+	return CpuFieldAdd(a, b);
+}
+
+static FieldElement ExpectedSub(const FieldElement& a, const FieldElement& b)
+{
+	return CpuFieldSub(a, b);
+}
+
+static FieldElement ExpectedDouble(const FieldElement& a, const FieldElement&)
+{
+	return CpuFieldDouble(a);
+}
+
+static FieldElement ExpectedMul4(const FieldElement& a, const FieldElement&)
+{
+	return CpuFieldMul4(a);
+}
+
+static FieldElement ExpectedNeg(const FieldElement& a, const FieldElement&)
+{
+	return CpuFieldNeg(a);
+}
+
+static FieldElement ExpectedMul(const FieldElement& a, const FieldElement& b)
+{
+	return CpuFieldMul(a, b);
+}
+
+static FieldElement ExpectedSquare(const FieldElement& a, const FieldElement&)
+{
+	return CpuFieldSquare(a);
+}
+
 static std::string FieldToHex(const FieldElement& v)
 {
 	std::ostringstream oss;
@@ -249,7 +286,9 @@ static std::string JsonEscape(const std::string& s)
 }
 
 static std::string MetalFieldBenchJson(const char* operation,
-	unsigned int iterations,
+	uint64_t iterations,
+	unsigned int sample_count,
+	unsigned int min_ms,
 	double seconds,
 	double ops_per_sec,
 	bool correctness,
@@ -260,6 +299,8 @@ static std::string MetalFieldBenchJson(const char* operation,
 	oss << std::fixed << std::setprecision(6);
 	oss << "{\"backend\":\"metal\",\"operation\":\"" << operation << "\",";
 	oss << "\"iterations\":" << iterations << ",";
+	oss << "\"sample_count\":" << sample_count << ",";
+	oss << "\"min_ms\":" << min_ms << ",";
 	oss << "\"seconds\":" << seconds << ",";
 	oss << "\"ops_per_sec\":" << ops_per_sec << ",";
 	oss << "\"correctness\":" << (correctness ? "true" : "false") << ",";
@@ -604,274 +645,96 @@ static FieldElement DeterministicElement(uint64_t i, uint64_t salt)
 	return v;
 }
 
-std::string RCKMetalFieldAddBenchJson(unsigned int iterations)
+static std::string RunMetalFieldBenchJson(const char* operation,
+	const char* function_name,
+	unsigned int iterations,
+	unsigned int min_ms,
+	uint64_t a_salt,
+	uint64_t b_salt,
+	bool same_inputs,
+	ExpectedFieldFn expected_fn)
 {
 	if (iterations == 0)
 		iterations = 1;
 
+	const unsigned int sample_count = iterations;
 	std::vector<FieldElement> a;
 	std::vector<FieldElement> b;
-	a.reserve(iterations);
-	b.reserve(iterations);
-	for (unsigned int i = 0; i < iterations; ++i)
+	a.reserve(sample_count);
+	b.reserve(sample_count);
+	for (unsigned int i = 0; i < sample_count; ++i)
 	{
-		a.push_back(DeterministicElement(i, 0x1234ULL));
-		b.push_back(DeterministicElement(i, 0xBEEFULL));
+		a.push_back(DeterministicElement(i, a_salt));
+		b.push_back(same_inputs ? a.back() : DeterministicElement(i, b_salt));
 	}
 
 	std::vector<FieldElement> out;
 	std::string error;
 	double seconds = 0.0;
-	if (!RunFieldKernel(a, b, out, error, &seconds, "field_add_mod_p"))
+	uint64_t operations = 0;
+	unsigned int dispatch_count = 0;
+	do
 	{
-		if (error == "no Metal device available")
-			return MetalFieldBenchJson("field_add_mod_p", 0, 0.0, 0.0, false, true, error);
-		return MetalFieldBenchJson("field_add_mod_p", iterations, seconds, 0.0, false, false, error);
-	}
+		double dispatch_seconds = 0.0;
+		if (!RunFieldKernel(a, b, out, error, &dispatch_seconds, function_name))
+		{
+			if (error == "no Metal device available")
+				return MetalFieldBenchJson(operation, 0, sample_count, min_ms, 0.0, 0.0, false, true, error);
+			return MetalFieldBenchJson(operation, operations ? operations : sample_count, sample_count, min_ms, seconds, 0.0, false, false, error);
+		}
+		seconds += dispatch_seconds;
+		operations += sample_count;
+		dispatch_count++;
+		if (min_ms && dispatch_seconds == 0.0)
+			break;
+	} while (min_ms && (seconds * 1000.0 < (double)min_ms) && (dispatch_count < 100000));
 
-	for (unsigned int i = 0; i < iterations; ++i)
+	for (unsigned int i = 0; i < sample_count; ++i)
 	{
-		FieldElement expected = CpuFieldAdd(a[i], b[i]);
+		FieldElement expected = expected_fn(a[i], b[i]);
 		if (out[i] != expected)
 		{
 			std::string reason = "mismatch at vector " + std::to_string(i) +
 				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
-			return MetalFieldBenchJson("field_add_mod_p", iterations, seconds, 0.0, false, false, reason);
+			return MetalFieldBenchJson(operation, operations, sample_count, min_ms, seconds, 0.0, false, false, reason);
 		}
 	}
 
-	double ops_per_sec = seconds > 0.0 ? (double)iterations / seconds : 0.0;
-	return MetalFieldBenchJson("field_add_mod_p", iterations, seconds, ops_per_sec, true, false, "");
+	double ops_per_sec = seconds > 0.0 ? (double)operations / seconds : 0.0;
+	return MetalFieldBenchJson(operation, operations, sample_count, min_ms, seconds, ops_per_sec, true, false, "");
 }
 
-std::string RCKMetalFieldSubBenchJson(unsigned int iterations)
+std::string RCKMetalFieldAddBenchJson(unsigned int iterations, unsigned int min_ms)
 {
-	if (iterations == 0)
-		iterations = 1;
-
-	std::vector<FieldElement> a;
-	std::vector<FieldElement> b;
-	a.reserve(iterations);
-	b.reserve(iterations);
-	for (unsigned int i = 0; i < iterations; ++i)
-	{
-		a.push_back(DeterministicElement(i, 0x51BULL));
-		b.push_back(DeterministicElement(i, 0xA7BULL));
-	}
-
-	std::vector<FieldElement> out;
-	std::string error;
-	double seconds = 0.0;
-	if (!RunFieldKernel(a, b, out, error, &seconds, "field_sub_mod_p"))
-	{
-		if (error == "no Metal device available")
-			return MetalFieldBenchJson("field_sub_mod_p", 0, 0.0, 0.0, false, true, error);
-		return MetalFieldBenchJson("field_sub_mod_p", iterations, seconds, 0.0, false, false, error);
-	}
-
-	for (unsigned int i = 0; i < iterations; ++i)
-	{
-		FieldElement expected = CpuFieldSub(a[i], b[i]);
-		if (out[i] != expected)
-		{
-			std::string reason = "mismatch at vector " + std::to_string(i) +
-				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
-			return MetalFieldBenchJson("field_sub_mod_p", iterations, seconds, 0.0, false, false, reason);
-		}
-	}
-
-	double ops_per_sec = seconds > 0.0 ? (double)iterations / seconds : 0.0;
-	return MetalFieldBenchJson("field_sub_mod_p", iterations, seconds, ops_per_sec, true, false, "");
+	return RunMetalFieldBenchJson("field_add_mod_p", "field_add_mod_p", iterations, min_ms, 0x1234ULL, 0xBEEFULL, false, ExpectedAdd);
 }
 
-std::string RCKMetalFieldDoubleBenchJson(unsigned int iterations)
+std::string RCKMetalFieldSubBenchJson(unsigned int iterations, unsigned int min_ms)
 {
-	if (iterations == 0)
-		iterations = 1;
-
-	std::vector<FieldElement> a;
-	std::vector<FieldElement> b;
-	a.reserve(iterations);
-	b.reserve(iterations);
-	for (unsigned int i = 0; i < iterations; ++i)
-		a.push_back(DeterministicElement(i, 0xD00BULL));
-	b = a;
-
-	std::vector<FieldElement> out;
-	std::string error;
-	double seconds = 0.0;
-	if (!RunFieldKernel(a, b, out, error, &seconds, "field_double_mod_p"))
-	{
-		if (error == "no Metal device available")
-			return MetalFieldBenchJson("field_double_mod_p", 0, 0.0, 0.0, false, true, error);
-		return MetalFieldBenchJson("field_double_mod_p", iterations, seconds, 0.0, false, false, error);
-	}
-
-	for (unsigned int i = 0; i < iterations; ++i)
-	{
-		FieldElement expected = CpuFieldDouble(a[i]);
-		if (out[i] != expected)
-		{
-			std::string reason = "mismatch at vector " + std::to_string(i) +
-				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
-			return MetalFieldBenchJson("field_double_mod_p", iterations, seconds, 0.0, false, false, reason);
-		}
-	}
-
-	double ops_per_sec = seconds > 0.0 ? (double)iterations / seconds : 0.0;
-	return MetalFieldBenchJson("field_double_mod_p", iterations, seconds, ops_per_sec, true, false, "");
+	return RunMetalFieldBenchJson("field_sub_mod_p", "field_sub_mod_p", iterations, min_ms, 0x51BULL, 0xA7BULL, false, ExpectedSub);
 }
 
-std::string RCKMetalFieldMul4BenchJson(unsigned int iterations)
+std::string RCKMetalFieldDoubleBenchJson(unsigned int iterations, unsigned int min_ms)
 {
-	if (iterations == 0)
-		iterations = 1;
-
-	std::vector<FieldElement> a;
-	std::vector<FieldElement> b;
-	a.reserve(iterations);
-	b.reserve(iterations);
-	for (unsigned int i = 0; i < iterations; ++i)
-		a.push_back(DeterministicElement(i, 0x4D14ULL));
-	b = a;
-
-	std::vector<FieldElement> out;
-	std::string error;
-	double seconds = 0.0;
-	if (!RunFieldKernel(a, b, out, error, &seconds, "field_mul4_mod_p"))
-	{
-		if (error == "no Metal device available")
-			return MetalFieldBenchJson("field_mul4_mod_p", 0, 0.0, 0.0, false, true, error);
-		return MetalFieldBenchJson("field_mul4_mod_p", iterations, seconds, 0.0, false, false, error);
-	}
-
-	for (unsigned int i = 0; i < iterations; ++i)
-	{
-		FieldElement expected = CpuFieldMul4(a[i]);
-		if (out[i] != expected)
-		{
-			std::string reason = "mismatch at vector " + std::to_string(i) +
-				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
-			return MetalFieldBenchJson("field_mul4_mod_p", iterations, seconds, 0.0, false, false, reason);
-		}
-	}
-
-	double ops_per_sec = seconds > 0.0 ? (double)iterations / seconds : 0.0;
-	return MetalFieldBenchJson("field_mul4_mod_p", iterations, seconds, ops_per_sec, true, false, "");
+	return RunMetalFieldBenchJson("field_double_mod_p", "field_double_mod_p", iterations, min_ms, 0xD00BULL, 0, true, ExpectedDouble);
 }
 
-std::string RCKMetalFieldNegBenchJson(unsigned int iterations)
+std::string RCKMetalFieldMul4BenchJson(unsigned int iterations, unsigned int min_ms)
 {
-	if (iterations == 0)
-		iterations = 1;
-
-	std::vector<FieldElement> a;
-	std::vector<FieldElement> b;
-	a.reserve(iterations);
-	b.reserve(iterations);
-	for (unsigned int i = 0; i < iterations; ++i)
-		a.push_back(DeterministicElement(i, 0x6E67ULL));
-	b = a;
-
-	std::vector<FieldElement> out;
-	std::string error;
-	double seconds = 0.0;
-	if (!RunFieldKernel(a, b, out, error, &seconds, "field_neg_mod_p"))
-	{
-		if (error == "no Metal device available")
-			return MetalFieldBenchJson("field_neg_mod_p", 0, 0.0, 0.0, false, true, error);
-		return MetalFieldBenchJson("field_neg_mod_p", iterations, seconds, 0.0, false, false, error);
-	}
-
-	for (unsigned int i = 0; i < iterations; ++i)
-	{
-		FieldElement expected = CpuFieldNeg(a[i]);
-		if (out[i] != expected)
-		{
-			std::string reason = "mismatch at vector " + std::to_string(i) +
-				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
-			return MetalFieldBenchJson("field_neg_mod_p", iterations, seconds, 0.0, false, false, reason);
-		}
-	}
-
-	double ops_per_sec = seconds > 0.0 ? (double)iterations / seconds : 0.0;
-	return MetalFieldBenchJson("field_neg_mod_p", iterations, seconds, ops_per_sec, true, false, "");
+	return RunMetalFieldBenchJson("field_mul4_mod_p", "field_mul4_mod_p", iterations, min_ms, 0x4D14ULL, 0, true, ExpectedMul4);
 }
 
-std::string RCKMetalFieldMulBenchJson(unsigned int iterations)
+std::string RCKMetalFieldNegBenchJson(unsigned int iterations, unsigned int min_ms)
 {
-	if (iterations == 0)
-		iterations = 1;
-
-	std::vector<FieldElement> a;
-	std::vector<FieldElement> b;
-	a.reserve(iterations);
-	b.reserve(iterations);
-	for (unsigned int i = 0; i < iterations; ++i)
-	{
-		a.push_back(DeterministicElement(i, 0xCAFEULL));
-		b.push_back(DeterministicElement(i, 0xBEEFULL));
-	}
-
-	std::vector<FieldElement> out;
-	std::string error;
-	double seconds = 0.0;
-	if (!RunFieldKernel(a, b, out, error, &seconds, "field_mul_mod_p"))
-	{
-		if (error == "no Metal device available")
-			return MetalFieldBenchJson("field_mul_mod_p", 0, 0.0, 0.0, false, true, error);
-		return MetalFieldBenchJson("field_mul_mod_p", iterations, seconds, 0.0, false, false, error);
-	}
-
-	for (unsigned int i = 0; i < iterations; ++i)
-	{
-		FieldElement expected = CpuFieldMul(a[i], b[i]);
-		if (out[i] != expected)
-		{
-			std::string reason = "mismatch at vector " + std::to_string(i) +
-				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
-			return MetalFieldBenchJson("field_mul_mod_p", iterations, seconds, 0.0, false, false, reason);
-		}
-	}
-
-	double ops_per_sec = seconds > 0.0 ? (double)iterations / seconds : 0.0;
-	return MetalFieldBenchJson("field_mul_mod_p", iterations, seconds, ops_per_sec, true, false, "");
+	return RunMetalFieldBenchJson("field_neg_mod_p", "field_neg_mod_p", iterations, min_ms, 0x6E67ULL, 0, true, ExpectedNeg);
 }
 
-std::string RCKMetalFieldSquareBenchJson(unsigned int iterations)
+std::string RCKMetalFieldMulBenchJson(unsigned int iterations, unsigned int min_ms)
 {
-	if (iterations == 0)
-		iterations = 1;
+	return RunMetalFieldBenchJson("field_mul_mod_p", "field_mul_mod_p", iterations, min_ms, 0xCAFEULL, 0xBEEFULL, false, ExpectedMul);
+}
 
-	std::vector<FieldElement> a;
-	std::vector<FieldElement> b;
-	a.reserve(iterations);
-	b.reserve(iterations);
-	for (unsigned int i = 0; i < iterations; ++i)
-		a.push_back(DeterministicElement(i, 0x5A5AULL));
-	b = a;
-
-	std::vector<FieldElement> out;
-	std::string error;
-	double seconds = 0.0;
-	if (!RunFieldKernel(a, b, out, error, &seconds, "field_square_mod_p"))
-	{
-		if (error == "no Metal device available")
-			return MetalFieldBenchJson("field_square_mod_p", 0, 0.0, 0.0, false, true, error);
-		return MetalFieldBenchJson("field_square_mod_p", iterations, seconds, 0.0, false, false, error);
-	}
-
-	for (unsigned int i = 0; i < iterations; ++i)
-	{
-		FieldElement expected = CpuFieldSquare(a[i]);
-		if (out[i] != expected)
-		{
-			std::string reason = "mismatch at vector " + std::to_string(i) +
-				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
-			return MetalFieldBenchJson("field_square_mod_p", iterations, seconds, 0.0, false, false, reason);
-		}
-	}
-
-	double ops_per_sec = seconds > 0.0 ? (double)iterations / seconds : 0.0;
-	return MetalFieldBenchJson("field_square_mod_p", iterations, seconds, ops_per_sec, true, false, "");
+std::string RCKMetalFieldSquareBenchJson(unsigned int iterations, unsigned int min_ms)
+{
+	return RunMetalFieldBenchJson("field_square_mod_p", "field_square_mod_p", iterations, min_ms, 0x5A5AULL, 0, true, ExpectedSquare);
 }
