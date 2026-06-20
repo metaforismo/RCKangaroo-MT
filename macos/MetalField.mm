@@ -161,6 +161,11 @@ static FieldElement CpuFieldMul(const FieldElement& a, const FieldElement& b)
 	return out;
 }
 
+static FieldElement CpuFieldSquare(const FieldElement& a)
+{
+	return CpuFieldMul(a, a);
+}
+
 static std::string FieldToHex(const FieldElement& v)
 {
 	std::ostringstream oss;
@@ -388,6 +393,35 @@ bool RCKMetalFieldMulSelfTest(std::string& error)
 	return true;
 }
 
+bool RCKMetalFieldSquareSelfTest(std::string& error)
+{
+	std::vector<FieldElement> a;
+	std::vector<FieldElement> b;
+	a.push_back({1, 0, 0, 0});
+	a.push_back({2, 0, 0, 0});
+	a.push_back({0xFFFFFFFEFFFFFC2EULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL});
+	a.push_back({0xFFFFFFFFFFFFFFFFULL, 0, 0, 0});
+	for (uint64_t i = 0; i < 16; ++i)
+		a.push_back(DeterministicElement(i, 0x5A5AULL));
+	b = a;
+
+	std::vector<FieldElement> out;
+	if (!RunFieldKernel(a, b, out, error, NULL, "field_square_mod_p"))
+		return false;
+
+	for (size_t i = 0; i < a.size(); ++i)
+	{
+		FieldElement expected = CpuFieldSquare(a[i]);
+		if (out[i] != expected)
+		{
+			error = "field square mismatch at vector " + std::to_string(i) +
+				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
+			return false;
+		}
+	}
+	return true;
+}
+
 static FieldElement DeterministicElement(uint64_t i, uint64_t salt)
 {
 	FieldElement v = {
@@ -479,4 +513,42 @@ std::string RCKMetalFieldMulBenchJson(unsigned int iterations)
 
 	double ops_per_sec = seconds > 0.0 ? (double)iterations / seconds : 0.0;
 	return MetalFieldBenchJson("field_mul_mod_p", iterations, seconds, ops_per_sec, true, false, "");
+}
+
+std::string RCKMetalFieldSquareBenchJson(unsigned int iterations)
+{
+	if (iterations == 0)
+		iterations = 1;
+
+	std::vector<FieldElement> a;
+	std::vector<FieldElement> b;
+	a.reserve(iterations);
+	b.reserve(iterations);
+	for (unsigned int i = 0; i < iterations; ++i)
+		a.push_back(DeterministicElement(i, 0x5A5AULL));
+	b = a;
+
+	std::vector<FieldElement> out;
+	std::string error;
+	double seconds = 0.0;
+	if (!RunFieldKernel(a, b, out, error, &seconds, "field_square_mod_p"))
+	{
+		if (error == "no Metal device available")
+			return MetalFieldBenchJson("field_square_mod_p", 0, 0.0, 0.0, false, true, error);
+		return MetalFieldBenchJson("field_square_mod_p", iterations, seconds, 0.0, false, false, error);
+	}
+
+	for (unsigned int i = 0; i < iterations; ++i)
+	{
+		FieldElement expected = CpuFieldSquare(a[i]);
+		if (out[i] != expected)
+		{
+			std::string reason = "mismatch at vector " + std::to_string(i) +
+				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
+			return MetalFieldBenchJson("field_square_mod_p", iterations, seconds, 0.0, false, false, reason);
+		}
+	}
+
+	double ops_per_sec = seconds > 0.0 ? (double)iterations / seconds : 0.0;
+	return MetalFieldBenchJson("field_square_mod_p", iterations, seconds, ops_per_sec, true, false, "");
 }

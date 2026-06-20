@@ -32,6 +32,8 @@ static void PrintUsage()
 	printf("  rck_macos metal-field-bench --iterations N\n");
 	printf("  rck_macos metal-field-mul-test\n");
 	printf("  rck_macos metal-field-mul-bench --iterations N\n");
+	printf("  rck_macos metal-field-square-test\n");
+	printf("  rck_macos metal-field-square-bench --iterations N\n");
 }
 
 static bool ReadOption(int argc, char* argv[], const char* name, const char** value)
@@ -571,6 +573,33 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 		printf("%s\n", RCKMetalFieldMulBenchJson(iterations).c_str());
+	}
+	else if (strcmp(argv[1], "metal-field-square-test") == 0)
+	{
+		if (RCKMetalFieldSquareSelfTest(error))
+			printf("metal field square ok\n");
+		else
+		{
+			if (error == "no Metal device available")
+				printf("metal field square skipped: %s\n", error.c_str());
+			else
+			{
+				printf("metal field square failed: %s\n", error.c_str());
+				rc = 1;
+			}
+		}
+	}
+	else if (strcmp(argv[1], "metal-field-square-bench") == 0)
+	{
+		const char* iter_s = NULL;
+		unsigned int iterations = 1024;
+		if (ReadOption(argc, argv, "--iterations", &iter_s) && !ParseU32(iter_s, &iterations))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		printf("%s\n", RCKMetalFieldSquareBenchJson(iterations).c_str());
 	}
 	else
 	{

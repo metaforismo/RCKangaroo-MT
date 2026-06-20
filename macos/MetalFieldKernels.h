@@ -163,4 +163,18 @@ kernel void field_mul_mod_p(device const ulong* a [[buffer(0)]],
                    r0, r1, r2, r3);
   out[base + 0] = r0; out[base + 1] = r1; out[base + 2] = r2; out[base + 3] = r3;
 }
+
+kernel void field_square_mod_p(device const ulong* a [[buffer(0)]],
+                               device const ulong* b [[buffer(1)]],
+                               device ulong* out [[buffer(2)]],
+                               constant uint& count [[buffer(3)]],
+                               uint id [[thread_position_in_grid]]) {
+  if (id >= count) return;
+  uint base = id * 4;
+  ulong r0 = 0, r1 = 0, r2 = 0, r3 = 0;
+  field_mul_values(a[base + 0], a[base + 1], a[base + 2], a[base + 3],
+                   a[base + 0], a[base + 1], a[base + 2], a[base + 3],
+                   r0, r1, r2, r3);
+  out[base + 0] = r0; out[base + 1] = r1; out[base + 2] = r2; out[base + 3] = r3;
+}
 )RCK_METAL";

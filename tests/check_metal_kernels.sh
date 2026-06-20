@@ -27,6 +27,11 @@ if ! grep -q "kernel void field_mul_mod_p" "$tmp_source"; then
 	exit 1
 fi
 
+if ! grep -q "kernel void field_square_mod_p" "$tmp_source"; then
+	printf '%s\n' "field_square_mod_p kernel missing from Metal source"
+	exit 1
+fi
+
 set +e
 xcrun -sdk macosx metal -c "$tmp_source" -o "$tmp_air" > "$tmp_air.out" 2>&1
 status=$?

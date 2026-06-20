@@ -1,0 +1,6 @@
+{
+  "name": "metal_field_square",
+  "description": "Metal secp256k1 field_square_mod_p correctness and throughput gate",
+  "bench_target": "macos-metal-field-square-bench",
+  "min_improvement_ratio": 0.01
+}

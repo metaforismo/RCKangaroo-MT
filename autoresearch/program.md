@@ -38,7 +38,7 @@ Future experiments may add:
 
 - field multiplication/sec;
 - point addition/sec;
-- Metal smoke and arithmetic kernel throughput;
+- Metal smoke and arithmetic kernel throughput, including field add, multiply, and square;
 - tiny-range solve/sec;
 - distinguished points/sec.
 
