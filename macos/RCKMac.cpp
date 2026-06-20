@@ -596,13 +596,12 @@ std::string RCKJacobianWalkBenchJson(unsigned int iterations, unsigned int min_m
 struct KangarooPointKey
 {
 	u64 x[4];
-	u64 y[4];
 
 	bool operator==(const KangarooPointKey& other) const
 	{
 		for (unsigned int i = 0; i < 4; i++)
 		{
-			if ((x[i] != other.x[i]) || (y[i] != other.y[i]))
+			if (x[i] != other.x[i])
 				return false;
 		}
 		return true;
@@ -615,10 +614,7 @@ struct KangarooPointKeyHash
 	{
 		u64 hash = 0x9e3779b97f4a7c15ULL;
 		for (unsigned int i = 0; i < 4; i++)
-		{
 			hash ^= key.x[i] + 0x9e3779b97f4a7c15ULL + (hash << 6) + (hash >> 2);
-			hash ^= key.y[i] + 0x9e3779b97f4a7c15ULL + (hash << 6) + (hash >> 2);
-		}
 		return (size_t)hash;
 	}
 };
@@ -657,10 +653,7 @@ static KangarooPointKey RawPointKey(const EcPoint& p)
 {
 	KangarooPointKey key;
 	for (unsigned int i = 0; i < 4; i++)
-	{
 		key.x[i] = p.x.data[i];
-		key.y[i] = p.y.data[i];
-	}
 	return key;
 }
 
@@ -1134,6 +1127,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "\"operation\":\"jacobian_kangaroo_small\",";
 	out << "\"architecture\":\"single_target\",";
 	out << "\"dp_lookup\":\"hash\",";
+	out << "\"dp_key\":\"x_only\",";
 	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
@@ -1244,6 +1238,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"operation\":\"jacobian_kangaroo_multi_small\",";
 	out << "\"architecture\":\"shared_tame\",";
 	out << "\"dp_lookup\":\"hash\",";
+	out << "\"dp_key\":\"x_only\",";
 	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
