@@ -1,0 +1,7 @@
+{
+  "name": "metal_jacobian_add",
+  "description": "Metal secp256k1 Jacobian plus affine add correctness and throughput gate",
+  "bench_target": "macos-metal-jacobian-add-bench",
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3
+}

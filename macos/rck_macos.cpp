@@ -44,6 +44,8 @@ static void PrintUsage()
 	printf("  rck_macos metal-field-square-bench --iterations N [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-field-square-mul-test\n");
 	printf("  rck_macos metal-field-square-mul-bench --iterations N [--min-ms N] [--tg-limit N]\n");
+	printf("  rck_macos metal-jacobian-add-test\n");
+	printf("  rck_macos metal-jacobian-add-bench --iterations N [--min-ms N] [--tg-limit N]\n");
 }
 
 static bool ReadOption(int argc, char* argv[], const char* name, const char** value)
@@ -777,6 +779,34 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 		printf("%s\n", RCKMetalFieldSquareMulBenchJson(iterations, min_ms, threadgroup_limit).c_str());
+	}
+	else if (strcmp(argv[1], "metal-jacobian-add-test") == 0)
+	{
+		if (RCKMetalJacobianAddSelfTest(error))
+			printf("metal jacobian add ok\n");
+		else
+		{
+			if (error == "no Metal device available")
+				printf("metal jacobian add skipped: %s\n", error.c_str());
+			else
+			{
+				printf("metal jacobian add failed: %s\n", error.c_str());
+				rc = 1;
+			}
+		}
+	}
+	else if (strcmp(argv[1], "metal-jacobian-add-bench") == 0)
+	{
+		unsigned int iterations = 1024;
+		unsigned int min_ms = 0;
+		unsigned int threadgroup_limit = 0;
+		if (!ReadMetalBenchOptions(argc, argv, &iterations, &min_ms, &threadgroup_limit))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		printf("%s\n", RCKMetalJacobianAddBenchJson(iterations, min_ms, threadgroup_limit).c_str());
 	}
 	else
 	{

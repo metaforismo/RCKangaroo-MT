@@ -257,6 +257,153 @@ static FieldElement ExpectedSquareMul(const FieldElement& a, const FieldElement&
 	return CpuFieldMul(CpuFieldSquare(a), b);
 }
 
+struct CpuJacobianPoint
+{
+	FieldElement x;
+	FieldElement y;
+	FieldElement z;
+	bool infinity = false;
+};
+
+struct CpuAffinePoint
+{
+	FieldElement x;
+	FieldElement y;
+};
+
+static bool CpuFieldIsZero(const FieldElement& v)
+{
+	return (v[0] | v[1] | v[2] | v[3]) == 0;
+}
+
+static CpuJacobianPoint CpuJacobianInfinity()
+{
+	CpuJacobianPoint out;
+	out.x = {0, 0, 0, 0};
+	out.y = {0, 0, 0, 0};
+	out.z = {0, 0, 0, 0};
+	out.infinity = true;
+	return out;
+}
+
+static CpuJacobianPoint CpuJacobianFromAffine(const CpuAffinePoint& q)
+{
+	CpuJacobianPoint out;
+	out.x = q.x;
+	out.y = q.y;
+	out.z = {1, 0, 0, 0};
+	out.infinity = false;
+	return out;
+}
+
+static CpuJacobianPoint CpuJacobianDouble(const CpuJacobianPoint& p)
+{
+	if (p.infinity || CpuFieldIsZero(p.y))
+		return CpuJacobianInfinity();
+
+	FieldElement xx = CpuFieldSquare(p.x);
+	FieldElement yy = CpuFieldSquare(p.y);
+	FieldElement yyyy = CpuFieldSquare(yy);
+	FieldElement s = CpuFieldDouble(CpuFieldSub(CpuFieldSub(CpuFieldSquare(CpuFieldAdd(p.x, yy)), xx), yyyy));
+	FieldElement m = CpuFieldAdd(CpuFieldDouble(xx), xx);
+	FieldElement t = CpuFieldSub(CpuFieldSquare(m), CpuFieldDouble(s));
+	FieldElement eight_yyyy = CpuFieldDouble(CpuFieldDouble(CpuFieldDouble(yyyy)));
+
+	CpuJacobianPoint out;
+	out.x = t;
+	out.y = CpuFieldSub(CpuFieldMul(m, CpuFieldSub(s, t)), eight_yyyy);
+	out.z = CpuFieldSub(CpuFieldSub(CpuFieldSquare(CpuFieldAdd(p.y, p.z)), yy), CpuFieldSquare(p.z));
+	out.infinity = false;
+	return out;
+}
+
+static CpuJacobianPoint CpuJacobianAddAffine(const CpuJacobianPoint& p, const CpuAffinePoint& q)
+{
+	if (p.infinity)
+		return CpuJacobianFromAffine(q);
+
+	FieldElement z2 = CpuFieldSquare(p.z);
+	FieldElement z3 = CpuFieldMul(z2, p.z);
+	FieldElement u2 = CpuFieldMul(q.x, z2);
+	FieldElement s2 = CpuFieldMul(q.y, z3);
+	FieldElement h = CpuFieldSub(u2, p.x);
+	FieldElement r = CpuFieldSub(s2, p.y);
+
+	if (CpuFieldIsZero(h))
+	{
+		if (CpuFieldIsZero(r))
+			return CpuJacobianDouble(p);
+		return CpuJacobianInfinity();
+	}
+
+	FieldElement hh = CpuFieldSquare(h);
+	FieldElement hhh = CpuFieldMul(hh, h);
+	FieldElement v = CpuFieldMul(p.x, hh);
+	FieldElement x3 = CpuFieldSub(CpuFieldSub(CpuFieldSquare(r), hhh), CpuFieldDouble(v));
+	FieldElement y3 = CpuFieldSub(CpuFieldMul(r, CpuFieldSub(v, x3)), CpuFieldMul(p.y, hhh));
+	FieldElement z3_out = CpuFieldMul(p.z, h);
+
+	CpuJacobianPoint out;
+	out.x = x3;
+	out.y = y3;
+	out.z = z3_out;
+	out.infinity = false;
+	return out;
+}
+
+static bool CpuJacobianMatches(const CpuJacobianPoint& a, const CpuJacobianPoint& b)
+{
+	if (a.infinity != b.infinity)
+		return false;
+	if (a.infinity)
+		return true;
+	return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+static void PackJacobianInputs(const std::vector<CpuJacobianPoint>& p,
+	const std::vector<CpuAffinePoint>& q,
+	std::vector<uint64_t>& p_xyz,
+	std::vector<uint64_t>& q_xy,
+	std::vector<uint32_t>& p_infinity)
+{
+	p_xyz.clear();
+	q_xy.clear();
+	p_infinity.clear();
+	p_xyz.reserve(p.size() * 12);
+	q_xy.reserve(q.size() * 8);
+	p_infinity.reserve(p.size());
+	for (size_t i = 0; i < p.size(); ++i)
+	{
+		for (uint64_t limb : p[i].x)
+			p_xyz.push_back(limb);
+		for (uint64_t limb : p[i].y)
+			p_xyz.push_back(limb);
+		for (uint64_t limb : p[i].z)
+			p_xyz.push_back(limb);
+		for (uint64_t limb : q[i].x)
+			q_xy.push_back(limb);
+		for (uint64_t limb : q[i].y)
+			q_xy.push_back(limb);
+		p_infinity.push_back(p[i].infinity ? 1U : 0U);
+	}
+}
+
+static CpuJacobianPoint UnpackJacobianOutput(const std::vector<uint64_t>& out_xyz,
+	const std::vector<uint32_t>& out_infinity,
+	size_t index)
+{
+	CpuJacobianPoint out;
+	size_t base = index * 12;
+	for (size_t i = 0; i < 4; ++i)
+		out.x[i] = out_xyz[base + i];
+	for (size_t i = 0; i < 4; ++i)
+		out.y[i] = out_xyz[base + 4 + i];
+	for (size_t i = 0; i < 4; ++i)
+		out.z[i] = out_xyz[base + 8 + i];
+	out.infinity = out_infinity[index] != 0;
+	return out;
+}
+
 static std::string FieldToHex(const FieldElement& v)
 {
 	std::ostringstream oss;
@@ -454,6 +601,127 @@ static bool RunFieldKernel(const std::vector<FieldElement>& a,
 
 		out.resize(a.size());
 		memcpy(out.data(), [out_buffer contents], bytes);
+		return true;
+	}
+}
+
+static bool RunJacobianAddAffineKernel(const std::vector<CpuJacobianPoint>& p,
+	const std::vector<CpuAffinePoint>& q,
+	std::vector<CpuJacobianPoint>& out,
+	std::string& error,
+	double* seconds,
+	unsigned int threadgroup_limit = 0,
+	MetalDispatchStats* dispatch_stats = NULL)
+{
+	if (dispatch_stats)
+		dispatch_stats->threadgroup_limit = (unsigned int)EffectiveThreadgroupLimit(threadgroup_limit);
+
+	if (p.size() != q.size() || p.empty())
+	{
+		error = "invalid jacobian add input";
+		return false;
+	}
+
+	std::vector<uint64_t> p_xyz;
+	std::vector<uint64_t> q_xy;
+	std::vector<uint32_t> p_infinity;
+	PackJacobianInputs(p, q, p_xyz, q_xy, p_infinity);
+
+	@autoreleasepool
+	{
+		id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+		if (!device)
+		{
+			error = "no Metal device available";
+			return false;
+		}
+
+		NSError* ns_error = nil;
+		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		if (!library)
+		{
+			error = NSErrorToString(ns_error);
+			return false;
+		}
+
+		id<MTLFunction> function = [library newFunctionWithName:@"jacobian_add_affine"];
+		if (!function)
+		{
+			error = "failed to load jacobian_add_affine function";
+			return false;
+		}
+
+		id<MTLComputePipelineState> pipeline = [device newComputePipelineStateWithFunction:function error:&ns_error];
+		if (!pipeline)
+		{
+			error = NSErrorToString(ns_error);
+			return false;
+		}
+		NSUInteger execution_width = [pipeline threadExecutionWidth] ? [pipeline threadExecutionWidth] : 1;
+		NSUInteger max_threads = [pipeline maxTotalThreadsPerThreadgroup] ? [pipeline maxTotalThreadsPerThreadgroup] : execution_width;
+		NSUInteger threads_per_threadgroup = PreferredThreadgroupWidth(pipeline, threadgroup_limit);
+		if (dispatch_stats)
+		{
+			dispatch_stats->thread_execution_width = (unsigned int)execution_width;
+			dispatch_stats->max_threads_per_threadgroup = (unsigned int)max_threads;
+			dispatch_stats->threads_per_threadgroup = (unsigned int)threads_per_threadgroup;
+		}
+
+		size_t p_bytes = p_xyz.size() * sizeof(uint64_t);
+		size_t q_bytes = q_xy.size() * sizeof(uint64_t);
+		size_t inf_bytes = p_infinity.size() * sizeof(uint32_t);
+		std::vector<uint64_t> out_xyz(p.size() * 12);
+		std::vector<uint32_t> out_infinity(p.size());
+		size_t out_bytes = out_xyz.size() * sizeof(uint64_t);
+		id<MTLBuffer> p_buffer = [device newBufferWithBytes:p_xyz.data() length:p_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> q_buffer = [device newBufferWithBytes:q_xy.data() length:q_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> p_inf_buffer = [device newBufferWithBytes:p_infinity.data() length:inf_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> out_buffer = [device newBufferWithLength:out_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> out_inf_buffer = [device newBufferWithLength:inf_bytes options:MTLResourceStorageModeShared];
+		uint32_t count = (uint32_t)p.size();
+		id<MTLBuffer> count_buffer = [device newBufferWithBytes:&count length:sizeof(count) options:MTLResourceStorageModeShared];
+		if (!p_buffer || !q_buffer || !p_inf_buffer || !out_buffer || !out_inf_buffer || !count_buffer)
+		{
+			error = "failed to allocate Metal jacobian add buffers";
+			return false;
+		}
+
+		id<MTLCommandQueue> queue = [device newCommandQueue];
+		if (!queue)
+		{
+			error = "failed to create Metal command queue";
+			return false;
+		}
+
+		id<MTLCommandBuffer> command_buffer = [queue commandBuffer];
+		id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:p_buffer offset:0 atIndex:0];
+		[encoder setBuffer:q_buffer offset:0 atIndex:1];
+		[encoder setBuffer:p_inf_buffer offset:0 atIndex:2];
+		[encoder setBuffer:out_buffer offset:0 atIndex:3];
+		[encoder setBuffer:out_inf_buffer offset:0 atIndex:4];
+		[encoder setBuffer:count_buffer offset:0 atIndex:5];
+		[encoder dispatchThreads:MTLSizeMake(count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
+		[encoder endEncoding];
+		auto start = std::chrono::steady_clock::now();
+		[command_buffer commit];
+		[command_buffer waitUntilCompleted];
+		auto end = std::chrono::steady_clock::now();
+		if (seconds)
+			*seconds = std::chrono::duration<double>(end - start).count();
+
+		if ([command_buffer status] != MTLCommandBufferStatusCompleted)
+		{
+			error = NSErrorToString([command_buffer error]);
+			return false;
+		}
+
+		memcpy(out_xyz.data(), [out_buffer contents], out_bytes);
+		memcpy(out_infinity.data(), [out_inf_buffer contents], inf_bytes);
+		out.resize(p.size());
+		for (size_t i = 0; i < p.size(); ++i)
+			out[i] = UnpackJacobianOutput(out_xyz, out_infinity, i);
 		return true;
 	}
 }
@@ -717,6 +985,84 @@ bool RCKMetalFieldSquareMulSelfTest(std::string& error)
 	return true;
 }
 
+static void BuildJacobianAddSamples(unsigned int sample_count,
+	std::vector<CpuJacobianPoint>& p,
+	std::vector<CpuAffinePoint>& q)
+{
+	p.clear();
+	q.clear();
+	p.reserve(sample_count);
+	q.reserve(sample_count);
+	for (unsigned int i = 0; i < sample_count; ++i)
+	{
+		CpuJacobianPoint jp;
+		CpuAffinePoint aq;
+		if (i == 0)
+		{
+			jp = CpuJacobianInfinity();
+			aq.x = {7, 0, 0, 0};
+			aq.y = {11, 0, 0, 0};
+		}
+		else if (i == 1)
+		{
+			jp.x = {3, 0, 0, 0};
+			jp.y = {4, 0, 0, 0};
+			jp.z = {1, 0, 0, 0};
+			jp.infinity = false;
+			aq.x = jp.x;
+			aq.y = jp.y;
+		}
+		else if (i == 2)
+		{
+			jp.x = {5, 0, 0, 0};
+			jp.y = {9, 0, 0, 0};
+			jp.z = {1, 0, 0, 0};
+			jp.infinity = false;
+			aq.x = jp.x;
+			aq.y = CpuFieldAdd(jp.y, {1, 0, 0, 0});
+		}
+		else
+		{
+			jp.x = DeterministicElement(i, 0xA11CEULL);
+			jp.y = DeterministicElement(i, 0xB0BULL);
+			jp.z = DeterministicElement(i, 0x533DULL);
+			if (CpuFieldIsZero(jp.z))
+				jp.z = {1, 0, 0, 0};
+			jp.infinity = false;
+			aq.x = DeterministicElement(i, 0xC0FFEEULL);
+			aq.y = DeterministicElement(i, 0xFACEULL);
+		}
+		p.push_back(jp);
+		q.push_back(aq);
+	}
+}
+
+bool RCKMetalJacobianAddSelfTest(std::string& error)
+{
+	std::vector<CpuJacobianPoint> p;
+	std::vector<CpuAffinePoint> q;
+	BuildJacobianAddSamples(24, p, q);
+
+	std::vector<CpuJacobianPoint> out;
+	if (!RunJacobianAddAffineKernel(p, q, out, error, NULL))
+		return false;
+
+	for (size_t i = 0; i < p.size(); ++i)
+	{
+		CpuJacobianPoint expected = CpuJacobianAddAffine(p[i], q[i]);
+		if (!CpuJacobianMatches(out[i], expected))
+		{
+			error = "jacobian add mismatch at vector " + std::to_string(i) +
+				": got x=" + FieldToHex(out[i].x) + " y=" + FieldToHex(out[i].y) +
+				" z=" + FieldToHex(out[i].z) + " inf=" + (out[i].infinity ? "1" : "0") +
+				" expected x=" + FieldToHex(expected.x) + " y=" + FieldToHex(expected.y) +
+				" z=" + FieldToHex(expected.z) + " inf=" + (expected.infinity ? "1" : "0");
+			return false;
+		}
+	}
+	return true;
+}
+
 static FieldElement DeterministicElement(uint64_t i, uint64_t salt)
 {
 	FieldElement v = {
@@ -728,6 +1074,57 @@ static FieldElement DeterministicElement(uint64_t i, uint64_t salt)
 	if (GreaterOrEqualP(v))
 		SubtractP(v);
 	return v;
+}
+
+std::string RCKMetalJacobianAddBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit)
+{
+	if (iterations == 0)
+		iterations = 1;
+
+	const unsigned int sample_count = iterations;
+	std::vector<CpuJacobianPoint> p;
+	std::vector<CpuAffinePoint> q;
+	BuildJacobianAddSamples(sample_count, p, q);
+
+	std::vector<CpuJacobianPoint> out;
+	std::string error;
+	double seconds = 0.0;
+	uint64_t operations = 0;
+	unsigned int dispatch_count = 0;
+	MetalDispatchStats dispatch_stats;
+	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveThreadgroupLimit(threadgroup_limit);
+	do
+	{
+		double dispatch_seconds = 0.0;
+		if (!RunJacobianAddAffineKernel(p, q, out, error, &dispatch_seconds, threadgroup_limit, &dispatch_stats))
+		{
+			if (error == "no Metal device available")
+				return MetalFieldBenchJson("jacobian_add_affine", 0, sample_count, min_ms, dispatch_stats, 0.0, 0.0, false, true, error);
+			return MetalFieldBenchJson("jacobian_add_affine", operations ? operations : sample_count, sample_count, min_ms, dispatch_stats, seconds, 0.0, false, false, error);
+		}
+		seconds += dispatch_seconds;
+		operations += sample_count;
+		dispatch_count++;
+		if (min_ms && dispatch_seconds == 0.0)
+			break;
+	} while (min_ms && (seconds * 1000.0 < (double)min_ms) && (dispatch_count < 100000));
+
+	for (unsigned int i = 0; i < sample_count; ++i)
+	{
+		CpuJacobianPoint expected = CpuJacobianAddAffine(p[i], q[i]);
+		if (!CpuJacobianMatches(out[i], expected))
+		{
+			std::string reason = "mismatch at vector " + std::to_string(i) +
+				": got x=" + FieldToHex(out[i].x) + " y=" + FieldToHex(out[i].y) +
+				" z=" + FieldToHex(out[i].z) + " inf=" + (out[i].infinity ? "1" : "0") +
+				" expected x=" + FieldToHex(expected.x) + " y=" + FieldToHex(expected.y) +
+				" z=" + FieldToHex(expected.z) + " inf=" + (expected.infinity ? "1" : "0");
+			return MetalFieldBenchJson("jacobian_add_affine", operations, sample_count, min_ms, dispatch_stats, seconds, 0.0, false, false, reason);
+		}
+	}
+
+	double ops_per_sec = seconds > 0.0 ? (double)operations / seconds : 0.0;
+	return MetalFieldBenchJson("jacobian_add_affine", operations, sample_count, min_ms, dispatch_stats, seconds, ops_per_sec, true, false, "");
 }
 
 static std::string RunMetalFieldBenchJson(const char* operation,
