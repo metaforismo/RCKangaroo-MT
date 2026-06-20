@@ -17,9 +17,9 @@ struct RCKSmallSolveResult
 };
 
 bool RCKSelfTest(std::string& error);
-RCKSmallSolveResult RCKSolveSmallSingle(EcPoint target, unsigned long long start, unsigned int range_bits);
+RCKSmallSolveResult RCKSolveSmallSingle(const EcPoint& target, unsigned long long start, unsigned int range_bits);
 RCKSmallSolveResult RCKSolveSmallMulti(const std::vector<EcPoint>& targets, unsigned long long start, unsigned int range_bits);
-RCKSmallSolveResult RCKSolveSmallJacobianKangaroo(EcPoint target, unsigned long long start, unsigned int range_bits, unsigned int jump_count = 8, unsigned int dp_bits = 0, unsigned int max_steps = 4096);
+RCKSmallSolveResult RCKSolveSmallJacobianKangaroo(const EcPoint& target, unsigned long long start, unsigned int range_bits, unsigned int jump_count = 8, unsigned int dp_bits = 0, unsigned int max_steps = 4096);
 RCKSmallSolveResult RCKSolveSmallJacobianKangarooMulti(const std::vector<EcPoint>& targets, unsigned long long start, unsigned int range_bits, unsigned int jump_count = 8, unsigned int dp_bits = 0, unsigned int max_steps = 4096);
 std::string RCKBenchJson(unsigned int iterations);
 std::string RCKPointAddBenchJson(unsigned int iterations, unsigned int min_ms = 0);

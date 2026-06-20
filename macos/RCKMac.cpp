@@ -4,9 +4,29 @@
 #include <sstream>
 #include <unordered_map>
 
-static bool PointMatches(EcPoint a, EcPoint b)
+static bool IntMatches(const EcInt& a, const EcInt& b)
 {
-	return a.IsEqual(b);
+	for (unsigned int i = 0; i < 5; i++)
+	{
+		if (a.data[i] != b.data[i])
+			return false;
+	}
+	return true;
+}
+
+static bool IntIsZero(const EcInt& a)
+{
+	for (unsigned int i = 0; i < 5; i++)
+	{
+		if (a.data[i])
+			return false;
+	}
+	return true;
+}
+
+static bool PointMatches(const EcPoint& a, const EcPoint& b)
+{
+	return IntMatches(a.x, b.x) && IntMatches(a.y, b.y);
 }
 
 static u64 MixPointChecksum(u64 checksum, const EcPoint& p, u64 index)
@@ -109,7 +129,7 @@ static KangarooJumpTable BuildKangarooJumpTable(unsigned int jump_count)
 	return table;
 }
 
-static JacobianPoint JacobianFromAffine(EcPoint p)
+static JacobianPoint JacobianFromAffine(const EcPoint& p)
 {
 	JacobianPoint out;
 	out.x = p.x;
@@ -143,10 +163,10 @@ static JacobianPoint JacobianDouble(JacobianPoint p)
 	return out;
 }
 
-static EcPoint JacobianToAffine(JacobianPoint p)
+static EcPoint JacobianToAffine(const JacobianPoint& p)
 {
 	EcPoint out;
-	if (p.infinity || p.z.IsZero())
+	if (p.infinity || IntIsZero(p.z))
 		return out;
 
 	EcInt z_inv = p.z;
@@ -241,7 +261,7 @@ static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<J
 	}
 }
 
-static JacobianPoint JacobianAddAffine(JacobianPoint p, EcPoint q)
+static JacobianPoint JacobianAddAffine(JacobianPoint p, const EcPoint& q)
 {
 	if (p.infinity)
 		return JacobianFromAffine(q);
@@ -353,7 +373,7 @@ bool RCKSelfTest(std::string& error)
 	return true;
 }
 
-RCKSmallSolveResult RCKSolveSmallSingle(EcPoint target, unsigned long long start, unsigned int range_bits)
+RCKSmallSolveResult RCKSolveSmallSingle(const EcPoint& target, unsigned long long start, unsigned int range_bits)
 {
 	RCKSmallSolveResult result;
 	result.found = false;
@@ -398,7 +418,7 @@ RCKSmallSolveResult RCKSolveSmallMulti(const std::vector<EcPoint>& targets, unsi
 		EcPoint p = Ec::MultiplyG(candidate);
 		for (unsigned int target_index = 0; target_index < targets.size(); target_index++)
 		{
-			EcPoint target = targets[target_index];
+			const EcPoint& target = targets[target_index];
 			if (PointMatches(p, target))
 			{
 				result.found = true;
@@ -644,7 +664,7 @@ static KangarooPointKey RawPointKey(const EcPoint& p)
 	return key;
 }
 
-static bool IsDistinguished(EcPoint p, unsigned int dp_bits)
+static bool IsDistinguished(const EcPoint& p, unsigned int dp_bits)
 {
 	if (!dp_bits)
 		return true;
@@ -654,7 +674,7 @@ static bool IsDistinguished(EcPoint p, unsigned int dp_bits)
 	return (p.x.data[0] & mask) == 0;
 }
 
-static bool VerifyCandidate(EcPoint target, u64 candidate)
+static bool VerifyCandidate(const EcPoint& target, u64 candidate)
 {
 	EcInt k;
 	k.Set(candidate);
@@ -667,7 +687,7 @@ static bool CheckKangarooDpCollision(const KangarooDp& other,
 	u64 distance,
 	u64 start,
 	u64 limit,
-	EcPoint target,
+	const EcPoint& target,
 	u64* candidate)
 {
 	if (other.tame == tame)
@@ -694,7 +714,7 @@ static bool CheckKangarooCollision(const KangarooDpBuckets& buckets,
 	u64 distance,
 	u64 start,
 	u64 limit,
-	EcPoint target,
+	const EcPoint& target,
 	u64* candidate)
 {
 	KangarooDpBuckets::const_iterator bucket_it = buckets.find(key);
@@ -799,7 +819,7 @@ static void KangarooStep(JacobianPoint& p, u64* distance, const KangarooJumpTabl
 	*distance += jumps.distances[jump_index];
 }
 
-static RCKSmallSolveResult RCKSolveSmallJacobianKangarooWithJumps(EcPoint target, const KangarooRangeContext& range, const KangarooJumpTable& jumps, KangarooSolveScratch& scratch, unsigned int dp_bits, unsigned int max_steps)
+static RCKSmallSolveResult RCKSolveSmallJacobianKangarooWithJumps(const EcPoint& target, const KangarooRangeContext& range, const KangarooJumpTable& jumps, KangarooSolveScratch& scratch, unsigned int dp_bits, unsigned int max_steps)
 {
 	RCKSmallSolveResult result;
 	result.found = false;
@@ -862,7 +882,7 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooWithJumps(EcPoint target
 	return result;
 }
 
-RCKSmallSolveResult RCKSolveSmallJacobianKangaroo(EcPoint target, unsigned long long start, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
+RCKSmallSolveResult RCKSolveSmallJacobianKangaroo(const EcPoint& target, unsigned long long start, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
 {
 	KangarooRangeContext range = BuildKangarooRangeContext(start, range_bits);
 	KangarooJumpTable jumps = BuildKangarooJumpTable(jump_count);
@@ -910,7 +930,7 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiWithJumps(const std
 	{
 		JacobianBatchToAffine(tame, wilds, affine_points, affine_prefixes, affine_active);
 
-		EcPoint tame_affine = affine_points[0];
+		const EcPoint& tame_affine = affine_points[0];
 		if (IsDistinguished(tame_affine, dp_bits))
 		{
 			KangarooPointKey key = RawPointKey(tame_affine);
@@ -929,7 +949,7 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiWithJumps(const std
 
 		for (unsigned int target_index = 0; target_index < wilds.size(); target_index++)
 		{
-			EcPoint wild_affine = affine_points[target_index + 1];
+			const EcPoint& wild_affine = affine_points[target_index + 1];
 			if (IsDistinguished(wild_affine, dp_bits))
 			{
 				KangarooPointKey key = RawPointKey(wild_affine);
@@ -1115,6 +1135,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "\"architecture\":\"single_target\",";
 	out << "\"dp_lookup\":\"hash\",";
 	out << "\"dp_bucket_storage\":\"inline_first\",";
+	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
 	out << "\"jump_table\":\"precomputed\",";
 	out << "\"scratch\":\"reused\",";
@@ -1224,6 +1245,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"architecture\":\"shared_tame\",";
 	out << "\"dp_lookup\":\"hash\",";
 	out << "\"dp_bucket_storage\":\"inline_first\",";
+	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
 	out << "\"jump_table\":\"precomputed\",";
 	out << "\"scratch\":\"reused\",";
