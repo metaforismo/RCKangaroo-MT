@@ -45,7 +45,7 @@ Run the CPU single-target tiny kangaroo experiment:
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_small --budget-sec 5
 ```
 
-This records `macos_cpu` `jacobian_kangaroo_small` solves per second. The benchmark generates one deterministic synthetic target and reports `architecture=single_target`, `dp_lookup=hash`, tame/wild state counts, and DP table size.
+This records `macos_cpu` `jacobian_kangaroo_small` solves per second. The benchmark generates one deterministic synthetic target and reports `architecture=single_target`, `dp_lookup=hash`, `affine_conversion=batch`, tame/wild state counts, and DP table size.
 
 Run the CPU shared-tame tiny multi-target kangaroo experiment:
 

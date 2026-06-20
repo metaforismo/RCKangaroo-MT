@@ -125,6 +125,43 @@ static EcPoint JacobianToAffine(JacobianPoint p)
 	return out;
 }
 
+static void JacobianAffineWithZInv(const JacobianPoint& p, EcInt z_inv, EcPoint& out)
+{
+	EcInt z2 = FieldSquare(z_inv);
+	EcInt z3 = FieldMul(z2, z_inv);
+	out.x = FieldMul(p.x, z2);
+	out.y = FieldMul(p.y, z3);
+}
+
+static void JacobianPairToAffine(const JacobianPoint& a, const JacobianPoint& b, EcPoint& a_affine, EcPoint& b_affine)
+{
+	a_affine = EcPoint();
+	b_affine = EcPoint();
+
+	EcInt a_z = a.z;
+	EcInt b_z = b.z;
+	bool a_active = !a.infinity && !a_z.IsZero();
+	bool b_active = !b.infinity && !b_z.IsZero();
+	if (!a_active && !b_active)
+		return;
+
+	if (a_active && b_active)
+	{
+		EcInt product_inv = FieldMul(a_z, b_z);
+		product_inv.InvModP();
+		JacobianAffineWithZInv(a, FieldMul(product_inv, b_z), a_affine);
+		JacobianAffineWithZInv(b, FieldMul(product_inv, a_z), b_affine);
+		return;
+	}
+
+	EcInt z_inv = a_active ? a_z : b_z;
+	z_inv.InvModP();
+	if (a_active)
+		JacobianAffineWithZInv(a, z_inv, a_affine);
+	else
+		JacobianAffineWithZInv(b, z_inv, b_affine);
+}
+
 static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<JacobianPoint>& wilds, std::vector<EcPoint>& affines, std::vector<EcInt>& prefixes, std::vector<unsigned char>& active)
 {
 	size_t point_count = wilds.size() + 1;
@@ -689,7 +726,9 @@ RCKSmallSolveResult RCKSolveSmallJacobianKangaroo(EcPoint target, unsigned long 
 
 	for (unsigned int step = 0; step <= max_steps; step++)
 	{
-		EcPoint tame_affine = JacobianToAffine(tame);
+		EcPoint tame_affine;
+		EcPoint wild_affine;
+		JacobianPairToAffine(tame, wild, tame_affine, wild_affine);
 		if (IsDistinguished(tame_affine, dp_bits))
 		{
 			KangarooPointKey key = RawPointKey(tame_affine);
@@ -704,7 +743,6 @@ RCKSmallSolveResult RCKSolveSmallJacobianKangaroo(EcPoint target, unsigned long 
 			RecordKangarooDp(buckets, key, true, tame_distance, 0, &dp_count);
 		}
 
-		EcPoint wild_affine = JacobianToAffine(wild);
 		if (IsDistinguished(wild_affine, dp_bits))
 		{
 			KangarooPointKey key = RawPointKey(wild_affine);
@@ -971,6 +1009,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "\"operation\":\"jacobian_kangaroo_small\",";
 	out << "\"architecture\":\"single_target\",";
 	out << "\"dp_lookup\":\"hash\",";
+	out << "\"affine_conversion\":\"batch\",";
 	out << "\"iterations\":" << operations << ",";
 	out << "\"sample_count\":" << iterations << ",";
 	out << "\"min_ms\":" << min_ms << ",";
