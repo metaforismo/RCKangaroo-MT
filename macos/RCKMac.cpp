@@ -641,11 +641,136 @@ struct KangarooDpBucket
 	}
 };
 
-typedef std::unordered_map<KangarooPointKey, KangarooDpBucket, KangarooPointKeyHash> KangarooDpBuckets;
+struct KangarooDpSlot
+{
+	KangarooPointKey key;
+	KangarooDpBucket bucket;
+	bool occupied;
+
+	KangarooDpSlot() : occupied(false)
+	{
+	}
+};
+
+struct KangarooDpTable
+{
+	std::vector<KangarooDpSlot> slots;
+	std::vector<size_t> used_slots;
+	size_t mask;
+
+	KangarooDpTable() : mask(0)
+	{
+	}
+
+	void Clear()
+	{
+		for (size_t i = 0; i < used_slots.size(); i++)
+		{
+			KangarooDpSlot& slot = slots[used_slots[i]];
+			slot.occupied = false;
+			slot.bucket.has_first = false;
+			slot.bucket.overflow.clear();
+		}
+		used_slots.clear();
+	}
+
+	void Reserve(size_t expected_entries)
+	{
+		size_t desired = 8;
+		while (desired < expected_entries * 2)
+			desired <<= 1;
+		if (slots.size() < desired)
+		{
+			slots.clear();
+			slots.resize(desired);
+			mask = desired - 1;
+			used_slots.clear();
+		}
+		used_slots.reserve(expected_entries);
+	}
+
+	void Rehash(size_t desired)
+	{
+		std::vector<KangarooDpSlot> old_slots;
+		std::vector<size_t> old_used_slots;
+		old_slots.swap(slots);
+		old_used_slots.swap(used_slots);
+		slots.clear();
+		slots.resize(desired);
+		mask = desired - 1;
+		used_slots.clear();
+		used_slots.reserve(old_used_slots.size());
+
+		for (size_t i = 0; i < old_used_slots.size(); i++)
+		{
+			const KangarooDpSlot& old_slot = old_slots[old_used_slots[i]];
+			if (!old_slot.occupied)
+				continue;
+
+			KangarooDpBucket& bucket = GetOrAdd(old_slot.key);
+			bucket = old_slot.bucket;
+		}
+	}
+
+	const KangarooDpBucket* Find(const KangarooPointKey& key) const
+	{
+		if (slots.empty())
+			return nullptr;
+
+		size_t index = KangarooPointKeyHash()(key) & mask;
+		for (size_t probes = 0; probes < slots.size(); probes++)
+		{
+			const KangarooDpSlot& slot = slots[index];
+			if (!slot.occupied)
+				return nullptr;
+			if (slot.key == key)
+				return &slot.bucket;
+			index = (index + 1) & mask;
+		}
+		return nullptr;
+	}
+
+	KangarooDpBucket& GetOrAdd(const KangarooPointKey& key)
+	{
+		if (slots.empty())
+			Reserve(8);
+		if ((used_slots.size() + 1) * 4 >= slots.size() * 3)
+			Rehash(slots.size() * 2);
+
+		size_t index = KangarooPointKeyHash()(key) & mask;
+		for (size_t probes = 0; probes < slots.size(); probes++)
+		{
+			KangarooDpSlot& slot = slots[index];
+			if (!slot.occupied)
+			{
+				slot.occupied = true;
+				slot.key = key;
+				used_slots.push_back(index);
+				return slot.bucket;
+			}
+			if (slot.key == key)
+				return slot.bucket;
+			index = (index + 1) & mask;
+		}
+
+		Rehash(slots.size() * 2);
+		return GetOrAdd(key);
+	}
+};
+
+static size_t KangarooInitialDpCapacity(size_t state_count)
+{
+	size_t capacity = 256;
+	while (capacity < state_count * 32)
+		capacity <<= 1;
+	if (capacity > 4096)
+		capacity = 4096;
+	return capacity;
+}
 
 struct KangarooSolveScratch
 {
-	KangarooDpBuckets buckets;
+	KangarooDpTable buckets;
 	std::vector<JacobianPoint> wilds;
 	std::vector<u64> wild_distances;
 	std::vector<EcPoint> affine_points;
@@ -708,7 +833,7 @@ static bool CheckKangarooDpCollision(const KangarooDp& other,
 	return true;
 }
 
-static bool CheckKangarooCollision(const KangarooDpBuckets& buckets,
+static bool CheckKangarooCollision(const KangarooDpTable& buckets,
 	const KangarooPointKey& key,
 	bool tame,
 	u64 distance,
@@ -717,17 +842,16 @@ static bool CheckKangarooCollision(const KangarooDpBuckets& buckets,
 	const EcPoint& target,
 	u64* candidate)
 {
-	KangarooDpBuckets::const_iterator bucket_it = buckets.find(key);
-	if (bucket_it == buckets.end())
+	const KangarooDpBucket* bucket = buckets.Find(key);
+	if (!bucket)
 		return false;
 
-	const KangarooDpBucket& bucket = bucket_it->second;
-	if (bucket.has_first && CheckKangarooDpCollision(bucket.first, tame, distance, start, limit, target, candidate))
+	if (bucket->has_first && CheckKangarooDpCollision(bucket->first, tame, distance, start, limit, target, candidate))
 		return true;
 
-	for (size_t i = 0; i < bucket.overflow.size(); i++)
+	for (size_t i = 0; i < bucket->overflow.size(); i++)
 	{
-		if (CheckKangarooDpCollision(bucket.overflow[i], tame, distance, start, limit, target, candidate))
+		if (CheckKangarooDpCollision(bucket->overflow[i], tame, distance, start, limit, target, candidate))
 			return true;
 	}
 	return false;
@@ -766,7 +890,7 @@ static bool CheckKangarooMultiDpCollision(const KangarooDp& other,
 	return true;
 }
 
-static bool CheckKangarooMultiCollision(const KangarooDpBuckets& buckets,
+static bool CheckKangarooMultiCollision(const KangarooDpTable& buckets,
 	const KangarooPointKey& key,
 	bool tame,
 	unsigned int target_index,
@@ -777,29 +901,28 @@ static bool CheckKangarooMultiCollision(const KangarooDpBuckets& buckets,
 	u64* candidate,
 	unsigned int* matched_target_index)
 {
-	KangarooDpBuckets::const_iterator bucket_it = buckets.find(key);
-	if (bucket_it == buckets.end())
+	const KangarooDpBucket* bucket = buckets.Find(key);
+	if (!bucket)
 		return false;
 
-	const KangarooDpBucket& bucket = bucket_it->second;
-	if (bucket.has_first && CheckKangarooMultiDpCollision(bucket.first, tame, target_index, distance, start, limit, targets, candidate, matched_target_index))
+	if (bucket->has_first && CheckKangarooMultiDpCollision(bucket->first, tame, target_index, distance, start, limit, targets, candidate, matched_target_index))
 		return true;
 
-	for (size_t i = 0; i < bucket.overflow.size(); i++)
+	for (size_t i = 0; i < bucket->overflow.size(); i++)
 	{
-		if (CheckKangarooMultiDpCollision(bucket.overflow[i], tame, target_index, distance, start, limit, targets, candidate, matched_target_index))
+		if (CheckKangarooMultiDpCollision(bucket->overflow[i], tame, target_index, distance, start, limit, targets, candidate, matched_target_index))
 			return true;
 	}
 	return false;
 }
 
-static void RecordKangarooDp(KangarooDpBuckets& buckets, const KangarooPointKey& key, bool tame, u64 distance, unsigned int target_index, u64* dp_count)
+static void RecordKangarooDp(KangarooDpTable& buckets, const KangarooPointKey& key, bool tame, u64 distance, unsigned int target_index, u64* dp_count)
 {
 	KangarooDp dp;
 	dp.tame = tame;
 	dp.distance = distance;
 	dp.target_index = target_index;
-	KangarooDpBucket& bucket = buckets[key];
+	KangarooDpBucket& bucket = buckets.GetOrAdd(key);
 	if (!bucket.has_first)
 	{
 		bucket.first = dp;
@@ -836,9 +959,9 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooWithJumps(const EcPoint&
 	JacobianPoint wild = JacobianFromAffine(target);
 	u64 tame_distance = range.end;
 	u64 wild_distance = 0;
-	KangarooDpBuckets& buckets = scratch.buckets;
-	buckets.clear();
-	buckets.reserve((max_steps + 2) * 2);
+	KangarooDpTable& buckets = scratch.buckets;
+	buckets.Clear();
+	buckets.Reserve(KangarooInitialDpCapacity(2));
 	u64 dp_count = 0;
 
 	for (unsigned int step = 0; step <= max_steps; step++)
@@ -915,9 +1038,9 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiWithJumps(const std
 		wild_distances.push_back(0);
 	}
 
-	KangarooDpBuckets& buckets = scratch.buckets;
-	buckets.clear();
-	buckets.reserve((max_steps + 2) * (targets.size() + 1));
+	KangarooDpTable& buckets = scratch.buckets;
+	buckets.Clear();
+	buckets.Reserve(KangarooInitialDpCapacity(targets.size() + 1));
 	u64 dp_count = 0;
 	std::vector<EcPoint>& affine_points = scratch.affine_points;
 	std::vector<EcInt>& affine_prefixes = scratch.affine_prefixes;
@@ -1134,6 +1257,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "\"operation\":\"jacobian_kangaroo_small\",";
 	out << "\"architecture\":\"single_target\",";
 	out << "\"dp_lookup\":\"hash\",";
+	out << "\"dp_table\":\"flat_linear_probe\",";
 	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
@@ -1244,6 +1368,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"operation\":\"jacobian_kangaroo_multi_small\",";
 	out << "\"architecture\":\"shared_tame\",";
 	out << "\"dp_lookup\":\"hash\",";
+	out << "\"dp_table\":\"flat_linear_probe\",";
 	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
