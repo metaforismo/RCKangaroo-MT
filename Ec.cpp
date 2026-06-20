@@ -535,7 +535,7 @@ void EcInt::MulModP(const EcInt& val)
 	c = _addcarry_u64(c, buff[1], h, data + 1);
 	c = _addcarry_u64(c, 0, buff[2], data + 2);
 	data[4] = _addcarry_u64(c, buff[3], 0, data + 3);
-	while (data[4])
+	if (data[4])
 		Sub(g_P);
 }
 

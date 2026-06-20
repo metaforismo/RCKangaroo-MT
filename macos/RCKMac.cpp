@@ -253,6 +253,11 @@ static const char* JacobianBatchActivePathMode()
 	return "all_active_fast";
 }
 
+static const char* JacobianBatchTailUpdateMode()
+{
+	return "skip_final";
+}
+
 static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<JacobianPoint>& wilds, std::vector<EcPoint>& affines, std::vector<EcInt>& prefixes, std::vector<unsigned char>& active)
 {
 	size_t point_count = wilds.size() + 1;
@@ -284,8 +289,9 @@ static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<J
 		{
 			size_t i = remaining - 1;
 			const JacobianPoint& p = i ? wilds[i - 1] : tame;
-			EcInt z_inv = FieldMul(acc, prefixes[i]);
-			acc = FieldMul(acc, p.z);
+			EcInt z_inv = i ? FieldMul(acc, prefixes[i]) : acc;
+			if (i)
+				acc = FieldMul(acc, p.z);
 			EcInt z2 = FieldSquare(z_inv);
 			EcInt z3 = FieldMul(z2, z_inv);
 			affines[i].x = FieldMul(p.x, z2);
@@ -324,8 +330,9 @@ static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<J
 			continue;
 
 		const JacobianPoint& p = i ? wilds[i - 1] : tame;
-		EcInt z_inv = FieldMul(acc, prefixes[i]);
-		acc = FieldMul(acc, p.z);
+		EcInt z_inv = i ? FieldMul(acc, prefixes[i]) : acc;
+		if (i)
+			acc = FieldMul(acc, p.z);
 		EcInt z2 = FieldSquare(z_inv);
 		EcInt z3 = FieldMul(z2, z_inv);
 		affines[i].x = FieldMul(p.x, z2);
@@ -648,6 +655,7 @@ std::string RCKJacobianWalkBenchJson(unsigned int iterations, unsigned int min_m
 	out << "{\"backend\":\"macos_cpu\",";
 	out << "\"operation\":\"jacobian_jump_walk\",";
 	out << "\"ecint_carry_impl\":\"" << EcIntCarryImplMode() << "\",";
+	out << "\"ecint_mul_final_sub\":\"" << EcIntMulModPFinalSubtractMode() << "\",";
 	out << "\"jacobian_step_passing\":\"" << JacobianStepPassingMode() << "\",";
 	out << "\"jump_index\":\"" << JumpIndexMode(jump_count) << "\",";
 	out << "\"iterations\":" << operations << ",";
@@ -704,6 +712,16 @@ static const char* KangarooDpKeyMode()
 	return "x_parity";
 }
 
+static const char* KangarooDpClearMode()
+{
+	return "empty_guard";
+}
+
+static const char* KangarooDpCapacityMode()
+{
+	return "max_load_2of3";
+}
+
 struct KangarooDp
 {
 	u64 distance;
@@ -724,7 +742,8 @@ struct KangarooDpBucket
 	void Clear()
 	{
 		has_first = false;
-		overflow.clear();
+		if (!overflow.empty())
+			overflow.clear();
 	}
 };
 
@@ -751,7 +770,7 @@ struct KangarooDpTable
 
 	static size_t CapacityFor(size_t reserve)
 	{
-		size_t wanted = reserve < 4 ? 8 : reserve * 2;
+		size_t wanted = reserve < 4 ? 8 : reserve + (reserve / 2);
 		size_t capacity = 8;
 		while (capacity < wanted)
 			capacity <<= 1;
@@ -811,7 +830,7 @@ struct KangarooDpTable
 	{
 		if (slots.empty())
 			Clear(8);
-		if ((occupied_slots.size() + 1) * 2 > slots.size())
+		if ((occupied_slots.size() + 1) * 3 > slots.size() * 2)
 			Rehash(slots.size() * 2);
 
 		size_t index = IndexHash(key) & mask;
@@ -1376,6 +1395,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "\"operation\":\"jacobian_kangaroo_small\",";
 	out << "\"architecture\":\"single_target\",";
 	out << "\"ecint_carry_impl\":\"" << EcIntCarryImplMode() << "\",";
+	out << "\"ecint_mul_final_sub\":\"" << EcIntMulModPFinalSubtractMode() << "\",";
 	out << "\"field_rhs_passing\":\"" << FieldRhsPassingMode() << "\",";
 	out << "\"jacobian_step_passing\":\"" << JacobianStepPassingMode() << "\",";
 	out << "\"dp_lookup\":\"open_address_linear\",";
@@ -1383,7 +1403,9 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "\"dp_key\":\"" << KangarooDpKeyMode() << "\",";
 	out << "\"candidate_verification\":\"" << KangarooCandidateVerificationMode() << "\",";
 	out << "\"dp_reserve\":\"" << KangarooDpReserveMode() << "\",";
+	out << "\"dp_capacity\":\"" << KangarooDpCapacityMode() << "\",";
 	out << "\"dp_bucket_storage\":\"inline_first\",";
+	out << "\"dp_clear\":\"" << KangarooDpClearMode() << "\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
 	out << "\"jump_index\":\"" << JumpIndexMode(jump_count) << "\",";
@@ -1494,6 +1516,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"operation\":\"jacobian_kangaroo_multi_small\",";
 	out << "\"architecture\":\"shared_tame\",";
 	out << "\"ecint_carry_impl\":\"" << EcIntCarryImplMode() << "\",";
+	out << "\"ecint_mul_final_sub\":\"" << EcIntMulModPFinalSubtractMode() << "\",";
 	out << "\"field_rhs_passing\":\"" << FieldRhsPassingMode() << "\",";
 	out << "\"jacobian_step_passing\":\"" << JacobianStepPassingMode() << "\",";
 	out << "\"dp_lookup\":\"open_address_linear\",";
@@ -1501,12 +1524,15 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"dp_key\":\"" << KangarooDpKeyMode() << "\",";
 	out << "\"candidate_verification\":\"" << KangarooCandidateVerificationMode() << "\",";
 	out << "\"dp_reserve\":\"" << KangarooDpReserveMode() << "\",";
+	out << "\"dp_capacity\":\"" << KangarooDpCapacityMode() << "\",";
 	out << "\"dp_bucket_storage\":\"inline_first\",";
+	out << "\"dp_clear\":\"" << KangarooDpClearMode() << "\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
 	out << "\"affine_z_access\":\"" << JacobianBatchZAccessMode() << "\",";
 	out << "\"affine_buffer\":\"" << JacobianBatchBufferMode() << "\",";
 	out << "\"affine_active_path\":\"" << JacobianBatchActivePathMode() << "\",";
+	out << "\"affine_tail_update\":\"" << JacobianBatchTailUpdateMode() << "\",";
 	out << "\"jump_index\":\"" << JumpIndexMode(jump_count) << "\",";
 	out << "\"jump_table\":\"precomputed\",";
 	out << "\"scratch\":\"reused\",";
@@ -1672,6 +1698,7 @@ std::string RCKJacobianBatchAffineBenchJson(unsigned int iterations, unsigned in
 	out << "\"affine_z_access\":\"" << JacobianBatchZAccessMode() << "\",";
 	out << "\"affine_buffer\":\"" << JacobianBatchBufferMode() << "\",";
 	out << "\"affine_active_path\":\"" << JacobianBatchActivePathMode() << "\",";
+	out << "\"affine_tail_update\":\"" << JacobianBatchTailUpdateMode() << "\",";
 	out << "\"batch_points\":" << batch_points << ",";
 	out << "\"wild_points\":" << (batch_points - 1) << ",";
 	out << "\"iterations\":" << operations << ",";

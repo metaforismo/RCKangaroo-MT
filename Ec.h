@@ -9,6 +9,11 @@
 #include "defs.h"
 #include "utils.h"
 
+static inline const char* EcIntMulModPFinalSubtractMode()
+{
+	return "single_conditional";
+}
+
 class EcInt
 {
 public:

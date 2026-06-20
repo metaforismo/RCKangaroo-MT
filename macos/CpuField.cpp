@@ -315,6 +315,7 @@ static std::string CpuFieldBenchJson(uint64_t operations,
 	oss << "{\"backend\":\"macos_cpu\",";
 	oss << "\"operation\":\"field_mul_mod_p\",";
 	oss << "\"carry_impl\":\"" << CarryImplMode() << "\",";
+	oss << "\"ecint_mul_final_sub\":\"" << EcIntMulModPFinalSubtractMode() << "\",";
 	oss << "\"iterations\":" << operations << ",";
 	oss << "\"sample_count\":" << sample_count << ",";
 	oss << "\"min_ms\":" << min_ms << ",";
