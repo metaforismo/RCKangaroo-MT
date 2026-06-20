@@ -16,6 +16,13 @@
 
 typedef std::array<uint64_t, 4> FieldElement;
 
+struct MetalDispatchStats
+{
+	unsigned int thread_execution_width = 0;
+	unsigned int max_threads_per_threadgroup = 0;
+	unsigned int threads_per_threadgroup = 0;
+};
+
 static const FieldElement kSecp256k1P = {
 	0xFFFFFFFEFFFFFC2FULL,
 	0xFFFFFFFFFFFFFFFFULL,
@@ -242,6 +249,11 @@ static FieldElement ExpectedSquare(const FieldElement& a, const FieldElement&)
 	return CpuFieldSquare(a);
 }
 
+static FieldElement ExpectedSquareMul(const FieldElement& a, const FieldElement& b)
+{
+	return CpuFieldMul(CpuFieldSquare(a), b);
+}
+
 static std::string FieldToHex(const FieldElement& v)
 {
 	std::ostringstream oss;
@@ -289,6 +301,7 @@ static std::string MetalFieldBenchJson(const char* operation,
 	uint64_t iterations,
 	unsigned int sample_count,
 	unsigned int min_ms,
+	const MetalDispatchStats& dispatch_stats,
 	double seconds,
 	double ops_per_sec,
 	bool correctness,
@@ -301,6 +314,9 @@ static std::string MetalFieldBenchJson(const char* operation,
 	oss << "\"iterations\":" << iterations << ",";
 	oss << "\"sample_count\":" << sample_count << ",";
 	oss << "\"min_ms\":" << min_ms << ",";
+	oss << "\"thread_execution_width\":" << dispatch_stats.thread_execution_width << ",";
+	oss << "\"max_threads_per_threadgroup\":" << dispatch_stats.max_threads_per_threadgroup << ",";
+	oss << "\"threads_per_threadgroup\":" << dispatch_stats.threads_per_threadgroup << ",";
 	oss << "\"seconds\":" << seconds << ",";
 	oss << "\"ops_per_sec\":" << ops_per_sec << ",";
 	oss << "\"correctness\":" << (correctness ? "true" : "false") << ",";
@@ -316,12 +332,24 @@ static NSString* FieldSource()
 	return [NSString stringWithUTF8String:RCKMetalFieldKernelsSource];
 }
 
+static NSUInteger PreferredThreadgroupWidth(id<MTLComputePipelineState> pipeline)
+{
+	NSUInteger execution_width = [pipeline threadExecutionWidth] ? [pipeline threadExecutionWidth] : 1;
+	NSUInteger max_threads = [pipeline maxTotalThreadsPerThreadgroup] ? [pipeline maxTotalThreadsPerThreadgroup] : execution_width;
+	NSUInteger target = max_threads < 256 ? max_threads : 256;
+	target -= target % execution_width;
+	if (target < execution_width)
+		target = execution_width;
+	return target;
+}
+
 static bool RunFieldKernel(const std::vector<FieldElement>& a,
 	const std::vector<FieldElement>& b,
 	std::vector<FieldElement>& out,
 	std::string& error,
 	double* seconds,
-	const char* function_name)
+	const char* function_name,
+	MetalDispatchStats* dispatch_stats = NULL)
 {
 	if (a.size() != b.size() || a.empty())
 	{
@@ -359,6 +387,15 @@ static bool RunFieldKernel(const std::vector<FieldElement>& a,
 			error = NSErrorToString(ns_error);
 			return false;
 		}
+		NSUInteger execution_width = [pipeline threadExecutionWidth] ? [pipeline threadExecutionWidth] : 1;
+		NSUInteger max_threads = [pipeline maxTotalThreadsPerThreadgroup] ? [pipeline maxTotalThreadsPerThreadgroup] : execution_width;
+		NSUInteger threads_per_threadgroup = PreferredThreadgroupWidth(pipeline);
+		if (dispatch_stats)
+		{
+			dispatch_stats->thread_execution_width = (unsigned int)execution_width;
+			dispatch_stats->max_threads_per_threadgroup = (unsigned int)max_threads;
+			dispatch_stats->threads_per_threadgroup = (unsigned int)threads_per_threadgroup;
+		}
 
 		size_t bytes = a.size() * sizeof(FieldElement);
 		id<MTLBuffer> a_buffer = [device newBufferWithBytes:a.data() length:bytes options:MTLResourceStorageModeShared];
@@ -386,8 +423,7 @@ static bool RunFieldKernel(const std::vector<FieldElement>& a,
 		[encoder setBuffer:b_buffer offset:0 atIndex:1];
 		[encoder setBuffer:out_buffer offset:0 atIndex:2];
 		[encoder setBuffer:count_buffer offset:0 atIndex:3];
-		NSUInteger width = [pipeline threadExecutionWidth] ? [pipeline threadExecutionWidth] : 1;
-		[encoder dispatchThreads:MTLSizeMake(count, 1, 1) threadsPerThreadgroup:MTLSizeMake(width, 1, 1)];
+		[encoder dispatchThreads:MTLSizeMake(count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
 		[encoder endEncoding];
 		auto start = std::chrono::steady_clock::now();
 		[command_buffer commit];
@@ -632,6 +668,41 @@ bool RCKMetalFieldSquareSelfTest(std::string& error)
 	return true;
 }
 
+bool RCKMetalFieldSquareMulSelfTest(std::string& error)
+{
+	std::vector<FieldElement> a;
+	std::vector<FieldElement> b;
+	a.push_back({1, 0, 0, 0});
+	b.push_back({2, 0, 0, 0});
+	a.push_back({2, 0, 0, 0});
+	b.push_back({3, 0, 0, 0});
+	a.push_back({0xFFFFFFFEFFFFFC2EULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL});
+	b.push_back({0xFFFFFFFEFFFFFC2EULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL});
+	a.push_back({0xFFFFFFFFFFFFFFFFULL, 0, 0, 0});
+	b.push_back({0xFFFFFFFFFFFFFFFFULL, 0, 0, 0});
+	for (uint64_t i = 0; i < 16; ++i)
+	{
+		a.push_back(DeterministicElement(i, 0x5A5AULL));
+		b.push_back(DeterministicElement(i, 0xC0DEULL));
+	}
+
+	std::vector<FieldElement> out;
+	if (!RunFieldKernel(a, b, out, error, NULL, "field_square_mul_mod_p"))
+		return false;
+
+	for (size_t i = 0; i < a.size(); ++i)
+	{
+		FieldElement expected = ExpectedSquareMul(a[i], b[i]);
+		if (out[i] != expected)
+		{
+			error = "field square-mul mismatch at vector " + std::to_string(i) +
+				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
+			return false;
+		}
+	}
+	return true;
+}
+
 static FieldElement DeterministicElement(uint64_t i, uint64_t salt)
 {
 	FieldElement v = {
@@ -673,14 +744,15 @@ static std::string RunMetalFieldBenchJson(const char* operation,
 	double seconds = 0.0;
 	uint64_t operations = 0;
 	unsigned int dispatch_count = 0;
+	MetalDispatchStats dispatch_stats;
 	do
 	{
 		double dispatch_seconds = 0.0;
-		if (!RunFieldKernel(a, b, out, error, &dispatch_seconds, function_name))
+		if (!RunFieldKernel(a, b, out, error, &dispatch_seconds, function_name, &dispatch_stats))
 		{
 			if (error == "no Metal device available")
-				return MetalFieldBenchJson(operation, 0, sample_count, min_ms, 0.0, 0.0, false, true, error);
-			return MetalFieldBenchJson(operation, operations ? operations : sample_count, sample_count, min_ms, seconds, 0.0, false, false, error);
+				return MetalFieldBenchJson(operation, 0, sample_count, min_ms, dispatch_stats, 0.0, 0.0, false, true, error);
+			return MetalFieldBenchJson(operation, operations ? operations : sample_count, sample_count, min_ms, dispatch_stats, seconds, 0.0, false, false, error);
 		}
 		seconds += dispatch_seconds;
 		operations += sample_count;
@@ -696,12 +768,12 @@ static std::string RunMetalFieldBenchJson(const char* operation,
 		{
 			std::string reason = "mismatch at vector " + std::to_string(i) +
 				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
-			return MetalFieldBenchJson(operation, operations, sample_count, min_ms, seconds, 0.0, false, false, reason);
+			return MetalFieldBenchJson(operation, operations, sample_count, min_ms, dispatch_stats, seconds, 0.0, false, false, reason);
 		}
 	}
 
 	double ops_per_sec = seconds > 0.0 ? (double)operations / seconds : 0.0;
-	return MetalFieldBenchJson(operation, operations, sample_count, min_ms, seconds, ops_per_sec, true, false, "");
+	return MetalFieldBenchJson(operation, operations, sample_count, min_ms, dispatch_stats, seconds, ops_per_sec, true, false, "");
 }
 
 std::string RCKMetalFieldAddBenchJson(unsigned int iterations, unsigned int min_ms)
@@ -737,4 +809,9 @@ std::string RCKMetalFieldMulBenchJson(unsigned int iterations, unsigned int min_
 std::string RCKMetalFieldSquareBenchJson(unsigned int iterations, unsigned int min_ms)
 {
 	return RunMetalFieldBenchJson("field_square_mod_p", "field_square_mod_p", iterations, min_ms, 0x5A5AULL, 0, true, ExpectedSquare);
+}
+
+std::string RCKMetalFieldSquareMulBenchJson(unsigned int iterations, unsigned int min_ms)
+{
+	return RunMetalFieldBenchJson("field_square_mul_mod_p", "field_square_mul_mod_p", iterations, min_ms, 0x5A5AULL, 0xC0DEULL, false, ExpectedSquareMul);
 }

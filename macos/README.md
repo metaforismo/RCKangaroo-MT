@@ -79,7 +79,7 @@ Run the Metal smoke test:
 
 If no Metal device is visible in the current execution environment, the command reports a skip instead of failing. On a normal Apple Silicon runtime with device access, it compiles and runs a minimal Metal compute kernel.
 
-Run the Metal secp256k1 field-add, field-sub, field-double, field-mul4, field-neg, field-mul, and field-square checks and benchmarks:
+Run the Metal secp256k1 field-add, field-sub, field-double, field-mul4, field-neg, field-mul, field-square, and fused field-square-mul checks and benchmarks:
 
 ```sh
 ./macos/rck_macos metal-field-test
@@ -96,10 +96,12 @@ make macos-metal-field-neg-bench
 make macos-metal-field-mul-bench
 ./macos/rck_macos metal-field-square-test
 make macos-metal-field-square-bench
+./macos/rck_macos metal-field-square-mul-test
+make macos-metal-field-square-mul-bench
 make macos-metal-kernels-check
 ```
 
-The field kernels use four little-endian 64-bit limbs modulo the secp256k1 prime and compare Metal output against CPU oracles. `field_sub_mod_p` handles modular underflow by adding the secp256k1 prime after a borrowed subtraction. `field_double_mod_p` computes modular doubling with one input load and the same conditional reduction used by addition, which gives Jacobian formulas a cheaper path for explicit `2*x` terms. `field_mul4_mod_p` computes `4*x mod p` by applying the same in-kernel doubling helper twice, avoiding two separate kernel dispatches for formulas with explicit `4*x` terms. `field_neg_mod_p` computes canonical modular negation, keeping zero as zero and using `p - x` for nonzero inputs. `field_mul_mod_p` uses 32-bit decomposition internally for portable 64x64 multiplication inside Metal; `field_square_mod_p` now uses a symmetric square accumulator with 10 limb products before the shared reducer, matching the Jacobian formulas that square field elements heavily. Metal field benchmarks accept `--min-ms`; the Makefile uses `--min-ms 50` so short dispatch overhead is smoothed while JSON still reports `sample_count`, `min_ms`, total `iterations`, and `ops_per_sec`. In restricted CI or sandboxed sessions without a visible Metal device, runtime checks report a clean skip. `macos-metal-kernels-check` compiles the extracted Metal source when the Metal Toolchain is installed; otherwise it reports a clean toolchain skip.
+The field kernels use four little-endian 64-bit limbs modulo the secp256k1 prime and compare Metal output against CPU oracles. `field_sub_mod_p` handles modular underflow by adding the secp256k1 prime after a borrowed subtraction. `field_double_mod_p` computes modular doubling with one input load and the same conditional reduction used by addition, which gives Jacobian formulas a cheaper path for explicit `2*x` terms. `field_mul4_mod_p` computes `4*x mod p` by applying the same in-kernel doubling helper twice, avoiding two separate kernel dispatches for formulas with explicit `4*x` terms. `field_neg_mod_p` computes canonical modular negation, keeping zero as zero and using `p - x` for nonzero inputs. `field_mul_mod_p` uses 32-bit decomposition internally for portable 64x64 multiplication inside Metal; `field_square_mod_p` uses a symmetric square accumulator with 10 limb products before the shared reducer, matching the Jacobian formulas that square field elements heavily. `field_square_mul_mod_p` fuses `a*a*b mod p` into one dispatch and validates against the same CPU oracle composition, giving future Jacobian Metal work a lower-overhead benchmark for adjacent square/multiply terms. Metal field dispatches use a larger SIMD-aligned threadgroup up to 256 threads instead of a single execution width group, and benchmarks report `thread_execution_width`, `max_threads_per_threadgroup`, and `threads_per_threadgroup` for reproducibility. Metal field benchmarks accept `--min-ms`; the Makefile uses `--min-ms 50` so short dispatch overhead is smoothed while JSON still reports `sample_count`, `min_ms`, total `iterations`, and `ops_per_sec`. In restricted CI or sandboxed sessions without a visible Metal device, runtime checks report a clean skip. `macos-metal-kernels-check` compiles the extracted Metal source when the Metal Toolchain is installed; otherwise it reports a clean toolchain skip.
 
 ## Prepare a target list
 
@@ -149,6 +151,7 @@ python3 autoresearch/runner.py --experiment metal_field_mul4 --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_neg --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_square --budget-sec 5
+python3 autoresearch/runner.py --experiment metal_field_square_mul --budget-sec 5
 ```
 
 The `jacobian_jump_walk` experiment uses three runner samples and records median/min/max throughput, which makes walk-core comparisons less sensitive to short macOS scheduler spikes.

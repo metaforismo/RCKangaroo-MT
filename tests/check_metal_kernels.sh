@@ -52,6 +52,11 @@ if ! grep -q "kernel void field_square_mod_p" "$tmp_source"; then
 	exit 1
 fi
 
+if ! grep -q "kernel void field_square_mul_mod_p" "$tmp_source"; then
+	printf '%s\n' "field_square_mul_mod_p kernel missing from Metal source"
+	exit 1
+fi
+
 if ! grep -q "field_square_values" "$tmp_source"; then
 	printf '%s\n' "field_square_values helper missing from Metal source"
 	exit 1
@@ -64,6 +69,17 @@ if ! awk '
 	END { exit found ? 0 : 1 }
 ' "$tmp_source"; then
 	printf '%s\n' "field_square_mod_p does not use field_square_values"
+	exit 1
+fi
+
+if ! awk '
+	/kernel void field_square_mul_mod_p/ { in_square_mul = 1 }
+	in_square_mul && /field_square_values/ { found_square = 1 }
+	in_square_mul && /field_mul_values/ { found_mul = 1 }
+	in_square_mul && /^}/ { in_square_mul = 0 }
+	END { exit (found_square && found_mul) ? 0 : 1 }
+' "$tmp_source"; then
+	printf '%s\n' "field_square_mul_mod_p does not use square and multiply helpers"
 	exit 1
 fi
 
