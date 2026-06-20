@@ -232,6 +232,33 @@ Commit: `31c38cf` (`feat: emit Metal jump-walk DP candidates`)
   - `threadgroup_limit=256`
   - `threads_per_threadgroup=256`
 
+### Precomputed Metal DP Mask
+
+Commit: `99ea964` (`perf: precompute Metal DP mask`)
+
+- Moved the projective distinguished-point mask calculation out of the
+  `jacobian_affine_walk_jump_table` kernel and into the host dispatch path.
+- Buffer 10 now carries a precomputed `uint64_t`/Metal `ulong` mask instead of
+  `dp_bits`, preserving the `dp_bits=0` semantics where every finite point is a
+  candidate while removing a branch and shift from every GPU thread.
+- The CPU oracle uses the same `ProjectiveDpMask` helper, so GPU output and
+  verification remain locked to the same predicate.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - candidate median `36,056,697.229186 mixed-add steps/sec`
+  - paired baseline median `33,537,315.709809 mixed-add steps/sec`
+  - paired speedup `1.075122x`
+  - candidate min `27,685,884.633058 mixed-add steps/sec`
+  - candidate max `38,595,363.397466 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
