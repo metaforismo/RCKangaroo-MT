@@ -51,7 +51,7 @@ def git_commit() -> str:
     return proc.stdout.strip()
 
 
-def best_previous(backend: str, operation: str) -> float | None:
+def best_previous(experiment_name: str, backend: str, operation: str) -> float | None:
     if not RESULTS.exists():
         return None
     best: float | None = None
@@ -59,7 +59,9 @@ def best_previous(backend: str, operation: str) -> float | None:
         parts = line.split("\t")
         if len(parts) < 9:
             continue
-        _, _, _, prev_backend, prev_operation, _, ops, correctness, status = parts[:9]
+        _, _, prev_experiment, prev_backend, prev_operation, _, ops, correctness, status = parts[:9]
+        if prev_experiment != experiment_name:
+            continue
         if prev_backend != backend or prev_operation != operation:
             continue
         if correctness != "true" or status != "keep":
@@ -170,7 +172,7 @@ def main() -> int:
 
     backend = str(metrics.get("backend", "unknown"))
     operation = str(metrics.get("operation", "unknown"))
-    previous = best_previous(backend, operation)
+    previous = best_previous(experiment["name"], backend, operation)
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     row = build_benchmark_row(
         experiment=experiment,
