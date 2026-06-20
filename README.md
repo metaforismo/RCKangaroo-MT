@@ -132,6 +132,8 @@ make macos-point-bench
 ./macos/rck_macos point-bench --iterations 256 --min-ms 50
 make macos-jacobian-point-bench
 ./macos/rck_macos jacobian-point-bench --iterations 256 --min-ms 50
+make macos-jacobian-batch-affine-bench
+./macos/rck_macos jacobian-batch-affine-bench --iterations 256 --min-ms 50 --points 17
 make macos-jacobian-walk-bench
 ./macos/rck_macos jacobian-walk-bench --iterations 256 --min-ms 50 --jumps 16
 ./macos/rck_macos jacobian-kangaroo-small --range 8 --start 0 --pubkey 025CBDF0646E5DB4EAA398F365F2EA7A0E3D419B7E0330E39CE92BDDEDCAC4F9BC --jumps 8 --dp-bits 0 --max-steps 4096
@@ -149,6 +151,7 @@ make macos-metal-field-mul-bench
 python3 autoresearch/runner.py --experiment baseline --budget-sec 5
 python3 autoresearch/runner.py --experiment point_add_g --budget-sec 5
 python3 autoresearch/runner.py --experiment jacobian_point_add_g --budget-sec 5
+python3 autoresearch/runner.py --experiment jacobian_batch_affine --budget-sec 5
 python3 autoresearch/runner.py --experiment jacobian_jump_walk --budget-sec 5
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_small --budget-sec 5
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5
@@ -158,7 +161,7 @@ python3 autoresearch/runner.py --experiment metal_field_add --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_mul --budget-sec 5
 ```
 
-The macOS `jacobian-kangaroo-small` and `jacobian-kangaroo-multi-small` commands are tiny-range CPU architecture probes. The single-target solver records distinguished points in raw point-key hash buckets with inline-first DP storage, batch-converts its tame/wild Jacobian pair to affine with one inversion per loop, and reports `dp_lookup=hash`, `dp_bucket_storage=inline_first`, `point_passing=const_ref`, `affine_conversion=batch`, and `dp_count`; its benchmark precomputes the deterministic jump table once per run (`jump_table=precomputed`), precomputes the range/tame-start context once per run (`range_context=precomputed`), reuses scratch storage across measured solves (`scratch=reused`), and measures deterministic single-target solves per second. The multi-target solver runs one shared tame walk plus one wild walk per target, batch-converts tame/wild Jacobian states to affine with one inversion per loop, avoids point copies in hot checks (`point_passing=const_ref`), and reports `architecture=shared_tame`, `dp_lookup=hash`, `dp_bucket_storage=inline_first`, `affine_conversion=batch`, and target/walk-state counts. The matching multi benchmarks also precompute the same jump table and range context once per run, reuse scratch storage across measured solves, generate deterministic synthetic targets, measure shared-tame solves per second for fixed target counts of 4 and 16, and report `single_target_ops_per_sec`, `speedup_vs_single`, and `target_throughput_vs_single`.
+The macOS `jacobian-batch-affine-bench` command isolates the Jacobian batch-to-affine conversion used by the multi-target kangaroo loop and reports batch conversions per second plus affine points per second. The `jacobian-kangaroo-small` and `jacobian-kangaroo-multi-small` commands are tiny-range CPU architecture probes. The single-target solver records distinguished points in raw point-key hash buckets with inline-first DP storage, batch-converts its tame/wild Jacobian pair to affine with one inversion per loop, and reports `dp_lookup=hash`, `dp_bucket_storage=inline_first`, `point_passing=const_ref`, `affine_conversion=batch`, and `dp_count`; its benchmark precomputes the deterministic jump table once per run (`jump_table=precomputed`), precomputes the range/tame-start context once per run (`range_context=precomputed`), reuses scratch storage across measured solves (`scratch=reused`), and measures deterministic single-target solves per second. The multi-target solver runs one shared tame walk plus one wild walk per target, batch-converts tame/wild Jacobian states to affine with one inversion per loop, avoids point copies in hot checks (`point_passing=const_ref`), and reports `architecture=shared_tame`, `dp_lookup=hash`, `dp_bucket_storage=inline_first`, `affine_conversion=batch`, and target/walk-state counts. The matching multi benchmarks also precompute the same jump table and range context once per run, reuse scratch storage across measured solves, generate deterministic synthetic targets, measure shared-tame solves per second for fixed target counts of 4 and 16, and report `single_target_ops_per_sec`, `speedup_vs_single`, and `target_throughput_vs_single`.
 
 More details:
 

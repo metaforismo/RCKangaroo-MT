@@ -1344,3 +1344,81 @@ std::string RCKJacobianPointAddBenchJson(unsigned int iterations, unsigned int m
 	out << "}";
 	return out.str();
 }
+
+std::string RCKJacobianBatchAffineBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int batch_points)
+{
+	if (!iterations)
+		iterations = 1;
+	if (batch_points < 2)
+		batch_points = 2;
+	if (batch_points > 129)
+		batch_points = 129;
+
+	std::vector<EcPoint> expected;
+	std::vector<JacobianPoint> wilds;
+	expected.reserve(batch_points);
+	wilds.reserve(batch_points - 1);
+
+	for (unsigned int i = 0; i < batch_points; i++)
+	{
+		EcInt k;
+		k.Set((u64)i + 2);
+		EcPoint p = Ec::MultiplyG(k);
+		expected.push_back(p);
+		if (i > 0)
+			wilds.push_back(JacobianFromAffine(p));
+	}
+
+	JacobianPoint tame = JacobianFromAffine(expected[0]);
+	std::vector<EcPoint> affines;
+	std::vector<EcInt> prefixes;
+	std::vector<unsigned char> active;
+	affines.reserve(batch_points);
+	prefixes.reserve(batch_points);
+	active.reserve(batch_points);
+
+	u64 checksum = 0;
+	u64 operations = 0;
+	auto t0 = std::chrono::steady_clock::now();
+	auto t1 = t0;
+	do
+	{
+		for (unsigned int i = 0; i < iterations; i++)
+		{
+			JacobianBatchToAffine(tame, wilds, affines, prefixes, active);
+			for (size_t point_index = 0; point_index < affines.size(); point_index++)
+				checksum = MixPointChecksum(checksum, affines[point_index], operations + i + point_index);
+		}
+		operations += iterations;
+		t1 = std::chrono::steady_clock::now();
+	} while (min_ms && (std::chrono::duration<double, std::milli>(t1 - t0).count() < (double)min_ms));
+
+	bool correctness = affines.size() == expected.size();
+	for (size_t i = 0; correctness && (i < expected.size()); i++)
+		correctness = PointMatches(affines[i], expected[i]);
+
+	double seconds = std::chrono::duration<double>(t1 - t0).count();
+	double ops_per_sec = seconds > 0 ? operations / seconds : 0.0;
+	double points_per_sec = seconds > 0 ? (operations * (double)batch_points) / seconds : 0.0;
+
+	std::ostringstream out;
+	out.setf(std::ios::fixed);
+	out.precision(6);
+	out << "{\"backend\":\"macos_cpu\",";
+	out << "\"operation\":\"jacobian_batch_affine\",";
+	out << "\"affine_conversion\":\"batch\",";
+	out << "\"batch_points\":" << batch_points << ",";
+	out << "\"wild_points\":" << (batch_points - 1) << ",";
+	out << "\"iterations\":" << operations << ",";
+	out << "\"sample_count\":" << iterations << ",";
+	out << "\"min_ms\":" << min_ms << ",";
+	out << "\"seconds\":" << seconds << ",";
+	out << "\"ops_per_sec\":" << ops_per_sec << ",";
+	out << "\"points_per_sec\":" << points_per_sec << ",";
+	out << "\"checksum\":\"0x" << std::hex << checksum << std::dec << "\",";
+	out << "\"correctness\":" << (correctness ? "true" : "false");
+	if (!correctness)
+		out << ",\"reason\":\"batch affine output mismatch against scalar affine references\"";
+	out << "}";
+	return out.str();
+}

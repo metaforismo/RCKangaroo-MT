@@ -36,6 +36,8 @@ make macos-point-bench
 ./macos/rck_macos point-bench --iterations 256 --min-ms 50
 make macos-jacobian-point-bench
 ./macos/rck_macos jacobian-point-bench --iterations 256 --min-ms 50
+make macos-jacobian-batch-affine-bench
+./macos/rck_macos jacobian-batch-affine-bench --iterations 256 --min-ms 50 --points 17
 make macos-jacobian-walk-bench
 ./macos/rck_macos jacobian-walk-bench --iterations 256 --min-ms 50 --jumps 16
 make macos-jacobian-kangaroo-small-bench
@@ -49,6 +51,8 @@ make macos-jacobian-kangaroo-multi16-small-bench
 `macos-bench` misura il throughput dello scalar `MultiplyG`. `macos-point-bench` misura un walk seriale di addizioni affini: parte da `2G`, aggiunge ripetutamente `G`, e valida il punto finale con un oracle `MultiplyG(n+2)`. E' ancora aritmetica CPU affine, non il percorso solver Metal/Jacobian finale, ma rappresenta meglio il costo del kangaroo walk rispetto alle sole operazioni field isolate.
 
 `macos-jacobian-point-bench` mantiene il punto del walk in coordinate Jacobian ed esegue addizioni mixed Jacobian-piu'-affine di `G`, spostando la costosa inversione di campo fuori dal loop interno. Il JSON include throughput affine di riferimento e `speedup_vs_affine`, così il miglioramento e' misurato contro il baseline point-add piu' semplice.
+
+`macos-jacobian-batch-affine-bench` isola il percorso batch inversion usato dal solver multi-target shared-tame. Costruisce un punto tame Jacobian piu' punti wild Jacobian configurabili, converte l'intero batch ad affine con una sola inversione di campo per iterazione, valida ogni punto affine contro riferimenti scalari e riporta conversioni batch al secondo piu' punti affini al secondo.
 
 `macos-jacobian-walk-bench` usa una jump table deterministica di punti affini e applica addizioni mixed Jacobian selezionate dallo stato proiettivo corrente. Traccia in parallelo la distanza scalare e valida il punto finale con un oracle scalare. E' un benchmark del core della walk, non ancora un solver kangaroo completo con distinguished points o collision handling.
 

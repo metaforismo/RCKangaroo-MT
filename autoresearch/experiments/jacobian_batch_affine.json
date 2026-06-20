@@ -1,0 +1,6 @@
+{
+  "name": "jacobian_batch_affine",
+  "description": "Apple Silicon CPU Jacobian batch-to-affine conversion benchmark",
+  "bench_target": "macos-jacobian-batch-affine-bench-run",
+  "min_improvement_ratio": 0.01
+}

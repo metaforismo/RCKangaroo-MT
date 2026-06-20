@@ -39,6 +39,14 @@ python3 autoresearch/runner.py --experiment jacobian_jump_walk --budget-sec 5
 
 This records `macos_cpu` `jacobian_jump_walk` throughput. The benchmark precomputes affine jump points, keeps the walk state in Jacobian coordinates, tracks scalar distance in parallel, and checks the final point against a scalar oracle. It is a deterministic walk-core benchmark, not a full DP/collision kangaroo solver yet.
 
+Run the CPU Jacobian batch-to-affine conversion experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment jacobian_batch_affine --budget-sec 5
+```
+
+This records `macos_cpu` `jacobian_batch_affine` batch conversions per second and affine points per second for a deterministic tame-plus-wild batch. It isolates the conversion primitive used by the shared-tame multi-target kangaroo loop, so future changes to inversion batching or affine buffer layout can be measured without DP lookup and walk-step noise.
+
 Run the CPU single-target tiny kangaroo experiment:
 
 ```sh

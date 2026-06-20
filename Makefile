@@ -2,7 +2,7 @@ CUDA_PATH ?= /usr/local/cuda-12.0
 CC := g++
 NVCC := $(CUDA_PATH)/bin/nvcc
 
-.PHONY: all clean check-host check-portable-ec check-autoresearch macos-build macos-check macos-bench macos-point-bench macos-jacobian-point-bench macos-jacobian-walk-bench macos-jacobian-kangaroo-small-test macos-jacobian-kangaroo-small-bench macos-jacobian-kangaroo-small-bench-run macos-jacobian-kangaroo-small-bench-test macos-jacobian-kangaroo-multi-small-test macos-jacobian-kangaroo-multi-small-bench macos-jacobian-kangaroo-multi-small-bench-run macos-jacobian-kangaroo-multi16-small-bench macos-jacobian-kangaroo-multi16-small-bench-run macos-jacobian-kangaroo-multi-small-bench-test macos-cpu-field-test macos-cpu-field-bench macos-metal-kernels-check macos-metal-field-test macos-metal-field-bench macos-metal-field-mul-test macos-metal-field-mul-bench
+.PHONY: all clean check-host check-portable-ec check-autoresearch macos-build macos-check macos-bench macos-point-bench macos-jacobian-point-bench macos-jacobian-batch-affine-bench macos-jacobian-batch-affine-bench-run macos-jacobian-walk-bench macos-jacobian-kangaroo-small-test macos-jacobian-kangaroo-small-bench macos-jacobian-kangaroo-small-bench-run macos-jacobian-kangaroo-small-bench-test macos-jacobian-kangaroo-multi-small-test macos-jacobian-kangaroo-multi-small-bench macos-jacobian-kangaroo-multi-small-bench-run macos-jacobian-kangaroo-multi16-small-bench macos-jacobian-kangaroo-multi16-small-bench-run macos-jacobian-kangaroo-multi-small-bench-test macos-cpu-field-test macos-cpu-field-bench macos-metal-kernels-check macos-metal-field-test macos-metal-field-bench macos-metal-field-mul-test macos-metal-field-mul-bench
 
 CCFLAGS := -O3 -I$(CUDA_PATH)/include
 NVCCFLAGS := -O3 -gencode=arch=compute_89,code=compute_89 -gencode=arch=compute_86,code=compute_86 -gencode=arch=compute_75,code=compute_75 -gencode=arch=compute_61,code=compute_61
@@ -51,6 +51,7 @@ macos-check: check-host check-autoresearch macos-build
 	./$(MACOS_TARGET) selftest
 	sh tests/check_point_bench_cli.sh
 	sh tests/check_jacobian_point_bench_cli.sh
+	sh tests/check_jacobian_batch_affine_bench_cli.sh
 	sh tests/check_jacobian_walk_bench_cli.sh
 	sh tests/check_jacobian_kangaroo_small_cli.sh
 	sh tests/check_jacobian_kangaroo_small_bench_cli.sh
@@ -70,6 +71,12 @@ macos-point-bench: macos-build
 
 macos-jacobian-point-bench: macos-build
 	./$(MACOS_TARGET) jacobian-point-bench --iterations 256 --min-ms 50
+
+macos-jacobian-batch-affine-bench: macos-build
+	./$(MACOS_TARGET) jacobian-batch-affine-bench --iterations 256 --min-ms 50 --points 17
+
+macos-jacobian-batch-affine-bench-run:
+	./$(MACOS_TARGET) jacobian-batch-affine-bench --iterations 256 --min-ms 50 --points 17
 
 macos-jacobian-walk-bench: macos-build
 	./$(MACOS_TARGET) jacobian-walk-bench --iterations 256 --min-ms 50 --jumps 16
