@@ -88,6 +88,30 @@ Commit: `bbde2c8` (`perf: tune Metal field dispatch size`)
   faster. The useful result is the combination of a real fused oracle plus the
   larger threadgroup dispatch shape.
 
+### Metal Jacobian-Plus-Affine Add Kernel
+
+Commit: `07615a1` (`feat: add Metal Jacobian affine add kernel`)
+
+- Added the first point-level Apple Silicon GPU primitive,
+  `jacobian_add_affine`.
+- The kernel consumes packed Jacobian `x/y/z` plus an input infinity flag and
+  affine `x/y`, then emits packed Jacobian `x/y/z` plus an output infinity flag.
+- The self-test and benchmark cover generic additions, `p` infinity, doubling
+  (`h=0,r=0`), and point-at-infinity (`h=0,r!=0`) branches.
+- Added CLI commands:
+  - `metal-jacobian-add-test`
+  - `metal-jacobian-add-bench --iterations N [--min-ms N] [--tg-limit N]`
+- Added `autoresearch/experiments/metal_jacobian_add.json` with three runner
+  samples.
+- Local M3 autoresearch result:
+  - median `18,987,732.357266 ops/sec`
+  - min `16,122,729.006089 ops/sec`
+  - max `23,145,877.471189 ops/sec`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
