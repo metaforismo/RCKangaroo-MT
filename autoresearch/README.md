@@ -55,6 +55,14 @@ python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budg
 
 This records `macos_cpu` `jacobian_kangaroo_multi_small` solves per second. The benchmark generates deterministic synthetic targets, places one solvable target at the final index, precomputes the deterministic jump table and range/tame-start context once per run, reuses scratch storage across measured solves, and reports `architecture=shared_tame`, `dp_lookup=hash`, `dp_bucket_storage=inline_first`, `affine_conversion=batch`, `jump_table=precomputed`, `scratch=reused`, `range_context=precomputed`, target count, tame/wild state counts, DP table size, and same-parameter single-target comparison fields: `single_target_ops_per_sec`, `speedup_vs_single`, and `target_throughput_vs_single`.
 
+Run the CPU shared-tame tiny 16-target kangaroo experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi16_small --budget-sec 5
+```
+
+This records the same `jacobian_kangaroo_multi_small` operation with `target_count=16`, so larger multi-target behavior can be tracked separately from the default 4-target gate.
+
 Run the Metal field-add experiment:
 
 ```sh
@@ -84,4 +92,4 @@ Results are written to:
 - `autoresearch/results.tsv`
 - `autoresearch/benchmarks.jsonl`
 
-The current CPU baseline metric is `multiply_g` operations per second. CPU affine point-add walk, CPU Jacobian mixed-add walk, CPU Jacobian jump-table walk, CPU single-target tiny kangaroo, CPU shared-tame tiny multi-target kangaroo, CPU field multiplication, and Metal field addition/multiplication are tracked as separate fixed-gate experiments.
+The current CPU baseline metric is `multiply_g` operations per second. CPU affine point-add walk, CPU Jacobian mixed-add walk, CPU Jacobian jump-table walk, CPU single-target tiny kangaroo, CPU shared-tame tiny multi-target kangaroo at 4 and 16 targets, CPU field multiplication, and Metal field addition/multiplication are tracked as separate fixed-gate experiments.

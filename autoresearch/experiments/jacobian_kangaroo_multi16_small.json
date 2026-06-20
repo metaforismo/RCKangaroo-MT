@@ -1,0 +1,6 @@
+{
+  "name": "jacobian_kangaroo_multi16_small",
+  "description": "Apple Silicon CPU shared-tame tiny 16-target kangaroo benchmark",
+  "bench_target": "macos-jacobian-kangaroo-multi16-small-bench-run",
+  "min_improvement_ratio": 0.01
+}
