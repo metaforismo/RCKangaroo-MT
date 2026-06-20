@@ -162,6 +162,27 @@ Commit: `2c2c9b5` (`feat: add Metal Jacobian jump-table walk`)
   - `threadgroup_limit=256`
   - `threads_per_threadgroup=256`
 
+### Direct Metal Jump Indices
+
+Commit: `c41c6d7` (`perf: use direct Metal jump indices`)
+
+- Removed the per-step `% jump_count` from the Metal jump-table walk hot loop.
+- Kept correctness strict by validating on the host that every generated
+  `jump_indices` entry is already inside the affine jump table before dispatch.
+- Updated the Metal source gate so future changes do not accidentally reinsert
+  a modulo in the kernel loop.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk`, `steps_per_sample=8`, `jump_count=16`:
+  - candidate median `38,210,997.361683 mixed-add steps/sec`
+  - paired baseline median `35,711,313.723010 mixed-add steps/sec`
+  - paired speedup `1.069997x`
+  - min `25,910,772.852663 mixed-add steps/sec`
+  - max `39,764,446.199153 mixed-add steps/sec`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:

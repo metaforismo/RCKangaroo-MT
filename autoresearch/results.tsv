@@ -61,3 +61,4 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-20T22:13:58Z	07615a1	metal_jacobian_add	metal	jacobian_add_affine	983040	18987732.357266	true	keep	Metal secp256k1 Jacobian plus affine add correctness and throughput gate
 2026-06-20T22:45:27Z	74d6dad	metal_jacobian_walk	metal	jacobian_affine_walk_fixed	2228224	43635268.698477	true	keep	Metal fixed-step Jacobian plus affine walk correctness and throughput gate
 2026-06-20T23:05:15Z	2c2c9b5	metal_jacobian_jump_walk	metal	jacobian_affine_walk_jump_table	1572864	29322230.463689	true	keep	Metal Jacobian jump-table walk correctness and throughput gate
+2026-06-20T23:10:10Z	c41c6d7	metal_jacobian_jump_walk	metal	jacobian_affine_walk_jump_table	1966080	38210997.361683	true	keep	Metal Jacobian jump-table walk correctness and throughput gate
