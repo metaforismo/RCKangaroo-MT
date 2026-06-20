@@ -47,7 +47,7 @@ Run the CPU Jacobian jump-table walk experiment:
 python3 autoresearch/runner.py --experiment jacobian_jump_walk --budget-sec 5
 ```
 
-This records `macos_cpu` `jacobian_jump_walk` throughput. The benchmark precomputes affine jump points, keeps the walk state in Jacobian coordinates, selects jumps with a bit mask when `jump_count` is a power of two (`jump_index=power2_mask`, otherwise `modulo`), tracks scalar distance in parallel, and checks the final point against a scalar oracle. It is a deterministic walk-core benchmark, not a full DP/collision kangaroo solver yet.
+This records `macos_cpu` `jacobian_jump_walk` throughput. The benchmark precomputes affine jump points, keeps the walk state in Jacobian coordinates, passes the Jacobian step point by const reference (`jacobian_step_passing=const_ref`), selects jumps with a bit mask when `jump_count` is a power of two (`jump_index=power2_mask`, otherwise `modulo`), tracks scalar distance in parallel, and checks the final point against a scalar oracle. It is a deterministic walk-core benchmark, not a full DP/collision kangaroo solver yet.
 
 Run the CPU Jacobian batch-to-affine conversion experiment:
 
@@ -55,7 +55,7 @@ Run the CPU Jacobian batch-to-affine conversion experiment:
 python3 autoresearch/runner.py --experiment jacobian_batch_affine --budget-sec 5
 ```
 
-This records `macos_cpu` `jacobian_batch_affine` batch conversions per second and affine points per second for a deterministic tame-plus-wild batch. It isolates the conversion primitive used by the shared-tame multi-target kangaroo loop, so future changes to inversion batching or affine buffer layout can be measured without DP lookup and walk-step noise.
+This records `macos_cpu` `jacobian_batch_affine` batch conversions per second and affine points per second for a deterministic tame-plus-wild batch. It isolates the conversion primitive used by the shared-tame multi-target kangaroo loop and reports `field_rhs_passing=const_ref`, `affine_z_access=const_ref`, `affine_buffer=resize_reuse`, and `affine_active_path=all_active_fast`, so future changes to field-copy avoidance, inversion batching, or affine buffer layout can be measured without DP lookup and walk-step noise.
 
 Run the CPU single-target tiny kangaroo experiment:
 
@@ -63,7 +63,7 @@ Run the CPU single-target tiny kangaroo experiment:
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_small --budget-sec 5
 ```
 
-This records `macos_cpu` `jacobian_kangaroo_small` solves per second. The benchmark generates one deterministic synthetic target, precomputes the deterministic jump table and range/tame-start context once per run, reuses scratch storage across measured solves, and reports `architecture=single_target`, `dp_lookup=hash`, `dp_hash=partial_limb_mix`, `dp_reserve=bounded_range_estimate`, `dp_bucket_storage=inline_first`, `point_passing=const_ref`, `affine_conversion=batch`, `jump_index`, `jump_table=precomputed`, `scratch=reused`, `range_context=precomputed`, tame/wild state counts, and DP table size.
+This records `macos_cpu` `jacobian_kangaroo_small` solves per second. The benchmark generates one deterministic synthetic target, precomputes the deterministic jump table and range/tame-start context once per run, reuses scratch storage across measured solves, and reports `architecture=single_target`, `field_rhs_passing=const_ref`, `jacobian_step_passing=const_ref`, `dp_lookup=hash`, `dp_hash=partial_limb_mix`, `dp_reserve=bounded_range_estimate`, `dp_bucket_storage=inline_first`, `point_passing=const_ref`, `affine_conversion=batch`, `jump_index`, `jump_table=precomputed`, `scratch=reused`, `range_context=precomputed`, tame/wild state counts, and DP table size.
 
 Run the CPU shared-tame tiny multi-target kangaroo experiment:
 
@@ -71,7 +71,7 @@ Run the CPU shared-tame tiny multi-target kangaroo experiment:
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5
 ```
 
-This records `macos_cpu` `jacobian_kangaroo_multi_small` solves per second. The benchmark generates deterministic synthetic targets, places one solvable target at the final index, precomputes the deterministic jump table and range/tame-start context once per run, reuses scratch storage across measured solves, and reports `architecture=shared_tame`, `dp_lookup=hash`, `dp_hash=partial_limb_mix`, `dp_reserve=bounded_range_estimate`, `dp_bucket_storage=inline_first`, `point_passing=const_ref`, `affine_conversion=batch`, `jump_index`, `jump_table=precomputed`, `scratch=reused`, `range_context=precomputed`, target count, tame/wild state counts, DP table size, and same-parameter single-target comparison fields: `single_target_ops_per_sec`, `speedup_vs_single`, and `target_throughput_vs_single`. The DP hash uses a partial-limb mix for cheaper bucket selection; full point equality still guards collisions. The DP reserve estimate caps the initial hash-map reserve by bounded range and `dp_bits` so tiny-range probes avoid large, mostly empty bucket arrays.
+This records `macos_cpu` `jacobian_kangaroo_multi_small` solves per second. The benchmark generates deterministic synthetic targets, places one solvable target at the final index, precomputes the deterministic jump table and range/tame-start context once per run, reuses scratch storage across measured solves, and reports `architecture=shared_tame`, `field_rhs_passing=const_ref`, `jacobian_step_passing=const_ref`, `dp_lookup=hash`, `dp_hash=partial_limb_mix`, `dp_reserve=bounded_range_estimate`, `dp_bucket_storage=inline_first`, `point_passing=const_ref`, `affine_conversion=batch`, `affine_z_access=const_ref`, `affine_buffer=resize_reuse`, `affine_active_path=all_active_fast`, `jump_index`, `jump_table=precomputed`, `scratch=reused`, `range_context=precomputed`, target count, tame/wild state counts, DP table size, and same-parameter single-target comparison fields: `single_target_ops_per_sec`, `speedup_vs_single`, and `target_throughput_vs_single`. The DP hash uses a partial-limb mix for cheaper bucket selection; full point equality still guards collisions. The DP reserve estimate caps the initial hash-map reserve by bounded range and `dp_bits` so tiny-range probes avoid large, mostly empty bucket arrays.
 
 Run the CPU shared-tame tiny 16-target kangaroo experiment:
 

@@ -13,7 +13,7 @@ if [ "$status" -ne 0 ]; then
 fi
 
 case "$output" in
-	*"\"backend\":\"macos_cpu\""*"\"operation\":\"jacobian_kangaroo_multi_small\""*"\"architecture\":\"shared_tame\""*"\"dp_lookup\":\"hash\""*"\"dp_hash\":\"partial_limb_mix\""*"\"dp_reserve\":\"bounded_range_estimate\""*"\"dp_bucket_storage\":\"inline_first\""*"\"point_passing\":\"const_ref\""*"\"affine_conversion\":\"batch\""*"\"jump_index\":\"power2_mask\""*"\"jump_table\":\"precomputed\""*"\"scratch\":\"reused\""*"\"range_context\":\"precomputed\""*"\"target_count\":4"*"\"tame_states\":1"*"\"wild_states\":4"*"\"single_target_ops_per_sec\":"*"\"speedup_vs_single\":"*"\"target_throughput_vs_single\":"*"\"found_target_index\":3"*"\"found_private_key\":\"0x7\""*"\"correctness\":true"*)
+	*"\"backend\":\"macos_cpu\""*"\"operation\":\"jacobian_kangaroo_multi_small\""*"\"architecture\":\"shared_tame\""*"\"field_rhs_passing\":\"const_ref\""*"\"jacobian_step_passing\":\"const_ref\""*"\"dp_lookup\":\"hash\""*"\"dp_hash\":\"partial_limb_mix\""*"\"dp_reserve\":\"bounded_range_estimate\""*"\"dp_bucket_storage\":\"inline_first\""*"\"point_passing\":\"const_ref\""*"\"affine_conversion\":\"batch\""*"\"affine_z_access\":\"const_ref\""*"\"affine_buffer\":\"resize_reuse\""*"\"affine_active_path\":\"all_active_fast\""*"\"jump_index\":\"power2_mask\""*"\"jump_table\":\"precomputed\""*"\"scratch\":\"reused\""*"\"range_context\":\"precomputed\""*"\"target_count\":4"*"\"tame_states\":1"*"\"wild_states\":4"*"\"single_target_ops_per_sec\":"*"\"speedup_vs_single\":"*"\"target_throughput_vs_single\":"*"\"found_target_index\":3"*"\"found_private_key\":\"0x7\""*"\"correctness\":true"*)
 		exit 0
 		;;
 	*)

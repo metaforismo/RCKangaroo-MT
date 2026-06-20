@@ -21,8 +21,8 @@ public:
 	void GetHexStr(char* str);
 	u16 GetU16(int index);
 
-	bool Add(EcInt& val); //returns true if carry
-	bool Sub(EcInt& val); //returns true if carry
+	bool Add(const EcInt& val); //returns true if carry
+	bool Sub(const EcInt& val); //returns true if carry
 	void Neg();
 	void Neg256();
 	void ShiftRight(int nbits);
@@ -35,10 +35,10 @@ public:
 	void Mul_u64(EcInt& val, u64 multiplier);
 	void Mul_i64(EcInt& val, i64 multiplier);
 
-	void AddModP(EcInt& val);
-	void SubModP(EcInt& val);
+	void AddModP(const EcInt& val);
+	void SubModP(const EcInt& val);
 	void NegModP();
-	void MulModP(EcInt& val);
+	void MulModP(const EcInt& val);
 	void InvModP();
 	void SqrtModP();
 

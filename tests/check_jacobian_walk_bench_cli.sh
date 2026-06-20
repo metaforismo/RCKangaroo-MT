@@ -13,7 +13,7 @@ if [ "$status" -ne 0 ]; then
 fi
 
 case "$output" in
-	*"\"backend\":\"macos_cpu\""*"\"operation\":\"jacobian_jump_walk\""*"\"jump_index\":\"power2_mask\""*"\"sample_count\":8"*"\"min_ms\":1"*"\"jump_count\":8"*"\"scalar_distance\":\"0x"*"\"correctness\":true"*)
+	*"\"backend\":\"macos_cpu\""*"\"operation\":\"jacobian_jump_walk\""*"\"jacobian_step_passing\":\"const_ref\""*"\"jump_index\":\"power2_mask\""*"\"sample_count\":8"*"\"min_ms\":1"*"\"jump_count\":8"*"\"scalar_distance\":\"0x"*"\"correctness\":true"*)
 		exit 0
 		;;
 	*)

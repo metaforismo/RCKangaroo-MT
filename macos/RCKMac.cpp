@@ -29,6 +29,11 @@ static bool PointMatches(const EcPoint& a, const EcPoint& b)
 	return IntMatches(a.x, b.x) && IntMatches(a.y, b.y);
 }
 
+static const char* FieldRhsPassingMode()
+{
+	return "const_ref";
+}
+
 static u64 MixPointChecksum(u64 checksum, const EcPoint& p, u64 index)
 {
 	return checksum + p.x.data[0] + (p.x.data[1] ^ p.x.data[2]) + p.x.data[3] +
@@ -43,19 +48,19 @@ struct JacobianPoint
 	bool infinity;
 };
 
-static EcInt FieldAdd(EcInt a, EcInt b)
+static EcInt FieldAdd(EcInt a, const EcInt& b)
 {
 	a.AddModP(b);
 	return a;
 }
 
-static EcInt FieldSub(EcInt a, EcInt b)
+static EcInt FieldSub(EcInt a, const EcInt& b)
 {
 	a.SubModP(b);
 	return a;
 }
 
-static EcInt FieldMul(EcInt a, EcInt b)
+static EcInt FieldMul(EcInt a, const EcInt& b)
 {
 	a.MulModP(b);
 	return a;
@@ -151,10 +156,15 @@ static JacobianPoint JacobianFromAffine(const EcPoint& p)
 	return out;
 }
 
-static JacobianPoint JacobianDouble(JacobianPoint p)
+static const char* JacobianStepPassingMode()
+{
+	return "const_ref";
+}
+
+static JacobianPoint JacobianDouble(const JacobianPoint& p)
 {
 	JacobianPoint out;
-	if (p.infinity || p.y.IsZero())
+	if (p.infinity || IntIsZero(p.y))
 	{
 		out.infinity = true;
 		return out;
@@ -190,7 +200,7 @@ static EcPoint JacobianToAffine(const JacobianPoint& p)
 	return out;
 }
 
-static void JacobianAffineWithZInv(const JacobianPoint& p, EcInt z_inv, EcPoint& out)
+static void JacobianAffineWithZInv(const JacobianPoint& p, const EcInt& z_inv, EcPoint& out)
 {
 	EcInt z2 = FieldSquare(z_inv);
 	EcInt z3 = FieldMul(z2, z_inv);
@@ -227,25 +237,74 @@ static void JacobianPairToAffine(const JacobianPoint& a, const JacobianPoint& b,
 		JacobianAffineWithZInv(b, z_inv, b_affine);
 }
 
+static const char* JacobianBatchZAccessMode()
+{
+	return "const_ref";
+}
+
+static const char* JacobianBatchBufferMode()
+{
+	return "resize_reuse";
+}
+
+static const char* JacobianBatchActivePathMode()
+{
+	return "all_active_fast";
+}
+
 static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<JacobianPoint>& wilds, std::vector<EcPoint>& affines, std::vector<EcInt>& prefixes, std::vector<unsigned char>& active)
 {
 	size_t point_count = wilds.size() + 1;
-	affines.clear();
 	affines.resize(point_count);
-	prefixes.clear();
 	prefixes.resize(point_count);
-	active.clear();
-	active.resize(point_count, 0);
+	active.resize(point_count);
 
 	EcInt acc;
+	acc.Set(1);
+	bool all_active = true;
+	for (size_t i = 0; i < point_count; i++)
+	{
+		const JacobianPoint& p = i ? wilds[i - 1] : tame;
+		const EcInt& z = p.z;
+		if (p.infinity || IntIsZero(z))
+		{
+			all_active = false;
+			break;
+		}
+
+		prefixes[i] = acc;
+		acc = FieldMul(acc, z);
+	}
+
+	if (all_active)
+	{
+		acc.InvModP();
+		for (size_t remaining = point_count; remaining > 0; remaining--)
+		{
+			size_t i = remaining - 1;
+			const JacobianPoint& p = i ? wilds[i - 1] : tame;
+			EcInt z_inv = FieldMul(acc, prefixes[i]);
+			acc = FieldMul(acc, p.z);
+			EcInt z2 = FieldSquare(z_inv);
+			EcInt z3 = FieldMul(z2, z_inv);
+			affines[i].x = FieldMul(p.x, z2);
+			affines[i].y = FieldMul(p.y, z3);
+		}
+		return;
+	}
+
 	acc.Set(1);
 	unsigned int active_count = 0;
 	for (size_t i = 0; i < point_count; i++)
 	{
 		const JacobianPoint& p = i ? wilds[i - 1] : tame;
-		EcInt z = p.z;
-		if (p.infinity || z.IsZero())
+		const EcInt& z = p.z;
+		if (p.infinity || IntIsZero(z))
+		{
+			affines[i] = EcPoint();
+			active[i] = 0;
 			continue;
+		}
 
 		prefixes[i] = acc;
 		acc = FieldMul(acc, z);
@@ -273,7 +332,7 @@ static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<J
 	}
 }
 
-static JacobianPoint JacobianAddAffine(JacobianPoint p, const EcPoint& q)
+static JacobianPoint JacobianAddAffine(const JacobianPoint& p, const EcPoint& q)
 {
 	if (p.infinity)
 		return JacobianFromAffine(q);
@@ -587,6 +646,7 @@ std::string RCKJacobianWalkBenchJson(unsigned int iterations, unsigned int min_m
 	out.precision(6);
 	out << "{\"backend\":\"macos_cpu\",";
 	out << "\"operation\":\"jacobian_jump_walk\",";
+	out << "\"jacobian_step_passing\":\"" << JacobianStepPassingMode() << "\",";
 	out << "\"jump_index\":\"" << JumpIndexMode(jump_count) << "\",";
 	out << "\"iterations\":" << operations << ",";
 	out << "\"sample_count\":" << iterations << ",";
@@ -1173,6 +1233,8 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "{\"backend\":\"macos_cpu\",";
 	out << "\"operation\":\"jacobian_kangaroo_small\",";
 	out << "\"architecture\":\"single_target\",";
+	out << "\"field_rhs_passing\":\"" << FieldRhsPassingMode() << "\",";
+	out << "\"jacobian_step_passing\":\"" << JacobianStepPassingMode() << "\",";
 	out << "\"dp_lookup\":\"hash\",";
 	out << "\"dp_hash\":\"" << KangarooDpHashMode() << "\",";
 	out << "\"dp_reserve\":\"" << KangarooDpReserveMode() << "\",";
@@ -1286,12 +1348,17 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "{\"backend\":\"macos_cpu\",";
 	out << "\"operation\":\"jacobian_kangaroo_multi_small\",";
 	out << "\"architecture\":\"shared_tame\",";
+	out << "\"field_rhs_passing\":\"" << FieldRhsPassingMode() << "\",";
+	out << "\"jacobian_step_passing\":\"" << JacobianStepPassingMode() << "\",";
 	out << "\"dp_lookup\":\"hash\",";
 	out << "\"dp_hash\":\"" << KangarooDpHashMode() << "\",";
 	out << "\"dp_reserve\":\"" << KangarooDpReserveMode() << "\",";
 	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
+	out << "\"affine_z_access\":\"" << JacobianBatchZAccessMode() << "\",";
+	out << "\"affine_buffer\":\"" << JacobianBatchBufferMode() << "\",";
+	out << "\"affine_active_path\":\"" << JacobianBatchActivePathMode() << "\",";
 	out << "\"jump_index\":\"" << JumpIndexMode(jump_count) << "\",";
 	out << "\"jump_table\":\"precomputed\",";
 	out << "\"scratch\":\"reused\",";
@@ -1452,7 +1519,11 @@ std::string RCKJacobianBatchAffineBenchJson(unsigned int iterations, unsigned in
 	out.precision(6);
 	out << "{\"backend\":\"macos_cpu\",";
 	out << "\"operation\":\"jacobian_batch_affine\",";
+	out << "\"field_rhs_passing\":\"" << FieldRhsPassingMode() << "\",";
 	out << "\"affine_conversion\":\"batch\",";
+	out << "\"affine_z_access\":\"" << JacobianBatchZAccessMode() << "\",";
+	out << "\"affine_buffer\":\"" << JacobianBatchBufferMode() << "\",";
+	out << "\"affine_active_path\":\"" << JacobianBatchActivePathMode() << "\",";
 	out << "\"batch_points\":" << batch_points << ",";
 	out << "\"wild_points\":" << (batch_points - 1) << ",";
 	out << "\"iterations\":" << operations << ",";

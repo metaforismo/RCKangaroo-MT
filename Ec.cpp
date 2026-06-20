@@ -290,7 +290,7 @@ bool Ec::IsValidPoint(EcPoint& pnt)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Mul256_by_64(u64* input, u64 multiplier, u64* result)
+void Mul256_by_64(const u64* input, u64 multiplier, u64* result)
 {
 	u64 h1, h2;
 	result[0] = _umul128(input[0], multiplier, &h1);
@@ -300,7 +300,7 @@ void Mul256_by_64(u64* input, u64 multiplier, u64* result)
 	_addcarry_u64(carry, 0, h2, result + 4);
 }
 
-void Mul320_by_64(u64* input, u64 multiplier, u64* result)
+void Mul320_by_64(const u64* input, u64 multiplier, u64* result)
 {
 	u64 h1, h2;
 	result[0] = _umul128(input[0], multiplier, &h1);
@@ -310,7 +310,7 @@ void Mul320_by_64(u64* input, u64 multiplier, u64* result)
 	_addcarry_u64(carry, _umul128(input[4], multiplier, &h1), h2, result + 4);
 }
 
-void Add320_to_256(u64* in_out, u64* val)
+void Add320_to_256(u64* in_out, const u64* val)
 {
 	u8 c = _addcarry_u64(0, in_out[0], val[0], in_out);
 	c = _addcarry_u64(c, in_out[1], val[1], in_out + 1);
@@ -378,7 +378,7 @@ u16 EcInt::GetU16(int index)
 }
 
 //returns carry
-bool EcInt::Add(EcInt& val)
+bool EcInt::Add(const EcInt& val)
 {
 	u8 c = _addcarry_u64(0, data[0], val.data[0], data + 0);
 	c = _addcarry_u64(c, data[1], val.data[1], data + 1);
@@ -388,7 +388,7 @@ bool EcInt::Add(EcInt& val)
 }
 
 //returns carry
-bool EcInt::Sub(EcInt& val)
+bool EcInt::Sub(const EcInt& val)
 {
 	u8 c = _subborrow_u64(0, data[0], val.data[0], data + 0);
 	c = _subborrow_u64(c, data[1], val.data[1], data + 1);
@@ -458,14 +458,14 @@ bool EcInt::IsZero()
 	return ((data[0] == 0) && (data[1] == 0) && (data[2] == 0) && (data[3] == 0) && (data[4] == 0));
 }
 
-void EcInt::AddModP(EcInt& val)
+void EcInt::AddModP(const EcInt& val)
 {
 	Add(val);
 	if (!IsLessThanU(g_P)) 
 		Sub(g_P);
 }
 
-void EcInt::SubModP(EcInt& val)
+void EcInt::SubModP(const EcInt& val)
 {
 	if (Sub(val))
 		Add(g_P);
@@ -514,7 +514,7 @@ void EcInt::ShiftLeft(int nbits)
 	data[0] = data[0] << nbits;
 }
 
-void EcInt::MulModP(EcInt& val)
+void EcInt::MulModP(const EcInt& val)
 {	
 	u64 buff[8], tmp[5], h;
 	//calc 512 bits

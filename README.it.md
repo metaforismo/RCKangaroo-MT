@@ -149,7 +149,7 @@ Dettagli:
 - English: `macos/README.md`
 - Italiano: `macos/README.it.md`
 
-I benchmark kangaroo macOS riportano `dp_hash=partial_limb_mix`: l'hash dei distinguished point usa pochi limb ad alta entropia per scegliere il bucket piu' velocemente, mentre la chiave completa del punto affine resta usata per l'equality. Riportano anche `dp_reserve=bounded_range_estimate`: la riserva iniziale della tabella DP usa range bounded e `dp_bits`, non solo `max_steps`.
+I benchmark kangaroo macOS riportano `dp_hash=partial_limb_mix`: l'hash dei distinguished point usa pochi limb ad alta entropia per scegliere il bucket piu' velocemente, mentre la chiave completa del punto affine resta usata per l'equality. Riportano anche `dp_reserve=bounded_range_estimate`: la riserva iniziale della tabella DP usa range bounded e `dp_bits`, non solo `max_steps`. I percorsi Jacobian riportano inoltre `field_rhs_passing=const_ref` e `jacobian_step_passing=const_ref`; il batch affine multi-target espone `affine_z_access=const_ref`, `affine_buffer=resize_reuse` e `affine_active_path=all_active_fast` per tracciare le ottimizzazioni su copie, buffer riusati e fast path all-active.
 
 ## Limiti
 
