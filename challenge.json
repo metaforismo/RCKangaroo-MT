@@ -1,0 +1,60 @@
+{
+  "id": "rckmetal",
+  "name": "RCKangaroo-MT Metal Lab",
+  "cli": "rckmetal",
+  "version": "0.1.0",
+  "source": {
+    "repository": "https://github.com/metaforismo/RCKangaroo-MT"
+  },
+  "score": {
+    "direction": "maximize",
+    "primaryMetric": "ops_per_sec",
+    "secondaryMetrics": [
+      "correctness",
+      "distance_checksum",
+      "dp_count",
+      "dp_checksum",
+      "threadgroup_limit",
+      "threads_per_threadgroup",
+      "sample_runs"
+    ]
+  },
+  "editablePaths": [
+    "Makefile",
+    "Ec.cpp",
+    "Ec.h",
+    "TargetSet.cpp",
+    "TargetSet.h",
+    "defs.h",
+    "utils.cpp",
+    "utils.h",
+    "macos/rck_macos.cpp",
+    "macos/RCKMac.cpp",
+    "macos/RCKMac.h",
+    "macos/CpuField.cpp",
+    "macos/CpuField.h",
+    "macos/MetalSmoke.mm",
+    "macos/MetalSmoke.h",
+    "macos/MetalField.mm",
+    "macos/MetalField.h",
+    "macos/MetalFieldKernels.h",
+    "autoresearch/runner.py",
+    "autoresearch/experiments/metal_jacobian_jump_walk_dp.json"
+  ],
+  "forbiddenPaths": [
+    ".benchforge/**",
+    "score.json",
+    "challenge.json",
+    "challenges/rckmetal/**",
+    "challenges/rckmetal/harness/**",
+    "tools/benchforge/**",
+    "autoresearch/results.tsv",
+    "autoresearch/benchmarks.jsonl",
+    "docs/RESEARCH_LOG.md"
+  ],
+  "commands": {
+    "test": "node challenges/rckmetal/harness/test.js",
+    "score": "node challenges/rckmetal/harness/score.js",
+    "verify": "node challenges/rckmetal/harness/verify.js"
+  }
+}

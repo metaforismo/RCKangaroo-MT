@@ -6,3 +6,5 @@ rckangaroo
 RESULTS.TXT
 /benchmarks.jsonl
 run.log
+/.benchforge/
+/score.json

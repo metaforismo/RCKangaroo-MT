@@ -20,6 +20,7 @@ This fork keeps the original single-target, benchmark, and tames workflows, and 
 - macOS CPU oracle for tiny-range correctness checks, local benchmarks, and limb-level field arithmetic.
 - Metal smoke plus secp256k1 field-add, field-sub, field-double, field-mul4, field-neg, field-mul, and field-square microkernel checks for Apple Silicon runtime verification.
 - Autoresearch runner for fixed-gate optimization experiments.
+- Benchforge Metal Lab for local notes, replayable submissions, verifier JSON, and static leaderboards for the macOS/Metal track.
 
 ## Requirements
 
@@ -35,6 +36,7 @@ Apple Silicon/macOS cannot run CUDA kernels on the Apple GPU. This repo now incl
 | macOS CPU | Working | Tiny-range oracle, secp256k1 correctness tests, baseline benchmarks, and `field_mul_mod_p` microbenchmarks. |
 | macOS Metal | Early arithmetic backend | Builds and runs Metal smoke plus `field_add_mod_p`, `field_sub_mod_p`, `field_double_mod_p`, `field_mul4_mod_p`, `field_neg_mod_p`, `field_mul_mod_p`, and `field_square_mod_p` microkernel checks when a Metal device is visible. |
 | Autoresearch | Working | Runs fixed-gate checks and benchmarks, then logs keep/discard/skip experiment rows. |
+| Benchforge | Working | Local-first challenge loop for Metal benchmarks, notes, submissions, verifier JSON, and static leaderboard export. |
 
 ## Build on Linux CUDA
 
@@ -178,6 +180,38 @@ python3 autoresearch/runner.py --experiment metal_field_square --budget-sec 5
 ```
 
 The default macOS build enables ThinLTO (`MACOS_LTO_FLAGS=-flto=thin`) so clang can optimize the small Jacobian and field-arithmetic call graph across translation units on Apple Silicon. Disable it for toolchain debugging or generic compile checks with `make macos-check MACOS_LTO_FLAGS=`.
+
+## Benchforge Metal Lab
+
+This repository includes a Benchforge challenge for the Apple Silicon Metal
+track. It records local runs, notes, replayable candidate bundles, verifier
+JSON, and a static leaderboard.
+
+Initialize the Benchforge submodule:
+
+```sh
+git submodule update --init tools/benchforge
+```
+
+Run the local lab:
+
+```sh
+make benchforge-rckmetal-doctor
+make benchforge-rckmetal-run
+make benchforge-rckmetal-submit
+make benchforge-rckmetal-leaderboard
+make benchforge-rckmetal-report
+```
+
+Challenge docs:
+
+- English: `challenges/rckmetal/README.md`
+- Italiano: `challenges/rckmetal/README.it.md`
+- Shared notes: `challenges/rckmetal/NOTES.md`
+
+Local or accepted Benchforge results are not public proof. Use `verified`,
+`promoted`, or `replicated` only after an independent trusted runner reproduces
+the result on a declared hardware track.
 
 The CPU field multiplication benchmark reports `carry_impl=clang_builtin` on Apple Clang, where modular add/sub carry chains use `__builtin_addcll` and `__builtin_subcll`; non-Clang builds keep the portable `unsigned __int128` fallback. The Jacobian walk and tiny kangaroo benchmarks also report `ecint_carry_impl`; on supported non-x86 Clang builds this is `clang_builtin` because the shared `EcInt` carry/borrow wrappers use the same builtins, while x86/platform-intrinsic and non-Clang builds report `platform_intrinsic_or_uint128`. `ecint_mul_final_sub=single_conditional` records that the final `MulModP` reduction subtracts `P` with one conditional subtract after the carry is known.
 

@@ -1,0 +1,3 @@
+[submodule "tools/benchforge"]
+	path = tools/benchforge
+	url = https://github.com/metaforismo/benchforge.git

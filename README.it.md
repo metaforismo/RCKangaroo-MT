@@ -20,6 +20,7 @@ Questo fork mantiene single-target, benchmark e tames del progetto originale, e 
 - Oracle CPU macOS per tiny-range, test di correttezza e benchmark locali.
 - Backend Metal smoke e microkernel field-add/field-sub/field-double/field-mul4/field-neg/field-mul/field-square per verificare il runtime Apple Silicon.
 - Runner autoresearch per esperimenti con gate fissi e risultati misurabili.
+- Benchforge Metal Lab per note locali, submission riproducibili, verifier JSON e leaderboard statiche del track macOS/Metal.
 
 ## Requisiti
 
@@ -35,6 +36,7 @@ Apple Silicon/macOS non puo eseguire kernel CUDA sulla GPU Apple. Questa repo or
 | macOS CPU | Funzionante | Oracle tiny-range, test secp256k1, benchmark baseline e microbenchmark `field_mul_mod_p`. |
 | macOS Metal | Backend aritmetico iniziale | Compila ed esegue smoke Metal piu' microkernel `field_add_mod_p`, `field_sub_mod_p`, `field_double_mod_p`, `field_mul4_mod_p`, `field_neg_mod_p`, `field_mul_mod_p` e `field_square_mod_p` quando un device Metal e' visibile. |
 | Autoresearch | Funzionante | Esegue check e benchmark con gate fissi e registra righe keep/discard. |
+| Benchforge | Funzionante | Loop challenge locale per benchmark Metal, note, submission, verifier JSON e export leaderboard statico. |
 
 ## Build su Linux CUDA
 
@@ -148,6 +150,38 @@ Dettagli:
 
 - English: `macos/README.md`
 - Italiano: `macos/README.it.md`
+
+## Benchforge Metal Lab
+
+Questa repository include una challenge Benchforge per il track Apple Silicon
+Metal. Registra run locali, note, bundle candidate riproducibili, verifier JSON
+e una leaderboard statica.
+
+Inizializza il submodule Benchforge:
+
+```sh
+git submodule update --init tools/benchforge
+```
+
+Loop locale:
+
+```sh
+make benchforge-rckmetal-doctor
+make benchforge-rckmetal-run
+make benchforge-rckmetal-submit
+make benchforge-rckmetal-leaderboard
+make benchforge-rckmetal-report
+```
+
+Documentazione challenge:
+
+- English: `challenges/rckmetal/README.md`
+- Italiano: `challenges/rckmetal/README.it.md`
+- Note condivise: `challenges/rckmetal/NOTES.md`
+
+I risultati Benchforge locali o accepted non sono prova pubblica. Usa
+`verified`, `promoted` o `replicated` solo dopo riproduzione da parte di un
+runner fidato indipendente su un track hardware dichiarato.
 
 Il benchmark CPU field riporta `carry_impl=clang_builtin` su Apple Clang: le catene carry/borrow usano `__builtin_addcll` e `__builtin_subcll`, con fallback portabile `unsigned __int128` sugli altri compilatori. I benchmark Jacobian walk e tiny kangaroo riportano anche `ecint_carry_impl`; sui build Clang non-x86 supportati vale `clang_builtin` perche' i wrapper carry/borrow condivisi di `EcInt` usano gli stessi builtin, mentre i percorsi x86/platform-intrinsic e non-Clang riportano `platform_intrinsic_or_uint128`. `ecint_mul_final_sub=single_conditional` indica che la riduzione finale di `MulModP` sottrae `P` con una sola sottrazione condizionale dopo il carry.
 
