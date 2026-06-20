@@ -1,5 +1,6 @@
 #include "macos/RCKMac.h"
 
+#include <algorithm>
 #include <chrono>
 #include <sstream>
 #include <unordered_map>
@@ -218,12 +219,13 @@ static void JacobianPairToAffine(const JacobianPoint& a, const JacobianPoint& b,
 static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<JacobianPoint>& wilds, std::vector<EcPoint>& affines, std::vector<EcInt>& prefixes, std::vector<unsigned char>& active)
 {
 	size_t point_count = wilds.size() + 1;
-	affines.clear();
-	affines.resize(point_count);
-	prefixes.clear();
-	prefixes.resize(point_count);
-	active.clear();
-	active.resize(point_count, 0);
+	if (affines.size() != point_count)
+		affines.resize(point_count);
+	if (prefixes.size() != point_count)
+		prefixes.resize(point_count);
+	if (active.size() != point_count)
+		active.resize(point_count);
+	std::fill(active.begin(), active.end(), 0);
 
 	EcInt acc;
 	acc.Set(1);
@@ -1247,6 +1249,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
+	out << "\"affine_storage\":\"stable_vectors\",";
 	out << "\"jump_table\":\"precomputed\",";
 	out << "\"scratch\":\"reused\",";
 	out << "\"range_context\":\"precomputed\",";
