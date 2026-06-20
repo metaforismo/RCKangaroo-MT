@@ -882,6 +882,11 @@ static const char* KangarooDpReserveMode()
 	return "bounded_range_estimate";
 }
 
+static const char* KangarooCandidateVerificationMode()
+{
+	return "full_point_collision";
+}
+
 static size_t EstimateKangarooDpReserve(u64 range_limit, unsigned int max_steps, unsigned int state_count, unsigned int dp_bits)
 {
 	u64 step_limit = (u64)max_steps + 2;
@@ -905,20 +910,11 @@ static size_t EstimateKangarooDpReserve(u64 range_limit, unsigned int max_steps,
 	return (size_t)reserve;
 }
 
-static bool VerifyCandidate(const EcPoint& target, u64 candidate)
-{
-	EcInt k;
-	k.Set(candidate);
-	EcPoint p = Ec::MultiplyG(k);
-	return PointMatches(p, target);
-}
-
 static bool CheckKangarooDpCollision(const KangarooDp& other,
 	bool tame,
 	u64 distance,
 	u64 start,
 	u64 limit,
-	const EcPoint& target,
 	u64* candidate)
 {
 	if (other.tame == tame)
@@ -932,8 +928,6 @@ static bool CheckKangarooDpCollision(const KangarooDp& other,
 	u64 found = tame_distance - wild_distance;
 	if ((found < start) || (found >= start + limit))
 		return false;
-	if (!VerifyCandidate(target, found))
-		return false;
 
 	*candidate = found;
 	return true;
@@ -945,19 +939,18 @@ static bool CheckKangarooCollision(const KangarooDpTable& buckets,
 	u64 distance,
 	u64 start,
 	u64 limit,
-	const EcPoint& target,
 	u64* candidate)
 {
 	const KangarooDpBucket* bucket = buckets.Find(key);
 	if (!bucket)
 		return false;
 
-	if (bucket->has_first && CheckKangarooDpCollision(bucket->first, tame, distance, start, limit, target, candidate))
+	if (bucket->has_first && CheckKangarooDpCollision(bucket->first, tame, distance, start, limit, candidate))
 		return true;
 
 	for (size_t i = 0; i < bucket->overflow.size(); i++)
 	{
-		if (CheckKangarooDpCollision(bucket->overflow[i], tame, distance, start, limit, target, candidate))
+		if (CheckKangarooDpCollision(bucket->overflow[i], tame, distance, start, limit, candidate))
 			return true;
 	}
 	return false;
@@ -987,8 +980,6 @@ static bool CheckKangarooMultiDpCollision(const KangarooDp& other,
 
 	u64 found = tame_distance - wild_distance;
 	if ((found < start) || (found >= start + limit))
-		return false;
-	if (!VerifyCandidate(targets[check_target_index], found))
 		return false;
 
 	*candidate = found;
@@ -1078,7 +1069,7 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooWithJumps(const EcPoint&
 		{
 			KangarooPointKey key = RawPointKey(tame_affine);
 			u64 candidate = 0;
-			if (CheckKangarooCollision(buckets, key, true, tame_distance, range.start, range.limit, target, &candidate))
+			if (CheckKangarooCollision(buckets, key, true, tame_distance, range.start, range.limit, &candidate))
 			{
 				result.found = true;
 				result.private_key = candidate;
@@ -1092,7 +1083,7 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooWithJumps(const EcPoint&
 		{
 			KangarooPointKey key = RawPointKey(wild_affine);
 			u64 candidate = 0;
-			if (CheckKangarooCollision(buckets, key, false, wild_distance, range.start, range.limit, target, &candidate))
+			if (CheckKangarooCollision(buckets, key, false, wild_distance, range.start, range.limit, &candidate))
 			{
 				result.found = true;
 				result.private_key = candidate;
@@ -1364,6 +1355,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "\"jacobian_step_passing\":\"" << JacobianStepPassingMode() << "\",";
 	out << "\"dp_lookup\":\"open_address_linear\",";
 	out << "\"dp_hash\":\"" << KangarooDpHashMode() << "\",";
+	out << "\"candidate_verification\":\"" << KangarooCandidateVerificationMode() << "\",";
 	out << "\"dp_reserve\":\"" << KangarooDpReserveMode() << "\",";
 	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"point_passing\":\"const_ref\",";
@@ -1479,6 +1471,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"jacobian_step_passing\":\"" << JacobianStepPassingMode() << "\",";
 	out << "\"dp_lookup\":\"open_address_linear\",";
 	out << "\"dp_hash\":\"" << KangarooDpHashMode() << "\",";
+	out << "\"candidate_verification\":\"" << KangarooCandidateVerificationMode() << "\",";
 	out << "\"dp_reserve\":\"" << KangarooDpReserveMode() << "\",";
 	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"point_passing\":\"const_ref\",";
