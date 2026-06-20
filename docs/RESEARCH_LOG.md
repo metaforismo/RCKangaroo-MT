@@ -112,6 +112,29 @@ Commit: `07615a1` (`feat: add Metal Jacobian affine add kernel`)
   - `threadgroup_limit=256`
   - `threads_per_threadgroup=256`
 
+### Fixed-Step Metal Jacobian Walk Kernel
+
+Commit: `74d6dad` (`feat: add Metal fixed-step Jacobian walk`)
+
+- Added `jacobian_affine_walk_fixed`, a walk-core Metal primitive that keeps one
+  Jacobian state inside a GPU thread and applies the same affine mixed-add step
+  repeatedly before writing the final state.
+- This is not a full kangaroo kernel yet: it intentionally excludes variable
+  jump selection, distinguished-point filtering, and collision-table work.
+- Added CLI commands:
+  - `metal-jacobian-walk-test`
+  - `metal-jacobian-walk-bench --iterations N [--steps N] [--min-ms N] [--tg-limit N]`
+- Added `autoresearch/experiments/metal_jacobian_walk.json` with three runner
+  samples.
+- Local M3 autoresearch result with `steps_per_sample=8`:
+  - median `43,635,268.698477 mixed-add steps/sec`
+  - min `39,216,303.440935 mixed-add steps/sec`
+  - max `43,712,057.290467 mixed-add steps/sec`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
