@@ -13,7 +13,7 @@ if [ "$status" -ne 0 ]; then
 fi
 
 case "$output" in
-	*"\"backend\":\"macos_cpu\""*"\"operation\":\"jacobian_kangaroo_small\""*"\"dp_lookup\":\"hash\""*"\"dp_hash\":\"partial_limb_mix\""*"\"dp_bucket_storage\":\"inline_first\""*"\"point_passing\":\"const_ref\""*"\"affine_conversion\":\"batch\""*"\"jump_index\":\"power2_mask\""*"\"jump_table\":\"precomputed\""*"\"scratch\":\"reused\""*"\"range_context\":\"precomputed\""*"\"target_count\":1"*"\"tame_states\":1"*"\"wild_states\":1"*"\"found_target_index\":0"*"\"found_private_key\":\"0x7\""*"\"correctness\":true"*)
+	*"\"backend\":\"macos_cpu\""*"\"operation\":\"jacobian_kangaroo_small\""*"\"dp_lookup\":\"hash\""*"\"dp_hash\":\"partial_limb_mix\""*"\"dp_reserve\":\"bounded_range_estimate\""*"\"dp_bucket_storage\":\"inline_first\""*"\"point_passing\":\"const_ref\""*"\"affine_conversion\":\"batch\""*"\"jump_index\":\"power2_mask\""*"\"jump_table\":\"precomputed\""*"\"scratch\":\"reused\""*"\"range_context\":\"precomputed\""*"\"target_count\":1"*"\"tame_states\":1"*"\"wild_states\":1"*"\"found_target_index\":0"*"\"found_private_key\":\"0x7\""*"\"correctness\":true"*)
 		exit 0
 		;;
 	*)

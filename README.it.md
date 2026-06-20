@@ -149,7 +149,7 @@ Dettagli:
 - English: `macos/README.md`
 - Italiano: `macos/README.it.md`
 
-I benchmark kangaroo macOS riportano `dp_hash=partial_limb_mix`: l'hash dei distinguished point usa pochi limb ad alta entropia per scegliere il bucket piu' velocemente, mentre la chiave completa del punto affine resta usata per l'equality.
+I benchmark kangaroo macOS riportano `dp_hash=partial_limb_mix`: l'hash dei distinguished point usa pochi limb ad alta entropia per scegliere il bucket piu' velocemente, mentre la chiave completa del punto affine resta usata per l'equality. Riportano anche `dp_reserve=bounded_range_estimate`: la riserva iniziale della tabella DP usa range bounded e `dp_bits`, non solo `max_steps`.
 
 ## Limiti
 
