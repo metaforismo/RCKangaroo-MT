@@ -516,6 +516,7 @@ static std::string MetalJacobianJumpWalkBenchJson(const char* operation,
 	unsigned int sample_count,
 	unsigned int steps_per_sample,
 	unsigned int jump_count,
+	uint64_t distance_checksum,
 	unsigned int min_ms,
 	const MetalDispatchStats& dispatch_stats,
 	double seconds,
@@ -531,6 +532,8 @@ static std::string MetalJacobianJumpWalkBenchJson(const char* operation,
 	oss << "\"sample_count\":" << sample_count << ",";
 	oss << "\"steps_per_sample\":" << steps_per_sample << ",";
 	oss << "\"jump_count\":" << jump_count << ",";
+	oss << "\"distance_tracking\":\"uint64\",";
+	oss << "\"distance_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << distance_checksum << std::dec << std::setfill(' ') << "\",";
 	oss << "\"min_ms\":" << min_ms << ",";
 	oss << "\"threadgroup_limit\":" << dispatch_stats.threadgroup_limit << ",";
 	oss << "\"thread_execution_width\":" << dispatch_stats.thread_execution_width << ",";
@@ -836,9 +839,11 @@ static void PackAffineTable(const std::vector<CpuAffinePoint>& q,
 
 static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 	const std::vector<CpuAffinePoint>& jumps,
+	const std::vector<uint64_t>& jump_distances,
 	const std::vector<uint32_t>& jump_indices,
 	unsigned int steps_per_sample,
 	std::vector<CpuJacobianPoint>& out,
+	std::vector<uint64_t>& out_distances,
 	std::string& error,
 	double* seconds,
 	unsigned int threadgroup_limit,
@@ -847,7 +852,7 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 	if (dispatch_stats)
 		dispatch_stats->threadgroup_limit = (unsigned int)EffectiveThreadgroupLimit(threadgroup_limit);
 
-	if (p.empty() || jumps.empty() || steps_per_sample == 0 || jump_indices.size() != p.size() * (size_t)steps_per_sample)
+	if (p.empty() || jumps.empty() || jumps.size() != jump_distances.size() || steps_per_sample == 0 || jump_indices.size() != p.size() * (size_t)steps_per_sample)
 	{
 		error = "invalid jacobian jump walk input";
 		return false;
@@ -911,20 +916,25 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		size_t q_bytes = q_xy.size() * sizeof(uint64_t);
 		size_t inf_bytes = p_infinity.size() * sizeof(uint32_t);
 		size_t indices_bytes = jump_indices.size() * sizeof(uint32_t);
+		size_t distance_bytes = jump_distances.size() * sizeof(uint64_t);
 		std::vector<uint64_t> out_xyz(p.size() * 12);
 		std::vector<uint32_t> out_infinity(p.size());
+		std::vector<uint64_t> distance_out(p.size());
 		size_t out_bytes = out_xyz.size() * sizeof(uint64_t);
+		size_t distance_out_bytes = distance_out.size() * sizeof(uint64_t);
 		id<MTLBuffer> p_buffer = [device newBufferWithBytes:p_xyz.data() length:p_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> q_buffer = [device newBufferWithBytes:q_xy.data() length:q_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> p_inf_buffer = [device newBufferWithBytes:p_infinity.data() length:inf_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> out_buffer = [device newBufferWithLength:out_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> out_inf_buffer = [device newBufferWithLength:inf_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> out_distances_buffer = [device newBufferWithLength:distance_out_bytes options:MTLResourceStorageModeShared];
 		uint32_t count = (uint32_t)p.size();
 		uint32_t step_count = steps_per_sample;
 		id<MTLBuffer> count_buffer = [device newBufferWithBytes:&count length:sizeof(count) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> steps_buffer = [device newBufferWithBytes:&step_count length:sizeof(step_count) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> jump_indices_buffer = [device newBufferWithBytes:jump_indices.data() length:indices_bytes options:MTLResourceStorageModeShared];
-		if (!p_buffer || !q_buffer || !p_inf_buffer || !out_buffer || !out_inf_buffer || !count_buffer || !steps_buffer || !jump_indices_buffer)
+		id<MTLBuffer> jump_distances_buffer = [device newBufferWithBytes:jump_distances.data() length:distance_bytes options:MTLResourceStorageModeShared];
+		if (!p_buffer || !q_buffer || !p_inf_buffer || !out_buffer || !out_inf_buffer || !out_distances_buffer || !count_buffer || !steps_buffer || !jump_indices_buffer || !jump_distances_buffer)
 		{
 			error = "failed to allocate Metal jacobian jump walk buffers";
 			return false;
@@ -948,6 +958,8 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		[encoder setBuffer:count_buffer offset:0 atIndex:5];
 		[encoder setBuffer:steps_buffer offset:0 atIndex:6];
 		[encoder setBuffer:jump_indices_buffer offset:0 atIndex:7];
+		[encoder setBuffer:jump_distances_buffer offset:0 atIndex:8];
+		[encoder setBuffer:out_distances_buffer offset:0 atIndex:9];
 		[encoder dispatchThreads:MTLSizeMake(count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
 		[encoder endEncoding];
 		auto start = std::chrono::steady_clock::now();
@@ -965,9 +977,11 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 
 		memcpy(out_xyz.data(), [out_buffer contents], out_bytes);
 		memcpy(out_infinity.data(), [out_inf_buffer contents], inf_bytes);
+		memcpy(distance_out.data(), [out_distances_buffer contents], distance_out_bytes);
 		out.resize(p.size());
 		for (size_t i = 0; i < p.size(); ++i)
 			out[i] = UnpackJacobianOutput(out_xyz, out_infinity, i);
+		out_distances = distance_out;
 		return true;
 	}
 }
@@ -1329,6 +1343,23 @@ static void BuildJacobianJumpWalkSamples(unsigned int sample_count,
 	jumps.assign(sample_q.begin(), sample_q.begin() + jump_count);
 }
 
+static void BuildJacobianJumpDistances(unsigned int jump_count, std::vector<uint64_t>& jump_distances)
+{
+	jump_distances.clear();
+	jump_distances.reserve(jump_count);
+	for (unsigned int i = 0; i < jump_count; ++i)
+		jump_distances.push_back(1ULL << i);
+}
+
+static unsigned int NormalizeMetalJumpCount(unsigned int jump_count)
+{
+	if (jump_count == 0)
+		return 1;
+	if (jump_count > 32)
+		return 32;
+	return jump_count;
+}
+
 static void BuildDeterministicJumpIndices(unsigned int sample_count,
 	unsigned int steps_per_sample,
 	unsigned int jump_count,
@@ -1348,14 +1379,29 @@ static void BuildDeterministicJumpIndices(unsigned int sample_count,
 
 static CpuJacobianPoint CpuJacobianJumpWalk(CpuJacobianPoint p,
 	const std::vector<CpuAffinePoint>& jumps,
+	const std::vector<uint64_t>& jump_distances,
 	const std::vector<uint32_t>& jump_indices,
 	size_t sample_index,
-	unsigned int steps_per_sample)
+	unsigned int steps_per_sample,
+	uint64_t* distance_out)
 {
+	uint64_t distance = 0;
 	size_t base = sample_index * (size_t)steps_per_sample;
 	for (unsigned int step = 0; step < steps_per_sample; ++step)
-		p = CpuJacobianAddAffine(p, jumps[jump_indices[base + step]]);
+	{
+		uint32_t jump_index = jump_indices[base + step];
+		distance += jump_distances[jump_index];
+		p = CpuJacobianAddAffine(p, jumps[jump_index]);
+	}
+	if (distance_out)
+		*distance_out = distance;
 	return p;
+}
+
+static uint64_t MixDistanceChecksum(uint64_t checksum, uint64_t distance, size_t sample_index)
+{
+	checksum ^= distance + 0x9E3779B97F4A7C15ULL + (checksum << 6) + (checksum >> 2) + (uint64_t)sample_index;
+	return checksum;
 }
 
 bool RCKMetalJacobianWalkSelfTest(std::string& error)
@@ -1389,26 +1435,31 @@ bool RCKMetalJacobianJumpWalkSelfTest(std::string& error)
 {
 	std::vector<CpuJacobianPoint> p;
 	std::vector<CpuAffinePoint> jumps;
+	std::vector<uint64_t> jump_distances;
 	std::vector<uint32_t> jump_indices;
 
 	const unsigned int sample_count = 24;
 	const unsigned int steps_per_sample = 7;
 	const unsigned int jump_count = 5;
 	BuildJacobianJumpWalkSamples(sample_count, jump_count, p, jumps);
+	BuildJacobianJumpDistances(jump_count, jump_distances);
 	BuildDeterministicJumpIndices(sample_count, steps_per_sample, jump_count, jump_indices);
 
 	std::vector<CpuJacobianPoint> out;
-	if (!RunJacobianJumpWalkKernel(p, jumps, jump_indices, steps_per_sample, out, error, NULL, 0, NULL))
+	std::vector<uint64_t> out_distances;
+	if (!RunJacobianJumpWalkKernel(p, jumps, jump_distances, jump_indices, steps_per_sample, out, out_distances, error, NULL, 0, NULL))
 		return false;
 
 	for (size_t i = 0; i < p.size(); ++i)
 	{
-		CpuJacobianPoint expected = CpuJacobianJumpWalk(p[i], jumps, jump_indices, i, steps_per_sample);
-		if (!CpuJacobianMatches(out[i], expected))
+		uint64_t expected_distance = 0;
+		CpuJacobianPoint expected = CpuJacobianJumpWalk(p[i], jumps, jump_distances, jump_indices, i, steps_per_sample, &expected_distance);
+		if (!CpuJacobianMatches(out[i], expected) || out_distances[i] != expected_distance)
 		{
 			error = "jacobian jump walk mismatch at vector " + std::to_string(i) +
 				": got x=" + FieldToHex(out[i].x) + " y=" + FieldToHex(out[i].y) +
 				" z=" + FieldToHex(out[i].z) + " inf=" + (out[i].infinity ? "1" : "0") +
+				" distance=" + std::to_string(out_distances[i]) +
 				" expected x=" + FieldToHex(expected.x) + " y=" + FieldToHex(expected.y) +
 				" z=" + FieldToHex(expected.z) + " inf=" + (expected.infinity ? "1" : "0");
 			return false;
@@ -1540,31 +1591,34 @@ std::string RCKMetalJacobianJumpWalkBenchJson(unsigned int iterations, unsigned 
 		iterations = 1;
 	if (steps_per_sample == 0)
 		steps_per_sample = 1;
-	if (jump_count == 0)
-		jump_count = 1;
+	jump_count = NormalizeMetalJumpCount(jump_count);
 
 	const unsigned int sample_count = iterations;
 	std::vector<CpuJacobianPoint> p;
 	std::vector<CpuAffinePoint> jumps;
+	std::vector<uint64_t> jump_distances;
 	std::vector<uint32_t> jump_indices;
 	BuildJacobianJumpWalkSamples(sample_count, jump_count, p, jumps);
+	BuildJacobianJumpDistances(jump_count, jump_distances);
 	BuildDeterministicJumpIndices(sample_count, steps_per_sample, jump_count, jump_indices);
 
 	std::vector<CpuJacobianPoint> out;
+	std::vector<uint64_t> out_distances;
 	std::string error;
 	double seconds = 0.0;
 	uint64_t operations = 0;
+	uint64_t distance_checksum = 0;
 	unsigned int dispatch_count = 0;
 	MetalDispatchStats dispatch_stats;
 	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveThreadgroupLimit(threadgroup_limit);
 	do
 	{
 		double dispatch_seconds = 0.0;
-		if (!RunJacobianJumpWalkKernel(p, jumps, jump_indices, steps_per_sample, out, error, &dispatch_seconds, threadgroup_limit, &dispatch_stats))
+		if (!RunJacobianJumpWalkKernel(p, jumps, jump_distances, jump_indices, steps_per_sample, out, out_distances, error, &dispatch_seconds, threadgroup_limit, &dispatch_stats))
 		{
 			if (error == "no Metal device available")
-				return MetalJacobianJumpWalkBenchJson("jacobian_affine_walk_jump_table", 0, sample_count, steps_per_sample, jump_count, min_ms, dispatch_stats, 0.0, 0.0, false, true, error);
-			return MetalJacobianJumpWalkBenchJson("jacobian_affine_walk_jump_table", operations ? operations : (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, min_ms, dispatch_stats, seconds, 0.0, false, false, error);
+				return MetalJacobianJumpWalkBenchJson("jacobian_affine_walk_jump_table", 0, sample_count, steps_per_sample, jump_count, 0, min_ms, dispatch_stats, 0.0, 0.0, false, true, error);
+			return MetalJacobianJumpWalkBenchJson("jacobian_affine_walk_jump_table", operations ? operations : (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, 0, min_ms, dispatch_stats, seconds, 0.0, false, false, error);
 		}
 		seconds += dispatch_seconds;
 		operations += (uint64_t)sample_count * steps_per_sample;
@@ -1575,20 +1629,23 @@ std::string RCKMetalJacobianJumpWalkBenchJson(unsigned int iterations, unsigned 
 
 	for (unsigned int i = 0; i < sample_count; ++i)
 	{
-		CpuJacobianPoint expected = CpuJacobianJumpWalk(p[i], jumps, jump_indices, i, steps_per_sample);
-		if (!CpuJacobianMatches(out[i], expected))
+		uint64_t expected_distance = 0;
+		CpuJacobianPoint expected = CpuJacobianJumpWalk(p[i], jumps, jump_distances, jump_indices, i, steps_per_sample, &expected_distance);
+		if (!CpuJacobianMatches(out[i], expected) || out_distances[i] != expected_distance)
 		{
 			std::string reason = "mismatch at vector " + std::to_string(i) +
 				": got x=" + FieldToHex(out[i].x) + " y=" + FieldToHex(out[i].y) +
 				" z=" + FieldToHex(out[i].z) + " inf=" + (out[i].infinity ? "1" : "0") +
+				" distance=" + std::to_string(out_distances[i]) +
 				" expected x=" + FieldToHex(expected.x) + " y=" + FieldToHex(expected.y) +
 				" z=" + FieldToHex(expected.z) + " inf=" + (expected.infinity ? "1" : "0");
-			return MetalJacobianJumpWalkBenchJson("jacobian_affine_walk_jump_table", operations, sample_count, steps_per_sample, jump_count, min_ms, dispatch_stats, seconds, 0.0, false, false, reason);
+			return MetalJacobianJumpWalkBenchJson("jacobian_affine_walk_jump_table", operations, sample_count, steps_per_sample, jump_count, 0, min_ms, dispatch_stats, seconds, 0.0, false, false, reason);
 		}
+		distance_checksum = MixDistanceChecksum(distance_checksum, out_distances[i], i);
 	}
 
 	double ops_per_sec = seconds > 0.0 ? (double)operations / seconds : 0.0;
-	return MetalJacobianJumpWalkBenchJson("jacobian_affine_walk_jump_table", operations, sample_count, steps_per_sample, jump_count, min_ms, dispatch_stats, seconds, ops_per_sec, true, false, "");
+	return MetalJacobianJumpWalkBenchJson("jacobian_affine_walk_jump_table", operations, sample_count, steps_per_sample, jump_count, distance_checksum, min_ms, dispatch_stats, seconds, ops_per_sec, true, false, "");
 }
 
 static std::string RunMetalFieldBenchJson(const char* operation,

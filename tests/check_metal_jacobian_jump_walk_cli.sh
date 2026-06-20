@@ -22,7 +22,7 @@ if [ "$status" -ne 0 ]; then
 fi
 
 case "$output" in
-	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_jump_table\""*"\"iterations\":"*"\"sample_count\":8"*"\"steps_per_sample\":4"*"\"jump_count\":5"*"\"min_ms\":1"*"\"threadgroup_limit\":256"*"\"thread_execution_width\":"*"\"max_threads_per_threadgroup\":"*"\"threads_per_threadgroup\":"*"\"correctness\":"*"\"skipped\":"*)
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_jump_table\""*"\"iterations\":"*"\"sample_count\":8"*"\"steps_per_sample\":4"*"\"jump_count\":5"*"\"distance_tracking\":\"uint64\""*"\"distance_checksum\":\"0x"*"\"min_ms\":1"*"\"threadgroup_limit\":256"*"\"thread_execution_width\":"*"\"max_threads_per_threadgroup\":"*"\"threads_per_threadgroup\":"*"\"correctness\":"*"\"skipped\":"*)
 		;;
 	*)
 		printf '%s\n' "unexpected metal-jacobian-jump-walk-bench output"

@@ -146,8 +146,8 @@ Commit: `2c2c9b5` (`feat: add Metal Jacobian jump-table walk`)
 - Added CPU replay oracle for the exact same jump-index sequence, so the
   benchmark verifies correctness rather than only measuring dispatch speed.
 - This is still not a full kangaroo kernel: it intentionally excludes
-  distinguished-point filtering, distance accumulation, and collision-table
-  writes. Those are the next correctness surfaces.
+  distinguished-point filtering, scalar-distance accumulation, and
+  collision-table writes. Those are the next correctness surfaces.
 - Added CLI commands:
   - `metal-jacobian-jump-walk-test`
   - `metal-jacobian-jump-walk-bench --iterations N [--steps N] [--jumps N] [--min-ms N] [--tg-limit N]`
@@ -161,6 +161,21 @@ Commit: `2c2c9b5` (`feat: add Metal Jacobian jump-table walk`)
   - `correctness=true`
   - `threadgroup_limit=256`
   - `threads_per_threadgroup=256`
+
+### Metal Jump-Walk Distance Accumulation
+
+Commit: pending (`feat: track Metal jump-walk distances`)
+
+- Added a 64-bit jump-distance table and per-sample distance output to
+  `jacobian_affine_walk_jump_table`.
+- The CPU oracle now verifies both the final Jacobian point and accumulated
+  scalar distance for the exact same jump-index sequence.
+- Bench JSON includes `distance_tracking=uint64` and `distance_checksum`, so
+  future Metal changes cannot silently drop distance state while preserving
+  point output.
+- This removes one blocker for a full Metal kangaroo loop. Distinguished-point
+  filtering and collision-table writes are still intentionally outside this
+  kernel.
 
 ### Direct Metal Jump Indices
 

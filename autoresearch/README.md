@@ -159,7 +159,15 @@ Run the jump-table Metal Jacobian walk experiment:
 python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk --budget-sec 5
 ```
 
-This records `metal` `jacobian_affine_walk_jump_table` throughput. Each Metal thread keeps one Jacobian state in registers, reads a deterministic per-sample jump-index sequence, selects from an affine jump table, emits the final `x/y/z` plus infinity flag, and validates against the CPU oracle that replays the same indices. It is still below full kangaroo scope because it does not yet include distinguished-point filtering or collision table writes.
+This records `metal` `jacobian_affine_walk_jump_table` throughput. Each Metal thread keeps one Jacobian state in registers, reads a deterministic per-sample jump-index sequence, selects from an affine jump table, accumulates the corresponding 64-bit scalar distance, emits the final `x/y/z` plus infinity flag and distance, and validates against the CPU oracle that replays the same indices. It is still below full kangaroo scope because it does not yet include distinguished-point filtering or collision table writes.
+
+Run the distance-aware Metal Jacobian jump-walk experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk_distance --budget-sec 5
+```
+
+This records the same Metal jump-table walk while treating scalar-distance accumulation as part of the gate. The JSON includes `distance_tracking=uint64` and a deterministic `distance_checksum`, so future changes cannot keep point correctness while silently dropping distance state.
 
 Run the CPU field multiplication experiment:
 
@@ -174,4 +182,4 @@ Results are written to:
 - `autoresearch/results.tsv`
 - `autoresearch/benchmarks.jsonl`
 
-The current CPU baseline metric is `multiply_g` operations per second. CPU affine point-add walk, CPU Jacobian mixed-add walk, CPU Jacobian jump-table walk, CPU single-target tiny kangaroo, CPU shared-tame tiny multi-target kangaroo at 4 and 16 targets, CPU field multiplication, Metal field addition/subtraction/doubling/mul4/negation/multiplication/squaring, Metal Jacobian-plus-affine add, fixed-step Metal Jacobian walk, and Metal jump-table Jacobian walk are tracked as separate fixed-gate experiments.
+The current CPU baseline metric is `multiply_g` operations per second. CPU affine point-add walk, CPU Jacobian mixed-add walk, CPU Jacobian jump-table walk, CPU single-target tiny kangaroo, CPU shared-tame tiny multi-target kangaroo at 4 and 16 targets, CPU field multiplication, Metal field addition/subtraction/doubling/mul4/negation/multiplication/squaring, Metal Jacobian-plus-affine add, fixed-step Metal Jacobian walk, Metal jump-table Jacobian walk, and Metal distance-aware jump-table Jacobian walk are tracked as separate fixed-gate experiments.
