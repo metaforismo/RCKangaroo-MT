@@ -65,6 +65,9 @@ Commit: `bbde2c8` (`perf: tune Metal field dispatch size`)
     `status=keep`, `correctness=true`.
   - `metal_field_mul`: `110,169,933.604968 ops/sec`, `1.127512x`,
     `status=keep`, `correctness=true`.
+  - A second `metal_field_mul` paired rerun under noisier conditions still kept
+    the candidate: `107,181,958.674000 ops/sec`, `1.045700x`,
+    `status=keep`, `correctness=true`.
 
 ### Fused Square-Mul Field Kernel
 

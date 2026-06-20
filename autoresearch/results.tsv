@@ -57,3 +57,4 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-20T21:23:38Z	bbde2c8	metal_field_square	metal	field_square_mod_p	6291456	120182161.633272	true	keep	Metal secp256k1 field_square_mod_p correctness and throughput gate
 2026-06-20T21:24:28Z	bbde2c8	metal_field_mul	metal	field_mul_mod_p	6291456	110169933.604968	true	keep	Metal secp256k1 field_mul_mod_p correctness and throughput gate
 2026-06-20T21:24:47Z	bbde2c8	metal_field_square_mul	metal	field_square_mul_mod_p	7340032	116411049.047869	true	keep	Metal fused secp256k1 field_square_mul_mod_p correctness and throughput gate
+2026-06-20T21:29:05Z	eade21c	metal_field_mul	metal	field_mul_mod_p	6291456	107181958.674000	true	keep	Metal secp256k1 field_mul_mod_p correctness and throughput gate
