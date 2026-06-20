@@ -766,40 +766,12 @@ static bool CheckKangarooMultiDpCollision(const KangarooDp& other,
 	return true;
 }
 
-static bool CheckKangarooMultiCollision(const KangarooDpBuckets& buckets,
-	const KangarooPointKey& key,
-	bool tame,
-	unsigned int target_index,
-	u64 distance,
-	u64 start,
-	u64 limit,
-	const std::vector<EcPoint>& targets,
-	u64* candidate,
-	unsigned int* matched_target_index)
-{
-	KangarooDpBuckets::const_iterator bucket_it = buckets.find(key);
-	if (bucket_it == buckets.end())
-		return false;
-
-	const KangarooDpBucket& bucket = bucket_it->second;
-	if (bucket.has_first && CheckKangarooMultiDpCollision(bucket.first, tame, target_index, distance, start, limit, targets, candidate, matched_target_index))
-		return true;
-
-	for (size_t i = 0; i < bucket.overflow.size(); i++)
-	{
-		if (CheckKangarooMultiDpCollision(bucket.overflow[i], tame, target_index, distance, start, limit, targets, candidate, matched_target_index))
-			return true;
-	}
-	return false;
-}
-
-static void RecordKangarooDp(KangarooDpBuckets& buckets, const KangarooPointKey& key, bool tame, u64 distance, unsigned int target_index, u64* dp_count)
+static void RecordKangarooDpInBucket(KangarooDpBucket& bucket, bool tame, u64 distance, unsigned int target_index, u64* dp_count)
 {
 	KangarooDp dp;
 	dp.tame = tame;
 	dp.distance = distance;
 	dp.target_index = target_index;
-	KangarooDpBucket& bucket = buckets[key];
 	if (!bucket.has_first)
 	{
 		bucket.first = dp;
@@ -810,6 +782,38 @@ static void RecordKangarooDp(KangarooDpBuckets& buckets, const KangarooPointKey&
 		bucket.overflow.push_back(dp);
 	}
 	(*dp_count)++;
+}
+
+static void RecordKangarooDp(KangarooDpBuckets& buckets, const KangarooPointKey& key, bool tame, u64 distance, unsigned int target_index, u64* dp_count)
+{
+	KangarooDpBucket& bucket = buckets[key];
+	RecordKangarooDpInBucket(bucket, tame, distance, target_index, dp_count);
+}
+
+static bool CheckOrRecordKangarooMultiDp(KangarooDpBuckets& buckets,
+	const KangarooPointKey& key,
+	bool tame,
+	unsigned int target_index,
+	u64 distance,
+	u64 start,
+	u64 limit,
+	const std::vector<EcPoint>& targets,
+	u64* candidate,
+	unsigned int* matched_target_index,
+	u64* dp_count)
+{
+	KangarooDpBucket& bucket = buckets[key];
+	if (bucket.has_first && CheckKangarooMultiDpCollision(bucket.first, tame, target_index, distance, start, limit, targets, candidate, matched_target_index))
+		return true;
+
+	for (size_t i = 0; i < bucket.overflow.size(); i++)
+	{
+		if (CheckKangarooMultiDpCollision(bucket.overflow[i], tame, target_index, distance, start, limit, targets, candidate, matched_target_index))
+			return true;
+	}
+
+	RecordKangarooDpInBucket(bucket, tame, distance, target_index, dp_count);
+	return false;
 }
 
 static void KangarooStep(JacobianPoint& p, u64* distance, const KangarooJumpTable& jumps)
@@ -936,7 +940,7 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiWithJumps(const std
 			KangarooPointKey key = RawPointKey(tame_affine);
 			u64 candidate = 0;
 			unsigned int matched_target_index = 0;
-			if (CheckKangarooMultiCollision(buckets, key, true, 0, tame_distance, range.start, range.limit, targets, &candidate, &matched_target_index))
+			if (CheckOrRecordKangarooMultiDp(buckets, key, true, 0, tame_distance, range.start, range.limit, targets, &candidate, &matched_target_index, &dp_count))
 			{
 				result.found = true;
 				result.private_key = candidate;
@@ -944,7 +948,6 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiWithJumps(const std
 				result.dp_count = (unsigned int)dp_count;
 				return result;
 			}
-			RecordKangarooDp(buckets, key, true, tame_distance, 0, &dp_count);
 		}
 
 		for (unsigned int target_index = 0; target_index < wilds.size(); target_index++)
@@ -955,7 +958,7 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiWithJumps(const std
 				KangarooPointKey key = RawPointKey(wild_affine);
 				u64 candidate = 0;
 				unsigned int matched_target_index = 0;
-				if (CheckKangarooMultiCollision(buckets, key, false, target_index, wild_distances[target_index], range.start, range.limit, targets, &candidate, &matched_target_index))
+				if (CheckOrRecordKangarooMultiDp(buckets, key, false, target_index, wild_distances[target_index], range.start, range.limit, targets, &candidate, &matched_target_index, &dp_count))
 				{
 					result.found = true;
 					result.private_key = candidate;
@@ -963,7 +966,6 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiWithJumps(const std
 					result.dp_count = (unsigned int)dp_count;
 					return result;
 				}
-				RecordKangarooDp(buckets, key, false, wild_distances[target_index], target_index, &dp_count);
 			}
 		}
 
@@ -1244,6 +1246,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"operation\":\"jacobian_kangaroo_multi_small\",";
 	out << "\"architecture\":\"shared_tame\",";
 	out << "\"dp_lookup\":\"hash\",";
+	out << "\"dp_record\":\"check_insert\",";
 	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
