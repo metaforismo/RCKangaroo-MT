@@ -52,19 +52,40 @@
 	#if !defined(__x86_64__) && !defined(__i386__)
 	static inline u8 _addcarry_u64(u8 carry, u64 a, u64 b, u64* out)
 	{
+	#if defined(__clang__)
+		unsigned long long carry_out = 0;
+		*out = (u64)__builtin_addcll((unsigned long long)a, (unsigned long long)b, (unsigned long long)carry, &carry_out);
+		return (u8)carry_out;
+	#else
 		uint128_t sum = (uint128_t)a + b + carry;
 		*out = (u64)sum;
 		return (u8)(sum >> 64);
+	#endif
 	}
 
 	static inline u8 _subborrow_u64(u8 borrow, u64 a, u64 b, u64* out)
 	{
+	#if defined(__clang__)
+		unsigned long long borrow_out = 0;
+		*out = (u64)__builtin_subcll((unsigned long long)a, (unsigned long long)b, (unsigned long long)borrow, &borrow_out);
+		return (u8)borrow_out;
+	#else
 		uint128_t sub = (uint128_t)b + borrow;
 		*out = (u64)(a - (u64)sub);
 		return (a < sub) ? 1 : 0;
+	#endif
 	}
 	#endif
 #endif
+
+static inline const char* EcIntCarryImplMode()
+{
+#if !defined(_WIN32) && !defined(__x86_64__) && !defined(__i386__) && defined(__clang__)
+	return "clang_builtin";
+#else
+	return "platform_intrinsic_or_uint128";
+#endif
+}
 
 class CriticalSection
 {

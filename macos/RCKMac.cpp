@@ -647,6 +647,7 @@ std::string RCKJacobianWalkBenchJson(unsigned int iterations, unsigned int min_m
 	out.precision(6);
 	out << "{\"backend\":\"macos_cpu\",";
 	out << "\"operation\":\"jacobian_jump_walk\",";
+	out << "\"ecint_carry_impl\":\"" << EcIntCarryImplMode() << "\",";
 	out << "\"jacobian_step_passing\":\"" << JacobianStepPassingMode() << "\",";
 	out << "\"jump_index\":\"" << JumpIndexMode(jump_count) << "\",";
 	out << "\"iterations\":" << operations << ",";
@@ -1374,6 +1375,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "{\"backend\":\"macos_cpu\",";
 	out << "\"operation\":\"jacobian_kangaroo_small\",";
 	out << "\"architecture\":\"single_target\",";
+	out << "\"ecint_carry_impl\":\"" << EcIntCarryImplMode() << "\",";
 	out << "\"field_rhs_passing\":\"" << FieldRhsPassingMode() << "\",";
 	out << "\"jacobian_step_passing\":\"" << JacobianStepPassingMode() << "\",";
 	out << "\"dp_lookup\":\"open_address_linear\",";
@@ -1491,6 +1493,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "{\"backend\":\"macos_cpu\",";
 	out << "\"operation\":\"jacobian_kangaroo_multi_small\",";
 	out << "\"architecture\":\"shared_tame\",";
+	out << "\"ecint_carry_impl\":\"" << EcIntCarryImplMode() << "\",";
 	out << "\"field_rhs_passing\":\"" << FieldRhsPassingMode() << "\",";
 	out << "\"jacobian_step_passing\":\"" << JacobianStepPassingMode() << "\",";
 	out << "\"dp_lookup\":\"open_address_linear\",";
