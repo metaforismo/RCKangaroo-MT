@@ -610,7 +610,18 @@ struct KangarooDp
 	unsigned int target_index;
 };
 
-typedef std::unordered_map<KangarooPointKey, std::vector<KangarooDp>, KangarooPointKeyHash> KangarooDpBuckets;
+struct KangarooDpBucket
+{
+	KangarooDp first;
+	bool has_first;
+	std::vector<KangarooDp> overflow;
+
+	KangarooDpBucket() : has_first(false)
+	{
+	}
+};
+
+typedef std::unordered_map<KangarooPointKey, KangarooDpBucket, KangarooPointKeyHash> KangarooDpBuckets;
 
 struct KangarooSolveScratch
 {
@@ -651,6 +662,32 @@ static bool VerifyCandidate(EcPoint target, u64 candidate)
 	return PointMatches(p, target);
 }
 
+static bool CheckKangarooDpCollision(const KangarooDp& other,
+	bool tame,
+	u64 distance,
+	u64 start,
+	u64 limit,
+	EcPoint target,
+	u64* candidate)
+{
+	if (other.tame == tame)
+		return false;
+
+	u64 tame_distance = tame ? distance : other.distance;
+	u64 wild_distance = tame ? other.distance : distance;
+	if (tame_distance < wild_distance)
+		return false;
+
+	u64 found = tame_distance - wild_distance;
+	if ((found < start) || (found >= start + limit))
+		return false;
+	if (!VerifyCandidate(target, found))
+		return false;
+
+	*candidate = found;
+	return true;
+}
+
 static bool CheckKangarooCollision(const KangarooDpBuckets& buckets,
 	const KangarooPointKey& key,
 	bool tame,
@@ -664,28 +701,49 @@ static bool CheckKangarooCollision(const KangarooDpBuckets& buckets,
 	if (bucket_it == buckets.end())
 		return false;
 
-	const std::vector<KangarooDp>& bucket = bucket_it->second;
-	for (size_t i = 0; i < bucket.size(); i++)
-	{
-		const KangarooDp& other = bucket[i];
-		if (other.tame == tame)
-			continue;
-
-		u64 tame_distance = tame ? distance : other.distance;
-		u64 wild_distance = tame ? other.distance : distance;
-		if (tame_distance < wild_distance)
-			continue;
-
-		u64 found = tame_distance - wild_distance;
-		if ((found < start) || (found >= start + limit))
-			continue;
-		if (!VerifyCandidate(target, found))
-			continue;
-
-		*candidate = found;
+	const KangarooDpBucket& bucket = bucket_it->second;
+	if (bucket.has_first && CheckKangarooDpCollision(bucket.first, tame, distance, start, limit, target, candidate))
 		return true;
+
+	for (size_t i = 0; i < bucket.overflow.size(); i++)
+	{
+		if (CheckKangarooDpCollision(bucket.overflow[i], tame, distance, start, limit, target, candidate))
+			return true;
 	}
 	return false;
+}
+
+static bool CheckKangarooMultiDpCollision(const KangarooDp& other,
+	bool tame,
+	unsigned int target_index,
+	u64 distance,
+	u64 start,
+	u64 limit,
+	const std::vector<EcPoint>& targets,
+	u64* candidate,
+	unsigned int* matched_target_index)
+{
+	if (other.tame == tame)
+		return false;
+
+	unsigned int check_target_index = tame ? other.target_index : target_index;
+	if (check_target_index >= targets.size())
+		return false;
+
+	u64 tame_distance = tame ? distance : other.distance;
+	u64 wild_distance = tame ? other.distance : distance;
+	if (tame_distance < wild_distance)
+		return false;
+
+	u64 found = tame_distance - wild_distance;
+	if ((found < start) || (found >= start + limit))
+		return false;
+	if (!VerifyCandidate(targets[check_target_index], found))
+		return false;
+
+	*candidate = found;
+	*matched_target_index = check_target_index;
+	return true;
 }
 
 static bool CheckKangarooMultiCollision(const KangarooDpBuckets& buckets,
@@ -703,31 +761,14 @@ static bool CheckKangarooMultiCollision(const KangarooDpBuckets& buckets,
 	if (bucket_it == buckets.end())
 		return false;
 
-	const std::vector<KangarooDp>& bucket = bucket_it->second;
-	for (size_t i = 0; i < bucket.size(); i++)
-	{
-		const KangarooDp& other = bucket[i];
-		if (other.tame == tame)
-			continue;
-
-		unsigned int check_target_index = tame ? other.target_index : target_index;
-		if (check_target_index >= targets.size())
-			continue;
-
-		u64 tame_distance = tame ? distance : other.distance;
-		u64 wild_distance = tame ? other.distance : distance;
-		if (tame_distance < wild_distance)
-			continue;
-
-		u64 found = tame_distance - wild_distance;
-		if ((found < start) || (found >= start + limit))
-			continue;
-		if (!VerifyCandidate(targets[check_target_index], found))
-			continue;
-
-		*candidate = found;
-		*matched_target_index = check_target_index;
+	const KangarooDpBucket& bucket = bucket_it->second;
+	if (bucket.has_first && CheckKangarooMultiDpCollision(bucket.first, tame, target_index, distance, start, limit, targets, candidate, matched_target_index))
 		return true;
+
+	for (size_t i = 0; i < bucket.overflow.size(); i++)
+	{
+		if (CheckKangarooMultiDpCollision(bucket.overflow[i], tame, target_index, distance, start, limit, targets, candidate, matched_target_index))
+			return true;
 	}
 	return false;
 }
@@ -738,7 +779,16 @@ static void RecordKangarooDp(KangarooDpBuckets& buckets, const KangarooPointKey&
 	dp.tame = tame;
 	dp.distance = distance;
 	dp.target_index = target_index;
-	buckets[key].push_back(dp);
+	KangarooDpBucket& bucket = buckets[key];
+	if (!bucket.has_first)
+	{
+		bucket.first = dp;
+		bucket.has_first = true;
+	}
+	else
+	{
+		bucket.overflow.push_back(dp);
+	}
 	(*dp_count)++;
 }
 
@@ -1064,6 +1114,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "\"operation\":\"jacobian_kangaroo_small\",";
 	out << "\"architecture\":\"single_target\",";
 	out << "\"dp_lookup\":\"hash\",";
+	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"affine_conversion\":\"batch\",";
 	out << "\"jump_table\":\"precomputed\",";
 	out << "\"scratch\":\"reused\",";
@@ -1172,6 +1223,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"operation\":\"jacobian_kangaroo_multi_small\",";
 	out << "\"architecture\":\"shared_tame\",";
 	out << "\"dp_lookup\":\"hash\",";
+	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"affine_conversion\":\"batch\",";
 	out << "\"jump_table\":\"precomputed\",";
 	out << "\"scratch\":\"reused\",";
