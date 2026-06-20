@@ -54,3 +54,6 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-20T19:10:16Z	79327a1	jacobian_kangaroo_multi16_small	macos_cpu	jacobian_kangaroo_multi_small	624	12475.207524	true	keep	Apple Silicon CPU shared-tame tiny 16-target kangaroo benchmark
 2026-06-20T19:18:48Z	567a75d	jacobian_kangaroo_multi16_small	macos_cpu	jacobian_kangaroo_multi_small	778	15544.196837	true	keep	Apple Silicon CPU shared-tame tiny 16-target kangaroo benchmark
 2026-06-20T19:51:12Z	1fc4376	jacobian_kangaroo_multi16_small	macos_cpu	jacobian_kangaroo_multi_small	777	15523.054103	true	keep	Apple Silicon CPU shared-tame tiny 16-target kangaroo benchmark
+2026-06-20T21:23:38Z	bbde2c8	metal_field_square	metal	field_square_mod_p	6291456	120182161.633272	true	keep	Metal secp256k1 field_square_mod_p correctness and throughput gate
+2026-06-20T21:24:28Z	bbde2c8	metal_field_mul	metal	field_mul_mod_p	6291456	110169933.604968	true	keep	Metal secp256k1 field_mul_mod_p correctness and throughput gate
+2026-06-20T21:24:47Z	bbde2c8	metal_field_square_mul	metal	field_square_mul_mod_p	7340032	116411049.047869	true	keep	Metal fused secp256k1 field_square_mul_mod_p correctness and throughput gate
