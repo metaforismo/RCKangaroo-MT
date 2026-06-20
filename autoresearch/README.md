@@ -45,7 +45,7 @@ Run the CPU single-target tiny kangaroo experiment:
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_small --budget-sec 5
 ```
 
-This records `macos_cpu` `jacobian_kangaroo_small` solves per second. The benchmark generates one deterministic synthetic target, precomputes the deterministic jump table once per run, reuses scratch storage across measured solves, and reports `architecture=single_target`, `dp_lookup=hash`, `affine_conversion=batch`, `jump_table=precomputed`, `scratch=reused`, tame/wild state counts, and DP table size.
+This records `macos_cpu` `jacobian_kangaroo_small` solves per second. The benchmark generates one deterministic synthetic target, precomputes the deterministic jump table and range/tame-start context once per run, reuses scratch storage across measured solves, and reports `architecture=single_target`, `dp_lookup=hash`, `affine_conversion=batch`, `jump_table=precomputed`, `scratch=reused`, `range_context=precomputed`, tame/wild state counts, and DP table size.
 
 Run the CPU shared-tame tiny multi-target kangaroo experiment:
 
@@ -53,7 +53,7 @@ Run the CPU shared-tame tiny multi-target kangaroo experiment:
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5
 ```
 
-This records `macos_cpu` `jacobian_kangaroo_multi_small` solves per second. The benchmark generates deterministic synthetic targets, places one solvable target at the final index, precomputes the deterministic jump table once per run, reuses scratch storage across measured solves, and reports `architecture=shared_tame`, `dp_lookup=hash`, `affine_conversion=batch`, `jump_table=precomputed`, `scratch=reused`, target count, tame/wild state counts, DP table size, and same-parameter single-target comparison fields: `single_target_ops_per_sec`, `speedup_vs_single`, and `target_throughput_vs_single`.
+This records `macos_cpu` `jacobian_kangaroo_multi_small` solves per second. The benchmark generates deterministic synthetic targets, places one solvable target at the final index, precomputes the deterministic jump table and range/tame-start context once per run, reuses scratch storage across measured solves, and reports `architecture=shared_tame`, `dp_lookup=hash`, `affine_conversion=batch`, `jump_table=precomputed`, `scratch=reused`, `range_context=precomputed`, target count, tame/wild state counts, DP table size, and same-parameter single-target comparison fields: `single_target_ops_per_sec`, `speedup_vs_single`, and `target_throughput_vs_single`.
 
 Run the Metal field-add experiment:
 
