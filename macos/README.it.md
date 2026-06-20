@@ -8,7 +8,7 @@ RCKangaroo-MT usa ancora NVIDIA CUDA per il solver kangaroo completo ad alte pre
 make macos-check
 ```
 
-Questo compila `macos/rck_macos`, esegue vettori secp256k1 host, valida il parsing target, lancia il selftest CPU nativo, controlla l'aritmetica di campo CPU e prova i check Metal field-add/sub/double/neg/mul/square quando Metal e' visibile.
+Questo compila `macos/rck_macos`, esegue vettori secp256k1 host, valida il parsing target, lancia il selftest CPU nativo, controlla l'aritmetica di campo CPU e prova i check Metal field-add/sub/double/mul4/neg/mul/square quando Metal e' visibile.
 
 La build macOS usa `-O3` di default. Puoi fare override quando serve:
 
@@ -78,7 +78,7 @@ Smoke test Metal:
 
 Se nell'ambiente corrente non e' visibile un device Metal, il comando segnala uno skip invece di fallire. Su un runtime Apple Silicon normale con accesso al device, compila ed esegue un kernel Metal minimo.
 
-Check e benchmark Metal per addizione, sottrazione, doubling, negazione, moltiplicazione e quadrato nel campo secp256k1:
+Check e benchmark Metal per addizione, sottrazione, doubling, moltiplicazione per 4, negazione, moltiplicazione e quadrato nel campo secp256k1:
 
 ```sh
 ./macos/rck_macos metal-field-test
@@ -87,6 +87,8 @@ make macos-metal-field-bench
 make macos-metal-field-sub-bench
 ./macos/rck_macos metal-field-double-test
 make macos-metal-field-double-bench
+./macos/rck_macos metal-field-mul4-test
+make macos-metal-field-mul4-bench
 ./macos/rck_macos metal-field-neg-test
 make macos-metal-field-neg-bench
 ./macos/rck_macos metal-field-mul-test
@@ -96,7 +98,7 @@ make macos-metal-field-square-bench
 make macos-metal-kernels-check
 ```
 
-I kernel field usano quattro limb little-endian da 64 bit modulo il primo secp256k1 e confrontano l'output Metal con oracle CPU. `field_sub_mod_p` gestisce l'underflow modulare aggiungendo il primo secp256k1 dopo una sottrazione con borrow. `field_double_mod_p` calcola il doubling modulare con un solo input load e la stessa riduzione condizionale dell'addizione, dando alle formule Jacobian un percorso piu' economico per i termini espliciti `2*x`. `field_neg_mod_p` calcola la negazione modulare canonica, mantenendo zero come zero e usando `p - x` per input non nulli. `field_mul_mod_p` usa decomposizione a 32 bit per moltiplicazione 64x64 portabile dentro Metal; `field_square_mod_p` ora usa un accumulatore simmetrico con 10 prodotti limb prima del riduttore condiviso, in linea con le formule Jacobian che fanno molti quadrati di campo. In CI o sessioni sandbox senza device Metal visibile, i check runtime segnalano uno skip pulito. `macos-metal-kernels-check` compila il source Metal estratto quando il Metal Toolchain e' installato; altrimenti segnala uno skip pulito del toolchain.
+I kernel field usano quattro limb little-endian da 64 bit modulo il primo secp256k1 e confrontano l'output Metal con oracle CPU. `field_sub_mod_p` gestisce l'underflow modulare aggiungendo il primo secp256k1 dopo una sottrazione con borrow. `field_double_mod_p` calcola il doubling modulare con un solo input load e la stessa riduzione condizionale dell'addizione, dando alle formule Jacobian un percorso piu' economico per i termini espliciti `2*x`. `field_mul4_mod_p` calcola `4*x mod p` applicando due volte nello stesso kernel la helper di doubling, evitando due dispatch separati per le formule con termini espliciti `4*x`. `field_neg_mod_p` calcola la negazione modulare canonica, mantenendo zero come zero e usando `p - x` per input non nulli. `field_mul_mod_p` usa decomposizione a 32 bit per moltiplicazione 64x64 portabile dentro Metal; `field_square_mod_p` ora usa un accumulatore simmetrico con 10 prodotti limb prima del riduttore condiviso, in linea con le formule Jacobian che fanno molti quadrati di campo. In CI o sessioni sandbox senza device Metal visibile, i check runtime segnalano uno skip pulito. `macos-metal-kernels-check` compila il source Metal estratto quando il Metal Toolchain e' installato; altrimenti segnala uno skip pulito del toolchain.
 
 ## Preparare una lista target
 
@@ -142,6 +144,7 @@ python3 autoresearch/runner.py --experiment cpu_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_add --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_sub --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_double --budget-sec 5
+python3 autoresearch/runner.py --experiment metal_field_mul4 --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_neg --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_square --budget-sec 5

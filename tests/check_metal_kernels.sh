@@ -37,6 +37,11 @@ if ! grep -q "kernel void field_neg_mod_p" "$tmp_source"; then
 	exit 1
 fi
 
+if ! grep -q "kernel void field_mul4_mod_p" "$tmp_source"; then
+	printf '%s\n' "field_mul4_mod_p kernel missing from Metal source"
+	exit 1
+fi
+
 if ! grep -q "kernel void field_mul_mod_p" "$tmp_source"; then
 	printf '%s\n' "field_mul_mod_p kernel missing from Metal source"
 	exit 1

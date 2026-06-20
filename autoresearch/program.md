@@ -38,7 +38,7 @@ Future experiments may add:
 
 - field multiplication/sec;
 - point addition/sec;
-- Metal smoke and arithmetic kernel throughput, including field add, subtract, double, negation, multiply, and square;
+- Metal smoke and arithmetic kernel throughput, including field add, subtract, double, mul4, negation, multiply, and square;
 - tiny-range solve/sec;
 - distinguished points/sec.
 

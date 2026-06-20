@@ -190,6 +190,17 @@ static inline void field_square_values(ulong a0, ulong a1, ulong a2, ulong a3,
   reduce512_mod_p(buff, r0, r1, r2, r3);
 }
 
+static inline void field_double_values(ulong a0, ulong a1, ulong a2, ulong a3,
+                                       thread ulong& r0, thread ulong& r1,
+                                       thread ulong& r2, thread ulong& r3) {
+  r0 = a0 + a0;
+  ulong c = r0 < a0 ? 1UL : 0UL;
+  ulong t = a1 + a1; ulong c1 = t < a1 ? 1UL : 0UL; r1 = t + c; c = (c1 || (r1 < t)) ? 1UL : 0UL;
+  t = a2 + a2; c1 = t < a2 ? 1UL : 0UL; r2 = t + c; c = (c1 || (r2 < t)) ? 1UL : 0UL;
+  t = a3 + a3; c1 = t < a3 ? 1UL : 0UL; r3 = t + c; c = (c1 || (r3 < t)) ? 1UL : 0UL;
+  if (c || ge_p(r0, r1, r2, r3)) sub_p(r0, r1, r2, r3);
+}
+
 kernel void field_add_mod_p(device const ulong* a [[buffer(0)]],
                             device const ulong* b [[buffer(1)]],
                             device ulong* out [[buffer(2)]],
@@ -234,12 +245,24 @@ kernel void field_double_mod_p(device const ulong* a [[buffer(0)]],
   if (id >= count) return;
   uint base = id * 4;
   ulong a0 = a[base + 0], a1 = a[base + 1], a2 = a[base + 2], a3 = a[base + 3];
-  ulong r0 = a0 + a0;
-  ulong c = r0 < a0 ? 1UL : 0UL;
-  ulong t = a1 + a1; ulong c1 = t < a1 ? 1UL : 0UL; ulong r1 = t + c; c = (c1 || (r1 < t)) ? 1UL : 0UL;
-  t = a2 + a2; c1 = t < a2 ? 1UL : 0UL; ulong r2 = t + c; c = (c1 || (r2 < t)) ? 1UL : 0UL;
-  t = a3 + a3; c1 = t < a3 ? 1UL : 0UL; ulong r3 = t + c; c = (c1 || (r3 < t)) ? 1UL : 0UL;
-  if (c || ge_p(r0, r1, r2, r3)) sub_p(r0, r1, r2, r3);
+  ulong r0 = 0, r1 = 0, r2 = 0, r3 = 0;
+  field_double_values(a0, a1, a2, a3, r0, r1, r2, r3);
+  out[base + 0] = r0; out[base + 1] = r1; out[base + 2] = r2; out[base + 3] = r3;
+}
+
+kernel void field_mul4_mod_p(device const ulong* a [[buffer(0)]],
+                             device const ulong* b [[buffer(1)]],
+                             device ulong* out [[buffer(2)]],
+                             constant uint& count [[buffer(3)]],
+                             uint id [[thread_position_in_grid]]) {
+  (void)b;
+  if (id >= count) return;
+  uint base = id * 4;
+  ulong d0 = 0, d1 = 0, d2 = 0, d3 = 0;
+  ulong r0 = 0, r1 = 0, r2 = 0, r3 = 0;
+  field_double_values(a[base + 0], a[base + 1], a[base + 2], a[base + 3],
+                      d0, d1, d2, d3);
+  field_double_values(d0, d1, d2, d3, r0, r1, r2, r3);
   out[base + 0] = r0; out[base + 1] = r1; out[base + 2] = r2; out[base + 3] = r3;
 }
 
