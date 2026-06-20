@@ -1,0 +1,7 @@
+{
+  "name": "metal_jacobian_jump_walk",
+  "description": "Metal Jacobian jump-table walk correctness and throughput gate",
+  "bench_target": "macos-metal-jacobian-jump-walk-bench",
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3
+}

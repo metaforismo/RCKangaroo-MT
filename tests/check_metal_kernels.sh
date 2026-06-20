@@ -67,6 +67,11 @@ if ! grep -q "kernel void jacobian_affine_walk_fixed" "$tmp_source"; then
 	exit 1
 fi
 
+if ! grep -q "kernel void jacobian_affine_walk_jump_table" "$tmp_source"; then
+	printf '%s\n' "jacobian_affine_walk_jump_table kernel missing from Metal source"
+	exit 1
+fi
+
 if ! grep -q "field_square_values" "$tmp_source"; then
 	printf '%s\n' "field_square_values helper missing from Metal source"
 	exit 1
@@ -123,6 +128,18 @@ if ! awk '
 	END { exit (found_step && found_loop) ? 0 : 1 }
 ' "$tmp_source"; then
 	printf '%s\n' "jacobian_affine_walk_fixed does not loop over the shared Jacobian add helper"
+	exit 1
+fi
+
+if ! awk '
+	/kernel void jacobian_affine_walk_jump_table/ { in_walk = 1 }
+	in_walk && /device const uint\* jump_indices/ { found_indices = 1 }
+	in_walk && /jacobian_add_affine_values/ { found_step = 1 }
+	in_walk && /for \(uint step/ { found_loop = 1 }
+	in_walk && /^}/ { in_walk = 0 }
+	END { exit (found_indices && found_step && found_loop) ? 0 : 1 }
+' "$tmp_source"; then
+	printf '%s\n' "jacobian_affine_walk_jump_table does not loop over indexed jump-table mixed-adds"
 	exit 1
 fi
 

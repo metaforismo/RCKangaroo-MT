@@ -153,6 +153,14 @@ python3 autoresearch/runner.py --experiment metal_jacobian_walk --budget-sec 5
 
 This records `metal` `jacobian_affine_walk_fixed` throughput. Each Metal thread keeps one Jacobian state in registers, applies the same affine mixed-add step a fixed number of times, emits the final `x/y/z` plus infinity flag, and validates against the CPU oracle loop. It is a walk-core layer before variable jump selection and distinguished-point handling.
 
+Run the jump-table Metal Jacobian walk experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk --budget-sec 5
+```
+
+This records `metal` `jacobian_affine_walk_jump_table` throughput. Each Metal thread keeps one Jacobian state in registers, reads a deterministic per-sample jump-index sequence, selects from an affine jump table, emits the final `x/y/z` plus infinity flag, and validates against the CPU oracle that replays the same indices. It is still below full kangaroo scope because it does not yet include distinguished-point filtering or collision table writes.
+
 Run the CPU field multiplication experiment:
 
 ```sh
@@ -166,4 +174,4 @@ Results are written to:
 - `autoresearch/results.tsv`
 - `autoresearch/benchmarks.jsonl`
 
-The current CPU baseline metric is `multiply_g` operations per second. CPU affine point-add walk, CPU Jacobian mixed-add walk, CPU Jacobian jump-table walk, CPU single-target tiny kangaroo, CPU shared-tame tiny multi-target kangaroo at 4 and 16 targets, CPU field multiplication, Metal field addition/subtraction/doubling/mul4/negation/multiplication/squaring, Metal Jacobian-plus-affine add, and fixed-step Metal Jacobian walk are tracked as separate fixed-gate experiments.
+The current CPU baseline metric is `multiply_g` operations per second. CPU affine point-add walk, CPU Jacobian mixed-add walk, CPU Jacobian jump-table walk, CPU single-target tiny kangaroo, CPU shared-tame tiny multi-target kangaroo at 4 and 16 targets, CPU field multiplication, Metal field addition/subtraction/doubling/mul4/negation/multiplication/squaring, Metal Jacobian-plus-affine add, fixed-step Metal Jacobian walk, and Metal jump-table Jacobian walk are tracked as separate fixed-gate experiments.
