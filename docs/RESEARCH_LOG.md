@@ -99,6 +99,10 @@ These did not pass the performance gate or had a correctness/architecture issue:
 - `macos-field-self-ops-v2`: speedup `0.993284`; discarded.
 - `macos-native-cpu-flags-v3`: speedup `1.001949`, below gate; discarded.
 - `macos-metal-square-generic`: correct but slower/unstable; not merged.
+- `macos-metal-tg512`: correct and sometimes faster for
+  `field_mul_mod_p`, but rejected because `field_square_mod_p` regressed badly
+  in direct Metal runs. Keep the current 256-thread cap as the baseline until a
+  broader Metal benchmark shows a consistent cross-kernel win.
 
 ## Next Research Targets
 
