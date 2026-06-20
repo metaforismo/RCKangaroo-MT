@@ -243,6 +243,11 @@ static const char* JacobianBatchZAccessMode()
 	return "const_ref";
 }
 
+static const char* JacobianBatchZCheckMode()
+{
+	return "infinity_flag";
+}
+
 static const char* JacobianBatchBufferMode()
 {
 	return "resize_reuse";
@@ -272,7 +277,7 @@ static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<J
 	{
 		const JacobianPoint& p = i ? wilds[i - 1] : tame;
 		const EcInt& z = p.z;
-		if (p.infinity || IntIsZero(z))
+		if (p.infinity)
 		{
 			all_active = false;
 			break;
@@ -306,7 +311,7 @@ static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<J
 	{
 		const JacobianPoint& p = i ? wilds[i - 1] : tame;
 		const EcInt& z = p.z;
-		if (p.infinity || IntIsZero(z))
+		if (p.infinity)
 		{
 			affines[i] = EcPoint();
 			active[i] = 0;
@@ -1530,6 +1535,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
 	out << "\"affine_z_access\":\"" << JacobianBatchZAccessMode() << "\",";
+	out << "\"affine_z_check\":\"" << JacobianBatchZCheckMode() << "\",";
 	out << "\"affine_buffer\":\"" << JacobianBatchBufferMode() << "\",";
 	out << "\"affine_active_path\":\"" << JacobianBatchActivePathMode() << "\",";
 	out << "\"affine_tail_update\":\"" << JacobianBatchTailUpdateMode() << "\",";
@@ -1696,6 +1702,7 @@ std::string RCKJacobianBatchAffineBenchJson(unsigned int iterations, unsigned in
 	out << "\"field_rhs_passing\":\"" << FieldRhsPassingMode() << "\",";
 	out << "\"affine_conversion\":\"batch\",";
 	out << "\"affine_z_access\":\"" << JacobianBatchZAccessMode() << "\",";
+	out << "\"affine_z_check\":\"" << JacobianBatchZCheckMode() << "\",";
 	out << "\"affine_buffer\":\"" << JacobianBatchBufferMode() << "\",";
 	out << "\"affine_active_path\":\"" << JacobianBatchActivePathMode() << "\",";
 	out << "\"affine_tail_update\":\"" << JacobianBatchTailUpdateMode() << "\",";
