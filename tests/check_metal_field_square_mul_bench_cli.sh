@@ -11,7 +11,7 @@ if [ "$status" -ne 0 ]; then
 fi
 
 case "$output" in
-	*"\"backend\":\"metal\""*"\"operation\":\"field_square_mul_mod_p\""*"\"iterations\":"*"\"sample_count\":8"*"\"min_ms\":1"*"\"thread_execution_width\":"*"\"max_threads_per_threadgroup\":"*"\"threads_per_threadgroup\":"*"\"correctness\":"*"\"skipped\":"*)
+	*"\"backend\":\"metal\""*"\"operation\":\"field_square_mul_mod_p\""*"\"iterations\":"*"\"sample_count\":8"*"\"min_ms\":1"*"\"threadgroup_limit\":256"*"\"thread_execution_width\":"*"\"max_threads_per_threadgroup\":"*"\"threads_per_threadgroup\":"*"\"correctness\":"*"\"skipped\":"*)
 		;;
 	*)
 		printf '%s\n' "unexpected metal-field-square-mul-bench output"

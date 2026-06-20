@@ -3,18 +3,18 @@
 #include <string>
 
 bool RCKMetalFieldAddSelfTest(std::string& error);
-std::string RCKMetalFieldAddBenchJson(unsigned int iterations, unsigned int min_ms);
+std::string RCKMetalFieldAddBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit = 0);
 bool RCKMetalFieldSubSelfTest(std::string& error);
-std::string RCKMetalFieldSubBenchJson(unsigned int iterations, unsigned int min_ms);
+std::string RCKMetalFieldSubBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit = 0);
 bool RCKMetalFieldDoubleSelfTest(std::string& error);
-std::string RCKMetalFieldDoubleBenchJson(unsigned int iterations, unsigned int min_ms);
+std::string RCKMetalFieldDoubleBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit = 0);
 bool RCKMetalFieldMul4SelfTest(std::string& error);
-std::string RCKMetalFieldMul4BenchJson(unsigned int iterations, unsigned int min_ms);
+std::string RCKMetalFieldMul4BenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit = 0);
 bool RCKMetalFieldNegSelfTest(std::string& error);
-std::string RCKMetalFieldNegBenchJson(unsigned int iterations, unsigned int min_ms);
+std::string RCKMetalFieldNegBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit = 0);
 bool RCKMetalFieldMulSelfTest(std::string& error);
-std::string RCKMetalFieldMulBenchJson(unsigned int iterations, unsigned int min_ms);
+std::string RCKMetalFieldMulBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit = 0);
 bool RCKMetalFieldSquareSelfTest(std::string& error);
-std::string RCKMetalFieldSquareBenchJson(unsigned int iterations, unsigned int min_ms);
+std::string RCKMetalFieldSquareBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit = 0);
 bool RCKMetalFieldSquareMulSelfTest(std::string& error);
-std::string RCKMetalFieldSquareMulBenchJson(unsigned int iterations, unsigned int min_ms);
+std::string RCKMetalFieldSquareMulBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit = 0);

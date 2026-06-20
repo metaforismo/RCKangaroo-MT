@@ -91,6 +91,7 @@ macos-check: check-host check-autoresearch check-quality-gates macos-lto-flags-c
 	sh tests/check_metal_kernels.sh
 	sh tests/check_metal_field_cli.sh
 	sh tests/check_metal_field_bench_cli.sh
+	sh tests/check_metal_field_tg_limit_cli.sh
 	sh tests/check_metal_field_mul_cli.sh
 	sh tests/check_metal_field_square_cli.sh
 	sh tests/check_metal_field_square_mul_cli.sh

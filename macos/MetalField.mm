@@ -16,8 +16,11 @@
 
 typedef std::array<uint64_t, 4> FieldElement;
 
+static constexpr unsigned int kDefaultMetalFieldThreadgroupLimit = 256;
+
 struct MetalDispatchStats
 {
+	unsigned int threadgroup_limit = 0;
 	unsigned int thread_execution_width = 0;
 	unsigned int max_threads_per_threadgroup = 0;
 	unsigned int threads_per_threadgroup = 0;
@@ -314,6 +317,7 @@ static std::string MetalFieldBenchJson(const char* operation,
 	oss << "\"iterations\":" << iterations << ",";
 	oss << "\"sample_count\":" << sample_count << ",";
 	oss << "\"min_ms\":" << min_ms << ",";
+	oss << "\"threadgroup_limit\":" << dispatch_stats.threadgroup_limit << ",";
 	oss << "\"thread_execution_width\":" << dispatch_stats.thread_execution_width << ",";
 	oss << "\"max_threads_per_threadgroup\":" << dispatch_stats.max_threads_per_threadgroup << ",";
 	oss << "\"threads_per_threadgroup\":" << dispatch_stats.threads_per_threadgroup << ",";
@@ -332,11 +336,17 @@ static NSString* FieldSource()
 	return [NSString stringWithUTF8String:RCKMetalFieldKernelsSource];
 }
 
-static NSUInteger PreferredThreadgroupWidth(id<MTLComputePipelineState> pipeline)
+static NSUInteger EffectiveThreadgroupLimit(unsigned int threadgroup_limit)
+{
+	return threadgroup_limit ? (NSUInteger)threadgroup_limit : (NSUInteger)kDefaultMetalFieldThreadgroupLimit;
+}
+
+static NSUInteger PreferredThreadgroupWidth(id<MTLComputePipelineState> pipeline, unsigned int threadgroup_limit)
 {
 	NSUInteger execution_width = [pipeline threadExecutionWidth] ? [pipeline threadExecutionWidth] : 1;
 	NSUInteger max_threads = [pipeline maxTotalThreadsPerThreadgroup] ? [pipeline maxTotalThreadsPerThreadgroup] : execution_width;
-	NSUInteger target = max_threads < 256 ? max_threads : 256;
+	NSUInteger requested_limit = EffectiveThreadgroupLimit(threadgroup_limit);
+	NSUInteger target = max_threads < requested_limit ? max_threads : requested_limit;
 	target -= target % execution_width;
 	if (target < execution_width)
 		target = execution_width;
@@ -349,8 +359,12 @@ static bool RunFieldKernel(const std::vector<FieldElement>& a,
 	std::string& error,
 	double* seconds,
 	const char* function_name,
+	unsigned int threadgroup_limit = 0,
 	MetalDispatchStats* dispatch_stats = NULL)
 {
+	if (dispatch_stats)
+		dispatch_stats->threadgroup_limit = (unsigned int)EffectiveThreadgroupLimit(threadgroup_limit);
+
 	if (a.size() != b.size() || a.empty())
 	{
 		error = "invalid field add input";
@@ -389,7 +403,7 @@ static bool RunFieldKernel(const std::vector<FieldElement>& a,
 		}
 		NSUInteger execution_width = [pipeline threadExecutionWidth] ? [pipeline threadExecutionWidth] : 1;
 		NSUInteger max_threads = [pipeline maxTotalThreadsPerThreadgroup] ? [pipeline maxTotalThreadsPerThreadgroup] : execution_width;
-		NSUInteger threads_per_threadgroup = PreferredThreadgroupWidth(pipeline);
+		NSUInteger threads_per_threadgroup = PreferredThreadgroupWidth(pipeline, threadgroup_limit);
 		if (dispatch_stats)
 		{
 			dispatch_stats->thread_execution_width = (unsigned int)execution_width;
@@ -723,7 +737,8 @@ static std::string RunMetalFieldBenchJson(const char* operation,
 	uint64_t a_salt,
 	uint64_t b_salt,
 	bool same_inputs,
-	ExpectedFieldFn expected_fn)
+	ExpectedFieldFn expected_fn,
+	unsigned int threadgroup_limit)
 {
 	if (iterations == 0)
 		iterations = 1;
@@ -745,10 +760,11 @@ static std::string RunMetalFieldBenchJson(const char* operation,
 	uint64_t operations = 0;
 	unsigned int dispatch_count = 0;
 	MetalDispatchStats dispatch_stats;
+	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveThreadgroupLimit(threadgroup_limit);
 	do
 	{
 		double dispatch_seconds = 0.0;
-		if (!RunFieldKernel(a, b, out, error, &dispatch_seconds, function_name, &dispatch_stats))
+		if (!RunFieldKernel(a, b, out, error, &dispatch_seconds, function_name, threadgroup_limit, &dispatch_stats))
 		{
 			if (error == "no Metal device available")
 				return MetalFieldBenchJson(operation, 0, sample_count, min_ms, dispatch_stats, 0.0, 0.0, false, true, error);
@@ -776,42 +792,42 @@ static std::string RunMetalFieldBenchJson(const char* operation,
 	return MetalFieldBenchJson(operation, operations, sample_count, min_ms, dispatch_stats, seconds, ops_per_sec, true, false, "");
 }
 
-std::string RCKMetalFieldAddBenchJson(unsigned int iterations, unsigned int min_ms)
+std::string RCKMetalFieldAddBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit)
 {
-	return RunMetalFieldBenchJson("field_add_mod_p", "field_add_mod_p", iterations, min_ms, 0x1234ULL, 0xBEEFULL, false, ExpectedAdd);
+	return RunMetalFieldBenchJson("field_add_mod_p", "field_add_mod_p", iterations, min_ms, 0x1234ULL, 0xBEEFULL, false, ExpectedAdd, threadgroup_limit);
 }
 
-std::string RCKMetalFieldSubBenchJson(unsigned int iterations, unsigned int min_ms)
+std::string RCKMetalFieldSubBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit)
 {
-	return RunMetalFieldBenchJson("field_sub_mod_p", "field_sub_mod_p", iterations, min_ms, 0x51BULL, 0xA7BULL, false, ExpectedSub);
+	return RunMetalFieldBenchJson("field_sub_mod_p", "field_sub_mod_p", iterations, min_ms, 0x51BULL, 0xA7BULL, false, ExpectedSub, threadgroup_limit);
 }
 
-std::string RCKMetalFieldDoubleBenchJson(unsigned int iterations, unsigned int min_ms)
+std::string RCKMetalFieldDoubleBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit)
 {
-	return RunMetalFieldBenchJson("field_double_mod_p", "field_double_mod_p", iterations, min_ms, 0xD00BULL, 0, true, ExpectedDouble);
+	return RunMetalFieldBenchJson("field_double_mod_p", "field_double_mod_p", iterations, min_ms, 0xD00BULL, 0, true, ExpectedDouble, threadgroup_limit);
 }
 
-std::string RCKMetalFieldMul4BenchJson(unsigned int iterations, unsigned int min_ms)
+std::string RCKMetalFieldMul4BenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit)
 {
-	return RunMetalFieldBenchJson("field_mul4_mod_p", "field_mul4_mod_p", iterations, min_ms, 0x4D14ULL, 0, true, ExpectedMul4);
+	return RunMetalFieldBenchJson("field_mul4_mod_p", "field_mul4_mod_p", iterations, min_ms, 0x4D14ULL, 0, true, ExpectedMul4, threadgroup_limit);
 }
 
-std::string RCKMetalFieldNegBenchJson(unsigned int iterations, unsigned int min_ms)
+std::string RCKMetalFieldNegBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit)
 {
-	return RunMetalFieldBenchJson("field_neg_mod_p", "field_neg_mod_p", iterations, min_ms, 0x6E67ULL, 0, true, ExpectedNeg);
+	return RunMetalFieldBenchJson("field_neg_mod_p", "field_neg_mod_p", iterations, min_ms, 0x6E67ULL, 0, true, ExpectedNeg, threadgroup_limit);
 }
 
-std::string RCKMetalFieldMulBenchJson(unsigned int iterations, unsigned int min_ms)
+std::string RCKMetalFieldMulBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit)
 {
-	return RunMetalFieldBenchJson("field_mul_mod_p", "field_mul_mod_p", iterations, min_ms, 0xCAFEULL, 0xBEEFULL, false, ExpectedMul);
+	return RunMetalFieldBenchJson("field_mul_mod_p", "field_mul_mod_p", iterations, min_ms, 0xCAFEULL, 0xBEEFULL, false, ExpectedMul, threadgroup_limit);
 }
 
-std::string RCKMetalFieldSquareBenchJson(unsigned int iterations, unsigned int min_ms)
+std::string RCKMetalFieldSquareBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit)
 {
-	return RunMetalFieldBenchJson("field_square_mod_p", "field_square_mod_p", iterations, min_ms, 0x5A5AULL, 0, true, ExpectedSquare);
+	return RunMetalFieldBenchJson("field_square_mod_p", "field_square_mod_p", iterations, min_ms, 0x5A5AULL, 0, true, ExpectedSquare, threadgroup_limit);
 }
 
-std::string RCKMetalFieldSquareMulBenchJson(unsigned int iterations, unsigned int min_ms)
+std::string RCKMetalFieldSquareMulBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit)
 {
-	return RunMetalFieldBenchJson("field_square_mul_mod_p", "field_square_mul_mod_p", iterations, min_ms, 0x5A5AULL, 0xC0DEULL, false, ExpectedSquareMul);
+	return RunMetalFieldBenchJson("field_square_mul_mod_p", "field_square_mul_mod_p", iterations, min_ms, 0x5A5AULL, 0xC0DEULL, false, ExpectedSquareMul, threadgroup_limit);
 }

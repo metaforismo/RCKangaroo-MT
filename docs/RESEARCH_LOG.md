@@ -56,8 +56,8 @@ Commit: `bbde2c8` (`perf: tune Metal field dispatch size`)
 - Changed Metal field dispatches from one execution-width group to a larger
   SIMD-aligned threadgroup, capped at 256 threads.
 - Benchmarks now report:
-  `thread_execution_width`, `max_threads_per_threadgroup`,
-  `threads_per_threadgroup`.
+  `threadgroup_limit`, `thread_execution_width`,
+  `max_threads_per_threadgroup`, `threads_per_threadgroup`.
 - On the local M3 run, Metal reported `thread_execution_width=32`,
   `max_threads_per_threadgroup=1024`, and `threads_per_threadgroup=256`.
 - Paired autoresearch against `main`:
@@ -103,6 +103,9 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `field_mul_mod_p`, but rejected because `field_square_mod_p` regressed badly
   in direct Metal runs. Keep the current 256-thread cap as the baseline until a
   broader Metal benchmark shows a consistent cross-kernel win.
+- `--tg-limit N` is now available on Metal field benchmark commands for
+  reproducible sweeps. The default remains 256 unless an experiment proves a
+  better cross-kernel cap.
 
 ## Next Research Targets
 

@@ -29,21 +29,21 @@ static void PrintUsage()
 	printf("  rck_macos cpu-field-bench --iterations N [--min-ms N]\n");
 	printf("  rck_macos metal-smoke\n");
 	printf("  rck_macos metal-field-test\n");
-	printf("  rck_macos metal-field-bench --iterations N [--min-ms N]\n");
+	printf("  rck_macos metal-field-bench --iterations N [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-field-sub-test\n");
-	printf("  rck_macos metal-field-sub-bench --iterations N [--min-ms N]\n");
+	printf("  rck_macos metal-field-sub-bench --iterations N [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-field-double-test\n");
-	printf("  rck_macos metal-field-double-bench --iterations N [--min-ms N]\n");
+	printf("  rck_macos metal-field-double-bench --iterations N [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-field-mul4-test\n");
-	printf("  rck_macos metal-field-mul4-bench --iterations N [--min-ms N]\n");
+	printf("  rck_macos metal-field-mul4-bench --iterations N [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-field-neg-test\n");
-	printf("  rck_macos metal-field-neg-bench --iterations N [--min-ms N]\n");
+	printf("  rck_macos metal-field-neg-bench --iterations N [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-field-mul-test\n");
-	printf("  rck_macos metal-field-mul-bench --iterations N [--min-ms N]\n");
+	printf("  rck_macos metal-field-mul-bench --iterations N [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-field-square-test\n");
-	printf("  rck_macos metal-field-square-bench --iterations N [--min-ms N]\n");
+	printf("  rck_macos metal-field-square-bench --iterations N [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-field-square-mul-test\n");
-	printf("  rck_macos metal-field-square-mul-bench --iterations N [--min-ms N]\n");
+	printf("  rck_macos metal-field-square-mul-bench --iterations N [--min-ms N] [--tg-limit N]\n");
 }
 
 static bool ReadOption(int argc, char* argv[], const char* name, const char** value)
@@ -88,6 +88,17 @@ static bool ReadBenchTimingOptions(int argc, char* argv[], unsigned int* iterati
 	if (ReadOption(argc, argv, "--iterations", &iter_s) && !ParseU32(iter_s, iterations))
 		return false;
 	if (ReadOption(argc, argv, "--min-ms", &min_ms_s) && !ParseU32(min_ms_s, min_ms))
+		return false;
+	return true;
+}
+
+static bool ReadMetalBenchOptions(int argc, char* argv[], unsigned int* iterations, unsigned int* min_ms, unsigned int* threadgroup_limit)
+{
+	const char* tg_s = NULL;
+	*threadgroup_limit = 0;
+	if (!ReadBenchTimingOptions(argc, argv, iterations, min_ms))
+		return false;
+	if (ReadOption(argc, argv, "--tg-limit", &tg_s) && !ParseU32(tg_s, threadgroup_limit))
 		return false;
 	return true;
 }
@@ -562,13 +573,14 @@ int main(int argc, char* argv[])
 	{
 		unsigned int iterations = 1024;
 		unsigned int min_ms = 0;
-		if (!ReadBenchTimingOptions(argc, argv, &iterations, &min_ms))
+		unsigned int threadgroup_limit = 0;
+		if (!ReadMetalBenchOptions(argc, argv, &iterations, &min_ms, &threadgroup_limit))
 		{
 			PrintUsage();
 			DeInitEc();
 			return 1;
 		}
-		printf("%s\n", RCKMetalFieldAddBenchJson(iterations, min_ms).c_str());
+		printf("%s\n", RCKMetalFieldAddBenchJson(iterations, min_ms, threadgroup_limit).c_str());
 	}
 	else if (strcmp(argv[1], "metal-field-sub-test") == 0)
 	{
@@ -589,13 +601,14 @@ int main(int argc, char* argv[])
 	{
 		unsigned int iterations = 1024;
 		unsigned int min_ms = 0;
-		if (!ReadBenchTimingOptions(argc, argv, &iterations, &min_ms))
+		unsigned int threadgroup_limit = 0;
+		if (!ReadMetalBenchOptions(argc, argv, &iterations, &min_ms, &threadgroup_limit))
 		{
 			PrintUsage();
 			DeInitEc();
 			return 1;
 		}
-		printf("%s\n", RCKMetalFieldSubBenchJson(iterations, min_ms).c_str());
+		printf("%s\n", RCKMetalFieldSubBenchJson(iterations, min_ms, threadgroup_limit).c_str());
 	}
 	else if (strcmp(argv[1], "metal-field-double-test") == 0)
 	{
@@ -616,13 +629,14 @@ int main(int argc, char* argv[])
 	{
 		unsigned int iterations = 1024;
 		unsigned int min_ms = 0;
-		if (!ReadBenchTimingOptions(argc, argv, &iterations, &min_ms))
+		unsigned int threadgroup_limit = 0;
+		if (!ReadMetalBenchOptions(argc, argv, &iterations, &min_ms, &threadgroup_limit))
 		{
 			PrintUsage();
 			DeInitEc();
 			return 1;
 		}
-		printf("%s\n", RCKMetalFieldDoubleBenchJson(iterations, min_ms).c_str());
+		printf("%s\n", RCKMetalFieldDoubleBenchJson(iterations, min_ms, threadgroup_limit).c_str());
 	}
 	else if (strcmp(argv[1], "metal-field-mul4-test") == 0)
 	{
@@ -643,13 +657,14 @@ int main(int argc, char* argv[])
 	{
 		unsigned int iterations = 1024;
 		unsigned int min_ms = 0;
-		if (!ReadBenchTimingOptions(argc, argv, &iterations, &min_ms))
+		unsigned int threadgroup_limit = 0;
+		if (!ReadMetalBenchOptions(argc, argv, &iterations, &min_ms, &threadgroup_limit))
 		{
 			PrintUsage();
 			DeInitEc();
 			return 1;
 		}
-		printf("%s\n", RCKMetalFieldMul4BenchJson(iterations, min_ms).c_str());
+		printf("%s\n", RCKMetalFieldMul4BenchJson(iterations, min_ms, threadgroup_limit).c_str());
 	}
 	else if (strcmp(argv[1], "metal-field-neg-test") == 0)
 	{
@@ -670,13 +685,14 @@ int main(int argc, char* argv[])
 	{
 		unsigned int iterations = 1024;
 		unsigned int min_ms = 0;
-		if (!ReadBenchTimingOptions(argc, argv, &iterations, &min_ms))
+		unsigned int threadgroup_limit = 0;
+		if (!ReadMetalBenchOptions(argc, argv, &iterations, &min_ms, &threadgroup_limit))
 		{
 			PrintUsage();
 			DeInitEc();
 			return 1;
 		}
-		printf("%s\n", RCKMetalFieldNegBenchJson(iterations, min_ms).c_str());
+		printf("%s\n", RCKMetalFieldNegBenchJson(iterations, min_ms, threadgroup_limit).c_str());
 	}
 	else if (strcmp(argv[1], "metal-field-mul-test") == 0)
 	{
@@ -697,13 +713,14 @@ int main(int argc, char* argv[])
 	{
 		unsigned int iterations = 1024;
 		unsigned int min_ms = 0;
-		if (!ReadBenchTimingOptions(argc, argv, &iterations, &min_ms))
+		unsigned int threadgroup_limit = 0;
+		if (!ReadMetalBenchOptions(argc, argv, &iterations, &min_ms, &threadgroup_limit))
 		{
 			PrintUsage();
 			DeInitEc();
 			return 1;
 		}
-		printf("%s\n", RCKMetalFieldMulBenchJson(iterations, min_ms).c_str());
+		printf("%s\n", RCKMetalFieldMulBenchJson(iterations, min_ms, threadgroup_limit).c_str());
 	}
 	else if (strcmp(argv[1], "metal-field-square-test") == 0)
 	{
@@ -724,13 +741,14 @@ int main(int argc, char* argv[])
 	{
 		unsigned int iterations = 1024;
 		unsigned int min_ms = 0;
-		if (!ReadBenchTimingOptions(argc, argv, &iterations, &min_ms))
+		unsigned int threadgroup_limit = 0;
+		if (!ReadMetalBenchOptions(argc, argv, &iterations, &min_ms, &threadgroup_limit))
 		{
 			PrintUsage();
 			DeInitEc();
 			return 1;
 		}
-		printf("%s\n", RCKMetalFieldSquareBenchJson(iterations, min_ms).c_str());
+		printf("%s\n", RCKMetalFieldSquareBenchJson(iterations, min_ms, threadgroup_limit).c_str());
 	}
 	else if (strcmp(argv[1], "metal-field-square-mul-test") == 0)
 	{
@@ -751,13 +769,14 @@ int main(int argc, char* argv[])
 	{
 		unsigned int iterations = 1024;
 		unsigned int min_ms = 0;
-		if (!ReadBenchTimingOptions(argc, argv, &iterations, &min_ms))
+		unsigned int threadgroup_limit = 0;
+		if (!ReadMetalBenchOptions(argc, argv, &iterations, &min_ms, &threadgroup_limit))
 		{
 			PrintUsage();
 			DeInitEc();
 			return 1;
 		}
-		printf("%s\n", RCKMetalFieldSquareMulBenchJson(iterations, min_ms).c_str());
+		printf("%s\n", RCKMetalFieldSquareMulBenchJson(iterations, min_ms, threadgroup_limit).c_str());
 	}
 	else
 	{
