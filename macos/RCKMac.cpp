@@ -653,6 +653,22 @@ struct KangarooSolveScratch
 	std::vector<unsigned char> affine_active;
 };
 
+struct KangarooMultiTargetContext
+{
+	const std::vector<EcPoint>* targets = nullptr;
+	std::vector<JacobianPoint> wild_starts;
+};
+
+static KangarooMultiTargetContext BuildKangarooMultiTargetContext(const std::vector<EcPoint>& targets)
+{
+	KangarooMultiTargetContext context;
+	context.targets = &targets;
+	context.wild_starts.reserve(targets.size());
+	for (size_t i = 0; i < targets.size(); i++)
+		context.wild_starts.push_back(JacobianFromAffine(targets[i]));
+	return context;
+}
+
 static KangarooPointKey RawPointKey(const EcPoint& p)
 {
 	KangarooPointKey key;
@@ -890,9 +906,13 @@ RCKSmallSolveResult RCKSolveSmallJacobianKangaroo(const EcPoint& target, unsigne
 	return RCKSolveSmallJacobianKangarooWithJumps(target, range, jumps, scratch, dp_bits, max_steps);
 }
 
-static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiWithJumps(const std::vector<EcPoint>& targets, const KangarooRangeContext& range, const KangarooJumpTable& jumps, KangarooSolveScratch& scratch, unsigned int dp_bits, unsigned int max_steps)
+static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiWithContext(const KangarooMultiTargetContext& context, const KangarooRangeContext& range, const KangarooJumpTable& jumps, KangarooSolveScratch& scratch, unsigned int dp_bits, unsigned int max_steps)
 {
 	RCKSmallSolveResult result;
+	if (!context.targets)
+		return result;
+
+	const std::vector<EcPoint>& targets = *context.targets;
 	result.target_count = (unsigned int)targets.size();
 	result.tame_state_count = targets.empty() ? 0 : 1;
 	result.wild_state_count = (unsigned int)targets.size();
@@ -905,15 +925,8 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiWithJumps(const std
 
 	std::vector<JacobianPoint>& wilds = scratch.wilds;
 	std::vector<u64>& wild_distances = scratch.wild_distances;
-	wilds.clear();
-	wild_distances.clear();
-	wilds.reserve(targets.size());
-	wild_distances.reserve(targets.size());
-	for (size_t i = 0; i < targets.size(); i++)
-	{
-		wilds.push_back(JacobianFromAffine(targets[i]));
-		wild_distances.push_back(0);
-	}
+	wilds.assign(context.wild_starts.begin(), context.wild_starts.end());
+	wild_distances.assign(targets.size(), 0);
 
 	KangarooDpBuckets& buckets = scratch.buckets;
 	buckets.clear();
@@ -974,6 +987,12 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiWithJumps(const std
 
 	result.dp_count = (unsigned int)dp_count;
 	return result;
+}
+
+static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiWithJumps(const std::vector<EcPoint>& targets, const KangarooRangeContext& range, const KangarooJumpTable& jumps, KangarooSolveScratch& scratch, unsigned int dp_bits, unsigned int max_steps)
+{
+	KangarooMultiTargetContext context = BuildKangarooMultiTargetContext(targets);
+	return RCKSolveSmallJacobianKangarooMultiWithContext(context, range, jumps, scratch, dp_bits, max_steps);
 }
 
 RCKSmallSolveResult RCKSolveSmallJacobianKangarooMulti(const std::vector<EcPoint>& targets, unsigned long long start, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
@@ -1188,6 +1207,9 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	std::vector<EcPoint> targets;
 	if (limit)
 		targets = BuildSyntheticMultiTargets(target_count, start, limit, solved_private_key);
+	KangarooMultiTargetContext target_context;
+	if (limit)
+		target_context = BuildKangarooMultiTargetContext(targets);
 	KangarooJumpTable jumps;
 	if (limit)
 		jumps = BuildKangarooJumpTable(jump_count);
@@ -1215,7 +1237,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 		{
 			for (unsigned int i = 0; i < iterations; i++)
 			{
-				RCKSmallSolveResult result = RCKSolveSmallJacobianKangarooMultiWithJumps(targets, range, jumps, scratch, dp_bits, max_steps);
+				RCKSmallSolveResult result = RCKSolveSmallJacobianKangarooMultiWithContext(target_context, range, jumps, scratch, dp_bits, max_steps);
 				operations++;
 				last_dp_count = result.dp_count;
 				total_dp_count += result.dp_count;
@@ -1247,6 +1269,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
+	out << "\"wild_starts\":\"precomputed\",";
 	out << "\"jump_table\":\"precomputed\",";
 	out << "\"scratch\":\"reused\",";
 	out << "\"range_context\":\"precomputed\",";
