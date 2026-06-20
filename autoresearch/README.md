@@ -111,6 +111,14 @@ python3 autoresearch/runner.py --experiment metal_field_double --budget-sec 5
 
 Like the other Metal field gates, this records `status=skip` when no Metal device is visible. On Apple Silicon with device access, it runs `field_double_mod_p`, checks every result against the CPU field oracle, and tracks the modular doubling primitive used by Jacobian point formulas.
 
+Run the Metal field negation experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_field_neg --budget-sec 5
+```
+
+Like the other Metal field gates, this records `status=skip` when no Metal device is visible. On Apple Silicon with device access, it runs `field_neg_mod_p`, checks every result against the CPU field oracle, and tracks canonical modular negation.
+
 Run the Metal field square experiment:
 
 ```sh
@@ -132,4 +140,4 @@ Results are written to:
 - `autoresearch/results.tsv`
 - `autoresearch/benchmarks.jsonl`
 
-The current CPU baseline metric is `multiply_g` operations per second. CPU affine point-add walk, CPU Jacobian mixed-add walk, CPU Jacobian jump-table walk, CPU single-target tiny kangaroo, CPU shared-tame tiny multi-target kangaroo at 4 and 16 targets, CPU field multiplication, and Metal field addition/subtraction/doubling/multiplication/squaring are tracked as separate fixed-gate experiments.
+The current CPU baseline metric is `multiply_g` operations per second. CPU affine point-add walk, CPU Jacobian mixed-add walk, CPU Jacobian jump-table walk, CPU single-target tiny kangaroo, CPU shared-tame tiny multi-target kangaroo at 4 and 16 targets, CPU field multiplication, and Metal field addition/subtraction/doubling/negation/multiplication/squaring are tracked as separate fixed-gate experiments.

@@ -243,6 +243,29 @@ kernel void field_double_mod_p(device const ulong* a [[buffer(0)]],
   out[base + 0] = r0; out[base + 1] = r1; out[base + 2] = r2; out[base + 3] = r3;
 }
 
+kernel void field_neg_mod_p(device const ulong* a [[buffer(0)]],
+                            device const ulong* b [[buffer(1)]],
+                            device ulong* out [[buffer(2)]],
+                            constant uint& count [[buffer(3)]],
+                            uint id [[thread_position_in_grid]]) {
+  (void)b;
+  if (id >= count) return;
+  uint base = id * 4;
+  ulong a0 = a[base + 0], a1 = a[base + 1], a2 = a[base + 2], a3 = a[base + 3];
+  if ((a0 | a1 | a2 | a3) == 0) {
+    out[base + 0] = 0; out[base + 1] = 0; out[base + 2] = 0; out[base + 3] = 0;
+    return;
+  }
+
+  ulong r0 = 0, r1 = 0, r2 = 0, r3 = 0;
+  ulong borrow = 0;
+  borrow = sub_borrow(borrow, 0xFFFFFFFEFFFFFC2FUL, a0, r0);
+  borrow = sub_borrow(borrow, 0xFFFFFFFFFFFFFFFFUL, a1, r1);
+  borrow = sub_borrow(borrow, 0xFFFFFFFFFFFFFFFFUL, a2, r2);
+  sub_borrow(borrow, 0xFFFFFFFFFFFFFFFFUL, a3, r3);
+  out[base + 0] = r0; out[base + 1] = r1; out[base + 2] = r2; out[base + 3] = r3;
+}
+
 kernel void field_mul_mod_p(device const ulong* a [[buffer(0)]],
                             device const ulong* b [[buffer(1)]],
                             device ulong* out [[buffer(2)]],

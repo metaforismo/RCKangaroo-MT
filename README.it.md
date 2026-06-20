@@ -18,7 +18,7 @@ Questo fork mantiene single-target, benchmark e tames del progetto originale, e 
 - Loader target per public key secp256k1 compresse `02...` / `03...` e non compresse `04...`.
 - Metadati target per ogni distinguished point, cosi' la collisione risolta viene verificata contro il target corretto.
 - Oracle CPU macOS per tiny-range, test di correttezza e benchmark locali.
-- Backend Metal smoke e microkernel field-add/field-sub/field-double/field-mul/field-square per verificare il runtime Apple Silicon.
+- Backend Metal smoke e microkernel field-add/field-sub/field-double/field-neg/field-mul/field-square per verificare il runtime Apple Silicon.
 - Runner autoresearch per esperimenti con gate fissi e risultati misurabili.
 
 ## Requisiti
@@ -33,7 +33,7 @@ Apple Silicon/macOS non puo eseguire kernel CUDA sulla GPU Apple. Questa repo or
 |---|---|---|
 | CUDA | Solver completo | Motore kangaroo CUDA originale con aggiunte multi-target. |
 | macOS CPU | Funzionante | Oracle tiny-range, test secp256k1, benchmark baseline e microbenchmark `field_mul_mod_p`. |
-| macOS Metal | Backend aritmetico iniziale | Compila ed esegue smoke Metal piu' microkernel `field_add_mod_p`, `field_sub_mod_p`, `field_double_mod_p`, `field_mul_mod_p` e `field_square_mod_p` quando un device Metal e' visibile. |
+| macOS Metal | Backend aritmetico iniziale | Compila ed esegue smoke Metal piu' microkernel `field_add_mod_p`, `field_sub_mod_p`, `field_double_mod_p`, `field_neg_mod_p`, `field_mul_mod_p` e `field_square_mod_p` quando un device Metal e' visibile. |
 | Autoresearch | Funzionante | Esegue check e benchmark con gate fissi e registra righe keep/discard. |
 
 ## Build su Linux CUDA
@@ -132,11 +132,13 @@ make macos-bench
 ./macos/rck_macos metal-field-test
 ./macos/rck_macos metal-field-sub-test
 ./macos/rck_macos metal-field-double-test
+./macos/rck_macos metal-field-neg-test
 ./macos/rck_macos metal-field-mul-test
 ./macos/rck_macos metal-field-square-test
 python3 autoresearch/runner.py --experiment baseline --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_sub --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_double --budget-sec 5
+python3 autoresearch/runner.py --experiment metal_field_neg --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_square --budget-sec 5
 ```
 
