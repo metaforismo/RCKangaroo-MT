@@ -82,12 +82,24 @@ static u64 MixJacobianChecksum(u64 checksum, const JacobianPoint& p, u64 index)
 		p.z.data[0] + (p.z.data[1] ^ p.z.data[2]) + p.z.data[3] + index;
 }
 
+static bool IsPowerOfTwo(unsigned int value)
+{
+	return value && ((value & (value - 1)) == 0);
+}
+
+static const char* JumpIndexMode(unsigned int jump_count)
+{
+	return IsPowerOfTwo(jump_count) ? "power2_mask" : "modulo";
+}
+
 static unsigned int JacobianJumpIndex(const JacobianPoint& p, unsigned int jump_count)
 {
 	u64 mixed = p.x.data[0] ^ (p.x.data[1] << 7) ^ (p.y.data[0] >> 3) ^ p.z.data[0];
 	mixed ^= mixed >> 33;
 	mixed *= 0xff51afd7ed558ccdULL;
 	mixed ^= mixed >> 33;
+	if (IsPowerOfTwo(jump_count))
+		return (unsigned int)(mixed & (jump_count - 1));
 	return (unsigned int)(mixed % jump_count);
 }
 
@@ -575,6 +587,7 @@ std::string RCKJacobianWalkBenchJson(unsigned int iterations, unsigned int min_m
 	out.precision(6);
 	out << "{\"backend\":\"macos_cpu\",";
 	out << "\"operation\":\"jacobian_jump_walk\",";
+	out << "\"jump_index\":\"" << JumpIndexMode(jump_count) << "\",";
 	out << "\"iterations\":" << operations << ",";
 	out << "\"sample_count\":" << iterations << ",";
 	out << "\"min_ms\":" << min_ms << ",";
@@ -1137,6 +1150,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
+	out << "\"jump_index\":\"" << JumpIndexMode(jump_count) << "\",";
 	out << "\"jump_table\":\"precomputed\",";
 	out << "\"scratch\":\"reused\",";
 	out << "\"range_context\":\"precomputed\",";
@@ -1247,6 +1261,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
+	out << "\"jump_index\":\"" << JumpIndexMode(jump_count) << "\",";
 	out << "\"jump_table\":\"precomputed\",";
 	out << "\"scratch\":\"reused\",";
 	out << "\"range_context\":\"precomputed\",";
