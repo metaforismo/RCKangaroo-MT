@@ -102,25 +102,34 @@ static inline void add320_to_256(thread ulong* in_out, thread ulong* val) {
   add_carry(carry, 0, val[4], in_out[4]);
 }
 
-static inline void field_mul_values(ulong a0, ulong a1, ulong a2, ulong a3,
-                                    ulong b0, ulong b1, ulong b2, ulong b3,
-                                    thread ulong& r0, thread ulong& r1,
-                                    thread ulong& r2, thread ulong& r3) {
+static inline void add128_to_512(thread ulong* in_out, uint offset, ulong lo, ulong hi) {
+  ulong carry = add_carry(0, in_out[offset], lo, in_out[offset]);
+  carry = add_carry(carry, in_out[offset + 1], hi, in_out[offset + 1]);
+  for (uint i = offset + 2; carry && i < 8; i++) {
+    carry = add_carry(0, in_out[i], carry, in_out[i]);
+  }
+}
+
+static inline void add_mul64_to_512(thread ulong* in_out, uint offset, ulong a, ulong b) {
+  ulong lo = 0, hi = 0;
+  mul64(a, b, lo, hi);
+  add128_to_512(in_out, offset, lo, hi);
+}
+
+static inline void add_double_mul64_to_512(thread ulong* in_out, uint offset, ulong a, ulong b) {
+  ulong lo = 0, hi = 0;
+  mul64(a, b, lo, hi);
+  add128_to_512(in_out, offset, lo, hi);
+  add128_to_512(in_out, offset, lo, hi);
+}
+
+static inline void reduce512_mod_p(thread ulong* buff,
+                                   thread ulong& r0, thread ulong& r1,
+                                   thread ulong& r2, thread ulong& r3) {
   const ulong p_rev = 0x00000001000003D1UL;
-  thread ulong av[4] = {a0, a1, a2, a3};
-  thread ulong bv[4] = {b0, b1, b2, b3};
-  thread ulong buff[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   thread ulong tmp[5] = {0, 0, 0, 0, 0};
   thread ulong reduced[5] = {0, 0, 0, 0, 0};
   ulong high = 0, lo = 0;
-
-  mul256_by_64(bv, av[0], buff);
-  mul256_by_64(bv, av[1], tmp);
-  add320_to_256(buff + 1, tmp);
-  mul256_by_64(bv, av[2], tmp);
-  add320_to_256(buff + 2, tmp);
-  mul256_by_64(bv, av[3], tmp);
-  add320_to_256(buff + 3, tmp);
 
   mul256_by_64(buff + 4, p_rev, tmp);
   ulong carry = add_carry(0, buff[0], tmp[0], buff[0]);
@@ -142,6 +151,43 @@ static inline void field_mul_values(ulong a0, ulong a1, ulong a2, ulong a3,
   r1 = reduced[1];
   r2 = reduced[2];
   r3 = reduced[3];
+}
+
+static inline void field_mul_values(ulong a0, ulong a1, ulong a2, ulong a3,
+                                    ulong b0, ulong b1, ulong b2, ulong b3,
+                                    thread ulong& r0, thread ulong& r1,
+                                    thread ulong& r2, thread ulong& r3) {
+  thread ulong av[4] = {a0, a1, a2, a3};
+  thread ulong bv[4] = {b0, b1, b2, b3};
+  thread ulong buff[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  thread ulong tmp[5] = {0, 0, 0, 0, 0};
+
+  mul256_by_64(bv, av[0], buff);
+  mul256_by_64(bv, av[1], tmp);
+  add320_to_256(buff + 1, tmp);
+  mul256_by_64(bv, av[2], tmp);
+  add320_to_256(buff + 2, tmp);
+  mul256_by_64(bv, av[3], tmp);
+  add320_to_256(buff + 3, tmp);
+
+  reduce512_mod_p(buff, r0, r1, r2, r3);
+}
+
+static inline void field_square_values(ulong a0, ulong a1, ulong a2, ulong a3,
+                                       thread ulong& r0, thread ulong& r1,
+                                       thread ulong& r2, thread ulong& r3) {
+  thread ulong buff[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  add_mul64_to_512(buff, 0, a0, a0);
+  add_double_mul64_to_512(buff, 1, a0, a1);
+  add_double_mul64_to_512(buff, 2, a0, a2);
+  add_double_mul64_to_512(buff, 3, a0, a3);
+  add_mul64_to_512(buff, 2, a1, a1);
+  add_double_mul64_to_512(buff, 3, a1, a2);
+  add_double_mul64_to_512(buff, 4, a1, a3);
+  add_mul64_to_512(buff, 4, a2, a2);
+  add_double_mul64_to_512(buff, 5, a2, a3);
+  add_mul64_to_512(buff, 6, a3, a3);
+  reduce512_mod_p(buff, r0, r1, r2, r3);
 }
 
 kernel void field_add_mod_p(device const ulong* a [[buffer(0)]],
@@ -201,9 +247,8 @@ kernel void field_square_mod_p(device const ulong* a [[buffer(0)]],
   if (id >= count) return;
   uint base = id * 4;
   ulong r0 = 0, r1 = 0, r2 = 0, r3 = 0;
-  field_mul_values(a[base + 0], a[base + 1], a[base + 2], a[base + 3],
-                   a[base + 0], a[base + 1], a[base + 2], a[base + 3],
-                   r0, r1, r2, r3);
+  field_square_values(a[base + 0], a[base + 1], a[base + 2], a[base + 3],
+                      r0, r1, r2, r3);
   out[base + 0] = r0; out[base + 1] = r1; out[base + 2] = r2; out[base + 3] = r3;
 }
 )RCK_METAL";

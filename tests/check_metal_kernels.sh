@@ -37,6 +37,21 @@ if ! grep -q "kernel void field_square_mod_p" "$tmp_source"; then
 	exit 1
 fi
 
+if ! grep -q "field_square_values" "$tmp_source"; then
+	printf '%s\n' "field_square_values helper missing from Metal source"
+	exit 1
+fi
+
+if ! awk '
+	/kernel void field_square_mod_p/ { in_square = 1 }
+	in_square && /field_square_values/ { found = 1 }
+	in_square && /^}/ { in_square = 0 }
+	END { exit found ? 0 : 1 }
+' "$tmp_source"; then
+	printf '%s\n' "field_square_mod_p does not use field_square_values"
+	exit 1
+fi
+
 set +e
 xcrun -sdk macosx metal -c "$tmp_source" -o "$tmp_air" > "$tmp_air.out" 2>&1
 status=$?

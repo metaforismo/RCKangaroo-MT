@@ -109,7 +109,7 @@ Run the Metal field square experiment:
 python3 autoresearch/runner.py --experiment metal_field_square --budget-sec 5
 ```
 
-Like the other Metal field gates, this records `status=skip` when no Metal device is visible. On Apple Silicon with device access, it runs `field_square_mod_p`, checks every result against the CPU field oracle, and tracks the squaring primitive used heavily by Jacobian point formulas.
+Like the other Metal field gates, this records `status=skip` when no Metal device is visible. On Apple Silicon with device access, it runs `field_square_mod_p`, checks every result against the CPU field oracle, and tracks the specialized 10-product squaring primitive used heavily by Jacobian point formulas.
 
 Run the CPU field multiplication experiment:
 

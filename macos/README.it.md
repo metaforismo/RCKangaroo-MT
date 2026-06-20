@@ -92,7 +92,7 @@ make macos-metal-field-square-bench
 make macos-metal-kernels-check
 ```
 
-I kernel field usano quattro limb little-endian da 64 bit modulo il primo secp256k1 e confrontano l'output Metal con oracle CPU. `field_sub_mod_p` gestisce l'underflow modulare aggiungendo il primo secp256k1 dopo una sottrazione con borrow. `field_mul_mod_p` usa decomposizione a 32 bit per moltiplicazione 64x64 portabile dentro Metal; `field_square_mod_p` riusa lo stesso riduttore con lo stesso input su entrambi gli operandi, in linea con le formule Jacobian che fanno molti quadrati di campo. In CI o sessioni sandbox senza device Metal visibile, i check runtime segnalano uno skip pulito. `macos-metal-kernels-check` compila il source Metal estratto quando il Metal Toolchain e' installato; altrimenti segnala uno skip pulito del toolchain.
+I kernel field usano quattro limb little-endian da 64 bit modulo il primo secp256k1 e confrontano l'output Metal con oracle CPU. `field_sub_mod_p` gestisce l'underflow modulare aggiungendo il primo secp256k1 dopo una sottrazione con borrow. `field_mul_mod_p` usa decomposizione a 32 bit per moltiplicazione 64x64 portabile dentro Metal; `field_square_mod_p` ora usa un accumulatore simmetrico con 10 prodotti limb prima del riduttore condiviso, in linea con le formule Jacobian che fanno molti quadrati di campo. In CI o sessioni sandbox senza device Metal visibile, i check runtime segnalano uno skip pulito. `macos-metal-kernels-check` compila il source Metal estratto quando il Metal Toolchain e' installato; altrimenti segnala uno skip pulito del toolchain.
 
 ## Preparare una lista target
 
