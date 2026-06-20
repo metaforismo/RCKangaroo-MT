@@ -1,0 +1,6 @@
+{
+  "name": "metal_field_sub",
+  "description": "Metal secp256k1 field_sub_mod_p correctness and throughput gate",
+  "bench_target": "macos-metal-field-sub-bench",
+  "min_improvement_ratio": 0.01
+}

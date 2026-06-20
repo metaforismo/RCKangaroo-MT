@@ -18,7 +18,7 @@ This fork keeps the original single-target, benchmark, and tames workflows, and 
 - Target loader for compressed `02...` / `03...` and uncompressed `04...` secp256k1 public keys.
 - Per-DP target metadata so solved collisions can be verified against the matching target.
 - macOS CPU oracle for tiny-range correctness checks, local benchmarks, and limb-level field arithmetic.
-- Metal smoke plus secp256k1 field-add, field-mul, and field-square microkernel checks for Apple Silicon runtime verification.
+- Metal smoke plus secp256k1 field-add, field-sub, field-mul, and field-square microkernel checks for Apple Silicon runtime verification.
 - Autoresearch runner for fixed-gate optimization experiments.
 
 ## Requirements
@@ -33,7 +33,7 @@ Apple Silicon/macOS cannot run CUDA kernels on the Apple GPU. This repo now incl
 |---|---|---|
 | CUDA | Full solver | Original RCKangaroo CUDA kangaroo engine with multi-target additions. |
 | macOS CPU | Working | Tiny-range oracle, secp256k1 correctness tests, baseline benchmarks, and `field_mul_mod_p` microbenchmarks. |
-| macOS Metal | Early arithmetic backend | Builds and runs Metal smoke plus `field_add_mod_p`, `field_mul_mod_p`, and `field_square_mod_p` microkernel checks when a Metal device is visible. |
+| macOS Metal | Early arithmetic backend | Builds and runs Metal smoke plus `field_add_mod_p`, `field_sub_mod_p`, `field_mul_mod_p`, and `field_square_mod_p` microkernel checks when a Metal device is visible. |
 | Autoresearch | Working | Runs fixed-gate checks and benchmarks, then logs keep/discard/skip experiment rows. |
 
 ## Build on Linux CUDA
@@ -146,6 +146,8 @@ make macos-cpu-field-bench
 ./macos/rck_macos metal-smoke
 ./macos/rck_macos metal-field-test
 make macos-metal-field-bench
+./macos/rck_macos metal-field-sub-test
+make macos-metal-field-sub-bench
 ./macos/rck_macos metal-field-mul-test
 make macos-metal-field-mul-bench
 ./macos/rck_macos metal-field-square-test
@@ -161,6 +163,7 @@ python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budg
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi16_small --budget-sec 5
 python3 autoresearch/runner.py --experiment cpu_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_add --budget-sec 5
+python3 autoresearch/runner.py --experiment metal_field_sub --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_square --budget-sec 5
 ```
@@ -184,7 +187,7 @@ This remains a proof-of-concept style GPU solver. It does not add networking, di
 - Added target-file loader and target offset mapping.
 - Added GPU-side target id output for distinguished points.
 - Added multi-target collision verification and target-aware result output.
-- Added macOS target preparation, CPU oracle, CPU field arithmetic, Metal smoke, and Metal field-add/field-mul/field-square tools.
+- Added macOS target preparation, CPU oracle, CPU field arithmetic, Metal smoke, and Metal field-add/field-sub/field-mul/field-square tools.
 - Added host-only parser checks and fixed-gate autoresearch experiments.
 
 ### Upstream v3.1

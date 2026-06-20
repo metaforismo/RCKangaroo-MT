@@ -8,7 +8,7 @@ RCKangaroo-MT still uses NVIDIA CUDA for the full high-performance kangaroo solv
 make macos-check
 ```
 
-This builds `macos/rck_macos`, runs host secp256k1 vector checks, validates target parsing, runs the native CPU selftest, checks CPU field arithmetic, and runs the Metal field-add/mul/square checks when Metal is visible.
+This builds `macos/rck_macos`, runs host secp256k1 vector checks, validates target parsing, runs the native CPU selftest, checks CPU field arithmetic, and runs the Metal field-add/sub/mul/square checks when Metal is visible.
 
 The default macOS build uses `-O3`. Override it when needed:
 
@@ -78,11 +78,13 @@ Run the Metal smoke test:
 
 If no Metal device is visible in the current execution environment, the command reports a skip instead of failing. On a normal Apple Silicon runtime with device access, it compiles and runs a minimal Metal compute kernel.
 
-Run the Metal secp256k1 field-add, field-mul, and field-square checks and benchmarks:
+Run the Metal secp256k1 field-add, field-sub, field-mul, and field-square checks and benchmarks:
 
 ```sh
 ./macos/rck_macos metal-field-test
 make macos-metal-field-bench
+./macos/rck_macos metal-field-sub-test
+make macos-metal-field-sub-bench
 ./macos/rck_macos metal-field-mul-test
 make macos-metal-field-mul-bench
 ./macos/rck_macos metal-field-square-test
@@ -90,7 +92,7 @@ make macos-metal-field-square-bench
 make macos-metal-kernels-check
 ```
 
-The field kernels use four little-endian 64-bit limbs modulo the secp256k1 prime and compare Metal output against CPU oracles. `field_mul_mod_p` uses 32-bit decomposition internally for portable 64x64 multiplication inside Metal; `field_square_mod_p` reuses the same reducer with one input as both operands, matching the Jacobian formulas that square field elements heavily. In restricted CI or sandboxed sessions without a visible Metal device, runtime checks report a clean skip. `macos-metal-kernels-check` compiles the extracted Metal source when the Metal Toolchain is installed; otherwise it reports a clean toolchain skip.
+The field kernels use four little-endian 64-bit limbs modulo the secp256k1 prime and compare Metal output against CPU oracles. `field_sub_mod_p` handles modular underflow by adding the secp256k1 prime after a borrowed subtraction. `field_mul_mod_p` uses 32-bit decomposition internally for portable 64x64 multiplication inside Metal; `field_square_mod_p` reuses the same reducer with one input as both operands, matching the Jacobian formulas that square field elements heavily. In restricted CI or sandboxed sessions without a visible Metal device, runtime checks report a clean skip. `macos-metal-kernels-check` compiles the extracted Metal source when the Metal Toolchain is installed; otherwise it reports a clean toolchain skip.
 
 ## Prepare a target list
 
@@ -134,6 +136,7 @@ python3 autoresearch/runner.py --experiment jacobian_jump_walk --budget-sec 5
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5
 python3 autoresearch/runner.py --experiment cpu_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_add --budget-sec 5
+python3 autoresearch/runner.py --experiment metal_field_sub --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_square --budget-sec 5
 ```

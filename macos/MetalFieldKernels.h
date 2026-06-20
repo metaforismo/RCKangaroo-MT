@@ -42,6 +42,18 @@ static inline void sub_p(thread ulong& r0, thread ulong& r1, thread ulong& r2, t
   sub_borrow(b, r3, p3, r3);
 }
 
+static inline void add_p(thread ulong& r0, thread ulong& r1, thread ulong& r2, thread ulong& r3) {
+  const ulong p0 = 0xFFFFFFFEFFFFFC2FUL;
+  const ulong p1 = 0xFFFFFFFFFFFFFFFFUL;
+  const ulong p2 = 0xFFFFFFFFFFFFFFFFUL;
+  const ulong p3 = 0xFFFFFFFFFFFFFFFFUL;
+  ulong c = 0;
+  c = add_carry(c, r0, p0, r0);
+  c = add_carry(c, r1, p1, r1);
+  c = add_carry(c, r2, p2, r2);
+  add_carry(c, r3, p3, r3);
+}
+
 static inline void sub_p5(thread ulong* v) {
   const ulong p0 = 0xFFFFFFFEFFFFFC2FUL;
   const ulong p1 = 0xFFFFFFFFFFFFFFFFUL;
@@ -147,6 +159,23 @@ kernel void field_add_mod_p(device const ulong* a [[buffer(0)]],
   t = a2 + b2; c1 = t < a2 ? 1UL : 0UL; ulong r2 = t + c; c = (c1 || (r2 < t)) ? 1UL : 0UL;
   t = a3 + b3; c1 = t < a3 ? 1UL : 0UL; ulong r3 = t + c; c = (c1 || (r3 < t)) ? 1UL : 0UL;
   if (c || ge_p(r0, r1, r2, r3)) sub_p(r0, r1, r2, r3);
+  out[base + 0] = r0; out[base + 1] = r1; out[base + 2] = r2; out[base + 3] = r3;
+}
+
+kernel void field_sub_mod_p(device const ulong* a [[buffer(0)]],
+                            device const ulong* b [[buffer(1)]],
+                            device ulong* out [[buffer(2)]],
+                            constant uint& count [[buffer(3)]],
+                            uint id [[thread_position_in_grid]]) {
+  if (id >= count) return;
+  uint base = id * 4;
+  ulong r0 = 0, r1 = 0, r2 = 0, r3 = 0;
+  ulong borrow = 0;
+  borrow = sub_borrow(borrow, a[base + 0], b[base + 0], r0);
+  borrow = sub_borrow(borrow, a[base + 1], b[base + 1], r1);
+  borrow = sub_borrow(borrow, a[base + 2], b[base + 2], r2);
+  borrow = sub_borrow(borrow, a[base + 3], b[base + 3], r3);
+  if (borrow) add_p(r0, r1, r2, r3);
   out[base + 0] = r0; out[base + 1] = r1; out[base + 2] = r2; out[base + 3] = r3;
 }
 

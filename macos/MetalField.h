@@ -4,6 +4,8 @@
 
 bool RCKMetalFieldAddSelfTest(std::string& error);
 std::string RCKMetalFieldAddBenchJson(unsigned int iterations);
+bool RCKMetalFieldSubSelfTest(std::string& error);
+std::string RCKMetalFieldSubBenchJson(unsigned int iterations);
 bool RCKMetalFieldMulSelfTest(std::string& error);
 std::string RCKMetalFieldMulBenchJson(unsigned int iterations);
 bool RCKMetalFieldSquareSelfTest(std::string& error);

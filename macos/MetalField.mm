@@ -106,6 +106,29 @@ static FieldElement CpuFieldAdd(const FieldElement& a, const FieldElement& b)
 	return out;
 }
 
+static FieldElement CpuFieldSub(const FieldElement& a, const FieldElement& b)
+{
+	FieldElement out;
+	uint8_t borrow = 0;
+	for (size_t i = 0; i < 4; ++i)
+		borrow = SubBorrow(borrow, a[i], b[i], &out[i]);
+
+	if (borrow)
+	{
+		uint64_t carry = 0;
+		for (size_t i = 0; i < 4; ++i)
+		{
+			uint64_t sum = out[i] + kSecp256k1P[i];
+			uint64_t carry_ab = sum < out[i];
+			uint64_t sum_with_carry = sum + carry;
+			uint64_t carry_c = sum_with_carry < sum;
+			out[i] = sum_with_carry;
+			carry = carry_ab | carry_c;
+		}
+	}
+	return out;
+}
+
 static void Mul256By64(const uint64_t input[4], uint64_t multiplier, uint64_t result[5])
 {
 	uint64_t h1, h2;
@@ -360,6 +383,43 @@ bool RCKMetalFieldAddSelfTest(std::string& error)
 	return true;
 }
 
+bool RCKMetalFieldSubSelfTest(std::string& error)
+{
+	std::vector<FieldElement> a;
+	std::vector<FieldElement> b;
+	a.push_back({3, 0, 0, 0});
+	b.push_back({1, 0, 0, 0});
+	a.push_back({1, 0, 0, 0});
+	b.push_back({2, 0, 0, 0});
+	a.push_back({0, 0, 0, 0});
+	b.push_back({0, 0, 0, 0});
+	a.push_back({0xFFFFFFFEFFFFFC2EULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL});
+	b.push_back({0xFFFFFFFEFFFFFC2DULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL});
+	a.push_back({0xFFFFFFFEFFFFFC2DULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL});
+	b.push_back({0xFFFFFFFEFFFFFC2EULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL});
+	for (uint64_t i = 0; i < 16; ++i)
+	{
+		a.push_back(DeterministicElement(i, 0x51BULL));
+		b.push_back(DeterministicElement(i, 0xA7BULL));
+	}
+
+	std::vector<FieldElement> out;
+	if (!RunFieldKernel(a, b, out, error, NULL, "field_sub_mod_p"))
+		return false;
+
+	for (size_t i = 0; i < a.size(); ++i)
+	{
+		FieldElement expected = CpuFieldSub(a[i], b[i]);
+		if (out[i] != expected)
+		{
+			error = "field sub mismatch at vector " + std::to_string(i) +
+				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
+			return false;
+		}
+	}
+	return true;
+}
+
 bool RCKMetalFieldMulSelfTest(std::string& error)
 {
 	std::vector<FieldElement> a;
@@ -473,6 +533,46 @@ std::string RCKMetalFieldAddBenchJson(unsigned int iterations)
 
 	double ops_per_sec = seconds > 0.0 ? (double)iterations / seconds : 0.0;
 	return MetalFieldBenchJson("field_add_mod_p", iterations, seconds, ops_per_sec, true, false, "");
+}
+
+std::string RCKMetalFieldSubBenchJson(unsigned int iterations)
+{
+	if (iterations == 0)
+		iterations = 1;
+
+	std::vector<FieldElement> a;
+	std::vector<FieldElement> b;
+	a.reserve(iterations);
+	b.reserve(iterations);
+	for (unsigned int i = 0; i < iterations; ++i)
+	{
+		a.push_back(DeterministicElement(i, 0x51BULL));
+		b.push_back(DeterministicElement(i, 0xA7BULL));
+	}
+
+	std::vector<FieldElement> out;
+	std::string error;
+	double seconds = 0.0;
+	if (!RunFieldKernel(a, b, out, error, &seconds, "field_sub_mod_p"))
+	{
+		if (error == "no Metal device available")
+			return MetalFieldBenchJson("field_sub_mod_p", 0, 0.0, 0.0, false, true, error);
+		return MetalFieldBenchJson("field_sub_mod_p", iterations, seconds, 0.0, false, false, error);
+	}
+
+	for (unsigned int i = 0; i < iterations; ++i)
+	{
+		FieldElement expected = CpuFieldSub(a[i], b[i]);
+		if (out[i] != expected)
+		{
+			std::string reason = "mismatch at vector " + std::to_string(i) +
+				": got " + FieldToHex(out[i]) + " expected " + FieldToHex(expected);
+			return MetalFieldBenchJson("field_sub_mod_p", iterations, seconds, 0.0, false, false, reason);
+		}
+	}
+
+	double ops_per_sec = seconds > 0.0 ? (double)iterations / seconds : 0.0;
+	return MetalFieldBenchJson("field_sub_mod_p", iterations, seconds, ops_per_sec, true, false, "");
 }
 
 std::string RCKMetalFieldMulBenchJson(unsigned int iterations)
