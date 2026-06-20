@@ -215,8 +215,47 @@ static void JacobianPairToAffine(const JacobianPoint& a, const JacobianPoint& b,
 		JacobianAffineWithZInv(b, z_inv, b_affine);
 }
 
+static bool JacobianBatchAllActiveToAffine(const JacobianPoint& tame, const std::vector<JacobianPoint>& wilds, std::vector<EcPoint>& affines, std::vector<EcInt>& prefixes)
+{
+	size_t point_count = wilds.size() + 1;
+	affines.clear();
+	affines.resize(point_count);
+	prefixes.clear();
+	prefixes.resize(point_count);
+
+	EcInt acc;
+	acc.Set(1);
+	for (size_t i = 0; i < point_count; i++)
+	{
+		const JacobianPoint& p = i ? wilds[i - 1] : tame;
+		EcInt z = p.z;
+		if (p.infinity || z.IsZero())
+			return false;
+
+		prefixes[i] = acc;
+		acc = FieldMul(acc, z);
+	}
+
+	acc.InvModP();
+	for (size_t remaining = point_count; remaining > 0; remaining--)
+	{
+		size_t i = remaining - 1;
+		const JacobianPoint& p = i ? wilds[i - 1] : tame;
+		EcInt z_inv = FieldMul(acc, prefixes[i]);
+		acc = FieldMul(acc, p.z);
+		EcInt z2 = FieldSquare(z_inv);
+		EcInt z3 = FieldMul(z2, z_inv);
+		affines[i].x = FieldMul(p.x, z2);
+		affines[i].y = FieldMul(p.y, z3);
+	}
+	return true;
+}
+
 static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<JacobianPoint>& wilds, std::vector<EcPoint>& affines, std::vector<EcInt>& prefixes, std::vector<unsigned char>& active)
 {
+	if (JacobianBatchAllActiveToAffine(tame, wilds, affines, prefixes))
+		return;
+
 	size_t point_count = wilds.size() + 1;
 	affines.clear();
 	affines.resize(point_count);
@@ -1247,6 +1286,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
+	out << "\"affine_active_path\":\"all_active_fast\",";
 	out << "\"jump_table\":\"precomputed\",";
 	out << "\"scratch\":\"reused\",";
 	out << "\"range_context\":\"precomputed\",";
