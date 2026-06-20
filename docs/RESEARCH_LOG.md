@@ -135,6 +135,33 @@ Commit: `74d6dad` (`feat: add Metal fixed-step Jacobian walk`)
   - `threadgroup_limit=256`
   - `threads_per_threadgroup=256`
 
+### Metal Jacobian Jump-Table Walk Kernel
+
+Commit: `2c2c9b5` (`feat: add Metal Jacobian jump-table walk`)
+
+- Added `jacobian_affine_walk_jump_table`, a variable-jump walk primitive that
+  keeps one Jacobian state inside each Metal thread, reads a deterministic
+  per-sample and per-step jump index, selects from an affine jump table, and
+  writes the final Jacobian state.
+- Added CPU replay oracle for the exact same jump-index sequence, so the
+  benchmark verifies correctness rather than only measuring dispatch speed.
+- This is still not a full kangaroo kernel: it intentionally excludes
+  distinguished-point filtering, distance accumulation, and collision-table
+  writes. Those are the next correctness surfaces.
+- Added CLI commands:
+  - `metal-jacobian-jump-walk-test`
+  - `metal-jacobian-jump-walk-bench --iterations N [--steps N] [--jumps N] [--min-ms N] [--tg-limit N]`
+- Added `autoresearch/experiments/metal_jacobian_jump_walk.json` with three
+  runner samples.
+- Local M3 autoresearch result with `steps_per_sample=8` and `jump_count=16`:
+  - median `29,322,230.463689 mixed-add steps/sec`
+  - min `24,300,650.024927 mixed-add steps/sec`
+  - max `37,278,370.994648 mixed-add steps/sec`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
