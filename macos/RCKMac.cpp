@@ -263,6 +263,11 @@ static const char* JacobianBatchActivePathMode()
 	return "all_active_fast";
 }
 
+static const char* JacobianBatchReverseLoopMode()
+{
+	return "split_zero";
+}
+
 static const char* JacobianBatchTailUpdateMode()
 {
 	return "skip_final";
@@ -295,15 +300,13 @@ static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<J
 	if (all_active)
 	{
 		acc.InvModP();
-		for (size_t remaining = point_count; remaining > 0; remaining--)
+		for (size_t remaining = point_count; remaining > 1; remaining--)
 		{
 			size_t i = remaining - 1;
-			const JacobianPoint& p = i ? wilds[i - 1] : tame;
+			const JacobianPoint& p = wilds[i - 1];
 			EcInt z_inv = acc;
-			if (i)
-				z_inv.MulModP(prefixes[i]);
-			if (i)
-				acc.MulModP(p.z);
+			z_inv.MulModP(prefixes[i]);
+			acc.MulModP(p.z);
 			EcInt z2 = z_inv;
 			z2.MulModP(z_inv);
 			EcInt z3 = z2;
@@ -313,6 +316,15 @@ static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<J
 			affines[i].y = p.y;
 			affines[i].y.MulModP(z3);
 		}
+		EcInt z_inv = acc;
+		EcInt z2 = z_inv;
+		z2.MulModP(z_inv);
+		EcInt z3 = z2;
+		z3.MulModP(z_inv);
+		affines[0].x = tame.x;
+		affines[0].x.MulModP(z2);
+		affines[0].y = tame.y;
+		affines[0].y.MulModP(z3);
 		return;
 	}
 
@@ -1556,6 +1568,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"affine_field_ops\":\"" << JacobianBatchFieldOpsMode() << "\",";
 	out << "\"affine_buffer\":\"" << JacobianBatchBufferMode() << "\",";
 	out << "\"affine_active_path\":\"" << JacobianBatchActivePathMode() << "\",";
+	out << "\"affine_reverse_loop\":\"" << JacobianBatchReverseLoopMode() << "\",";
 	out << "\"affine_tail_update\":\"" << JacobianBatchTailUpdateMode() << "\",";
 	out << "\"jump_index\":\"" << JumpIndexMode(jump_count) << "\",";
 	out << "\"jump_table\":\"precomputed\",";
@@ -1724,6 +1737,7 @@ std::string RCKJacobianBatchAffineBenchJson(unsigned int iterations, unsigned in
 	out << "\"affine_field_ops\":\"" << JacobianBatchFieldOpsMode() << "\",";
 	out << "\"affine_buffer\":\"" << JacobianBatchBufferMode() << "\",";
 	out << "\"affine_active_path\":\"" << JacobianBatchActivePathMode() << "\",";
+	out << "\"affine_reverse_loop\":\"" << JacobianBatchReverseLoopMode() << "\",";
 	out << "\"affine_tail_update\":\"" << JacobianBatchTailUpdateMode() << "\",";
 	out << "\"batch_points\":" << batch_points << ",";
 	out << "\"wild_points\":" << (batch_points - 1) << ",";
