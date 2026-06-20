@@ -169,6 +169,14 @@ python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk_distance --
 
 This records the same Metal jump-table walk while treating scalar-distance accumulation as part of the gate. The JSON includes `distance_tracking=uint64` and a deterministic `distance_checksum`, so future changes cannot keep point correctness while silently dropping distance state.
 
+Run the projective-DP-candidate Metal Jacobian jump-walk experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk_dp --budget-sec 5
+```
+
+This records the same distance-aware Metal jump-table walk with `--dp-bits 4`. The kernel emits `dp_tracking=projective_x_limb0`, `dp_count`, and `dp_checksum`, and the CPU oracle verifies the same projective low-bit predicate. This is a cheap GPU-side candidate filter, not yet the affine distinguished-point key required for final collision-table matching.
+
 Run the CPU field multiplication experiment:
 
 ```sh

@@ -49,7 +49,7 @@ static void PrintUsage()
 	printf("  rck_macos metal-jacobian-walk-test\n");
 	printf("  rck_macos metal-jacobian-walk-bench --iterations N [--steps N] [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-jacobian-jump-walk-test\n");
-	printf("  rck_macos metal-jacobian-jump-walk-bench --iterations N [--steps N] [--jumps N] [--min-ms N] [--tg-limit N]\n");
+	printf("  rck_macos metal-jacobian-jump-walk-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N]\n");
 }
 
 static bool ReadOption(int argc, char* argv[], const char* name, const char** value)
@@ -120,13 +120,17 @@ static bool ReadMetalWalkBenchOptions(int argc, char* argv[], unsigned int* iter
 	return true;
 }
 
-static bool ReadMetalJumpWalkBenchOptions(int argc, char* argv[], unsigned int* iterations, unsigned int* steps, unsigned int* jumps, unsigned int* min_ms, unsigned int* threadgroup_limit)
+static bool ReadMetalJumpWalkBenchOptions(int argc, char* argv[], unsigned int* iterations, unsigned int* steps, unsigned int* jumps, unsigned int* dp_bits, unsigned int* min_ms, unsigned int* threadgroup_limit)
 {
 	const char* jumps_s = NULL;
+	const char* dp_bits_s = NULL;
 	*jumps = 16;
+	*dp_bits = 0;
 	if (!ReadMetalWalkBenchOptions(argc, argv, iterations, steps, min_ms, threadgroup_limit))
 		return false;
 	if (ReadOption(argc, argv, "--jumps", &jumps_s) && !ParseU32(jumps_s, jumps))
+		return false;
+	if (ReadOption(argc, argv, "--dp-bits", &dp_bits_s) && !ParseU32(dp_bits_s, dp_bits))
 		return false;
 	return true;
 }
@@ -883,15 +887,16 @@ int main(int argc, char* argv[])
 		unsigned int iterations = 1024;
 		unsigned int steps = 8;
 		unsigned int jumps = 16;
+		unsigned int dp_bits = 0;
 		unsigned int min_ms = 0;
 		unsigned int threadgroup_limit = 0;
-		if (!ReadMetalJumpWalkBenchOptions(argc, argv, &iterations, &steps, &jumps, &min_ms, &threadgroup_limit))
+		if (!ReadMetalJumpWalkBenchOptions(argc, argv, &iterations, &steps, &jumps, &dp_bits, &min_ms, &threadgroup_limit))
 		{
 			PrintUsage();
 			DeInitEc();
 			return 1;
 		}
-		printf("%s\n", RCKMetalJacobianJumpWalkBenchJson(iterations, steps, jumps, min_ms, threadgroup_limit).c_str());
+		printf("%s\n", RCKMetalJacobianJumpWalkBenchJson(iterations, steps, jumps, min_ms, threadgroup_limit, dp_bits).c_str());
 	}
 	else
 	{
