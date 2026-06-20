@@ -1,6 +1,7 @@
 #include "macos/RCKMac.h"
 
 #include <chrono>
+#include <cmath>
 #include <sstream>
 #include <utility>
 
@@ -669,13 +670,15 @@ std::string RCKJacobianWalkBenchJson(unsigned int iterations, unsigned int min_m
 struct KangarooPointKey
 {
 	u64 x[4];
-	u64 y[4];
+	u64 y_parity;
 
 	bool operator==(const KangarooPointKey& other) const
 	{
+		if (y_parity != other.y_parity)
+			return false;
 		for (unsigned int i = 0; i < 4; i++)
 		{
-			if ((x[i] != other.x[i]) || (y[i] != other.y[i]))
+			if (x[i] != other.x[i])
 				return false;
 		}
 		return true;
@@ -686,13 +689,18 @@ struct KangarooPointKeyHash
 {
 	size_t operator()(const KangarooPointKey& key) const
 	{
-		return (size_t)(key.x[0] ^ (key.y[0] << 1) ^ (key.x[1] >> 7) ^ (key.y[1] << 17));
+		return (size_t)(key.x[0] ^ (key.y_parity << 63) ^ (key.x[1] >> 7) ^ (key.x[2] << 17));
 	}
 };
 
 static const char* KangarooDpHashMode()
 {
 	return "partial_limb_mix";
+}
+
+static const char* KangarooDpKeyMode()
+{
+	return "x_parity";
 }
 
 struct KangarooDp
@@ -860,10 +868,8 @@ static KangarooPointKey RawPointKey(const EcPoint& p)
 {
 	KangarooPointKey key;
 	for (unsigned int i = 0; i < 4; i++)
-	{
 		key.x[i] = p.x.data[i];
-		key.y[i] = p.y.data[i];
-	}
+	key.y_parity = p.y.data[0] & 1;
 	return key;
 }
 
@@ -879,7 +885,7 @@ static bool IsDistinguished(const EcPoint& p, unsigned int dp_bits)
 
 static const char* KangarooDpReserveMode()
 {
-	return "bounded_range_estimate";
+	return "sqrt_range_estimate";
 }
 
 static const char* KangarooCandidateVerificationMode()
@@ -887,11 +893,28 @@ static const char* KangarooCandidateVerificationMode()
 	return "full_point_collision";
 }
 
+static u64 CeilSqrtU64(u64 value)
+{
+	if (!value)
+		return 0;
+
+	u64 root = (u64)std::sqrt((double)value);
+	while (root * root < value)
+		root++;
+	while (root && ((root - 1) * (root - 1) >= value))
+		root--;
+	return root;
+}
+
 static size_t EstimateKangarooDpReserve(u64 range_limit, unsigned int max_steps, unsigned int state_count, unsigned int dp_bits)
 {
 	u64 step_limit = (u64)max_steps + 2;
-	if (range_limit && ((range_limit + 2) < step_limit))
-		step_limit = range_limit + 2;
+	if (range_limit)
+	{
+		u64 sqrt_step_limit = CeilSqrtU64(range_limit) + 2;
+		if (sqrt_step_limit < step_limit)
+			step_limit = sqrt_step_limit;
+	}
 
 	if (dp_bits)
 	{
@@ -1355,6 +1378,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "\"jacobian_step_passing\":\"" << JacobianStepPassingMode() << "\",";
 	out << "\"dp_lookup\":\"open_address_linear\",";
 	out << "\"dp_hash\":\"" << KangarooDpHashMode() << "\",";
+	out << "\"dp_key\":\"" << KangarooDpKeyMode() << "\",";
 	out << "\"candidate_verification\":\"" << KangarooCandidateVerificationMode() << "\",";
 	out << "\"dp_reserve\":\"" << KangarooDpReserveMode() << "\",";
 	out << "\"dp_bucket_storage\":\"inline_first\",";
@@ -1471,6 +1495,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"jacobian_step_passing\":\"" << JacobianStepPassingMode() << "\",";
 	out << "\"dp_lookup\":\"open_address_linear\",";
 	out << "\"dp_hash\":\"" << KangarooDpHashMode() << "\",";
+	out << "\"dp_key\":\"" << KangarooDpKeyMode() << "\",";
 	out << "\"candidate_verification\":\"" << KangarooCandidateVerificationMode() << "\",";
 	out << "\"dp_reserve\":\"" << KangarooDpReserveMode() << "\",";
 	out << "\"dp_bucket_storage\":\"inline_first\",";
