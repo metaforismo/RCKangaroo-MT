@@ -9,9 +9,13 @@ they are intentionally ignored by git.
 - Baseline commit: `a74eaee` (`perf: record Metal DP mask gain`).
 - Hardware track: Apple Silicon M3 Metal, 10-core GPU, 16 GB RAM.
 - Score command: `metal-jacobian-jump-walk-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 50`.
-- Local Benchforge run observed after adding the lab:
-  - `local` score: `51,386,885.672530 ops/sec`
-  - `accepted` score: `40,641,396.061969 ops/sec`
+- Local Benchforge runs observed after adding the lab:
+  - feature-worktree `local` score: `51,386,885.672530 ops/sec`
+  - feature-worktree `accepted` score: `40,641,396.061969 ops/sec`
+  - main-worktree candidate score: `31,709,050.052550 ops/sec`
+  - main-worktree `accepted` score: `25,722,311.096430 ops/sec`
+  - main-worktree submission: `sub_071211c2-eedb-4692-ad99-9bf0e9de876f`
+  - main-worktree accepted run: `run_d53dea0b-08b6-4f5f-a1ac-ba6ecd371a23`
   - verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
 
