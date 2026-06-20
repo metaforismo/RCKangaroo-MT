@@ -162,21 +162,6 @@ Commit: `2c2c9b5` (`feat: add Metal Jacobian jump-table walk`)
   - `threadgroup_limit=256`
   - `threads_per_threadgroup=256`
 
-### Metal Jump-Walk Distance Accumulation
-
-Commit: pending (`feat: track Metal jump-walk distances`)
-
-- Added a 64-bit jump-distance table and per-sample distance output to
-  `jacobian_affine_walk_jump_table`.
-- The CPU oracle now verifies both the final Jacobian point and accumulated
-  scalar distance for the exact same jump-index sequence.
-- Bench JSON includes `distance_tracking=uint64` and `distance_checksum`, so
-  future Metal changes cannot silently drop distance state while preserving
-  point output.
-- This removes one blocker for a full Metal kangaroo loop. Distinguished-point
-  filtering and collision-table writes are still intentionally outside this
-  kernel.
-
 ### Direct Metal Jump Indices
 
 Commit: `c41c6d7` (`perf: use direct Metal jump indices`)
@@ -193,6 +178,30 @@ Commit: `c41c6d7` (`perf: use direct Metal jump indices`)
   - paired speedup `1.069997x`
   - min `25,910,772.852663 mixed-add steps/sec`
   - max `39,764,446.199153 mixed-add steps/sec`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+
+### Metal Jump-Walk Distance Accumulation
+
+Commit: `1d8455d` (`feat: track Metal jump-walk distances`)
+
+- Added a 64-bit jump-distance table and per-sample distance output to
+  `jacobian_affine_walk_jump_table`.
+- The CPU oracle now verifies both the final Jacobian point and accumulated
+  scalar distance for the exact same jump-index sequence.
+- Bench JSON includes `distance_tracking=uint64` and `distance_checksum`, so
+  future Metal changes cannot silently drop distance state while preserving
+  point output.
+- This removes one blocker for a full Metal kangaroo loop. Distinguished-point
+  filtering and collision-table writes are still intentionally outside this
+  kernel.
+- Local M3 autoresearch result with `steps_per_sample=8` and `jump_count=16`:
+  - median `30,127,453.595735 mixed-add steps/sec`
+  - min `24,629,646.294400 mixed-add steps/sec`
+  - max `37,741,158.058549 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
   - `status=keep`
   - `correctness=true`
   - `threadgroup_limit=256`
