@@ -76,6 +76,39 @@ static u64 JumpDistance(unsigned int index)
 	return 1ull << index;
 }
 
+struct KangarooJumpTable
+{
+	std::vector<EcPoint> points;
+	std::vector<u64> distances;
+};
+
+static unsigned int NormalizeJumpCount(unsigned int jump_count)
+{
+	if (jump_count < 2)
+		return 2;
+	if (jump_count > 32)
+		return 32;
+	return jump_count;
+}
+
+static KangarooJumpTable BuildKangarooJumpTable(unsigned int jump_count)
+{
+	jump_count = NormalizeJumpCount(jump_count);
+
+	KangarooJumpTable table;
+	table.points.reserve(jump_count);
+	table.distances.reserve(jump_count);
+	for (unsigned int i = 0; i < jump_count; i++)
+	{
+		u64 distance = JumpDistance(i);
+		EcInt k;
+		k.Set(distance);
+		table.distances.push_back(distance);
+		table.points.push_back(Ec::MultiplyG(k));
+	}
+	return table;
+}
+
 static JacobianPoint JacobianFromAffine(EcPoint p)
 {
 	JacobianPoint out;
@@ -675,14 +708,14 @@ static void RecordKangarooDp(KangarooDpBuckets& buckets, const KangarooPointKey&
 	(*dp_count)++;
 }
 
-static void KangarooStep(JacobianPoint& p, u64* distance, const std::vector<EcPoint>& jumps, const std::vector<u64>& jump_distances)
+static void KangarooStep(JacobianPoint& p, u64* distance, const KangarooJumpTable& jumps)
 {
-	unsigned int jump_index = JacobianJumpIndex(p, (unsigned int)jumps.size());
-	p = JacobianAddAffine(p, jumps[jump_index]);
-	*distance += jump_distances[jump_index];
+	unsigned int jump_index = JacobianJumpIndex(p, (unsigned int)jumps.points.size());
+	p = JacobianAddAffine(p, jumps.points[jump_index]);
+	*distance += jumps.distances[jump_index];
 }
 
-RCKSmallSolveResult RCKSolveSmallJacobianKangaroo(EcPoint target, unsigned long long start, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
+static RCKSmallSolveResult RCKSolveSmallJacobianKangarooWithJumps(EcPoint target, unsigned long long start, unsigned int range_bits, const KangarooJumpTable& jumps, unsigned int dp_bits, unsigned int max_steps)
 {
 	RCKSmallSolveResult result;
 	result.found = false;
@@ -695,23 +728,6 @@ RCKSmallSolveResult RCKSolveSmallJacobianKangaroo(EcPoint target, unsigned long 
 	u64 limit = RangeLimit(range_bits);
 	if (!limit || !max_steps)
 		return result;
-	if (jump_count < 2)
-		jump_count = 2;
-	if (jump_count > 32)
-		jump_count = 32;
-
-	std::vector<EcPoint> jumps;
-	std::vector<u64> jump_distances;
-	jumps.reserve(jump_count);
-	jump_distances.reserve(jump_count);
-	for (unsigned int i = 0; i < jump_count; i++)
-	{
-		u64 distance = JumpDistance(i);
-		EcInt k;
-		k.Set(distance);
-		jump_distances.push_back(distance);
-		jumps.push_back(Ec::MultiplyG(k));
-	}
 
 	u64 end = start + limit - 1;
 	EcInt end_k;
@@ -757,15 +773,21 @@ RCKSmallSolveResult RCKSolveSmallJacobianKangaroo(EcPoint target, unsigned long 
 			RecordKangarooDp(buckets, key, false, wild_distance, 0, &dp_count);
 		}
 
-		KangarooStep(tame, &tame_distance, jumps, jump_distances);
-		KangarooStep(wild, &wild_distance, jumps, jump_distances);
+		KangarooStep(tame, &tame_distance, jumps);
+		KangarooStep(wild, &wild_distance, jumps);
 	}
 
 	result.dp_count = (unsigned int)dp_count;
 	return result;
 }
 
-RCKSmallSolveResult RCKSolveSmallJacobianKangarooMulti(const std::vector<EcPoint>& targets, unsigned long long start, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
+RCKSmallSolveResult RCKSolveSmallJacobianKangaroo(EcPoint target, unsigned long long start, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
+{
+	KangarooJumpTable jumps = BuildKangarooJumpTable(jump_count);
+	return RCKSolveSmallJacobianKangarooWithJumps(target, start, range_bits, jumps, dp_bits, max_steps);
+}
+
+static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiWithJumps(const std::vector<EcPoint>& targets, unsigned long long start, unsigned int range_bits, const KangarooJumpTable& jumps, unsigned int dp_bits, unsigned int max_steps)
 {
 	RCKSmallSolveResult result;
 	result.target_count = (unsigned int)targets.size();
@@ -775,23 +797,6 @@ RCKSmallSolveResult RCKSolveSmallJacobianKangarooMulti(const std::vector<EcPoint
 	u64 limit = RangeLimit(range_bits);
 	if (targets.empty() || !limit || !max_steps)
 		return result;
-	if (jump_count < 2)
-		jump_count = 2;
-	if (jump_count > 32)
-		jump_count = 32;
-
-	std::vector<EcPoint> jumps;
-	std::vector<u64> jump_distances;
-	jumps.reserve(jump_count);
-	jump_distances.reserve(jump_count);
-	for (unsigned int i = 0; i < jump_count; i++)
-	{
-		u64 distance = JumpDistance(i);
-		EcInt k;
-		k.Set(distance);
-		jump_distances.push_back(distance);
-		jumps.push_back(Ec::MultiplyG(k));
-	}
 
 	u64 end = start + limit - 1;
 	EcInt end_k;
@@ -860,13 +865,19 @@ RCKSmallSolveResult RCKSolveSmallJacobianKangarooMulti(const std::vector<EcPoint
 			}
 		}
 
-		KangarooStep(tame, &tame_distance, jumps, jump_distances);
+		KangarooStep(tame, &tame_distance, jumps);
 		for (unsigned int target_index = 0; target_index < wilds.size(); target_index++)
-			KangarooStep(wilds[target_index], &wild_distances[target_index], jumps, jump_distances);
+			KangarooStep(wilds[target_index], &wild_distances[target_index], jumps);
 	}
 
 	result.dp_count = (unsigned int)dp_count;
 	return result;
+}
+
+RCKSmallSolveResult RCKSolveSmallJacobianKangarooMulti(const std::vector<EcPoint>& targets, unsigned long long start, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
+{
+	KangarooJumpTable jumps = BuildKangarooJumpTable(jump_count);
+	return RCKSolveSmallJacobianKangarooMultiWithJumps(targets, start, range_bits, jumps, dp_bits, max_steps);
 }
 
 static std::vector<EcPoint> BuildSyntheticMultiTargets(unsigned int target_count, u64 start, u64 limit, u64 solved_private_key)
@@ -921,6 +932,7 @@ static KangarooSingleBenchReference MeasureSingleTargetKangarooSmall(unsigned in
 	EcInt solved_k;
 	solved_k.Set(solved_private_key);
 	EcPoint target = Ec::MultiplyG(solved_k);
+	KangarooJumpTable jumps = BuildKangarooJumpTable(jump_count);
 
 	u64 operations = 0;
 	auto t0 = std::chrono::steady_clock::now();
@@ -929,7 +941,7 @@ static KangarooSingleBenchReference MeasureSingleTargetKangarooSmall(unsigned in
 	{
 		for (unsigned int i = 0; i < iterations; i++)
 		{
-			RCKSmallSolveResult result = RCKSolveSmallJacobianKangaroo(target, start, range_bits, jump_count, dp_bits, max_steps);
+			RCKSmallSolveResult result = RCKSolveSmallJacobianKangarooWithJumps(target, start, range_bits, jumps, dp_bits, max_steps);
 			operations++;
 			if (!result.found || (result.private_key != solved_private_key) || (result.target_index != 0))
 			{
@@ -968,6 +980,9 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 		solved_k.Set(solved_private_key);
 		target = Ec::MultiplyG(solved_k);
 	}
+	KangarooJumpTable jumps;
+	if (limit)
+		jumps = BuildKangarooJumpTable(jump_count);
 
 	u64 operations = 0;
 	u64 total_dp_count = 0;
@@ -982,7 +997,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 		{
 			for (unsigned int i = 0; i < iterations; i++)
 			{
-				RCKSmallSolveResult result = RCKSolveSmallJacobianKangaroo(target, start, range_bits, jump_count, dp_bits, max_steps);
+				RCKSmallSolveResult result = RCKSolveSmallJacobianKangarooWithJumps(target, start, range_bits, jumps, dp_bits, max_steps);
 				operations++;
 				last_dp_count = result.dp_count;
 				total_dp_count += result.dp_count;
@@ -1010,6 +1025,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "\"architecture\":\"single_target\",";
 	out << "\"dp_lookup\":\"hash\",";
 	out << "\"affine_conversion\":\"batch\",";
+	out << "\"jump_table\":\"precomputed\",";
 	out << "\"iterations\":" << operations << ",";
 	out << "\"sample_count\":" << iterations << ",";
 	out << "\"min_ms\":" << min_ms << ",";
@@ -1058,6 +1074,9 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	std::vector<EcPoint> targets;
 	if (limit)
 		targets = BuildSyntheticMultiTargets(target_count, start, limit, solved_private_key);
+	KangarooJumpTable jumps;
+	if (limit)
+		jumps = BuildKangarooJumpTable(jump_count);
 	KangarooSingleBenchReference single_reference = MeasureSingleTargetKangarooSmall(iterations, min_ms, range_bits, jump_count, dp_bits, max_steps);
 	if (limit && !single_reference.correctness)
 	{
@@ -1078,7 +1097,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 		{
 			for (unsigned int i = 0; i < iterations; i++)
 			{
-				RCKSmallSolveResult result = RCKSolveSmallJacobianKangarooMulti(targets, start, range_bits, jump_count, dp_bits, max_steps);
+				RCKSmallSolveResult result = RCKSolveSmallJacobianKangarooMultiWithJumps(targets, start, range_bits, jumps, dp_bits, max_steps);
 				operations++;
 				last_dp_count = result.dp_count;
 				total_dp_count += result.dp_count;
@@ -1108,6 +1127,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"architecture\":\"shared_tame\",";
 	out << "\"dp_lookup\":\"hash\",";
 	out << "\"affine_conversion\":\"batch\",";
+	out << "\"jump_table\":\"precomputed\",";
 	out << "\"iterations\":" << operations << ",";
 	out << "\"sample_count\":" << iterations << ",";
 	out << "\"min_ms\":" << min_ms << ",";
