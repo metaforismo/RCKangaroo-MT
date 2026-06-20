@@ -596,10 +596,11 @@ kernel void jacobian_affine_walk_jump_table(device const ulong* p_xyz [[buffer(0
   ulong y0 = p_xyz[p_base + 4], y1 = p_xyz[p_base + 5], y2 = p_xyz[p_base + 6], y3 = p_xyz[p_base + 7];
   ulong z0 = p_xyz[p_base + 8], z1 = p_xyz[p_base + 9], z2 = p_xyz[p_base + 10], z3 = p_xyz[p_base + 11];
   uint inf = p_infinity[id];
+  uint jump_base = id * steps;
   ulong distance = 0;
 
   for (uint step = 0; step < steps; step++) {
-    uint jump_index = jump_indices[id * steps + step];
+    uint jump_index = jump_indices[jump_base + step];
     distance += jump_distances[jump_index];
     uint q_base = jump_index * 8;
     JacobianValue out = jacobian_add_affine_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3, inf,
