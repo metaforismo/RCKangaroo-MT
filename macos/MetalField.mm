@@ -852,6 +852,14 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		error = "invalid jacobian jump walk input";
 		return false;
 	}
+	for (uint32_t jump_index : jump_indices)
+	{
+		if (jump_index >= jumps.size())
+		{
+			error = "jacobian jump walk index out of range";
+			return false;
+		}
+	}
 
 	std::vector<uint64_t> p_xyz;
 	std::vector<uint64_t> q_xy;
@@ -913,12 +921,10 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		id<MTLBuffer> out_inf_buffer = [device newBufferWithLength:inf_bytes options:MTLResourceStorageModeShared];
 		uint32_t count = (uint32_t)p.size();
 		uint32_t step_count = steps_per_sample;
-		uint32_t jump_table_count = (uint32_t)jumps.size();
 		id<MTLBuffer> count_buffer = [device newBufferWithBytes:&count length:sizeof(count) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> steps_buffer = [device newBufferWithBytes:&step_count length:sizeof(step_count) options:MTLResourceStorageModeShared];
-		id<MTLBuffer> jump_count_buffer = [device newBufferWithBytes:&jump_table_count length:sizeof(jump_table_count) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> jump_indices_buffer = [device newBufferWithBytes:jump_indices.data() length:indices_bytes options:MTLResourceStorageModeShared];
-		if (!p_buffer || !q_buffer || !p_inf_buffer || !out_buffer || !out_inf_buffer || !count_buffer || !steps_buffer || !jump_count_buffer || !jump_indices_buffer)
+		if (!p_buffer || !q_buffer || !p_inf_buffer || !out_buffer || !out_inf_buffer || !count_buffer || !steps_buffer || !jump_indices_buffer)
 		{
 			error = "failed to allocate Metal jacobian jump walk buffers";
 			return false;
@@ -941,8 +947,7 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		[encoder setBuffer:out_inf_buffer offset:0 atIndex:4];
 		[encoder setBuffer:count_buffer offset:0 atIndex:5];
 		[encoder setBuffer:steps_buffer offset:0 atIndex:6];
-		[encoder setBuffer:jump_count_buffer offset:0 atIndex:7];
-		[encoder setBuffer:jump_indices_buffer offset:0 atIndex:8];
+		[encoder setBuffer:jump_indices_buffer offset:0 atIndex:7];
 		[encoder dispatchThreads:MTLSizeMake(count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
 		[encoder endEncoding];
 		auto start = std::chrono::steady_clock::now();
@@ -1349,7 +1354,7 @@ static CpuJacobianPoint CpuJacobianJumpWalk(CpuJacobianPoint p,
 {
 	size_t base = sample_index * (size_t)steps_per_sample;
 	for (unsigned int step = 0; step < steps_per_sample; ++step)
-		p = CpuJacobianAddAffine(p, jumps[jump_indices[base + step] % jumps.size()]);
+		p = CpuJacobianAddAffine(p, jumps[jump_indices[base + step]]);
 	return p;
 }
 

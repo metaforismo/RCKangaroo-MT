@@ -583,8 +583,7 @@ kernel void jacobian_affine_walk_jump_table(device const ulong* p_xyz [[buffer(0
                                             device uint* out_infinity [[buffer(4)]],
                                             constant uint& count [[buffer(5)]],
                                             constant uint& steps [[buffer(6)]],
-                                            constant uint& jump_count [[buffer(7)]],
-                                            device const uint* jump_indices [[buffer(8)]],
+                                            device const uint* jump_indices [[buffer(7)]],
                                             uint id [[thread_position_in_grid]]) {
   if (id >= count) return;
   uint p_base = id * 12;
@@ -595,7 +594,7 @@ kernel void jacobian_affine_walk_jump_table(device const ulong* p_xyz [[buffer(0
   uint inf = p_infinity[id];
 
   for (uint step = 0; step < steps; step++) {
-    uint jump_index = jump_indices[id * steps + step] % jump_count;
+    uint jump_index = jump_indices[id * steps + step];
     uint q_base = jump_index * 8;
     JacobianValue out = jacobian_add_affine_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3, inf,
                                                    q_xy[q_base + 0], q_xy[q_base + 1], q_xy[q_base + 2], q_xy[q_base + 3],

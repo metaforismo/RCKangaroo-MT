@@ -136,10 +136,11 @@ if ! awk '
 	in_walk && /device const uint\* jump_indices/ { found_indices = 1 }
 	in_walk && /jacobian_add_affine_values/ { found_step = 1 }
 	in_walk && /for \(uint step/ { found_loop = 1 }
+	in_walk && /% jump_count/ { found_hot_mod = 1 }
 	in_walk && /^}/ { in_walk = 0 }
-	END { exit (found_indices && found_step && found_loop) ? 0 : 1 }
+	END { exit (found_indices && found_step && found_loop && !found_hot_mod) ? 0 : 1 }
 ' "$tmp_source"; then
-	printf '%s\n' "jacobian_affine_walk_jump_table does not loop over indexed jump-table mixed-adds"
+	printf '%s\n' "jacobian_affine_walk_jump_table does not use pre-normalized jump indices in the hot loop"
 	exit 1
 fi
 
