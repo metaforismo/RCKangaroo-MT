@@ -674,6 +674,29 @@ static bool IsDistinguished(const EcPoint& p, unsigned int dp_bits)
 	return (p.x.data[0] & mask) == 0;
 }
 
+static size_t EstimateDpReserve(u64 range_limit, unsigned int max_steps, unsigned int state_count, unsigned int dp_bits)
+{
+	u64 step_limit = (u64)max_steps + 2;
+	if (range_limit && ((range_limit + 2) < step_limit))
+		step_limit = range_limit + 2;
+
+	if (dp_bits)
+	{
+		if (dp_bits >= 63)
+			dp_bits = 62;
+		u64 dp_stride = 1ull << dp_bits;
+		step_limit = (step_limit + dp_stride - 1) / dp_stride;
+		if (!step_limit)
+			step_limit = 1;
+	}
+
+	u64 reserve = step_limit * (u64)state_count;
+	u64 floor = (u64)state_count * 4;
+	if (reserve < floor)
+		reserve = floor;
+	return (size_t)reserve;
+}
+
 static bool VerifyCandidate(const EcPoint& target, u64 candidate)
 {
 	EcInt k;
@@ -838,7 +861,7 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooWithJumps(const EcPoint&
 	u64 wild_distance = 0;
 	KangarooDpBuckets& buckets = scratch.buckets;
 	buckets.clear();
-	buckets.reserve((max_steps + 2) * 2);
+	buckets.reserve(EstimateDpReserve(range.limit, max_steps, 2, dp_bits));
 	u64 dp_count = 0;
 
 	for (unsigned int step = 0; step <= max_steps; step++)
@@ -917,7 +940,7 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiWithJumps(const std
 
 	KangarooDpBuckets& buckets = scratch.buckets;
 	buckets.clear();
-	buckets.reserve((max_steps + 2) * (targets.size() + 1));
+	buckets.reserve(EstimateDpReserve(range.limit, max_steps, (unsigned int)targets.size() + 1, dp_bits));
 	u64 dp_count = 0;
 	std::vector<EcPoint>& affine_points = scratch.affine_points;
 	std::vector<EcInt>& affine_prefixes = scratch.affine_prefixes;
@@ -1134,6 +1157,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "\"operation\":\"jacobian_kangaroo_small\",";
 	out << "\"architecture\":\"single_target\",";
 	out << "\"dp_lookup\":\"hash\",";
+	out << "\"dp_reserve\":\"right_sized\",";
 	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
@@ -1244,6 +1268,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"operation\":\"jacobian_kangaroo_multi_small\",";
 	out << "\"architecture\":\"shared_tame\",";
 	out << "\"dp_lookup\":\"hash\",";
+	out << "\"dp_reserve\":\"right_sized\",";
 	out << "\"dp_bucket_storage\":\"inline_first\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
