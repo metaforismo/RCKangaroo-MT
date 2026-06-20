@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import platform
+import statistics
 import subprocess
 import sys
 import time
@@ -42,6 +43,32 @@ def parse_last_json(stdout: str) -> dict:
         if line.startswith("{") and line.endswith("}"):
             return json.loads(line)
     raise ValueError("benchmark output did not contain a JSON line")
+
+
+def aggregate_metric_samples(samples: list[dict]) -> dict:
+    if not samples:
+        raise ValueError("at least one benchmark sample is required")
+
+    ops_values = [float(sample.get("ops_per_sec", 0.0)) for sample in samples]
+    sorted_samples = sorted(samples, key=lambda sample: float(sample.get("ops_per_sec", 0.0)))
+    median_sample = dict(sorted_samples[len(sorted_samples) // 2])
+    median_ops = float(statistics.median(ops_values))
+
+    median_sample.update(
+        {
+            "ops_per_sec": median_ops,
+            "ops_per_sec_min": min(ops_values),
+            "ops_per_sec_max": max(ops_values),
+            "runner_sample_count": len(samples),
+            "correctness": all(bool(sample.get("correctness")) for sample in samples),
+            "skipped": all(bool(sample.get("skipped")) for sample in samples),
+        }
+    )
+    if not median_sample["correctness"] and not median_sample["skipped"]:
+        reasons = sorted({str(sample.get("reason", "")) for sample in samples if sample.get("reason")})
+        if reasons:
+            median_sample["reason"] = "; ".join(reasons)
+    return median_sample
 
 
 def git_commit() -> str:
@@ -159,16 +186,23 @@ def main() -> int:
         return check.returncode
 
     bench_target = experiment.get("bench_target", "macos-bench")
-    bench = run_command(["make", bench_target], timeout=timeout)
-    print(bench.stdout, end="")
-    if bench.returncode != 0:
-        return bench.returncode
+    sample_runs = max(1, int(experiment.get("sample_runs", 1)))
+    metric_samples: list[dict] = []
+    for sample_index in range(sample_runs):
+        if sample_runs > 1:
+            print(f"sample {sample_index + 1}/{sample_runs}:")
+        bench = run_command(["make", bench_target], timeout=timeout)
+        print(bench.stdout, end="")
+        if bench.returncode != 0:
+            return bench.returncode
 
-    try:
-        metrics = parse_last_json(bench.stdout)
-    except Exception as exc:
-        print(f"failed to parse benchmark JSON: {exc}", file=sys.stderr)
-        return 1
+        try:
+            metric_samples.append(parse_last_json(bench.stdout))
+        except Exception as exc:
+            print(f"failed to parse benchmark JSON: {exc}", file=sys.stderr)
+            return 1
+
+    metrics = aggregate_metric_samples(metric_samples)
 
     backend = str(metrics.get("backend", "unknown"))
     operation = str(metrics.get("operation", "unknown"))

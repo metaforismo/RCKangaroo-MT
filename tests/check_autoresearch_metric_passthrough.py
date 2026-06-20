@@ -50,6 +50,19 @@ assert row["target_throughput_vs_single"] == 16.0
 assert row["commit"] == "abc123"
 assert row["machine"] == "test-machine"
 
+samples = [
+    dict(metrics, iterations=5, seconds=0.10, ops_per_sec=50.0),
+    dict(metrics, iterations=10, seconds=0.10, ops_per_sec=100.0),
+    dict(metrics, iterations=15, seconds=0.10, ops_per_sec=150.0),
+]
+aggregated = runner.aggregate_metric_samples(samples)
+assert aggregated["ops_per_sec"] == 100.0
+assert aggregated["ops_per_sec_min"] == 50.0
+assert aggregated["ops_per_sec_max"] == 150.0
+assert aggregated["runner_sample_count"] == 3
+assert aggregated["iterations"] == 10
+assert aggregated["correctness"] is True
+
 with tempfile.TemporaryDirectory() as tmp:
     original_results = runner.RESULTS
     runner.RESULTS = Path(tmp) / "results.tsv"
