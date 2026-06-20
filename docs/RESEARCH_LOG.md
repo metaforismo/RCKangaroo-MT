@@ -106,6 +106,9 @@ These did not pass the performance gate or had a correctness/architecture issue:
 - `--tg-limit N` is now available on Metal field benchmark commands for
   reproducible sweeps. The default remains 256 unless an experiment proves a
   better cross-kernel cap.
+- A direct sweep with `--tg-limit` found `384` promising for some `mul` and
+  `square` runs, but a repeat square comparison flipped back in favor of 256.
+  Treat 384 as inconclusive, not as a new baseline.
 
 ## Next Research Targets
 
