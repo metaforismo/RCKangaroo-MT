@@ -149,6 +149,8 @@ Dettagli:
 - English: `macos/README.md`
 - Italiano: `macos/README.it.md`
 
+I benchmark kangaroo macOS riportano `dp_hash=partial_limb_mix`: l'hash dei distinguished point usa pochi limb ad alta entropia per scegliere il bucket piu' velocemente, mentre la chiave completa del punto affine resta usata per l'equality.
+
 ## Limiti
 
 Questo resta un solver GPU in stile proof-of-concept. Non aggiunge networking, coordinamento distribuito, checkpoint completi di tutte le DP o un backend kangaroo Apple GPU completo, ancora.
