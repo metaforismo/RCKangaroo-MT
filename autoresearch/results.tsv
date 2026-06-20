@@ -21,3 +21,5 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-20T00:06:31Z	f46a7c7	jacobian_kangaroo_small	macos_cpu	jacobian_kangaroo_small	265	5298.370751	true	keep	Apple Silicon CPU single-target tiny kangaroo benchmark
 2026-06-20T00:13:53Z	81af0eb	jacobian_kangaroo_small	macos_cpu	jacobian_kangaroo_small	272	5424.332791	true	keep	Apple Silicon CPU single-target tiny kangaroo benchmark
 2026-06-20T00:14:10Z	81af0eb	jacobian_kangaroo_multi_small	macos_cpu	jacobian_kangaroo_multi_small	243	4844.256167	true	discard	Apple Silicon CPU shared-tame tiny multi-target kangaroo benchmark
+2026-06-20T00:22:33Z	d21ae9a	jacobian_kangaroo_small	macos_cpu	jacobian_kangaroo_small	419	8364.581233	true	keep	Apple Silicon CPU single-target tiny kangaroo benchmark
+2026-06-20T00:22:45Z	d21ae9a	jacobian_kangaroo_multi_small	macos_cpu	jacobian_kangaroo_multi_small	450	8988.509629	true	keep	Apple Silicon CPU shared-tame tiny multi-target kangaroo benchmark
