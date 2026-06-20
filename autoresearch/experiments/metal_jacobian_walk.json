@@ -1,0 +1,7 @@
+{
+  "name": "metal_jacobian_walk",
+  "description": "Metal fixed-step Jacobian plus affine walk correctness and throughput gate",
+  "bench_target": "macos-metal-jacobian-walk-bench",
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3
+}

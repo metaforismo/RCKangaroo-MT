@@ -478,6 +478,39 @@ static std::string MetalFieldBenchJson(const char* operation,
 	return oss.str();
 }
 
+static std::string MetalJacobianWalkBenchJson(const char* operation,
+	uint64_t iterations,
+	unsigned int sample_count,
+	unsigned int steps_per_sample,
+	unsigned int min_ms,
+	const MetalDispatchStats& dispatch_stats,
+	double seconds,
+	double ops_per_sec,
+	bool correctness,
+	bool skipped,
+	const std::string& reason)
+{
+	std::ostringstream oss;
+	oss << std::fixed << std::setprecision(6);
+	oss << "{\"backend\":\"metal\",\"operation\":\"" << operation << "\",";
+	oss << "\"iterations\":" << iterations << ",";
+	oss << "\"sample_count\":" << sample_count << ",";
+	oss << "\"steps_per_sample\":" << steps_per_sample << ",";
+	oss << "\"min_ms\":" << min_ms << ",";
+	oss << "\"threadgroup_limit\":" << dispatch_stats.threadgroup_limit << ",";
+	oss << "\"thread_execution_width\":" << dispatch_stats.thread_execution_width << ",";
+	oss << "\"max_threads_per_threadgroup\":" << dispatch_stats.max_threads_per_threadgroup << ",";
+	oss << "\"threads_per_threadgroup\":" << dispatch_stats.threads_per_threadgroup << ",";
+	oss << "\"seconds\":" << seconds << ",";
+	oss << "\"ops_per_sec\":" << ops_per_sec << ",";
+	oss << "\"correctness\":" << (correctness ? "true" : "false") << ",";
+	oss << "\"skipped\":" << (skipped ? "true" : "false");
+	if (!reason.empty())
+		oss << ",\"reason\":\"" << JsonEscape(reason) << "\"";
+	oss << "}";
+	return oss.str();
+}
+
 static NSString* FieldSource()
 {
 	return [NSString stringWithUTF8String:RCKMetalFieldKernelsSource];
@@ -611,7 +644,9 @@ static bool RunJacobianAddAffineKernel(const std::vector<CpuJacobianPoint>& p,
 	std::string& error,
 	double* seconds,
 	unsigned int threadgroup_limit = 0,
-	MetalDispatchStats* dispatch_stats = NULL)
+	MetalDispatchStats* dispatch_stats = NULL,
+	const char* function_name = "jacobian_add_affine",
+	unsigned int steps_per_sample = 0)
 {
 	if (dispatch_stats)
 		dispatch_stats->threadgroup_limit = (unsigned int)EffectiveThreadgroupLimit(threadgroup_limit);
@@ -644,10 +679,10 @@ static bool RunJacobianAddAffineKernel(const std::vector<CpuJacobianPoint>& p,
 			return false;
 		}
 
-		id<MTLFunction> function = [library newFunctionWithName:@"jacobian_add_affine"];
+		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{
-			error = "failed to load jacobian_add_affine function";
+			error = std::string("failed to load ") + function_name + " function";
 			return false;
 		}
 
@@ -680,7 +715,9 @@ static bool RunJacobianAddAffineKernel(const std::vector<CpuJacobianPoint>& p,
 		id<MTLBuffer> out_inf_buffer = [device newBufferWithLength:inf_bytes options:MTLResourceStorageModeShared];
 		uint32_t count = (uint32_t)p.size();
 		id<MTLBuffer> count_buffer = [device newBufferWithBytes:&count length:sizeof(count) options:MTLResourceStorageModeShared];
-		if (!p_buffer || !q_buffer || !p_inf_buffer || !out_buffer || !out_inf_buffer || !count_buffer)
+		uint32_t step_count = steps_per_sample;
+		id<MTLBuffer> steps_buffer = steps_per_sample ? [device newBufferWithBytes:&step_count length:sizeof(step_count) options:MTLResourceStorageModeShared] : nil;
+		if (!p_buffer || !q_buffer || !p_inf_buffer || !out_buffer || !out_inf_buffer || !count_buffer || (steps_per_sample && !steps_buffer))
 		{
 			error = "failed to allocate Metal jacobian add buffers";
 			return false;
@@ -702,6 +739,8 @@ static bool RunJacobianAddAffineKernel(const std::vector<CpuJacobianPoint>& p,
 		[encoder setBuffer:out_buffer offset:0 atIndex:3];
 		[encoder setBuffer:out_inf_buffer offset:0 atIndex:4];
 		[encoder setBuffer:count_buffer offset:0 atIndex:5];
+		if (steps_per_sample)
+			[encoder setBuffer:steps_buffer offset:0 atIndex:6];
 		[encoder dispatchThreads:MTLSizeMake(count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
 		[encoder endEncoding];
 		auto start = std::chrono::steady_clock::now();
@@ -1063,6 +1102,40 @@ bool RCKMetalJacobianAddSelfTest(std::string& error)
 	return true;
 }
 
+static CpuJacobianPoint CpuJacobianWalkFixed(CpuJacobianPoint p, const CpuAffinePoint& q, unsigned int steps_per_sample)
+{
+	for (unsigned int i = 0; i < steps_per_sample; ++i)
+		p = CpuJacobianAddAffine(p, q);
+	return p;
+}
+
+bool RCKMetalJacobianWalkSelfTest(std::string& error)
+{
+	std::vector<CpuJacobianPoint> p;
+	std::vector<CpuAffinePoint> q;
+	BuildJacobianAddSamples(24, p, q);
+
+	const unsigned int steps_per_sample = 5;
+	std::vector<CpuJacobianPoint> out;
+	if (!RunJacobianAddAffineKernel(p, q, out, error, NULL, 0, NULL, "jacobian_affine_walk_fixed", steps_per_sample))
+		return false;
+
+	for (size_t i = 0; i < p.size(); ++i)
+	{
+		CpuJacobianPoint expected = CpuJacobianWalkFixed(p[i], q[i], steps_per_sample);
+		if (!CpuJacobianMatches(out[i], expected))
+		{
+			error = "jacobian walk mismatch at vector " + std::to_string(i) +
+				": got x=" + FieldToHex(out[i].x) + " y=" + FieldToHex(out[i].y) +
+				" z=" + FieldToHex(out[i].z) + " inf=" + (out[i].infinity ? "1" : "0") +
+				" expected x=" + FieldToHex(expected.x) + " y=" + FieldToHex(expected.y) +
+				" z=" + FieldToHex(expected.z) + " inf=" + (expected.infinity ? "1" : "0");
+			return false;
+		}
+	}
+	return true;
+}
+
 static FieldElement DeterministicElement(uint64_t i, uint64_t salt)
 {
 	FieldElement v = {
@@ -1125,6 +1198,59 @@ std::string RCKMetalJacobianAddBenchJson(unsigned int iterations, unsigned int m
 
 	double ops_per_sec = seconds > 0.0 ? (double)operations / seconds : 0.0;
 	return MetalFieldBenchJson("jacobian_add_affine", operations, sample_count, min_ms, dispatch_stats, seconds, ops_per_sec, true, false, "");
+}
+
+std::string RCKMetalJacobianWalkBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int min_ms, unsigned int threadgroup_limit)
+{
+	if (iterations == 0)
+		iterations = 1;
+	if (steps_per_sample == 0)
+		steps_per_sample = 1;
+
+	const unsigned int sample_count = iterations;
+	std::vector<CpuJacobianPoint> p;
+	std::vector<CpuAffinePoint> q;
+	BuildJacobianAddSamples(sample_count, p, q);
+
+	std::vector<CpuJacobianPoint> out;
+	std::string error;
+	double seconds = 0.0;
+	uint64_t operations = 0;
+	unsigned int dispatch_count = 0;
+	MetalDispatchStats dispatch_stats;
+	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveThreadgroupLimit(threadgroup_limit);
+	do
+	{
+		double dispatch_seconds = 0.0;
+		if (!RunJacobianAddAffineKernel(p, q, out, error, &dispatch_seconds, threadgroup_limit, &dispatch_stats, "jacobian_affine_walk_fixed", steps_per_sample))
+		{
+			if (error == "no Metal device available")
+				return MetalJacobianWalkBenchJson("jacobian_affine_walk_fixed", 0, sample_count, steps_per_sample, min_ms, dispatch_stats, 0.0, 0.0, false, true, error);
+			return MetalJacobianWalkBenchJson("jacobian_affine_walk_fixed", operations ? operations : (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, min_ms, dispatch_stats, seconds, 0.0, false, false, error);
+		}
+		seconds += dispatch_seconds;
+		operations += (uint64_t)sample_count * steps_per_sample;
+		dispatch_count++;
+		if (min_ms && dispatch_seconds == 0.0)
+			break;
+	} while (min_ms && (seconds * 1000.0 < (double)min_ms) && (dispatch_count < 100000));
+
+	for (unsigned int i = 0; i < sample_count; ++i)
+	{
+		CpuJacobianPoint expected = CpuJacobianWalkFixed(p[i], q[i], steps_per_sample);
+		if (!CpuJacobianMatches(out[i], expected))
+		{
+			std::string reason = "mismatch at vector " + std::to_string(i) +
+				": got x=" + FieldToHex(out[i].x) + " y=" + FieldToHex(out[i].y) +
+				" z=" + FieldToHex(out[i].z) + " inf=" + (out[i].infinity ? "1" : "0") +
+				" expected x=" + FieldToHex(expected.x) + " y=" + FieldToHex(expected.y) +
+				" z=" + FieldToHex(expected.z) + " inf=" + (expected.infinity ? "1" : "0");
+			return MetalJacobianWalkBenchJson("jacobian_affine_walk_fixed", operations, sample_count, steps_per_sample, min_ms, dispatch_stats, seconds, 0.0, false, false, reason);
+		}
+	}
+
+	double ops_per_sec = seconds > 0.0 ? (double)operations / seconds : 0.0;
+	return MetalJacobianWalkBenchJson("jacobian_affine_walk_fixed", operations, sample_count, steps_per_sample, min_ms, dispatch_stats, seconds, ops_per_sec, true, false, "");
 }
 
 static std::string RunMetalFieldBenchJson(const char* operation,

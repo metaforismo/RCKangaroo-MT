@@ -419,6 +419,13 @@ kernel void field_square_mod_p(device const ulong* a [[buffer(0)]],
   out[base + 0] = r0; out[base + 1] = r1; out[base + 2] = r2; out[base + 3] = r3;
 }
 
+struct JacobianValue {
+  ulong x0, x1, x2, x3;
+  ulong y0, y1, y2, y3;
+  ulong z0, z1, z2, z3;
+  uint inf;
+};
+
 kernel void field_square_mul_mod_p(device const ulong* a [[buffer(0)]],
                                    device const ulong* b [[buffer(1)]],
                                    device ulong* out [[buffer(2)]],
@@ -436,30 +443,20 @@ kernel void field_square_mul_mod_p(device const ulong* a [[buffer(0)]],
   out[base + 0] = r0; out[base + 1] = r1; out[base + 2] = r2; out[base + 3] = r3;
 }
 
-kernel void jacobian_add_affine(device const ulong* p_xyz [[buffer(0)]],
-                                device const ulong* q_xy [[buffer(1)]],
-                                device const uint* p_infinity [[buffer(2)]],
-                                device ulong* out_xyz [[buffer(3)]],
-                                device uint* out_infinity [[buffer(4)]],
-                                constant uint& count [[buffer(5)]],
-                                uint id [[thread_position_in_grid]]) {
-  if (id >= count) return;
-  uint p_base = id * 12;
-  uint q_base = id * 8;
-  uint out_base = id * 12;
-
-  ulong qx0 = q_xy[q_base + 0], qx1 = q_xy[q_base + 1], qx2 = q_xy[q_base + 2], qx3 = q_xy[q_base + 3];
-  ulong qy0 = q_xy[q_base + 4], qy1 = q_xy[q_base + 5], qy2 = q_xy[q_base + 6], qy3 = q_xy[q_base + 7];
-  if (p_infinity[id]) {
-    store_jacobian(out_xyz, out_base,
-                   qx0, qx1, qx2, qx3, qy0, qy1, qy2, qy3,
-                   1, 0, 0, 0, out_infinity, id, 0);
-    return;
+static inline JacobianValue jacobian_add_affine_values(ulong x0, ulong x1, ulong x2, ulong x3,
+                                                       ulong y0, ulong y1, ulong y2, ulong y3,
+                                                       ulong z0, ulong z1, ulong z2, ulong z3,
+                                                       uint p_infinity,
+                                                       ulong qx0, ulong qx1, ulong qx2, ulong qx3,
+                                                       ulong qy0, ulong qy1, ulong qy2, ulong qy3) {
+  JacobianValue out;
+  if (p_infinity) {
+    out.x0 = qx0; out.x1 = qx1; out.x2 = qx2; out.x3 = qx3;
+    out.y0 = qy0; out.y1 = qy1; out.y2 = qy2; out.y3 = qy3;
+    out.z0 = 1; out.z1 = 0; out.z2 = 0; out.z3 = 0;
+    out.inf = 0;
+    return out;
   }
-
-  ulong x0 = p_xyz[p_base + 0], x1 = p_xyz[p_base + 1], x2 = p_xyz[p_base + 2], x3 = p_xyz[p_base + 3];
-  ulong y0 = p_xyz[p_base + 4], y1 = p_xyz[p_base + 5], y2 = p_xyz[p_base + 6], y3 = p_xyz[p_base + 7];
-  ulong z0 = p_xyz[p_base + 8], z1 = p_xyz[p_base + 9], z2 = p_xyz[p_base + 10], z3 = p_xyz[p_base + 11];
 
   ulong z20 = 0, z21 = 0, z22 = 0, z23 = 0;
   ulong z30 = 0, z31 = 0, z32 = 0, z33 = 0;
@@ -483,12 +480,17 @@ kernel void jacobian_add_affine(device const ulong* p_xyz [[buffer(0)]],
       jacobian_double_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3,
                              ox0, ox1, ox2, ox3, oy0, oy1, oy2, oy3,
                              oz0, oz1, oz2, oz3, infinity);
-      store_jacobian(out_xyz, out_base, ox0, ox1, ox2, ox3, oy0, oy1, oy2, oy3,
-                     oz0, oz1, oz2, oz3, out_infinity, id, infinity);
-      return;
+      out.x0 = ox0; out.x1 = ox1; out.x2 = ox2; out.x3 = ox3;
+      out.y0 = oy0; out.y1 = oy1; out.y2 = oy2; out.y3 = oy3;
+      out.z0 = oz0; out.z1 = oz1; out.z2 = oz2; out.z3 = oz3;
+      out.inf = infinity;
+      return out;
     }
-    store_jacobian(out_xyz, out_base, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, out_infinity, id, 1);
-    return;
+    out.x0 = 0; out.x1 = 0; out.x2 = 0; out.x3 = 0;
+    out.y0 = 0; out.y1 = 0; out.y2 = 0; out.y3 = 0;
+    out.z0 = 0; out.z1 = 0; out.z2 = 0; out.z3 = 0;
+    out.inf = 1;
+    return out;
   }
 
   ulong hh0 = 0, hh1 = 0, hh2 = 0, hh3 = 0;
@@ -513,7 +515,64 @@ kernel void jacobian_add_affine(device const ulong* p_xyz [[buffer(0)]],
   field_mul_values(y0, y1, y2, y3, hhh0, hhh1, hhh2, hhh3, y_mul_hhh0, y_mul_hhh1, y_mul_hhh2, y_mul_hhh3);
   field_sub_values(y30, y31, y32, y33, y_mul_hhh0, y_mul_hhh1, y_mul_hhh2, y_mul_hhh3, y30, y31, y32, y33);
   field_mul_values(z0, z1, z2, z3, h0, h1, h2, h3, z_out0, z_out1, z_out2, z_out3);
-  store_jacobian(out_xyz, out_base, x30, x31, x32, x33, y30, y31, y32, y33,
-                 z_out0, z_out1, z_out2, z_out3, out_infinity, id, 0);
+  out.x0 = x30; out.x1 = x31; out.x2 = x32; out.x3 = x33;
+  out.y0 = y30; out.y1 = y31; out.y2 = y32; out.y3 = y33;
+  out.z0 = z_out0; out.z1 = z_out1; out.z2 = z_out2; out.z3 = z_out3;
+  out.inf = 0;
+  return out;
+}
+
+kernel void jacobian_add_affine(device const ulong* p_xyz [[buffer(0)]],
+                                device const ulong* q_xy [[buffer(1)]],
+                                device const uint* p_infinity [[buffer(2)]],
+                                device ulong* out_xyz [[buffer(3)]],
+                                device uint* out_infinity [[buffer(4)]],
+                                constant uint& count [[buffer(5)]],
+                                uint id [[thread_position_in_grid]]) {
+  if (id >= count) return;
+  uint p_base = id * 12;
+  uint q_base = id * 8;
+  uint out_base = id * 12;
+
+  JacobianValue out = jacobian_add_affine_values(p_xyz[p_base + 0], p_xyz[p_base + 1], p_xyz[p_base + 2], p_xyz[p_base + 3],
+                                                 p_xyz[p_base + 4], p_xyz[p_base + 5], p_xyz[p_base + 6], p_xyz[p_base + 7],
+                                                 p_xyz[p_base + 8], p_xyz[p_base + 9], p_xyz[p_base + 10], p_xyz[p_base + 11],
+                                                 p_infinity[id],
+                                                 q_xy[q_base + 0], q_xy[q_base + 1], q_xy[q_base + 2], q_xy[q_base + 3],
+                                                 q_xy[q_base + 4], q_xy[q_base + 5], q_xy[q_base + 6], q_xy[q_base + 7]);
+  store_jacobian(out_xyz, out_base, out.x0, out.x1, out.x2, out.x3, out.y0, out.y1, out.y2, out.y3,
+                 out.z0, out.z1, out.z2, out.z3, out_infinity, id, out.inf);
+}
+
+kernel void jacobian_affine_walk_fixed(device const ulong* p_xyz [[buffer(0)]],
+                                       device const ulong* q_xy [[buffer(1)]],
+                                       device const uint* p_infinity [[buffer(2)]],
+                                       device ulong* out_xyz [[buffer(3)]],
+                                       device uint* out_infinity [[buffer(4)]],
+                                       constant uint& count [[buffer(5)]],
+                                       constant uint& steps [[buffer(6)]],
+                                       uint id [[thread_position_in_grid]]) {
+  if (id >= count) return;
+  uint p_base = id * 12;
+  uint q_base = id * 8;
+  uint out_base = id * 12;
+  ulong x0 = p_xyz[p_base + 0], x1 = p_xyz[p_base + 1], x2 = p_xyz[p_base + 2], x3 = p_xyz[p_base + 3];
+  ulong y0 = p_xyz[p_base + 4], y1 = p_xyz[p_base + 5], y2 = p_xyz[p_base + 6], y3 = p_xyz[p_base + 7];
+  ulong z0 = p_xyz[p_base + 8], z1 = p_xyz[p_base + 9], z2 = p_xyz[p_base + 10], z3 = p_xyz[p_base + 11];
+  ulong qx0 = q_xy[q_base + 0], qx1 = q_xy[q_base + 1], qx2 = q_xy[q_base + 2], qx3 = q_xy[q_base + 3];
+  ulong qy0 = q_xy[q_base + 4], qy1 = q_xy[q_base + 5], qy2 = q_xy[q_base + 6], qy3 = q_xy[q_base + 7];
+  uint inf = p_infinity[id];
+
+  for (uint step = 0; step < steps; step++) {
+    JacobianValue out = jacobian_add_affine_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3, inf,
+                                                   qx0, qx1, qx2, qx3, qy0, qy1, qy2, qy3);
+    x0 = out.x0; x1 = out.x1; x2 = out.x2; x3 = out.x3;
+    y0 = out.y0; y1 = out.y1; y2 = out.y2; y3 = out.y3;
+    z0 = out.z0; z1 = out.z1; z2 = out.z2; z3 = out.z3;
+    inf = out.inf;
+  }
+
+  store_jacobian(out_xyz, out_base, x0, x1, x2, x3, y0, y1, y2, y3,
+                 z0, z1, z2, z3, out_infinity, id, inf);
 }
 )RCK_METAL";

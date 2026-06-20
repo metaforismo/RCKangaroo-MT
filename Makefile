@@ -2,7 +2,7 @@ CUDA_PATH ?= /usr/local/cuda-12.0
 CC := g++
 NVCC := $(CUDA_PATH)/bin/nvcc
 
-.PHONY: all clean check-host check-portable-ec check-quality-gates check-autoresearch macos-lto-flags-check macos-jump-index-source-check macos-ecint-carry-source-check macos-hotpath-microbatch-source-check macos-affine-z-check-source-check macos-affine-inplace-field-source-check macos-affine-reverse-loop-source-check macos-build macos-check macos-bench macos-point-bench macos-jacobian-point-bench macos-jacobian-batch-affine-bench macos-jacobian-batch-affine-bench-run macos-jacobian-walk-bench macos-jacobian-kangaroo-small-test macos-jacobian-kangaroo-small-bench macos-jacobian-kangaroo-small-bench-run macos-jacobian-kangaroo-small-bench-test macos-jacobian-kangaroo-multi-small-test macos-jacobian-kangaroo-multi-small-bench macos-jacobian-kangaroo-multi-small-bench-run macos-jacobian-kangaroo-multi16-small-bench macos-jacobian-kangaroo-multi16-small-bench-run macos-jacobian-kangaroo-multi-small-bench-test macos-cpu-field-test macos-cpu-field-bench macos-metal-kernels-check macos-metal-field-test macos-metal-field-bench macos-metal-field-mul-test macos-metal-field-mul-bench macos-metal-field-square-test macos-metal-field-square-bench macos-metal-field-square-mul-test macos-metal-field-square-mul-bench macos-metal-field-sub-test macos-metal-field-sub-bench macos-metal-field-double-test macos-metal-field-double-bench macos-metal-field-neg-test macos-metal-field-neg-bench macos-metal-field-mul4-test macos-metal-field-mul4-bench macos-metal-jacobian-add-test macos-metal-jacobian-add-bench
+.PHONY: all clean check-host check-portable-ec check-quality-gates check-autoresearch macos-lto-flags-check macos-jump-index-source-check macos-ecint-carry-source-check macos-hotpath-microbatch-source-check macos-affine-z-check-source-check macos-affine-inplace-field-source-check macos-affine-reverse-loop-source-check macos-build macos-check macos-bench macos-point-bench macos-jacobian-point-bench macos-jacobian-batch-affine-bench macos-jacobian-batch-affine-bench-run macos-jacobian-walk-bench macos-jacobian-kangaroo-small-test macos-jacobian-kangaroo-small-bench macos-jacobian-kangaroo-small-bench-run macos-jacobian-kangaroo-small-bench-test macos-jacobian-kangaroo-multi-small-test macos-jacobian-kangaroo-multi-small-bench macos-jacobian-kangaroo-multi-small-bench-run macos-jacobian-kangaroo-multi16-small-bench macos-jacobian-kangaroo-multi16-small-bench-run macos-jacobian-kangaroo-multi-small-bench-test macos-cpu-field-test macos-cpu-field-bench macos-metal-kernels-check macos-metal-field-test macos-metal-field-bench macos-metal-field-mul-test macos-metal-field-mul-bench macos-metal-field-square-test macos-metal-field-square-bench macos-metal-field-square-mul-test macos-metal-field-square-mul-bench macos-metal-field-sub-test macos-metal-field-sub-bench macos-metal-field-double-test macos-metal-field-double-bench macos-metal-field-neg-test macos-metal-field-neg-bench macos-metal-field-mul4-test macos-metal-field-mul4-bench macos-metal-jacobian-add-test macos-metal-jacobian-add-bench macos-metal-jacobian-walk-test macos-metal-jacobian-walk-bench
 
 CCFLAGS := -O3 -I$(CUDA_PATH)/include
 NVCCFLAGS := -O3 -gencode=arch=compute_89,code=compute_89 -gencode=arch=compute_86,code=compute_86 -gencode=arch=compute_75,code=compute_75 -gencode=arch=compute_61,code=compute_61
@@ -102,6 +102,7 @@ macos-check: check-host check-autoresearch check-quality-gates macos-lto-flags-c
 	sh tests/check_metal_field_neg_cli.sh
 	sh tests/check_metal_field_mul4_cli.sh
 	sh tests/check_metal_jacobian_add_cli.sh
+	sh tests/check_metal_jacobian_walk_cli.sh
 
 macos-bench: macos-build
 	./$(MACOS_TARGET) bench --iterations 64
@@ -213,3 +214,9 @@ macos-metal-jacobian-add-test: macos-build
 
 macos-metal-jacobian-add-bench: macos-build
 	./$(MACOS_TARGET) metal-jacobian-add-bench --iterations 65536 --min-ms 50
+
+macos-metal-jacobian-walk-test: macos-build
+	./$(MACOS_TARGET) metal-jacobian-walk-test
+
+macos-metal-jacobian-walk-bench: macos-build
+	./$(MACOS_TARGET) metal-jacobian-walk-bench --iterations 16384 --steps 8 --min-ms 50

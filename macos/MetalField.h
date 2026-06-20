@@ -20,3 +20,5 @@ bool RCKMetalFieldSquareMulSelfTest(std::string& error);
 std::string RCKMetalFieldSquareMulBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit = 0);
 bool RCKMetalJacobianAddSelfTest(std::string& error);
 std::string RCKMetalJacobianAddBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int threadgroup_limit = 0);
+bool RCKMetalJacobianWalkSelfTest(std::string& error);
+std::string RCKMetalJacobianWalkBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int min_ms, unsigned int threadgroup_limit = 0);

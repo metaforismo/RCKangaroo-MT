@@ -46,6 +46,8 @@ static void PrintUsage()
 	printf("  rck_macos metal-field-square-mul-bench --iterations N [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-jacobian-add-test\n");
 	printf("  rck_macos metal-jacobian-add-bench --iterations N [--min-ms N] [--tg-limit N]\n");
+	printf("  rck_macos metal-jacobian-walk-test\n");
+	printf("  rck_macos metal-jacobian-walk-bench --iterations N [--steps N] [--min-ms N] [--tg-limit N]\n");
 }
 
 static bool ReadOption(int argc, char* argv[], const char* name, const char** value)
@@ -101,6 +103,17 @@ static bool ReadMetalBenchOptions(int argc, char* argv[], unsigned int* iteratio
 	if (!ReadBenchTimingOptions(argc, argv, iterations, min_ms))
 		return false;
 	if (ReadOption(argc, argv, "--tg-limit", &tg_s) && !ParseU32(tg_s, threadgroup_limit))
+		return false;
+	return true;
+}
+
+static bool ReadMetalWalkBenchOptions(int argc, char* argv[], unsigned int* iterations, unsigned int* steps, unsigned int* min_ms, unsigned int* threadgroup_limit)
+{
+	const char* steps_s = NULL;
+	*steps = 8;
+	if (!ReadMetalBenchOptions(argc, argv, iterations, min_ms, threadgroup_limit))
+		return false;
+	if (ReadOption(argc, argv, "--steps", &steps_s) && !ParseU32(steps_s, steps))
 		return false;
 	return true;
 }
@@ -807,6 +820,35 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 		printf("%s\n", RCKMetalJacobianAddBenchJson(iterations, min_ms, threadgroup_limit).c_str());
+	}
+	else if (strcmp(argv[1], "metal-jacobian-walk-test") == 0)
+	{
+		if (RCKMetalJacobianWalkSelfTest(error))
+			printf("metal jacobian walk ok\n");
+		else
+		{
+			if (error == "no Metal device available")
+				printf("metal jacobian walk skipped: %s\n", error.c_str());
+			else
+			{
+				printf("metal jacobian walk failed: %s\n", error.c_str());
+				rc = 1;
+			}
+		}
+	}
+	else if (strcmp(argv[1], "metal-jacobian-walk-bench") == 0)
+	{
+		unsigned int iterations = 1024;
+		unsigned int steps = 8;
+		unsigned int min_ms = 0;
+		unsigned int threadgroup_limit = 0;
+		if (!ReadMetalWalkBenchOptions(argc, argv, &iterations, &steps, &min_ms, &threadgroup_limit))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		printf("%s\n", RCKMetalJacobianWalkBenchJson(iterations, steps, min_ms, threadgroup_limit).c_str());
 	}
 	else
 	{

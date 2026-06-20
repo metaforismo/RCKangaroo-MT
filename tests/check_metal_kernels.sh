@@ -62,6 +62,11 @@ if ! grep -q "kernel void jacobian_add_affine" "$tmp_source"; then
 	exit 1
 fi
 
+if ! grep -q "kernel void jacobian_affine_walk_fixed" "$tmp_source"; then
+	printf '%s\n' "jacobian_affine_walk_fixed kernel missing from Metal source"
+	exit 1
+fi
+
 if ! grep -q "field_square_values" "$tmp_source"; then
 	printf '%s\n' "field_square_values helper missing from Metal source"
 	exit 1
@@ -89,14 +94,35 @@ if ! awk '
 fi
 
 if ! awk '
-	/kernel void jacobian_add_affine/ { in_jacobian = 1 }
-	in_jacobian && /field_square_values/ { found_square = 1 }
-	in_jacobian && /field_mul_values/ { found_mul = 1 }
-	in_jacobian && /field_sub_values/ { found_sub = 1 }
-	in_jacobian && /^}/ { in_jacobian = 0 }
+	/static inline JacobianValue jacobian_add_affine_values/ { in_helper = 1 }
+	in_helper && /field_square_values/ { found_square = 1 }
+	in_helper && /field_mul_values/ { found_mul = 1 }
+	in_helper && /field_sub_values/ { found_sub = 1 }
+	in_helper && /kernel void jacobian_add_affine/ { in_helper = 0 }
 	END { exit (found_square && found_mul && found_sub) ? 0 : 1 }
 ' "$tmp_source"; then
-	printf '%s\n' "jacobian_add_affine does not use field square/mul/sub helpers"
+	printf '%s\n' "jacobian_add_affine_values does not use field square/mul/sub helpers"
+	exit 1
+fi
+
+if ! awk '
+	/kernel void jacobian_add_affine/ { in_jacobian = 1 }
+	in_jacobian && /jacobian_add_affine_values/ { found_step = 1 }
+	in_jacobian && /^}/ { in_jacobian = 0 }
+	END { exit found_step ? 0 : 1 }
+' "$tmp_source"; then
+	printf '%s\n' "jacobian_add_affine does not use shared Jacobian add helper"
+	exit 1
+fi
+
+if ! awk '
+	/kernel void jacobian_affine_walk_fixed/ { in_walk = 1 }
+	in_walk && /jacobian_add_affine_values/ { found_step = 1 }
+	in_walk && /for \(uint step/ { found_loop = 1 }
+	in_walk && /^}/ { in_walk = 0 }
+	END { exit (found_step && found_loop) ? 0 : 1 }
+' "$tmp_source"; then
+	printf '%s\n' "jacobian_affine_walk_fixed does not loop over the shared Jacobian add helper"
 	exit 1
 fi
 
