@@ -84,6 +84,9 @@ assert aggregated["runner_sample_count"] == 3
 assert aggregated["iterations"] == 10
 assert aggregated["correctness"] is True
 
+jump_walk_experiment = runner.load_experiment("jacobian_jump_walk")
+assert int(jump_walk_experiment.get("sample_runs", 1)) >= 3
+
 call_order: list[str] = []
 baseline_cwd = Path("/tmp/rck-baseline")
 candidate_cwd = Path("/tmp/rck-candidate")

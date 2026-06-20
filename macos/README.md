@@ -151,6 +151,8 @@ python3 autoresearch/runner.py --experiment metal_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_square --budget-sec 5
 ```
 
+The `jacobian_jump_walk` experiment uses three runner samples and records median/min/max throughput, which makes walk-core comparisons less sensitive to short macOS scheduler spikes.
+
 Autoresearch records Metal device absence as `status=skip`, not as a crash, so the same experiment can run on both local Apple Silicon and headless CI.
 
 If you want to generate tames for the full solver, do that on the CUDA host. With multi-target mode, existing tames must already exist; generate them separately before using `-targets`.

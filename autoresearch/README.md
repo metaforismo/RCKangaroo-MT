@@ -47,7 +47,7 @@ Run the CPU Jacobian jump-table walk experiment:
 python3 autoresearch/runner.py --experiment jacobian_jump_walk --budget-sec 5
 ```
 
-This records `macos_cpu` `jacobian_jump_walk` throughput. The benchmark precomputes affine jump points, keeps the walk state in Jacobian coordinates, passes the Jacobian step point by const reference (`jacobian_step_passing=const_ref`), selects jumps with a bit mask when `jump_count` is a power of two (`jump_index=power2_mask`, otherwise `modulo`), tracks scalar distance in parallel, and checks the final point against a scalar oracle. It is a deterministic walk-core benchmark, not a full DP/collision kangaroo solver yet.
+This records `macos_cpu` `jacobian_jump_walk` throughput. The experiment runs three paired samples and records median/min/max throughput to reduce scheduler noise in this very short walk-core benchmark. The benchmark precomputes affine jump points, keeps the walk state in Jacobian coordinates, passes the Jacobian step point by const reference (`jacobian_step_passing=const_ref`), selects jumps with a bit mask when `jump_count` is a power of two (`jump_index=power2_mask`, otherwise `modulo`), tracks scalar distance in parallel, and checks the final point against a scalar oracle. It is a deterministic walk-core benchmark, not a full DP/collision kangaroo solver yet.
 
 Run the CPU Jacobian batch-to-affine conversion experiment:
 
