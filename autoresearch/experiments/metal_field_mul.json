@@ -2,5 +2,6 @@
   "name": "metal_field_mul",
   "description": "Metal secp256k1 field_mul_mod_p correctness and throughput gate",
   "bench_target": "macos-metal-field-mul-bench",
-  "min_improvement_ratio": 0.01
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3
 }

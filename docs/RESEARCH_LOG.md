@@ -109,6 +109,8 @@ These did not pass the performance gate or had a correctness/architecture issue:
 - A direct sweep with `--tg-limit` found `384` promising for some `mul` and
   `square` runs, but a repeat square comparison flipped back in favor of 256.
   Treat 384 as inconclusive, not as a new baseline.
+- Metal field autoresearch experiments use three runner samples so keep/discard
+  decisions are based on median throughput instead of a single noisy GPU run.
 
 ## Next Research Targets
 

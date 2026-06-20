@@ -42,6 +42,7 @@ check-quality-gates:
 
 check-autoresearch:
 	python3 tests/check_autoresearch_metric_passthrough.py
+	python3 tests/check_metal_autoresearch_sample_runs.py
 
 MACOS_SRC := macos/rck_macos.cpp macos/RCKMac.cpp macos/CpuField.cpp macos/MetalSmoke.mm macos/MetalField.mm Ec.cpp utils.cpp TargetSet.cpp
 MACOS_LTO_FLAGS ?= -flto=thin
