@@ -31,16 +31,37 @@ static inline uint64_t Mul64(uint64_t a, uint64_t b, uint64_t* hi)
 
 static inline uint8_t AddCarry(uint8_t carry, uint64_t a, uint64_t b, uint64_t* out)
 {
+#if defined(__clang__)
+	unsigned long long carry_out = 0;
+	*out = (uint64_t)__builtin_addcll((unsigned long long)a, (unsigned long long)b, (unsigned long long)carry, &carry_out);
+	return (uint8_t)carry_out;
+#else
 	unsigned __int128 sum = (unsigned __int128)a + (unsigned __int128)b + carry;
 	*out = (uint64_t)sum;
 	return (uint8_t)(sum >> 64);
+#endif
 }
 
 static inline uint8_t SubBorrow(uint8_t borrow, uint64_t a, uint64_t b, uint64_t* out)
 {
+#if defined(__clang__)
+	unsigned long long borrow_out = 0;
+	*out = (uint64_t)__builtin_subcll((unsigned long long)a, (unsigned long long)b, (unsigned long long)borrow, &borrow_out);
+	return (uint8_t)borrow_out;
+#else
 	uint64_t sub = b + borrow;
 	*out = a - sub;
 	return (uint8_t)((a < b) || (borrow && a == b));
+#endif
+}
+
+static const char* CarryImplMode()
+{
+#if defined(__clang__)
+	return "clang_builtin";
+#else
+	return "uint128";
+#endif
 }
 
 static bool FieldGeP(const CpuFieldElement& v)
@@ -293,6 +314,7 @@ static std::string CpuFieldBenchJson(uint64_t operations,
 	oss << std::fixed << std::setprecision(6);
 	oss << "{\"backend\":\"macos_cpu\",";
 	oss << "\"operation\":\"field_mul_mod_p\",";
+	oss << "\"carry_impl\":\"" << CarryImplMode() << "\",";
 	oss << "\"iterations\":" << operations << ",";
 	oss << "\"sample_count\":" << sample_count << ",";
 	oss << "\"min_ms\":" << min_ms << ",";

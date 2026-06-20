@@ -69,7 +69,7 @@ make macos-cpu-field-bench
 ./macos/rck_macos cpu-field-bench --iterations 4096 --min-ms 50
 ```
 
-Il percorso CPU field usa quattro limb little-endian da 64 bit e carry arithmetic con `unsigned __int128`. Il benchmark riporta throughput `field_mul_mod_p` e throughput reference `EcInt` per confronto. `--iterations` controlla la dimensione del sample deterministico; `--min-ms` ripete quel sample finche' la misura nativa dura almeno quei millisecondi, così autoresearch riceve dati meno rumorosi.
+Il percorso CPU field usa quattro limb little-endian da 64 bit. Su Apple Clang, le catene carry/borrow usano `__builtin_addcll` e `__builtin_subcll`; sugli altri compilatori resta il fallback portabile `unsigned __int128`. Il benchmark riporta throughput `field_mul_mod_p`, `carry_impl` e throughput reference `EcInt` per confronto. `--iterations` controlla la dimensione del sample deterministico; `--min-ms` ripete quel sample finche' la misura nativa dura almeno quei millisecondi, così autoresearch riceve dati meno rumorosi.
 
 Smoke test Metal:
 

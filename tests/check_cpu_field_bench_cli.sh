@@ -13,7 +13,7 @@ if [ "$status" -ne 0 ]; then
 fi
 
 case "$output" in
-	*"\"backend\":\"macos_cpu\""*"\"operation\":\"field_mul_mod_p\""*"\"sample_count\":8"*"\"min_ms\":1"*"\"correctness\":true"*)
+	*"\"backend\":\"macos_cpu\""*"\"operation\":\"field_mul_mod_p\""*"\"carry_impl\":\"clang_builtin\""*"\"sample_count\":8"*"\"min_ms\":1"*"\"correctness\":true"*)
 		exit 0
 		;;
 	*)
