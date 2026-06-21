@@ -668,6 +668,15 @@ Commit: `4d1cc10` (`perf: dispatch Metal jump walk by threadgroups`)
   - `threads_per_threadgroup=256`
   - A non-multiple micro-benchmark with `sample_count=9` also returned
     `correctness=true`, covering the ceiling dispatch shape.
+- Local-public Benchforge verifier accepted submission
+  `sub_f1185649-8a26-491b-a047-ec0604c7afbd` as run
+  `run_0e8d35ad-7f60-4cf7-a9b6-87cf9a5f7b0a` with score
+  `33,847,318.071380 ops/sec`, receipt hash
+  `5e899e1312baca831593e1f54f9873bd35d56a0d669b0d2794a8000ee411d1db`,
+  `verifier.trusted=false`, `platform=darwin`, `arch=arm64`, `cpus=Apple M3`.
+  The local run before submission was
+  `run_746218ad-dd52-4184-b5d3-75ea50e62374` at
+  `32,143,846.853718 ops/sec`.
 
 ## Rejected Or Non-Merged Experiments
 

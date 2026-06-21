@@ -74,6 +74,17 @@ they are intentionally ignored by git.
   - post-packed-combined-flags accepted score: `25,244,587.273860 ops/sec`
   - post-packed-combined-flags receipt hash:
     `ae763283a4d56d46d814c157dfe7eee632e9b84a2d9b1b05425adf8837f926c5`
+  - post-threadgroup-dispatch local score: `32,143,846.853718 ops/sec`
+  - post-threadgroup-dispatch local run:
+    `run_746218ad-dd52-4184-b5d3-75ea50e62374`
+  - post-threadgroup-dispatch submission:
+    `sub_f1185649-8a26-491b-a047-ec0604c7afbd`
+  - post-threadgroup-dispatch candidate score: `30,203,700.190622 ops/sec`
+  - post-threadgroup-dispatch accepted run:
+    `run_0e8d35ad-7f60-4cf7-a9b6-87cf9a5f7b0a`
+  - post-threadgroup-dispatch accepted score: `33,847,318.071380 ops/sec`
+  - post-threadgroup-dispatch receipt hash:
+    `5e899e1312baca831593e1f54f9873bd35d56a0d669b0d2794a8000ee411d1db`
   - verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
 
@@ -153,7 +164,9 @@ they are intentionally ignored by git.
   autoresearch kept it with candidate median `37,756,893.905525 ops/sec`
   versus paired baseline median `25,763,516.307986 ops/sec`; distance and DP
   checksums were unchanged. A `sample_count=9` micro-benchmark also returned
-  `correctness=true`, covering non-multiple grid sizes.
+  `correctness=true`, covering non-multiple grid sizes. The local-public
+  verifier accepted run `run_0e8d35ad-7f60-4cf7-a9b6-87cf9a5f7b0a` at
+  `33,847,318.071380 ops/sec` with `trusted=false`.
 
 ## Current Correctness Surface
 
