@@ -6,7 +6,7 @@ they are intentionally ignored by git.
 
 ## Baseline
 
-- Baseline commit: `1273a54` (`perf: record Metal steps8 kernel gain`).
+- Baseline commit: `eed2082` (`perf: record constant Metal jump-table gain`).
 - Hardware track: Apple Silicon M3 Metal, 10-core GPU, 16 GB RAM.
 - Score command: `metal-jacobian-jump-walk-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 50`.
 - Local Benchforge runs observed after adding the lab:
@@ -24,6 +24,8 @@ they are intentionally ignored by git.
   - post-q-base-shift local run: `run_4df90d72-1f08-437d-b6d8-e5a1eef4e1e5`
   - post-steps8-kernel local score: `30,268,511.454293 ops/sec`
   - post-steps8-kernel local run: `run_1c90c406-7301-469b-a144-dd203ea596fb`
+  - post-constant-jump-tables local score: `29,124,706.165467 ops/sec`
+  - post-constant-jump-tables local run: `run_98e0ea38-a9a0-44eb-9fc4-600aba32883f`
   - verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
 
@@ -47,6 +49,11 @@ they are intentionally ignored by git.
   step counts. Paired autoresearch kept it with candidate median
   `38,243,083.846592 ops/sec` versus paired baseline median
   `34,828,506.038031 ops/sec`; distance and DP checksums were unchanged.
+- `ba91503` moves the compact read-only affine jump table and distance table to
+  Metal `constant` address space while leaving per-sample jump indices in
+  `device const`. Paired autoresearch kept it with candidate median
+  `36,426,708.294932 ops/sec` versus paired baseline median
+  `30,769,379.445330 ops/sec`; distance and DP checksums were unchanged.
 
 ## Current Correctness Surface
 
