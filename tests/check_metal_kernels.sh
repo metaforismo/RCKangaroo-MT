@@ -250,10 +250,11 @@ if ! awk '
 	in_walk && /constant ulong\* jump_distances/ { found_distances = 1 }
 	in_walk && /constant ulong& dp_mask/ { found_dynamic_dp_mask = 1 }
 	in_walk && /\(x0 & 0xFUL\) == 0/ { found_dp4_mask = 1 }
-	in_walk && /bool inf = p_infinity\[id\] != 0/ { found_bool_inf = 1 }
+	in_walk && /bool inf = p_infinity\[id\]/ { found_bool_inf = 1 }
+	in_walk && /bool inf = p_infinity\[id\] != 0/ { found_bool_inf_compare = 1 }
 	in_walk && /uint inf = p_infinity\[id\]/ { found_uint_inf = 1 }
-	in_walk && /inf = out.inf != 0/ { found_bool_inf_update = 1 }
-	in_walk && /inf = out.inf;/ { found_uint_inf_update = 1 }
+	in_walk && /inf = out.inf;/ { found_bool_inf_update = 1 }
+	in_walk && /inf = out.inf != 0/ { found_bool_inf_update_compare = 1 }
 	in_walk && /uint jump_base = id << 3/ { found_jump_base = 1 }
 	in_walk && /for \(uint step = 0; step < 8; step\+\+\)/ { found_fixed_loop = 1 }
 	in_walk && /if \(inf\)/ { found_inf_guard = 1 }
@@ -261,9 +262,9 @@ if ! awk '
 	in_walk && /jacobian_add_affine_finite_values/ { found_finite_step = 1 }
 	in_walk && /out_flags\[id\]/ { found_flags_store = 1 }
 	in_walk && /^}/ { in_walk = 0 }
-	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && !found_dynamic_dp_mask && found_dp4_mask && found_bool_inf && !found_uint_inf && found_bool_inf_update && !found_uint_inf_update && found_jump_base && found_fixed_loop && found_inf_guard && found_generic_step && found_finite_step && found_flags_store) ? 0 : 1 }
+	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && !found_dynamic_dp_mask && found_dp4_mask && found_bool_inf && !found_bool_inf_compare && !found_uint_inf && found_bool_inf_update && !found_bool_inf_update_compare && found_jump_base && found_fixed_loop && found_inf_guard && found_generic_step && found_finite_step && found_flags_store) ? 0 : 1 }
 ' "$tmp_source"; then
-	printf '%s\n' "jacobian_affine_walk_jump_table_steps8_dp4 does not keep the finite hot path with bool infinity state"
+	printf '%s\n' "jacobian_affine_walk_jump_table_steps8_dp4 does not keep the finite hot path with direct bool infinity state"
 	exit 1
 fi
 

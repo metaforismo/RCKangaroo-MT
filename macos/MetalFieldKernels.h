@@ -698,7 +698,7 @@ kernel void jacobian_affine_walk_jump_table_steps8_dp4(constant ulong* p_xyz [[b
   ulong x0 = p_xyz[p_base + 0], x1 = p_xyz[p_base + 1], x2 = p_xyz[p_base + 2], x3 = p_xyz[p_base + 3];
   ulong y0 = p_xyz[p_base + 4], y1 = p_xyz[p_base + 5], y2 = p_xyz[p_base + 6], y3 = p_xyz[p_base + 7];
   ulong z0 = p_xyz[p_base + 8], z1 = p_xyz[p_base + 9], z2 = p_xyz[p_base + 10], z3 = p_xyz[p_base + 11];
-  bool inf = p_infinity[id] != 0;
+  bool inf = p_infinity[id];
   uint jump_base = id << 3;
   ulong distance = 0;
 
@@ -719,7 +719,7 @@ kernel void jacobian_affine_walk_jump_table_steps8_dp4(constant ulong* p_xyz [[b
     x0 = out.x0; x1 = out.x1; x2 = out.x2; x3 = out.x3;
     y0 = out.y0; y1 = out.y1; y2 = out.y2; y3 = out.y3;
     z0 = out.z0; z1 = out.z1; z2 = out.z2; z3 = out.z3;
-    inf = out.inf != 0;
+    inf = out.inf;
   }
 
   store_jacobian_xyz_only(out_xyz, out_base, x0, x1, x2, x3, y0, y1, y2, y3,
