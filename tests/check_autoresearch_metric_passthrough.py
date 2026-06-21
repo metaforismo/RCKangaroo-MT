@@ -122,6 +122,40 @@ assert call_order == ["baseline", "candidate", "baseline", "candidate", "baselin
 assert paired_baseline_metrics["ops_per_sec"] == 100.0
 assert paired_candidate_metrics["ops_per_sec"] == 105.0
 
+confirmation_rows = [
+    runner.build_benchmark_row(
+        experiment=experiment,
+        metrics=dict(metrics, ops_per_sec=110.0),
+        budget_sec=5,
+        commit="abc125",
+        machine="test-machine",
+        previous=100.0,
+        paired_baseline=dict(metrics, ops_per_sec=100.0),
+        paired_baseline_ref="main",
+        timestamp="2026-01-01T00:00:02Z",
+    ),
+    runner.build_benchmark_row(
+        experiment=experiment,
+        metrics=dict(metrics, ops_per_sec=99.0),
+        budget_sec=5,
+        commit="abc125",
+        machine="test-machine",
+        previous=100.0,
+        paired_baseline=dict(metrics, ops_per_sec=100.0),
+        paired_baseline_ref="main",
+        timestamp="2026-01-01T00:00:03Z",
+    ),
+]
+runner.apply_confirmation_policy(confirmation_rows)
+assert [row["status"] for row in confirmation_rows] == ["discard", "discard"]
+assert confirmation_rows[0]["raw_status"] == "keep"
+assert confirmation_rows[1]["raw_status"] == "discard"
+assert confirmation_rows[0]["confirmation_status"] == "discard"
+assert confirmation_rows[1]["confirmation_status"] == "discard"
+assert confirmation_rows[0]["confirmation_runs"] == 2
+assert confirmation_rows[0]["confirmation_index"] == 1
+assert confirmation_rows[1]["confirmation_index"] == 2
+
 with tempfile.TemporaryDirectory() as tmp:
     original_results = runner.RESULTS
     runner.RESULTS = Path(tmp) / "results.tsv"

@@ -18,6 +18,14 @@ python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budg
 
 With `--paired-baseline-ref`, the runner creates a temporary detached worktree for that ref, runs the same correctness checks, then alternates each baseline benchmark sample with the matching candidate sample. The JSON row records `paired_baseline_ref`, `paired_baseline_ops_per_sec`, and `paired_speedup`; keep/discard uses the paired baseline when it is correct and not skipped, otherwise it falls back to previous kept rows.
 
+For especially noisy Metal candidates, require repeated full decisions before a keep can enter the ledger:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk_dp --budget-sec 10 --paired-baseline-ref main --confirm-runs 3
+```
+
+With `--confirm-runs N`, the runner runs the complete benchmark decision `N` times and appends all rows only after applying confirmation policy. A provisional keep is downgraded to `discard` unless every confirmation run also keeps it; JSON rows include `raw_status`, `confirmation_status`, `confirmation_runs`, and `confirmation_index` for auditability.
+
 ```sh
 make macos-check
 make macos-bench
@@ -176,6 +184,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk_dp --budget
 ```
 
 This records the same distance-aware Metal jump-table walk with `--dp-bits 4`. The kernel emits `dp_tracking=projective_x_limb0`, `dp_count`, and `dp_checksum`, and the CPU oracle verifies the same projective low-bit predicate. This is a cheap GPU-side candidate filter, not yet the affine distinguished-point key required for final collision-table matching.
+Use `--paired-baseline-ref main --confirm-runs 3` before promoting a noisy local keep from this primary Metal DP gate.
 
 Run the `steps=4` projective-DP-candidate Metal Jacobian jump-walk experiment:
 

@@ -62,6 +62,14 @@ python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budg
 
 When the paired baseline is correct, keep/discard compares against that fresh same-run baseline and records `paired_baseline_ops_per_sec` plus `paired_speedup` in `benchmarks.jsonl`. Paired runs alternate baseline and candidate samples so CPU load and thermal drift affect both sides more evenly.
 
+For candidates with high variance, add confirmation:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk_dp --budget-sec 10 --paired-baseline-ref main --confirm-runs 3
+```
+
+With confirmation enabled, a keep is accepted only if every full decision keeps it. Rows are appended after the confirmation policy runs; non-confirmed provisional keeps are recorded as `discard` and keep their original decision in `raw_status`.
+
 ## Results
 
 - `autoresearch/results.tsv`: human-readable experiment ledger.

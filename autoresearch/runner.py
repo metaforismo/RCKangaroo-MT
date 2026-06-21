@@ -119,6 +119,32 @@ def append_benchmark(row: dict) -> None:
         fp.write(json.dumps(row, sort_keys=True) + "\n")
 
 
+def confirmation_status(rows: list[dict]) -> str:
+    if not rows:
+        raise ValueError("at least one confirmation row is required")
+    statuses = [str(row.get("status", "")) for row in rows]
+    if any(status == "crash" for status in statuses):
+        return "crash"
+    if all(status == "skip" for status in statuses):
+        return "skip"
+    if all(status == "keep" for status in statuses):
+        return "keep"
+    return "discard"
+
+
+def apply_confirmation_policy(rows: list[dict]) -> None:
+    status = confirmation_status(rows)
+    run_count = len(rows)
+    for index, row in enumerate(rows, start=1):
+        raw_status = str(row.get("status", ""))
+        row["raw_status"] = raw_status
+        row["confirmation_status"] = status
+        row["confirmation_runs"] = run_count
+        row["confirmation_index"] = index
+        if status != "keep" and raw_status == "keep":
+            row["status"] = "discard"
+
+
 def build_benchmark_row(
     *,
     experiment: dict,
@@ -252,49 +278,66 @@ def main() -> int:
     parser.add_argument("--experiment", required=True, help="Experiment name under autoresearch/experiments.")
     parser.add_argument("--budget-sec", type=int, default=60, help="Experiment budget metadata and timeout hint.")
     parser.add_argument("--paired-baseline-ref", default="", help="Optional git ref to benchmark in a temporary paired baseline worktree.")
+    parser.add_argument("--confirm-runs", type=int, default=1, help="Repeat the full benchmark decision this many times before appending results; keep survives only when every confirmation keeps.")
     args = parser.parse_args()
 
     experiment = load_experiment(args.experiment)
     timeout = max(60, args.budget_sec * 12)
+    confirm_runs = max(1, args.confirm_runs)
 
     check = run_command(["make", "macos-check"], timeout=timeout)
     if check.returncode != 0:
         print(check.stdout)
         return check.returncode
 
-    paired_baseline = None
+    rows: list[dict] = []
     try:
-        if args.paired_baseline_ref:
-            paired_baseline, metrics = run_paired_baseline_and_candidate(experiment, timeout, args.paired_baseline_ref, ROOT)
-        else:
-            metrics = run_experiment_samples(experiment, timeout, ROOT)
+        for confirmation_index in range(confirm_runs):
+            if confirm_runs > 1:
+                print(f"confirmation run {confirmation_index + 1}/{confirm_runs}:")
+            paired_baseline = None
+            if args.paired_baseline_ref:
+                paired_baseline, metrics = run_paired_baseline_and_candidate(experiment, timeout, args.paired_baseline_ref, ROOT)
+            else:
+                metrics = run_experiment_samples(experiment, timeout, ROOT)
+
+            backend = str(metrics.get("backend", "unknown"))
+            operation = str(metrics.get("operation", "unknown"))
+            previous = best_previous(experiment["name"], backend, operation)
+            now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            rows.append(
+                build_benchmark_row(
+                    experiment=experiment,
+                    metrics=metrics,
+                    budget_sec=args.budget_sec,
+                    commit=git_commit(),
+                    machine=platform.platform(),
+                    previous=previous,
+                    paired_baseline=paired_baseline,
+                    paired_baseline_ref=args.paired_baseline_ref,
+                    timestamp=now,
+                )
+            )
     except Exception as exc:
         print(f"failed to parse benchmark JSON: {exc}", file=sys.stderr)
         return 1
 
-    backend = str(metrics.get("backend", "unknown"))
-    operation = str(metrics.get("operation", "unknown"))
-    previous = best_previous(experiment["name"], backend, operation)
-    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    row = build_benchmark_row(
-        experiment=experiment,
-        metrics=metrics,
-        budget_sec=args.budget_sec,
-        commit=git_commit(),
-        machine=platform.platform(),
-        previous=previous,
-        paired_baseline=paired_baseline,
-        paired_baseline_ref=args.paired_baseline_ref,
-        timestamp=now,
-    )
+    if confirm_runs > 1:
+        apply_confirmation_policy(rows)
 
-    append_results(row)
-    append_benchmark(row)
+    for row in rows:
+        append_results(row)
+        append_benchmark(row)
+
+    row = rows[-1]
     paired = ""
-    if paired_baseline is not None:
+    if args.paired_baseline_ref:
         paired = f" paired_baseline_ops_per_sec: {row['paired_baseline_ops_per_sec']:.6f} paired_speedup: {row['paired_speedup']:.6f}"
-    print(f"status: {row['status']} ops_per_sec: {row['ops_per_sec']:.6f}{paired}")
-    return 0 if row["correctness"] or row["skipped"] else 1
+    confirmation = ""
+    if confirm_runs > 1:
+        confirmation = f" confirmation_status: {row['confirmation_status']} confirmation_runs: {row['confirmation_runs']}"
+    print(f"status: {row['status']} ops_per_sec: {row['ops_per_sec']:.6f}{paired}{confirmation}")
+    return 0 if all(row["correctness"] or row["skipped"] for row in rows) else 1
 
 
 if __name__ == "__main__":
