@@ -64,6 +64,16 @@ they are intentionally ignored by git.
   - post-packed-output-infinity accepted score: `30,688,533.740618 ops/sec`
   - post-packed-output-infinity receipt hash:
     `2cd2841869233b6c7c63b3222980494ee548dbd85bf3c3f12539cf1d89aabd3c`
+  - post-packed-combined-flags local score: `28,442,924.884774 ops/sec`
+  - post-packed-combined-flags local run: `run_d86d82b9-3098-45ec-ad65-fc0159ad121c`
+  - post-packed-combined-flags submission:
+    `sub_817d243e-89a6-4bf4-b441-b31aaba2de8c`
+  - post-packed-combined-flags candidate score: `33,013,511.325726 ops/sec`
+  - post-packed-combined-flags accepted run:
+    `run_98dfbad3-63fb-4970-b293-fa3f3449e6e3`
+  - post-packed-combined-flags accepted score: `25,244,587.273860 ops/sec`
+  - post-packed-combined-flags receipt hash:
+    `ae763283a4d56d46d814c157dfe7eee632e9b84a2d9b1b05425adf8837f926c5`
   - verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
 
@@ -128,6 +138,15 @@ they are intentionally ignored by git.
   The local-public verifier accepted run
   `run_71aa84e7-10d5-46dc-b004-cda5c6e2bbd7` at
   `30,688,533.740618 ops/sec` with `trusted=false`.
+- `f266242` combines output infinity and DP candidate flags into one Metal
+  `uint8_t` bitfield, decoded back into two `uint32_t` host vectors before the
+  oracle. Paired autoresearch kept it with candidate median
+  `38,176,865.912089 ops/sec` versus paired baseline median
+  `34,031,160.092524 ops/sec`; distance and DP checksums were unchanged. The
+  local-public verifier accepted run
+  `run_98dfbad3-63fb-4970-b293-fa3f3449e6e3` at
+  `25,244,587.273860 ops/sec` with `trusted=false`, so treat the local
+  leaderboard effect as noisy.
 
 ## Current Correctness Surface
 
