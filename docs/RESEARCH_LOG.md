@@ -1320,6 +1320,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   oracle. Do not swap mixed-add formulas unless the output representative is
   proven byte-for-byte compatible or the checksum contract is intentionally
   redesigned.
+- `macos-metal-zout-early`: scheduling the raw-compatible mixed-add `Z*H`
+  output multiply before the `Y3` multiply preserved `make macos-check` and the
+  full stable DP oracle (`distance_checksum=0xa45f471493cace2f`,
+  `dp_count=1000`, `dp_checksum=0x30a7914972cba014`), but failed paired
+  confirmation. `metal_jacobian_jump_walk_dp_stable --confirm-runs 3` recorded
+  raw speedups of `0.956924x`, `1.002591x`, and `0.940893x`, so
+  `confirmation_status=discard`. Keep the existing source order; moving the
+  independent `Z*H` multiply earlier did not improve the M3 compiled kernel.
 - `macos-metal-dp4-skip-dpmask-buffer`: avoiding the unused host-side
   `dp_mask_buffer` allocation and encoder bind when dispatching the
   `steps=8`, `dp_bits=4` specialized Metal kernel preserved `make macos-check`

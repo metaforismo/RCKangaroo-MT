@@ -438,6 +438,10 @@ they are intentionally ignored by git.
   The formula is affine-equivalent but emits a differently scaled Jacobian
   representative, which breaks the public checksum contract. Keep the current
   raw-representation-compatible mixed-add formula.
+- `06562ce` moved the raw-compatible mixed-add `Z*H` output multiply before
+  the `Y3` multiply. Correctness and the stable DP oracle stayed intact, but
+  paired confirmation discarded it: `0.956924x`, `1.002591x`, `0.940893x`.
+  Keep the current source order.
 - `b7d977e` skipped allocation/binding of the unused host-side `dp_mask_buffer`
   for the specialized `steps=8`, `dp_bits=4` Metal kernel. Correctness and the
   public DP oracle stayed intact, but stable confirmation discarded it:
