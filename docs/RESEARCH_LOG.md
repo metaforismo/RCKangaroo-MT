@@ -428,6 +428,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   versus baseline `36,861,665.504647 ops/sec`, `paired_speedup=0.754797`,
   `status=discard`, `correctness=true`. Keep the compact fixed-loop kernel;
   avoid manual unroll unless later register-pressure data changes the tradeoff.
+- `macos-metal-steps4-kernel`: adding a compact fixed-loop
+  `jacobian_affine_walk_jump_table_steps4` preserved all oracle fields but
+  failed the dedicated `steps=4` paired gate. Candidate median was
+  `22,541,817.038062 ops/sec` versus baseline `23,428,800.951795 ops/sec`,
+  `paired_speedup=0.962141`, `status=discard`, `correctness=true`. Keep
+  `steps=4` on the generic kernel; the `steps=8` specialization does not
+  automatically generalize to shorter batches.
 
 ## Next Research Targets
 
