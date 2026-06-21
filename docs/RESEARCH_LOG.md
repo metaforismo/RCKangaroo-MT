@@ -930,6 +930,58 @@ Commit: `a963a4d` (`perf: pack Metal dp4 infinity input`)
   The candidate submission's local pre-verifier score was
   `41,426,588.802440 ops/sec`.
 
+### Metal DP4 Struct-Row Q Table
+
+Commit: `3311412` (`perf: view Metal dp4 q table as struct rows`)
+
+- Changed only the public `steps_per_sample == 8` and `dp_bits == 4` Metal
+  kernel's affine jump-table view from scalar `constant ulong* q_xy` plus
+  `q_base = jump_index << 3` indexing to a binary-compatible
+  `constant AffineJumpValue*` row view. The host buffer layout stays the same
+  eight 64-bit limbs per jump; generic and verifier fallback kernels keep the
+  previous scalar table indexing.
+- The source gates now require the public DP4 struct-row table view, reject the
+  removed `q_base` calculation in the public DP4 kernel, and keep checking that
+  generic/fallback kernels still use scalar `constant ulong* q_xy`.
+- Public oracle checks before promotion:
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp_stable`, `steps_per_sample=8`,
+  `jump_count=16`, and `dp_bits=4`:
+  - confirmation 1 speedup `1.184193x`
+  - confirmation 2 speedup `2.200985x`
+  - confirmation 3 speedup `1.045283x`
+  - `confirmation_status=keep`
+  - `status=keep`
+  - `correctness=true`
+- Candidate worktree verification passed:
+  - `python3 tests/check_metal_dp4_q_struct_row_source.py`
+  - `python3 tests/check_metal_dp4_uchar_infinity_source.py`
+  - `sh tests/check_metal_kernels.sh`
+  - `make macos-check`
+- `make macos-check` passed on `main` after the fast-forward merge.
+- Benchforge doctor passed with only the expected `hosted-api` warning. Local
+  run `run_244bebf3-88f3-4b86-ac20-084f3a6c9645` scored
+  `23,466,689.498479 ops/sec`.
+- Local-public Benchforge verifier accepted submission
+  `sub_1f7c17e0-e64d-4615-a3a8-d3da2bb695e2` as run
+  `run_24328eb8-3d5b-47b4-984a-4fa1b5892cc4` with score
+  `25,303,719.636362 ops/sec`, receipt hash
+  `7eb945dd814a1040bfd4124247a831c62e9cfd17de6f80208aee75b37c0a40a5`,
+  `verifier.trusted=false`, `platform=darwin`, `arch=arm64`, `cpus=Apple M3`.
+  The candidate submission's local pre-verifier score was
+  `54,973,825.283380 ops/sec`. The accepted verifier score was noisy and lower
+  than older local-public accepted runs, so this promotion relies on the paired
+  three-confirmation autoresearch gate plus unchanged public oracle fields.
+- A fresh post-promotion Benchforge loop on `main` accepted submission
+  `sub_594c881c-bfc1-46e2-a715-85eab35f40fe` as run
+  `run_03374691-b656-4c42-a5b4-7447490b9786` with score
+  `29,436,926.035583 ops/sec`, receipt hash
+  `187438c75b6b9bb8266be499f1e552922a71723eda995c116f8c99ecb2e255fe`,
+  `verifier.trusted=false`, `platform=darwin`, `arch=arm64`, `cpus=Apple M3`.
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:

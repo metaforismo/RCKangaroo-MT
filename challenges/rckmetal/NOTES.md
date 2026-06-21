@@ -110,6 +110,35 @@ they are intentionally ignored by git.
   - post-dp4-packed-input-infinity receipt hash:
     `2b9a4a74a2d58cf3013bcf90af215088f8c6cdf4f64371888acd4491b4d03942`
   - verifier trust: `false`
+  - post-dp4-q-struct-row local score: `23,466,689.498479 ops/sec`
+  - post-dp4-q-struct-row local run:
+    `run_244bebf3-88f3-4b86-ac20-084f3a6c9645`
+  - post-dp4-q-struct-row submission:
+    `sub_1f7c17e0-e64d-4615-a3a8-d3da2bb695e2`
+  - post-dp4-q-struct-row candidate score:
+    `54,973,825.283380 ops/sec`
+  - post-dp4-q-struct-row accepted run:
+    `run_24328eb8-3d5b-47b4-984a-4fa1b5892cc4`
+  - post-dp4-q-struct-row accepted score:
+    `25,303,719.636362 ops/sec`
+  - post-dp4-q-struct-row receipt hash:
+    `7eb945dd814a1040bfd4124247a831c62e9cfd17de6f80208aee75b37c0a40a5`
+  - post-dp4-q-struct-row verifier trust: `false`
+  - post-dp4-q-struct-row main-promotion local score:
+    `20,169,076.743132 ops/sec`
+  - post-dp4-q-struct-row main-promotion local run:
+    `run_fbe39459-05d1-4d79-870f-f15d2ec56fc4`
+  - post-dp4-q-struct-row main-promotion submission:
+    `sub_594c881c-bfc1-46e2-a715-85eab35f40fe`
+  - post-dp4-q-struct-row main-promotion candidate score:
+    `33,564,016.478581 ops/sec`
+  - post-dp4-q-struct-row main-promotion accepted run:
+    `run_03374691-b656-4c42-a5b4-7447490b9786`
+  - post-dp4-q-struct-row main-promotion accepted score:
+    `29,436,926.035583 ops/sec`
+  - post-dp4-q-struct-row main-promotion receipt hash:
+    `187438c75b6b9bb8266be499f1e552922a71723eda995c116f8c99ecb2e255fe`
+  - post-dp4-q-struct-row main-promotion verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
 
 ## Accepted Optimization Notes
@@ -262,6 +291,18 @@ they are intentionally ignored by git.
   `run_64462ed9-026e-4823-a8f7-9c1041946409` at `32,680,850.854894 ops/sec`,
   receipt `2b9a4a74a2d58cf3013bcf90af215088f8c6cdf4f64371888acd4491b4d03942`,
   `trusted=false`.
+- `3311412` views the public DP4 affine jump table as binary-compatible
+  `AffineJumpValue` rows instead of scalar `q_xy[q_base + limb]` loads, while
+  keeping the host buffer layout and generic/verifier fallback scalar indexing
+  unchanged. Stable paired autoresearch kept it across three confirmations:
+  `1.184193x`, `2.200985x`, `1.045283x`; public checksum and DP counts were
+  unchanged. The local-public verifier accepted
+  `sub_1f7c17e0-e64d-4615-a3a8-d3da2bb695e2` as
+  `run_24328eb8-3d5b-47b4-984a-4fa1b5892cc4` at `25,303,719.636362 ops/sec`,
+  receipt `7eb945dd814a1040bfd4124247a831c62e9cfd17de6f80208aee75b37c0a40a5`,
+  `trusted=false`. The accepted verifier score was noisy/lower than older
+  accepted local-public runs; judge the change by paired autoresearch plus
+  unchanged public oracle fields.
 
 ## Rejected Retest Notes
 
