@@ -577,6 +577,36 @@ Commit: `7feecd6` (`perf: pack Metal DP flags to uint8`)
   - `threadgroup_limit=256`
   - `threads_per_threadgroup=256`
 
+### Packed Metal Output Infinity Flags
+
+Commit: `e7b28c1` (`perf: pack Metal output infinity flags to uint8`)
+
+- Changed only the jump-walk `out_infinity` buffers from `device uint*` to
+  `device uchar*`; the `p_infinity` input remains `constant uint*` because
+  packing that input was measured and rejected.
+- Added a byte-output store helper for the jump-walk kernels while leaving the
+  standalone Jacobian add and fixed-walk kernels on their existing `uint32_t`
+  output contract.
+- The host now keeps separate input/output infinity byte counts:
+  `p_inf_bytes` for the `uint32_t` input flags and `out_inf_bytes` for the
+  compact Metal output flags, then expands output flags back to `uint32_t`
+  before calling the CPU oracle unpacker.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - candidate median `33,349,832.725909 mixed-add steps/sec`
+  - paired baseline median `25,793,902.178919 mixed-add steps/sec`
+  - paired speedup `1.292935x`
+  - candidate min `30,558,799.942895 mixed-add steps/sec`
+  - candidate max `37,426,626.285881 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
