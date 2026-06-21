@@ -774,6 +774,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `status=discard`, `correctness=true`. The candidate was reverted; keep the
   separate `out_flags` byte for the steps=8 kernel unless a future broader
   repeat shows the high-bit packing win is stable.
+- `macos-metal-pipeline-multiple-width`: creating the jump-walk pipeline via
+  `MTLComputePipelineDescriptor` with
+  `threadGroupSizeIsMultipleOfThreadExecutionWidth = YES` preserved all oracle
+  fields but failed the paired gate. Candidate median was
+  `20,661,731.632643 ops/sec` versus baseline `34,840,104.647447 ops/sec`,
+  `paired_speedup=0.593044`, `status=discard`, `correctness=true`. Keep the
+  direct `newComputePipelineStateWithFunction` path for jump-walk kernels; the
+  descriptor hint changed the compiled shape unfavorably on this M3 run.
 
 ## Next Research Targets
 
