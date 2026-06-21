@@ -718,6 +718,49 @@ Commit: `604dd55` (`perf: specialize Metal steps8 dp4 mask`)
   `run_e9c0a155-6944-486b-9d5f-21685f819024` at
   `56,820,932.004814 ops/sec`.
 
+### Metal DP4 Finite Add Hot Path
+
+Commit: `a4939c6` (`perf: split Metal dp4 finite add path`)
+
+- Split the Metal mixed-add helper into a finite-input hot path and a generic
+  wrapper that still handles `p_infinity`.
+- The public `steps_per_sample == 8` and `dp_bits == 4` kernel now calls the
+  finite helper for normal points and falls back to the generic wrapper only
+  when the current accumulator is at infinity. The generic and non-dp4 fallback
+  kernels remain on the shared wrapper.
+- The source gate now requires the finite helper, the wrapper's infinity
+  delegation, and the dp4 kernel's explicit `if (inf)` fallback.
+- Public oracle checks before promotion:
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - second verifier shape:
+    `distance_checksum=0xbab72b58ebefa9dc`, `dp_count=249`,
+    `dp_checksum=0x4a7f2853a4a9f546`
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - first candidate median `35,262,056.952682 mixed-add steps/sec`
+  - first paired baseline median `30,045,324.607249 mixed-add steps/sec`
+  - first paired speedup `1.173629x`
+  - confirmation candidate median `54,586,707.150623 mixed-add steps/sec`
+  - confirmation paired baseline median `47,025,523.463550 mixed-add steps/sec`
+  - confirmation paired speedup `1.160789x`
+  - `status=keep`
+  - `correctness=true`
+- `make macos-check` passed on `main` after the fast-forward merge.
+- Benchforge doctor passed with only the expected `hosted-api` warning. Local
+  run `run_fa38be32-e38b-431c-a231-6a6d4f624450` scored
+  `53,659,825.908594 ops/sec`.
+- Local-public Benchforge verifier accepted submission
+  `sub_75c994e5-e6d5-4b4d-a1d3-fdd377b52dfc` as run
+  `run_781dfd20-c53c-42f3-8fd6-3262ca9b520a` with score
+  `54,982,200.626369 ops/sec`, receipt hash
+  `691f72beed81ae9327ed39d656e0e3a82c78948469fd94d277fe5d17a30f1983`,
+  `verifier.trusted=false`, `platform=darwin`, `arch=arm64`, `cpus=Apple M3`.
+  The local leaderboard placed this accepted run second, behind the older local
+  non-verified `56,820,932.004814 ops/sec` run.
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:

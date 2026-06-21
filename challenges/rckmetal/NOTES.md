@@ -186,6 +186,21 @@ they are intentionally ignored by git.
   `45,497,141.628023 ops/sec`; distance and DP checksums were unchanged. The
   local-public verifier accepted run `run_e62fa172-6ae2-4fa4-acdf-9e108d0f274c`
   at `46,317,921.229795 ops/sec` with `trusted=false`.
+- `a4939c6` splits the Metal mixed-add helper into a finite-input hot path and
+  a generic infinity wrapper, then uses the finite path only in the public
+  steps8 + `dp_bits=4` kernel with an explicit `if (inf)` fallback. Paired
+  autoresearch kept it twice: first candidate median
+  `35,262,056.952682 ops/sec` versus baseline `30,045,324.607249 ops/sec`,
+  then confirmation median `54,586,707.150623 ops/sec` versus baseline
+  `47,025,523.463550 ops/sec`; public and second-shape checksums were
+  unchanged. The local-public verifier accepted
+  `sub_75c994e5-e6d5-4b4d-a1d3-fdd377b52dfc` as
+  `run_781dfd20-c53c-42f3-8fd6-3262ca9b520a` at
+  `54,982,200.626369 ops/sec`, receipt
+  `691f72beed81ae9327ed39d656e0e3a82c78948469fd94d277fe5d17a30f1983`,
+  `trusted=false`. This accepted run is now the strongest local-public
+  verified baseline; the only higher leaderboard entry is an older local-only
+  run.
 
 ## Rejected Retest Notes
 
