@@ -1191,6 +1191,18 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `threadgroup_limit=512`, `distance_checksum=0xa45f471493cace2f`,
   `dp_count=1000`, `dp_checksum=0x30a7914972cba014`. Keep default `256` for the
   dp4 score path unless a broader repeated sweep overturns this result.
+- `macos-metal-dp4-exact-count`: adding a separate public dp4 kernel without
+  the `id >= count` guard and selecting it only when `count` is divisible by the
+  effective threadgroup size preserved all oracle fields, including a
+  non-multiple fallback check with `sample_count=9`, but failed confirmation.
+  `--confirm-runs 3` recorded `confirmation_status=discard`: run 1 was a raw
+  keep at `41,921,077.695352 ops/sec` versus baseline
+  `34,056,101.299761 ops/sec` (`1.230942x`), run 2 discarded at
+  `31,295,093.179597` versus `34,738,943.749887 ops/sec` (`0.900865x`), and
+  run 3 was a raw keep at `40,742,624.570094` versus
+  `38,913,847.475444 ops/sec` (`1.046996x`). `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`, and
+  `dp_checksum=0x30a7914972cba014` in all runs. Keep the guarded dp4 kernel.
 
 ## Next Research Targets
 

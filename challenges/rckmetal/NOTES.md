@@ -360,6 +360,12 @@ they are intentionally ignored by git.
   paired autoresearch discarded it: candidate median
   `30,497,177.022142 ops/sec` versus baseline `42,867,189.634848 ops/sec`,
   `paired_speedup=0.711434`. Keep default 256 for the score path.
+- `69a724c` added an exact-count dp4 kernel without the `id >= count` guard and
+  selected it only when the sample count was divisible by the effective
+  threadgroup size. Correctness stayed intact, including a `sample_count=9`
+  fallback run, but `--confirm-runs 3` produced `confirmation_status=discard`:
+  raw keep `1.230942x`, discard `0.900865x`, raw keep `1.046996x`. Keep the
+  guarded dp4 kernel.
 
 ## Current Correctness Surface
 
