@@ -1174,6 +1174,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `discard`). `correctness=true`, `distance_checksum=0xa45f471493cace2f`,
   `dp_count=1000`, and `dp_checksum=0x30a7914972cba014` in all runs. Treat the
   idea as unstable/rejected and keep the promoted shared post-branch update.
+- `macos-metal-dp4-reuse-jump-base`: moving `uint jump_base = id << 3` before
+  `p_base` and deriving `p_base = jump_base + (id << 2)` preserved all oracle
+  fields but failed the paired target gate. Candidate median was
+  `27,479,586.125938 ops/sec` versus baseline `39,064,201.289996 ops/sec`,
+  `paired_speedup=0.703447`, `status=discard`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. Keep the promoted separate `p_base`
+  expression followed by the later `jump_base` declaration.
 
 ## Next Research Targets
 

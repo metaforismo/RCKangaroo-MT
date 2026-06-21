@@ -350,6 +350,11 @@ they are intentionally ignored by git.
   paired autoresearch runs were unstable: `1.651344x keep`, `1.033844x keep`,
   then `0.518840x discard`. Do not promote this shape; keep the shared
   post-branch output update.
+- `074d8a9` derived the dp4 point base from the already-needed
+  `jump_base = id << 3`. Correctness stayed intact, but paired autoresearch
+  discarded it: candidate median `27,479,586.125938 ops/sec` versus baseline
+  `39,064,201.289996 ops/sec`, `paired_speedup=0.703447`. Keep the promoted
+  separate `p_base` expression and later `jump_base` declaration.
 
 ## Current Correctness Surface
 
