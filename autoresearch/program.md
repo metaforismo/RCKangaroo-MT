@@ -70,6 +70,16 @@ python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk_dp --budget
 
 With confirmation enabled, a keep is accepted only if every full decision keeps it. Rows are appended after the confirmation policy runs; non-confirmed provisional keeps are recorded as `discard` and keep their original decision in `raw_status`.
 
+For Metal DP candidates that look close or noisy, use the stable long-window gate
+before promotion:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk_dp_stable --budget-sec 10 --paired-baseline-ref main
+```
+
+This runs the same public DP shape with `--min-ms 200`, keeping the correctness
+oracle unchanged while reducing short-dispatch timing noise.
+
 ## Results
 
 - `autoresearch/results.tsv`: human-readable experiment ledger.

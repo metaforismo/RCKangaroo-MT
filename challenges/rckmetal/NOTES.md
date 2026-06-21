@@ -406,6 +406,9 @@ they are intentionally ignored by git.
 - Direct Metal selftest now includes a dp4 `steps=8` infinity-tail vector:
   first jump intentionally produces infinity, then the next affine jump must
   resume to the same finite point as the CPU oracle.
+- Close/noisy Metal DP candidates can be rechecked with the stable gate:
+  `python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk_dp_stable --budget-sec 10 --paired-baseline-ref main`.
+  This uses `--min-ms 200` while preserving the public DP checksum oracle.
 
 ## Handoff Rules
 

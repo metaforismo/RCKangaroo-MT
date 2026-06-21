@@ -48,6 +48,11 @@ GPU work should use Metal.
   `correctness`, and `skipped`.
 - This reduces short-dispatch timing noise and lets CI skip cleanly when Metal
   is not visible.
+- Added `metal_jacobian_jump_walk_dp_stable`, a long-window autoresearch gate
+  for the public Metal DP shape. It keeps the same correctness oracle as the
+  primary DP gate but runs `--min-ms 200` through
+  `macos-metal-jacobian-jump-walk-dp-stable-bench` for close or noisy
+  candidates.
 
 ### Metal Dispatch Size Tuning
 
