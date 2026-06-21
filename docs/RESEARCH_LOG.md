@@ -1019,6 +1019,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
   `dp_checksum=0x30a7914972cba014`. Keep the promoted generic-wrapper fallback
   shape; the explicit assignment worsened the compiled dp4 kernel on M3.
+- `macos-metal-dp4-flag-ternary`: simplifying the dp4 final packed-flag store
+  from `(inf ? 1 : 0) | ((!inf && dp) ? 2 : 0)` to `inf ? 1 : (dp ? 2 : 0)`
+  preserved all oracle fields but failed the paired target gate. Candidate
+  median was `28,602,135.384033 ops/sec` versus baseline
+  `36,034,276.125311 ops/sec`, `paired_speedup=0.793748`,
+  `status=discard`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. Keep the promoted OR/`!inf` flag spelling;
+  the direct ternary hurt the dp4 kernel shape on M3.
 
 ## Next Research Targets
 

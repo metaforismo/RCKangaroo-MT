@@ -277,6 +277,11 @@ they are intentionally ignored by git.
   stayed intact, but paired autoresearch discarded it: candidate median
   `53,801,243.066193 ops/sec` versus baseline `57,431,762.259068 ops/sec`,
   `paired_speedup=0.936786`. Keep the promoted generic-wrapper fallback shape.
+- `f7cda6f` simplified the dp4 final packed-flag store to
+  `inf ? 1 : (dp ? 2 : 0)`. Correctness stayed intact, but paired autoresearch
+  discarded it: candidate median `28,602,135.384033 ops/sec` versus baseline
+  `36,034,276.125311 ops/sec`, `paired_speedup=0.793748`. Keep the promoted
+  OR/`!inf` flag expression with bool infinity state.
 
 ## Current Correctness Surface
 
