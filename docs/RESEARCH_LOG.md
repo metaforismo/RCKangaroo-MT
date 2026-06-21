@@ -387,6 +387,33 @@ Commit: `ed85c67` (`feat: add Metal steps4 autoresearch gate`)
   - `threadgroup_limit=256`
   - `threads_per_threadgroup=256`
 
+### Constant Metal Jump Tables
+
+Commit: `ba91503` (`perf: use constant Metal jump tables`)
+
+- Changed the jump-walk kernels to read the small affine jump table (`q_xy`) and
+  jump-distance table from Metal `constant` address space.
+- Kept `jump_indices` in `device const` because it is large and varies by
+  sample/step; this experiment only targets the compact read-only tables.
+- The source gate now requires the constant table buffers while preserving the
+  existing hot-loop guards for output base reuse, jump-base precompute,
+  q-table shift addressing, precomputed DP masks, and no modulo in the kernel.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - candidate median `36,426,708.294932 mixed-add steps/sec`
+  - paired baseline median `30,769,379.445330 mixed-add steps/sec`
+  - paired speedup `1.183862x`
+  - candidate min `24,616,405.367771 mixed-add steps/sec`
+  - candidate max `41,279,674.800365 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
