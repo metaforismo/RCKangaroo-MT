@@ -282,6 +282,11 @@ they are intentionally ignored by git.
   discarded it: candidate median `28,602,135.384033 ops/sec` versus baseline
   `36,034,276.125311 ops/sec`, `paired_speedup=0.793748`. Keep the promoted
   OR/`!inf` flag expression with bool infinity state.
+- `186669e` forced `__attribute__((always_inline))` on the Metal mixed-add
+  wrapper and finite helper. It compiled and preserved correctness, but paired
+  autoresearch discarded it: candidate median `29,906,975.938509 ops/sec`
+  versus baseline `36,536,871.605632 ops/sec`, `paired_speedup=0.818542`.
+  Keep plain `static inline` helpers.
 
 ## Current Correctness Surface
 

@@ -1028,6 +1028,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
   `dp_checksum=0x30a7914972cba014`. Keep the promoted OR/`!inf` flag spelling;
   the direct ternary hurt the dp4 kernel shape on M3.
+- `macos-metal-add-always-inline`: adding
+  `__attribute__((always_inline))` to both Metal mixed-add helpers compiled and
+  preserved all oracle fields, but failed the paired target gate. Candidate
+  median was `29,906,975.938509 ops/sec` versus baseline
+  `36,536,871.605632 ops/sec`, `paired_speedup=0.818542`,
+  `status=discard`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. Keep plain `static inline`; forcing inline
+  worsened the compiled large Jacobian kernel on M3.
 
 ## Next Research Targets
 
