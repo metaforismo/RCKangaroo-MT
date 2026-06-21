@@ -782,6 +782,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `paired_speedup=0.593044`, `status=discard`, `correctness=true`. Keep the
   direct `newComputePipelineStateWithFunction` path for jump-walk kernels; the
   descriptor hint changed the compiled shape unfavorably on this M3 run.
+- `macos-metal-setbytes-scalars`: binding `count`, `steps`, and `dp_mask` with
+  `setBytes:length:atIndex:` instead of three tiny shared `MTLBuffer` objects
+  preserved all oracle fields but failed the paired gate. Candidate median was
+  `31,316,123.200994 ops/sec` versus baseline `37,435,388.026000 ops/sec`,
+  `paired_speedup=0.836538`, `status=discard`, `correctness=true`. Keep the
+  existing scalar buffers; the inline binding did not improve the dispatch
+  shape for this kernel.
 
 ## Next Research Targets
 
