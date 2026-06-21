@@ -761,6 +761,46 @@ Commit: `a4939c6` (`perf: split Metal dp4 finite add path`)
   The local leaderboard placed this accepted run second, behind the older local
   non-verified `56,820,932.004814 ops/sec` run.
 
+### Metal DP4 Bool Infinity State
+
+Commit: `3a79ce6` (`perf: use bool Metal dp4 infinity state`)
+
+- Changed only the public `steps_per_sample == 8` and `dp_bits == 4` Metal
+  kernel's accumulator infinity state from `uint` to `bool`, while preserving
+  the generic fallback kernels and the host-visible packed flag format.
+- The source gate now requires the dp4 kernel to initialize
+  `bool inf = p_infinity[id] != 0` and update it with `inf = out.inf != 0`,
+  while leaving other kernels on their existing `uint` state.
+- Public oracle checks before promotion:
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - second verifier shape:
+    `distance_checksum=0xbab72b58ebefa9dc`, `dp_count=249`,
+    `dp_checksum=0x4a7f2853a4a9f546`
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - first candidate median `49,171,211.386386 mixed-add steps/sec`
+  - first paired baseline median `38,955,739.382442 mixed-add steps/sec`
+  - first paired speedup `1.262233x`
+  - confirmation candidate median `46,633,123.492816 mixed-add steps/sec`
+  - confirmation paired baseline median `41,583,067.031963 mixed-add steps/sec`
+  - confirmation paired speedup `1.121445x`
+  - `status=keep`
+  - `correctness=true`
+- `make macos-check` passed on `main` after the fast-forward merge.
+- Benchforge doctor passed with only the expected `hosted-api` warning. Local
+  run `run_1d2fc1a8-cd5b-4e2c-aa76-d5dde54c0138` scored
+  `32,555,994.114175 ops/sec`.
+- Local-public Benchforge verifier accepted submission
+  `sub_5ec7721c-abb8-4c18-a0f7-c5a2a1ad47b4` as run
+  `run_7f39c568-be4a-4e9e-9acd-a003112c79b1` with score
+  `51,293,294.688826 ops/sec`, receipt hash
+  `3a06339d0adfef0a2da552afae54e5a0706539201350089eb113895536794d2f`,
+  `verifier.trusted=false`, `platform=darwin`, `arch=arm64`, `cpus=Apple M3`.
+  This accepted run landed fifth on the local leaderboard at measurement time.
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:

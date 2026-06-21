@@ -201,6 +201,18 @@ they are intentionally ignored by git.
   `trusted=false`. This accepted run is now the strongest local-public
   verified baseline; the only higher leaderboard entry is an older local-only
   run.
+- `3a79ce6` changes only the public steps8 + `dp_bits=4` kernel's accumulator
+  infinity state from `uint` to `bool`, leaving fallback kernels and packed
+  output flags unchanged. Paired autoresearch kept it twice: first candidate
+  median `49,171,211.386386 ops/sec` versus baseline
+  `38,955,739.382442 ops/sec`, then confirmation median
+  `46,633,123.492816 ops/sec` versus baseline `41,583,067.031963 ops/sec`;
+  public and second-shape checksums were unchanged. The local-public verifier
+  accepted `sub_5ec7721c-abb8-4c18-a0f7-c5a2a1ad47b4` as
+  `run_7f39c568-be4a-4e9e-9acd-a003112c79b1` at
+  `51,293,294.688826 ops/sec`, receipt
+  `3a06339d0adfef0a2da552afae54e5a0706539201350089eb113895536794d2f`,
+  `trusted=false`.
 
 ## Rejected Retest Notes
 
