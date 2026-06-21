@@ -146,7 +146,7 @@ if ! awk '
 	in_walk && /constant ulong\* p_xyz/ { found_constant_p = 1 }
 	in_walk && /constant ulong\* q_xy/ { found_constant_q = 1 }
 	in_walk && /constant uint\* p_infinity/ { found_constant_inf = 1 }
-	in_walk && /constant uint\* jump_indices/ { found_indices = 1 }
+	in_walk && /constant uchar\* jump_indices/ { found_indices = 1 }
 	in_walk && /constant ulong\* jump_distances/ { found_distances = 1 }
 	in_walk && /device ulong\* out_distances/ { found_out_distances = 1 }
 	in_walk && /device uint\* out_dp_flags/ { found_out_dp_flags = 1 }
@@ -158,7 +158,7 @@ if ! awk '
 	in_walk && /uint out_base = id \* 12/ { found_out_base_mul = 1 }
 	in_walk && /uint jump_base = id \* steps/ { found_jump_base = 1 }
 	in_walk && /for \(uint step/ { found_loop = 1 }
-	in_walk && /jump_indices\[jump_base \+ step\]/ { found_jump_base_fetch = 1 }
+	in_walk && /uint jump_index = \(uint\)jump_indices\[jump_base \+ step\]/ { found_jump_base_fetch = 1 }
 	in_walk && /jump_indices\[id \* steps \+ step\]/ { found_hot_jump_mul = 1 }
 	in_walk && /distance \+= jump_distances\[jump_index\]/ { found_accumulate = 1 }
 	in_walk && /uint q_base = jump_index << 3/ { found_q_base_shift = 1 }
@@ -180,7 +180,7 @@ if ! awk '
 	in_walk && /constant ulong\* p_xyz/ { found_constant_p = 1 }
 	in_walk && /constant ulong\* q_xy/ { found_constant_q = 1 }
 	in_walk && /constant uint\* p_infinity/ { found_constant_inf = 1 }
-	in_walk && /constant uint\* jump_indices/ { found_indices = 1 }
+	in_walk && /constant uchar\* jump_indices/ { found_indices = 1 }
 	in_walk && /constant ulong\* jump_distances/ { found_distances = 1 }
 	in_walk && /device ulong\* out_distances/ { found_out_distances = 1 }
 	in_walk && /device uint\* out_dp_flags/ { found_out_dp_flags = 1 }
@@ -193,7 +193,7 @@ if ! awk '
 	in_walk && /uint jump_base = id << 3/ { found_jump_base = 1 }
 	in_walk && /for \(uint step = 0; step < 8; step\+\+\)/ { found_fixed_loop = 1 }
 	in_walk && /step < steps/ { found_dynamic_loop = 1 }
-	in_walk && /jump_indices\[jump_base \+ step\]/ { found_jump_base_fetch = 1 }
+	in_walk && /uint jump_index = \(uint\)jump_indices\[jump_base \+ step\]/ { found_jump_base_fetch = 1 }
 	in_walk && /distance \+= jump_distances\[jump_index\]/ { found_accumulate = 1 }
 	in_walk && /uint q_base = jump_index << 3/ { found_q_base_shift = 1 }
 	in_walk && /uint q_base = jump_index \* 8/ { found_q_base_mul = 1 }
@@ -212,11 +212,16 @@ fi
 if ! awk '
 	/RunJacobianJumpWalkKernel/ { in_host = 1 }
 	in_host && /steps_per_sample == 8/ && /jacobian_affine_walk_jump_table_steps8/ && /jacobian_affine_walk_jump_table/ { found_selection = 1 }
+	in_host && /std::vector<uint8_t> metal_jump_indices/ { found_packed = 1 }
+	in_host && /metal_jump_indices.push_back\(static_cast<uint8_t>\(jump_index\)\)/ { found_pack_push = 1 }
+	in_host && /size_t indices_bytes = metal_jump_indices.size\(\) \* sizeof\(uint8_t\)/ { found_packed_bytes = 1 }
+	in_host && /newBufferWithBytes:metal_jump_indices.data\(\) length:indices_bytes/ { found_packed_buffer = 1 }
+	in_host && /jump_indices.size\(\) \* sizeof\(uint32_t\)/ { found_u32_bytes = 1 }
 	in_host && /newFunctionWithName:\[NSString stringWithUTF8String:function_name\]/ { found_dynamic_load = 1 }
 	in_host && /^}/ { in_host = 0 }
-	END { exit (found_selection && found_dynamic_load) ? 0 : 1 }
+	END { exit (found_selection && found_packed && found_pack_push && found_packed_bytes && found_packed_buffer && !found_u32_bytes && found_dynamic_load) ? 0 : 1 }
 ' "$host_source"; then
-	printf '%s\n' "RunJacobianJumpWalkKernel does not select the steps=8 Metal kernel with generic fallback"
+	printf '%s\n' "RunJacobianJumpWalkKernel does not pack Metal jump indices to uint8 with generic fallback"
 	exit 1
 fi
 

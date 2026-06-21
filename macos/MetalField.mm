@@ -876,6 +876,10 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 			return false;
 		}
 	}
+	std::vector<uint8_t> metal_jump_indices;
+	metal_jump_indices.reserve(jump_indices.size());
+	for (uint32_t jump_index : jump_indices)
+		metal_jump_indices.push_back(static_cast<uint8_t>(jump_index));
 
 	std::vector<uint64_t> p_xyz;
 	std::vector<uint64_t> q_xy;
@@ -927,7 +931,7 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		size_t p_bytes = p_xyz.size() * sizeof(uint64_t);
 		size_t q_bytes = q_xy.size() * sizeof(uint64_t);
 		size_t inf_bytes = p_infinity.size() * sizeof(uint32_t);
-		size_t indices_bytes = jump_indices.size() * sizeof(uint32_t);
+		size_t indices_bytes = metal_jump_indices.size() * sizeof(uint8_t);
 		size_t distance_bytes = jump_distances.size() * sizeof(uint64_t);
 		std::vector<uint64_t> out_xyz(p.size() * 12);
 		std::vector<uint32_t> out_infinity(p.size());
@@ -949,7 +953,7 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		id<MTLBuffer> count_buffer = [device newBufferWithBytes:&count length:sizeof(count) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> steps_buffer = [device newBufferWithBytes:&step_count length:sizeof(step_count) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> dp_mask_buffer = [device newBufferWithBytes:&dp_mask length:sizeof(dp_mask) options:MTLResourceStorageModeShared];
-		id<MTLBuffer> jump_indices_buffer = [device newBufferWithBytes:jump_indices.data() length:indices_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> jump_indices_buffer = [device newBufferWithBytes:metal_jump_indices.data() length:indices_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> jump_distances_buffer = [device newBufferWithBytes:jump_distances.data() length:distance_bytes options:MTLResourceStorageModeShared];
 		if (!p_buffer || !q_buffer || !p_inf_buffer || !out_buffer || !out_inf_buffer || !out_distances_buffer || !out_dp_flags_buffer || !count_buffer || !steps_buffer || !dp_mask_buffer || !jump_indices_buffer || !jump_distances_buffer)
 		{
