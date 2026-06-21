@@ -366,6 +366,27 @@ Commit: `7acdc28` (`perf: add Metal steps8 jump-walk kernel`)
   - `threadgroup_limit=256`
   - `threads_per_threadgroup=256`
 
+### Metal Steps4 Autoresearch Gate
+
+Commit: `ed85c67` (`feat: add Metal steps4 autoresearch gate`)
+
+- Added `metal_jacobian_jump_walk_dp_steps4` as a dedicated autoresearch
+  experiment for `--steps 4`, keeping it separate from the primary Benchforge
+  `--steps 8` score path.
+- This lets shorter-walk specializations be judged with a paired baseline
+  instead of relying on incidental CLI smoke numbers.
+- Initial local M3 baseline:
+  - median `21,861,586.351139 mixed-add steps/sec`
+  - min `16,544,339.465934 mixed-add steps/sec`
+  - max `23,467,683.404390 mixed-add steps/sec`
+  - `distance_checksum=0xb1541b7a21f2fdb4`
+  - `dp_count=1030`
+  - `dp_checksum=0x1943a969ca1127a0`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
