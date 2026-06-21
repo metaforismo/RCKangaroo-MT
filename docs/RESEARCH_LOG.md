@@ -1012,6 +1012,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `0.891806x`, therefore `confirmation_status=discard`. The candidate can
   spike high, but the signal was not durable enough to promote; keep the
   compact uniform DP4 loop.
+- `macos-metal-dp4-xyzz-state`: maintained per-thread `Z^2` and `Z^3` state
+  in the public DP4 kernel so the finite mixed-add path could use cached
+  `ZZ/ZZZ` for `U2/S2`, while updating exact raw `Z`, `ZZ`, and `ZZZ` after
+  each step. Source gates, `make macos-check`, and the stable DP oracle passed,
+  but paired autoresearch discarded it: `1.024585x`, `0.824733x`,
+  `0.548792x`, therefore `confirmation_status=discard`. The extra coordinate
+  state and register pressure outweighed the dependency reduction on M3; keep
+  the compact Jacobian DP4 state.
 - `macos-metal-mixed-add-h-normal-first`: moving the finite mixed-add normal
   `H != 0` path before the rare `H == 0` doubling/infinity edge path preserved
   `make macos-check`, the infinity-tail selftest, and the full stable DP

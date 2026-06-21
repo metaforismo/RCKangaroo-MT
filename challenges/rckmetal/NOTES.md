@@ -323,6 +323,12 @@ they are intentionally ignored by git.
   passed, but paired confirmation discarded it: `1.723581x`, `1.342978x`,
   `0.891806x`. Keep the uniform DP4 loop; the z=1 branch/code-size effect is
   too unstable on M3.
+- `macos-metal-dp4-xyzz-state` kept `Z^2` and `Z^3` as live DP4 state to avoid
+  per-step recomputation in `U2/S2` while preserving byte-for-byte raw
+  Jacobian output. Source gates, `make macos-check`, and the stable DP oracle
+  passed, but paired confirmation discarded it: `1.024585x`, `0.824733x`,
+  `0.548792x`. Keep the compact Jacobian state; the extra live limbs are too
+  expensive for this M3 kernel shape.
 - `8b3d413` added an explicit `uchar` cast around the public DP4 packed
   flag-store expression. Correctness and the stable DP oracle stayed intact,
   but paired confirmation discarded it: `1.020047x`, `1.099344x`,
