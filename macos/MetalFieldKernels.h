@@ -600,7 +600,7 @@ kernel void jacobian_affine_walk_jump_table(constant ulong* p_xyz [[buffer(0)]],
   ulong distance = 0;
 
   for (uint step = 0; step < steps; step++) {
-    uint jump_index = (uint)jump_indices[jump_base + step];
+    uint jump_index = jump_indices[jump_base + step];
     distance += jump_distances[jump_index];
     uint q_base = jump_index << 3;
     JacobianValue out = jacobian_add_affine_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3, inf,
@@ -643,7 +643,7 @@ kernel void jacobian_affine_walk_jump_table_steps8(constant ulong* p_xyz [[buffe
   ulong distance = 0;
 
   for (uint step = 0; step < 8; step++) {
-    uint jump_index = (uint)jump_indices[jump_base + step];
+    uint jump_index = jump_indices[jump_base + step];
     distance += jump_distances[jump_index];
     uint q_base = jump_index << 3;
     JacobianValue out = jacobian_add_affine_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3, inf,

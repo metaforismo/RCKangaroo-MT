@@ -158,7 +158,8 @@ if ! awk '
 	in_walk && /uint out_base = id \* 12/ { found_out_base_mul = 1 }
 	in_walk && /uint jump_base = id \* steps/ { found_jump_base = 1 }
 	in_walk && /for \(uint step/ { found_loop = 1 }
-	in_walk && /uint jump_index = \(uint\)jump_indices\[jump_base \+ step\]/ { found_jump_base_fetch = 1 }
+	in_walk && /uint jump_index = jump_indices\[jump_base \+ step\]/ { found_jump_base_fetch = 1 }
+	in_walk && /uint jump_index = \(uint\)jump_indices\[jump_base \+ step\]/ { found_jump_base_cast = 1 }
 	in_walk && /jump_indices\[id \* steps \+ step\]/ { found_hot_jump_mul = 1 }
 	in_walk && /distance \+= jump_distances\[jump_index\]/ { found_accumulate = 1 }
 	in_walk && /uint q_base = jump_index << 3/ { found_q_base_shift = 1 }
@@ -169,7 +170,7 @@ if ! awk '
 	in_walk && /(1UL << dp_bits|dp_bits == 0)/ { found_hot_dp_mask_build = 1 }
 	in_walk && /% jump_count/ { found_hot_mod = 1 }
 	in_walk && /^}/ { in_walk = 0 }
-	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && found_out_distances && found_out_dp_flags && found_dp_mask && found_step && found_p_base_shift && !found_p_base_mul && found_out_base_reuse && !found_out_base_mul && found_jump_base && found_loop && found_jump_base_fetch && found_accumulate && found_q_base_shift && !found_q_base_mul && found_store && found_dp_store && found_dp_mask_test && !found_hot_jump_mul && !found_hot_dp_mask_build && !found_hot_mod) ? 0 : 1 }
+	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && found_out_distances && found_out_dp_flags && found_dp_mask && found_step && found_p_base_shift && !found_p_base_mul && found_out_base_reuse && !found_out_base_mul && found_jump_base && found_loop && found_jump_base_fetch && !found_jump_base_cast && found_accumulate && found_q_base_shift && !found_q_base_mul && found_store && found_dp_store && found_dp_mask_test && !found_hot_jump_mul && !found_hot_dp_mask_build && !found_hot_mod) ? 0 : 1 }
 ' "$tmp_source"; then
 	printf '%s\n' "jacobian_affine_walk_jump_table does not precompute hot base state and constant read-only buffers"
 	exit 1
@@ -193,7 +194,8 @@ if ! awk '
 	in_walk && /uint jump_base = id << 3/ { found_jump_base = 1 }
 	in_walk && /for \(uint step = 0; step < 8; step\+\+\)/ { found_fixed_loop = 1 }
 	in_walk && /step < steps/ { found_dynamic_loop = 1 }
-	in_walk && /uint jump_index = \(uint\)jump_indices\[jump_base \+ step\]/ { found_jump_base_fetch = 1 }
+	in_walk && /uint jump_index = jump_indices\[jump_base \+ step\]/ { found_jump_base_fetch = 1 }
+	in_walk && /uint jump_index = \(uint\)jump_indices\[jump_base \+ step\]/ { found_jump_base_cast = 1 }
 	in_walk && /distance \+= jump_distances\[jump_index\]/ { found_accumulate = 1 }
 	in_walk && /uint q_base = jump_index << 3/ { found_q_base_shift = 1 }
 	in_walk && /uint q_base = jump_index \* 8/ { found_q_base_mul = 1 }
@@ -203,7 +205,7 @@ if ! awk '
 	in_walk && /(1UL << dp_bits|dp_bits == 0)/ { found_hot_dp_mask_build = 1 }
 	in_walk && /% jump_count/ { found_hot_mod = 1 }
 	in_walk && /^}/ { in_walk = 0 }
-	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && found_out_distances && found_out_dp_flags && found_dp_mask && found_step && found_p_base_shift && !found_p_base_mul && found_out_base_reuse && !found_out_base_mul && found_jump_base && found_fixed_loop && !found_dynamic_loop && found_jump_base_fetch && found_accumulate && found_q_base_shift && !found_q_base_mul && found_store && found_dp_store && found_dp_mask_test && !found_hot_dp_mask_build && !found_hot_mod) ? 0 : 1 }
+	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && found_out_distances && found_out_dp_flags && found_dp_mask && found_step && found_p_base_shift && !found_p_base_mul && found_out_base_reuse && !found_out_base_mul && found_jump_base && found_fixed_loop && !found_dynamic_loop && found_jump_base_fetch && !found_jump_base_cast && found_accumulate && found_q_base_shift && !found_q_base_mul && found_store && found_dp_store && found_dp_mask_test && !found_hot_dp_mask_build && !found_hot_mod) ? 0 : 1 }
 ' "$tmp_source"; then
 	printf '%s\n' "jacobian_affine_walk_jump_table_steps8 does not use the fixed steps=8 constant read-only hot path with shifted point base"
 	exit 1
