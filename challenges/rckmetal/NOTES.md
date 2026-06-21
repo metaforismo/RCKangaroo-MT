@@ -6,7 +6,7 @@ they are intentionally ignored by git.
 
 ## Baseline
 
-- Baseline commit: `61fab2e` (`perf: record packed Metal index gain`).
+- Baseline commit: `0db51db` (`perf: record implicit Metal index promotion gain`).
 - Hardware track: Apple Silicon M3 Metal, 10-core GPU, 16 GB RAM.
 - Score command: `metal-jacobian-jump-walk-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 50`.
 - Local Benchforge runs observed after adding the lab:
@@ -42,6 +42,8 @@ they are intentionally ignored by git.
   - post-point-base-shift local run: `run_c5a5a65e-57cf-415e-8109-d73e56025160`
   - post-packed-indices local score: `32,162,529.860699 ops/sec`
   - post-packed-indices local run: `run_e99acb33-7e12-4a6c-9ddc-053bf0cf8a7c`
+  - post-implicit-index-promotion local score: `25,075,671.624407 ops/sec`
+  - post-implicit-index-promotion local run: `run_8fa7d17c-c78f-4dc6-a97a-4031ded46410`
   - verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
 
@@ -87,6 +89,11 @@ they are intentionally ignored by git.
   oracle sequence as `uint32_t`. Paired autoresearch kept it with candidate
   median `43,384,425.365437 ops/sec` versus paired baseline median
   `42,198,113.596848 ops/sec`; distance and DP checksums were unchanged.
+- `505a654` relies on implicit Metal promotion from packed `uchar` jump indices
+  to `uint` destination variables instead of an explicit cast. Paired
+  autoresearch kept it with candidate median `32,889,067.186241 ops/sec` versus
+  paired baseline median `25,877,502.674679 ops/sec`; distance and DP checksums
+  were unchanged.
 
 ## Current Correctness Surface
 
