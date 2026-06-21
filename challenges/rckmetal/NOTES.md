@@ -260,6 +260,11 @@ they are intentionally ignored by git.
   `51,269,848.158566 ops/sec` versus baseline `53,225,235.044224 ops/sec`,
   `paired_speedup=0.963262`. Keep direct `q_xy[q_base + n]` operands in the
   promoted finite-hot-path dp4 kernel.
+- `2d1f373` inlined the dp4 infinity fallback as direct affine assignment
+  (`x/y=q`, `z=1`, `inf=0`) instead of calling the generic wrapper. Correctness
+  stayed intact, but paired autoresearch discarded it: candidate median
+  `53,801,243.066193 ops/sec` versus baseline `57,431,762.259068 ops/sec`,
+  `paired_speedup=0.936786`. Keep the promoted generic-wrapper fallback shape.
 
 ## Current Correctness Surface
 

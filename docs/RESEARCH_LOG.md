@@ -971,6 +971,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0x30a7914972cba014`. Keep the direct `q_xy[q_base + n]`
   operands in the promoted dp4 finite-hot-path kernel; the explicit locals did
   not help this M3 compiler shape.
+- `macos-metal-dp4-inline-inf`: inlining the dp4 infinity fallback as direct
+  affine assignment (`x/y=q`, `z=1`, `inf=0`) preserved all oracle fields but
+  failed the paired target gate. Candidate median was
+  `53,801,243.066193 ops/sec` versus baseline `57,431,762.259068 ops/sec`,
+  `paired_speedup=0.936786`, `status=discard`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. Keep the promoted generic-wrapper fallback
+  shape; the explicit assignment worsened the compiled dp4 kernel on M3.
 
 ## Next Research Targets
 
