@@ -1182,6 +1182,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
   `dp_checksum=0x30a7914972cba014`. Keep the promoted separate `p_base`
   expression followed by the later `jump_base` declaration.
+- `macos-metal-dp4-default-tg512`: defaulting only the public
+  `steps_per_sample=8`, `dp_bits=4` jump-walk shape to threadgroup limit `512`
+  preserved all oracle fields and still honored explicit `--tg-limit 256`, but
+  failed the paired target gate. Candidate median was
+  `30,497,177.022142 ops/sec` versus baseline `42,867,189.634848 ops/sec`,
+  `paired_speedup=0.711434`, `status=discard`, `correctness=true`,
+  `threadgroup_limit=512`, `distance_checksum=0xa45f471493cace2f`,
+  `dp_count=1000`, `dp_checksum=0x30a7914972cba014`. Keep default `256` for the
+  dp4 score path unless a broader repeated sweep overturns this result.
 
 ## Next Research Targets
 

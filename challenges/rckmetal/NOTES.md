@@ -355,6 +355,11 @@ they are intentionally ignored by git.
   discarded it: candidate median `27,479,586.125938 ops/sec` versus baseline
   `39,064,201.289996 ops/sec`, `paired_speedup=0.703447`. Keep the promoted
   separate `p_base` expression and later `jump_base` declaration.
+- `cbd1493` defaulted only the public dp4 score path to threadgroup limit 512.
+  Correctness stayed intact and explicit `--tg-limit 256` still worked, but
+  paired autoresearch discarded it: candidate median
+  `30,497,177.022142 ops/sec` versus baseline `42,867,189.634848 ops/sec`,
+  `paired_speedup=0.711434`. Keep default 256 for the score path.
 
 ## Current Correctness Surface
 
