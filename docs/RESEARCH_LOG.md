@@ -763,6 +763,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `status=discard`, `correctness=true`. Keep the table-load steps8 kernel; on
   this M3 run the shift-specialized compiled shape was slower than the existing
   read-only distance table.
+- `macos-metal-distance-packed-flags`: packing the steps=8 infinity and DP
+  flags into bits 62-63 of `out_distances[id]` preserved all oracle fields and
+  initially passed the paired gate (`29,118,843.516504 ops/sec` versus
+  `27,517,848.433568 ops/sec`, `paired_speedup=1.058180`), but the
+  local-public verifier accepted it at only `26,835,812.014708 ops/sec` and a
+  confirmation paired run against pre-candidate commit `72dfb4a` rejected it.
+  Confirmation median was `34,780,120.656735 ops/sec` versus baseline
+  `40,132,591.380091 ops/sec`, `paired_speedup=0.866630`,
+  `status=discard`, `correctness=true`. The candidate was reverted; keep the
+  separate `out_flags` byte for the steps=8 kernel unless a future broader
+  repeat shows the high-bit packing win is stable.
 
 ## Next Research Targets
 
