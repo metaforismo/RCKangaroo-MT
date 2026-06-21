@@ -245,7 +245,7 @@ if ! awk '
 	/kernel void jacobian_affine_walk_jump_table_steps8_dp4/ { in_walk = 1 }
 	in_walk && /constant ulong\* p_xyz/ { found_constant_p = 1 }
 	in_walk && /constant ulong\* q_xy/ { found_constant_q = 1 }
-	in_walk && /constant uint\* p_infinity/ { found_constant_inf = 1 }
+	in_walk && /constant uchar\* p_infinity/ { found_constant_inf = 1 }
 	in_walk && /constant uchar\* jump_indices/ { found_indices = 1 }
 	in_walk && /constant ulong\* jump_distances/ { found_distances = 1 }
 	in_walk && /constant ulong& dp_mask/ { found_dynamic_dp_mask = 1 }
@@ -272,14 +272,18 @@ fi
 
 if ! awk '
 	/RunJacobianJumpWalkKernel/ { in_host = 1 }
-	in_host && /steps_per_sample == 8 && dp_bits == 4/ && /jacobian_affine_walk_jump_table_steps8_dp4/ { found_dp4_selection = 1 }
+	in_host && /const bool use_dp4_specialization = steps_per_sample == 8 && dp_bits == 4/ { found_dp4_guard = 1 }
+	in_host && /use_dp4_specialization \? "jacobian_affine_walk_jump_table_steps8_dp4"/ { found_dp4_selection = 1 }
 	in_host && /steps_per_sample == 8/ && /jacobian_affine_walk_jump_table_steps8/ && /jacobian_affine_walk_jump_table/ { found_selection = 1 }
 	in_host && /std::vector<uint8_t> metal_jump_indices/ { found_packed = 1 }
 	in_host && /metal_jump_indices.push_back\(static_cast<uint8_t>\(jump_index\)\)/ { found_pack_push = 1 }
 	in_host && /size_t indices_bytes = metal_jump_indices.size\(\) \* sizeof\(uint8_t\)/ { found_packed_bytes = 1 }
 	in_host && /newBufferWithBytes:metal_jump_indices.data\(\) length:indices_bytes/ { found_packed_buffer = 1 }
-	in_host && /size_t p_inf_bytes = p_infinity.size\(\) \* sizeof\(uint32_t\)/ { found_p_inf_bytes = 1 }
-	in_host && /newBufferWithBytes:p_infinity.data\(\) length:p_inf_bytes/ { found_p_inf_buffer = 1 }
+	in_host && /std::vector<uint8_t> metal_p_infinity/ { found_packed_inf = 1 }
+	in_host && /metal_p_infinity.push_back\(p_infinity_value \? 1U : 0U\)/ { found_packed_inf_push = 1 }
+	in_host && /const void\* p_inf_data = use_dp4_specialization/ { found_p_inf_data = 1 }
+	in_host && /size_t p_inf_bytes = use_dp4_specialization/ { found_p_inf_bytes = 1 }
+	in_host && /newBufferWithBytes:p_inf_data length:p_inf_bytes/ { found_p_inf_buffer = 1 }
 	in_host && /std::vector<uint8_t> out_flags_metal/ { found_packed_flags_out = 1 }
 	in_host && /size_t out_flags_bytes = out_flags_metal.size\(\) \* sizeof\(uint8_t\)/ { found_packed_flags_bytes = 1 }
 	in_host && /newBufferWithLength:out_flags_bytes/ { found_out_flags_buffer = 1 }
@@ -299,7 +303,7 @@ if ! awk '
 	in_host && /\[encoder dispatchThreadgroups:MTLSizeMake\(threadgroup_count, 1, 1\) threadsPerThreadgroup:MTLSizeMake\(threads_per_threadgroup, 1, 1\)\]/ { found_dispatch_threadgroups = 1 }
 	in_host && /\[encoder dispatchThreads:/ { found_dispatch_threads = 1 }
 	in_host && /^}/ { in_host = 0 }
-	END { exit (found_dp4_selection && found_selection && found_packed && found_pack_push && found_packed_bytes && found_packed_buffer && found_p_inf_bytes && found_p_inf_buffer && found_packed_flags_out && found_packed_flags_bytes && found_out_flags_buffer && found_packed_flags_copy && found_flags_local && found_inf_expand && found_dp_expand && !found_old_dp_buffer && !found_old_inf_metal && !found_old_dp_metal && !found_old_out_inf_buffer && !found_old_inf_copy && !found_u32_dp_bytes && !found_u32_bytes && found_dynamic_load && found_threadgroup_count && found_dispatch_threadgroups && !found_dispatch_threads) ? 0 : 1 }
+	END { exit (found_dp4_guard && found_dp4_selection && found_selection && found_packed && found_pack_push && found_packed_bytes && found_packed_buffer && found_packed_inf && found_packed_inf_push && found_p_inf_data && found_p_inf_bytes && found_p_inf_buffer && found_packed_flags_out && found_packed_flags_bytes && found_out_flags_buffer && found_packed_flags_copy && found_flags_local && found_inf_expand && found_dp_expand && !found_old_dp_buffer && !found_old_inf_metal && !found_old_dp_metal && !found_old_out_inf_buffer && !found_old_inf_copy && !found_u32_dp_bytes && !found_u32_bytes && found_dynamic_load && found_threadgroup_count && found_dispatch_threadgroups && !found_dispatch_threads) ? 0 : 1 }
 ' "$host_source"; then
 	printf '%s\n' "RunJacobianJumpWalkKernel does not pack Metal jump indices and combined output flags to uint8 with dp4 steps8 specialization and generic fallback"
 	exit 1

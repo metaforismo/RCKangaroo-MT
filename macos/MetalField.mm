@@ -904,7 +904,8 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 			return false;
 		}
 
-		const char* function_name = (steps_per_sample == 8 && dp_bits == 4) ? "jacobian_affine_walk_jump_table_steps8_dp4" :
+		const bool use_dp4_specialization = steps_per_sample == 8 && dp_bits == 4;
+		const char* function_name = use_dp4_specialization ? "jacobian_affine_walk_jump_table_steps8_dp4" :
 			(steps_per_sample == 8 ? "jacobian_affine_walk_jump_table_steps8" : "jacobian_affine_walk_jump_table");
 		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
@@ -931,7 +932,17 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 
 		size_t p_bytes = p_xyz.size() * sizeof(uint64_t);
 		size_t q_bytes = q_xy.size() * sizeof(uint64_t);
-		size_t p_inf_bytes = p_infinity.size() * sizeof(uint32_t);
+		std::vector<uint8_t> metal_p_infinity;
+		if (use_dp4_specialization)
+		{
+			metal_p_infinity.reserve(p_infinity.size());
+			for (uint32_t p_infinity_value : p_infinity)
+				metal_p_infinity.push_back(p_infinity_value ? 1U : 0U);
+		}
+		const void* p_inf_data = use_dp4_specialization ?
+			static_cast<const void*>(metal_p_infinity.data()) : static_cast<const void*>(p_infinity.data());
+		size_t p_inf_bytes = use_dp4_specialization ?
+			metal_p_infinity.size() * sizeof(uint8_t) : p_infinity.size() * sizeof(uint32_t);
 		size_t indices_bytes = metal_jump_indices.size() * sizeof(uint8_t);
 		size_t distance_bytes = jump_distances.size() * sizeof(uint64_t);
 		std::vector<uint64_t> out_xyz(p.size() * 12);
@@ -943,7 +954,7 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		size_t distance_out_bytes = distance_out.size() * sizeof(uint64_t);
 		id<MTLBuffer> p_buffer = [device newBufferWithBytes:p_xyz.data() length:p_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> q_buffer = [device newBufferWithBytes:q_xy.data() length:q_bytes options:MTLResourceStorageModeShared];
-		id<MTLBuffer> p_inf_buffer = [device newBufferWithBytes:p_infinity.data() length:p_inf_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> p_inf_buffer = [device newBufferWithBytes:p_inf_data length:p_inf_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> out_buffer = [device newBufferWithLength:out_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> out_flags_buffer = [device newBufferWithLength:out_flags_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> out_distances_buffer = [device newBufferWithLength:distance_out_bytes options:MTLResourceStorageModeShared];

@@ -682,7 +682,7 @@ kernel void jacobian_affine_walk_jump_table_steps8(constant ulong* p_xyz [[buffe
 
 kernel void jacobian_affine_walk_jump_table_steps8_dp4(constant ulong* p_xyz [[buffer(0)]],
                                                        constant ulong* q_xy [[buffer(1)]],
-                                                       constant uint* p_infinity [[buffer(2)]],
+                                                       constant uchar* p_infinity [[buffer(2)]],
                                                        device ulong* out_xyz [[buffer(3)]],
                                                        device uchar* out_flags [[buffer(4)]],
                                                        constant uint& count [[buffer(5)]],
