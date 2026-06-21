@@ -1328,6 +1328,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   raw speedups of `0.956924x`, `1.002591x`, and `0.940893x`, so
   `confirmation_status=discard`. Keep the existing source order; moving the
   independent `Z*H` multiply earlier did not improve the M3 compiled kernel.
+- `macos-metal-mixed-add-reuse-temps`: reusing dead pre-branch temporaries
+  (`z20/z30/u20/s20`) for `HH/HHH/V/X3` in the finite mixed-add helper
+  preserved `make macos-check` and the full stable DP oracle, but failed
+  paired confirmation. Stable DP speedups were `1.028006x`, `1.074308x`, and
+  `0.833597x`, therefore `confirmation_status=discard`. Keep the explicit
+  post-branch temporaries; the source-level lifetime reduction did not survive
+  repeated M3 confirmation.
 - `macos-metal-dp4-skip-dpmask-buffer`: avoiding the unused host-side
   `dp_mask_buffer` allocation and encoder bind when dispatching the
   `steps=8`, `dp_bits=4` specialized Metal kernel preserved `make macos-check`

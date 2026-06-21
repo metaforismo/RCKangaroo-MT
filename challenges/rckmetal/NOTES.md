@@ -442,6 +442,10 @@ they are intentionally ignored by git.
   the `Y3` multiply. Correctness and the stable DP oracle stayed intact, but
   paired confirmation discarded it: `0.956924x`, `1.002591x`, `0.940893x`.
   Keep the current source order.
+- `35b2a71` reused dead finite mixed-add temporaries to reduce source-level
+  register lifetime. Correctness and the stable DP oracle stayed intact, but
+  paired confirmation discarded it: `1.028006x`, `1.074308x`, `0.833597x`.
+  Keep the explicit post-branch temporary variables.
 - `b7d977e` skipped allocation/binding of the unused host-side `dp_mask_buffer`
   for the specialized `steps=8`, `dp_bits=4` Metal kernel. Correctness and the
   public DP oracle stayed intact, but stable confirmation discarded it:
