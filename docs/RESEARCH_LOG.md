@@ -497,6 +497,34 @@ Commit: `c876663` (`perf: use shift for Metal point base`)
   - `threadgroup_limit=256`
   - `threads_per_threadgroup=256`
 
+### Packed Metal Jump Indices
+
+Commit: `b7122fb` (`perf: pack Metal jump indices to uint8`)
+
+- Kept the CPU oracle and generator using `uint32_t` jump indices, but packed a
+  `uint8_t` copy for the Metal buffer.
+- This is safe for the current Metal benchmark surface because
+  `NormalizeMetalJumpCount` caps `jump_count` at 32.
+- The Metal kernels now read `constant uchar* jump_indices` and cast each loaded
+  byte to `uint` before indexing the affine jump table and distance table.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - candidate median `43,384,425.365437 mixed-add steps/sec`
+  - paired baseline median `42,198,113.596848 mixed-add steps/sec`
+  - paired speedup `1.028113x`
+  - candidate min `25,070,894.921654 mixed-add steps/sec`
+  - candidate max `43,685,276.246207 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+  - Note: this is a small-margin keep, but it reduces jump-index bandwidth in
+    the Metal dispatch path without changing the CPU oracle surface.
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
