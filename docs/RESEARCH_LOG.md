@@ -1099,6 +1099,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   and `dp_checksum=0x30a7914972cba014` in both runs. Treat this as unstable and
   keep the promoted `uint jump_index` spelling until a stronger repeated signal
   appears.
+- `macos-metal-dp4-step-ne`: changing the public dp4 fixed loop from
+  `step < 8` to `step != 8` preserved all oracle fields but failed the paired
+  target gate. Candidate median was `31,734,147.843923 ops/sec` versus
+  baseline `36,197,526.932618 ops/sec`, `paired_speedup=0.876694`,
+  `status=discard`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. Keep the promoted `< 8` loop spelling.
 
 ## Next Research Targets
 

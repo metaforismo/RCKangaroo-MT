@@ -314,6 +314,11 @@ they are intentionally ignored by git.
   ops/sec` versus baseline `33,237,046.959255 ops/sec` (`0.915993x`). Do not
   promote without stronger repeated evidence; keep the `uint jump_index`
   baseline.
+- `6fe1f43` changed the public dp4 loop condition from `step < 8` to
+  `step != 8`. Correctness stayed intact, but paired autoresearch discarded it:
+  candidate median `31,734,147.843923 ops/sec` versus baseline
+  `36,197,526.932618 ops/sec`, `paired_speedup=0.876694`. Keep the promoted
+  `< 8` loop spelling.
 
 ## Current Correctness Surface
 
