@@ -367,6 +367,12 @@ These did not pass the performance gate or had a correctness/architecture issue:
   baseline tg256 `23,401,670.068526 ops/sec`, `paired_speedup=0.674690`,
   `status=discard`, `correctness=true`. Keep Jacobian add at the current
   256-thread default until a broader retest shows a stable win.
+- `macos-metal-q-limb-preload`: explicitly preloading the 8 affine jump-table
+  limbs before `jacobian_add_affine_values` preserved all oracle fields but
+  failed the paired gate. Candidate median was `32,121,834.312940 ops/sec`
+  versus baseline `42,950,885.665018 ops/sec`, `paired_speedup=0.747874`,
+  `status=discard`, `correctness=true`. Avoid this shape unless a future
+  register-pressure or occupancy change alters the tradeoff.
 
 ## Next Research Targets
 
