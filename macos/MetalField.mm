@@ -904,7 +904,8 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 			return false;
 		}
 
-		const char* function_name = steps_per_sample == 8 ? "jacobian_affine_walk_jump_table_steps8" : "jacobian_affine_walk_jump_table";
+		const char* function_name = (steps_per_sample == 8 && dp_bits == 4) ? "jacobian_affine_walk_jump_table_steps8_dp4" :
+			(steps_per_sample == 8 ? "jacobian_affine_walk_jump_table_steps8" : "jacobian_affine_walk_jump_table");
 		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{
