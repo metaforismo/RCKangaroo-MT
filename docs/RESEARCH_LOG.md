@@ -1272,6 +1272,12 @@ These did not pass the performance gate or had a correctness/architecture issue:
   with raw runs of `1.098654x`, `0.945560x`, and `1.202391x`. Keep the scalar
   q-table load shape; the vector load version is not durable enough on this M3
   Air.
+- `macos-metal-dp4-p-vec4-loads`: changing only the public dp4 kernel's initial
+  Jacobian state input from scalar `ulong*` indexing to three `ulong4` loads
+  preserved the full public oracle, but failed stable paired confirmation.
+  `--confirm-runs 3` recorded `confirmation_status=discard` with raw runs of
+  `1.121251x`, `0.764312x`, and `0.921588x`. Keep scalar initial-state loads;
+  the vector load spelling increased variance and did not survive the gate.
 
 ## Next Research Targets
 

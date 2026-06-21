@@ -409,6 +409,10 @@ they are intentionally ignored by git.
   loads per step. Correctness and the full DP oracle stayed intact, but stable
   paired confirmation discarded it: `1.098654x`, `0.945560x`, `1.202391x`.
   Keep scalar q-table loads.
+- `4fdac33` changed the public dp4 initial Jacobian state reads to three
+  `ulong4` loads. Correctness and the full DP oracle stayed intact, but stable
+  paired confirmation discarded it: `1.121251x`, `0.764312x`, `0.921588x`.
+  Keep scalar initial-state loads.
 
 ## Current Correctness Surface
 
