@@ -602,7 +602,7 @@ kernel void jacobian_affine_walk_jump_table(device const ulong* p_xyz [[buffer(0
   for (uint step = 0; step < steps; step++) {
     uint jump_index = jump_indices[jump_base + step];
     distance += jump_distances[jump_index];
-    uint q_base = jump_index * 8;
+    uint q_base = jump_index << 3;
     JacobianValue out = jacobian_add_affine_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3, inf,
                                                    q_xy[q_base + 0], q_xy[q_base + 1], q_xy[q_base + 2], q_xy[q_base + 3],
                                                    q_xy[q_base + 4], q_xy[q_base + 5], q_xy[q_base + 6], q_xy[q_base + 7]);

@@ -146,15 +146,17 @@ if ! awk '
 	in_walk && /jump_indices\[jump_base \+ step\]/ { found_jump_base_fetch = 1 }
 	in_walk && /jump_indices\[id \* steps \+ step\]/ { found_hot_jump_mul = 1 }
 	in_walk && /distance \+= jump_distances\[jump_index\]/ { found_accumulate = 1 }
+	in_walk && /uint q_base = jump_index << 3/ { found_q_base_shift = 1 }
+	in_walk && /uint q_base = jump_index \* 8/ { found_q_base_mul = 1 }
 	in_walk && /out_distances\[id\] = distance/ { found_store = 1 }
 	in_walk && /out_dp_flags\[id\]/ { found_dp_store = 1 }
 	in_walk && /\(x0 & dp_mask\) == 0/ { found_dp_mask_test = 1 }
 	in_walk && /(1UL << dp_bits|dp_bits == 0)/ { found_hot_dp_mask_build = 1 }
 	in_walk && /% jump_count/ { found_hot_mod = 1 }
 	in_walk && /^}/ { in_walk = 0 }
-	END { exit (found_indices && found_distances && found_out_distances && found_out_dp_flags && found_dp_mask && found_step && found_out_base_reuse && !found_out_base_mul && found_jump_base && found_loop && found_jump_base_fetch && found_accumulate && found_store && found_dp_store && found_dp_mask_test && !found_hot_jump_mul && !found_hot_dp_mask_build && !found_hot_mod) ? 0 : 1 }
+	END { exit (found_indices && found_distances && found_out_distances && found_out_dp_flags && found_dp_mask && found_step && found_out_base_reuse && !found_out_base_mul && found_jump_base && found_loop && found_jump_base_fetch && found_accumulate && found_q_base_shift && !found_q_base_mul && found_store && found_dp_store && found_dp_mask_test && !found_hot_jump_mul && !found_hot_dp_mask_build && !found_hot_mod) ? 0 : 1 }
 ' "$tmp_source"; then
-	printf '%s\n' "jacobian_affine_walk_jump_table does not precompute hot output, jump-index, and DP-mask state"
+	printf '%s\n' "jacobian_affine_walk_jump_table does not precompute hot output, jump-index, q-base, and DP-mask state"
 	exit 1
 fi
 
