@@ -714,6 +714,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `27,571,898.407642 ops/sec`, `paired_speedup=0.949496`,
   `status=discard`, `correctness=true`. Keep the distance table as `ulong`;
   the narrower load did not offset the changed compiled/buffer shape.
+- `macos-metal-pow2-distances`: adding a steps=8-only Metal kernel that
+  replaced `distance += jump_distances[jump_index]` with
+  `distance += (1UL << jump_index)` when the host verified
+  `jump_distances[i] == (1ULL << i)` preserved all oracle fields but failed the
+  paired gate. Candidate median was `25,415,526.957227 ops/sec` versus baseline
+  `30,676,662.025047 ops/sec`, `paired_speedup=0.828497`,
+  `status=discard`, `correctness=true`. Keep the table-load steps8 kernel; on
+  this M3 run the shift-specialized compiled shape was slower than the existing
+  read-only distance table.
 
 ## Next Research Targets
 
