@@ -54,6 +54,16 @@ they are intentionally ignored by git.
   - post-packed-dp-flags accepted score: `46,030,890.793385 ops/sec`
   - post-packed-dp-flags receipt hash:
     `c82e916e46c716176f8249efd94d588fc688e3e7140dd1134d6af950990b216f`
+  - post-packed-output-infinity local score: `30,850,023.207186 ops/sec`
+  - post-packed-output-infinity local run: `run_f12c7906-0ac7-438d-99a5-457667f6a481`
+  - post-packed-output-infinity submission:
+    `sub_ad6ff479-06af-443a-9e56-8e6bedc8df35`
+  - post-packed-output-infinity candidate score: `33,331,836.865438 ops/sec`
+  - post-packed-output-infinity accepted run:
+    `run_71aa84e7-10d5-46dc-b004-cda5c6e2bbd7`
+  - post-packed-output-infinity accepted score: `30,688,533.740618 ops/sec`
+  - post-packed-output-infinity receipt hash:
+    `2cd2841869233b6c7c63b3222980494ee548dbd85bf3c3f12539cf1d89aabd3c`
   - verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
 
@@ -111,6 +121,13 @@ they are intentionally ignored by git.
   unchanged. The local-public verifier accepted run
   `run_bbdd8e57-765e-4e33-8eb7-22d8368abaf2` at
   `46,030,890.793385 ops/sec` with `trusted=false`.
+- `e7b28c1` packs only the jump-walk Metal output infinity flags to `uint8_t`
+  while keeping input infinity flags as `uint32_t`. Paired autoresearch kept it
+  with candidate median `33,349,832.725909 ops/sec` versus paired baseline
+  median `25,793,902.178919 ops/sec`; distance and DP checksums were unchanged.
+  The local-public verifier accepted run
+  `run_71aa84e7-10d5-46dc-b004-cda5c6e2bbd7` at
+  `30,688,533.740618 ops/sec` with `trusted=false`.
 
 ## Current Correctness Surface
 
