@@ -707,6 +707,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `38,970,988.924523 ops/sec`, `paired_speedup=0.799673`,
   `status=discard`, `correctness=true`. Keep the explicit output-base alias;
   this small source simplification changed the compiled shape unfavorably.
+- `macos-metal-u32-distances`: packing the Metal jump-distance table from
+  `uint64_t` to `uint32_t`, while keeping the scalar accumulator and CPU oracle
+  at `uint64_t`, preserved all oracle fields but failed the paired gate.
+  Candidate median was `26,179,407.033794 ops/sec` versus baseline
+  `27,571,898.407642 ops/sec`, `paired_speedup=0.949496`,
+  `status=discard`, `correctness=true`. Keep the distance table as `ulong`;
+  the narrower load did not offset the changed compiled/buffer shape.
 
 ## Next Research Targets
 
