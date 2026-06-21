@@ -85,6 +85,17 @@ they are intentionally ignored by git.
   - post-threadgroup-dispatch accepted score: `33,847,318.071380 ops/sec`
   - post-threadgroup-dispatch receipt hash:
     `5e899e1312baca831593e1f54f9873bd35d56a0d669b0d2794a8000ee411d1db`
+  - post-steps8-dp4 local score: `56,820,932.004814 ops/sec`
+  - post-steps8-dp4 local run:
+    `run_e9c0a155-6944-486b-9d5f-21685f819024`
+  - post-steps8-dp4 submission:
+    `sub_3f950cfc-630e-4eef-a97f-bd12c1aa58a5`
+  - post-steps8-dp4 candidate score: `20,963,326.693395 ops/sec`
+  - post-steps8-dp4 accepted run:
+    `run_e62fa172-6ae2-4fa4-acdf-9e108d0f274c`
+  - post-steps8-dp4 accepted score: `46,317,921.229795 ops/sec`
+  - post-steps8-dp4 receipt hash:
+    `f1cccd47b625caecc8b16c2cdac1204f935ca5382513c2e4ac12571abac49a82`
   - verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
 
@@ -167,6 +178,14 @@ they are intentionally ignored by git.
   `correctness=true`, covering non-multiple grid sizes. The local-public
   verifier accepted run `run_0e8d35ad-7f60-4cf7-a9b6-87cf9a5f7b0a` at
   `33,847,318.071380 ops/sec` with `trusted=false`.
+- `604dd55` adds a steps8 + `dp_bits=4` Metal kernel that hardcodes the public
+  DP mask test while leaving all other shapes on the previous fallback kernels.
+  Paired autoresearch kept it twice: first candidate median
+  `42,692,418.310915 ops/sec` versus baseline `41,388,708.608987 ops/sec`,
+  then confirmation median `46,781,458.735324 ops/sec` versus baseline
+  `45,497,141.628023 ops/sec`; distance and DP checksums were unchanged. The
+  local-public verifier accepted run `run_e62fa172-6ae2-4fa4-acdf-9e108d0f274c`
+  at `46,317,921.229795 ops/sec` with `trusted=false`.
 
 ## Rejected Retest Notes
 

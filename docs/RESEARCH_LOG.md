@@ -678,6 +678,46 @@ Commit: `4d1cc10` (`perf: dispatch Metal jump walk by threadgroups`)
   `run_746218ad-dd52-4184-b5d3-75ea50e62374` at
   `32,143,846.853718 ops/sec`.
 
+### Metal Steps8 DP4 Specialized Mask
+
+Commit: `604dd55` (`perf: specialize Metal steps8 dp4 mask`)
+
+- Added `jacobian_affine_walk_jump_table_steps8_dp4`, selected only when
+  `steps_per_sample == 8` and `dp_bits == 4`. All other shapes keep the
+  previous `steps8` or generic kernels.
+- The specialized kernel keeps point math, jump indices, distance tracking, and
+  packed output flags unchanged, but hardcodes the public DP mask test as
+  `(x0 & 0xFUL) == 0` for the primary gate.
+- The source gate now requires the dp4 specialization and the fallback
+  selection so the verifier shape with `steps=7`, `jumps=9`, `dp_bits=3` stays
+  on the generic path.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - first candidate median `42,692,418.310915 mixed-add steps/sec`
+  - first paired baseline median `41,388,708.608987 mixed-add steps/sec`
+  - first paired speedup `1.031499x`
+  - confirmation candidate median `46,781,458.735324 mixed-add steps/sec`
+  - confirmation paired baseline median `45,497,141.628023 mixed-add steps/sec`
+  - confirmation paired speedup `1.028229x`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+- `make macos-check` passed on `main` after the fast-forward merge.
+- Local-public Benchforge verifier accepted submission
+  `sub_3f950cfc-630e-4eef-a97f-bd12c1aa58a5` as run
+  `run_e62fa172-6ae2-4fa4-acdf-9e108d0f274c` with score
+  `46,317,921.229795 ops/sec`, receipt hash
+  `f1cccd47b625caecc8b16c2cdac1204f935ca5382513c2e4ac12571abac49a82`,
+  `verifier.trusted=false`, `platform=darwin`, `arch=arm64`, `cpus=Apple M3`.
+  The local run before submission was
+  `run_e9c0a155-6944-486b-9d5f-21685f819024` at
+  `56,820,932.004814 ops/sec`.
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
