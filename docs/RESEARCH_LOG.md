@@ -884,6 +884,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0x30a7914972cba014`. Keep the apparently redundant `steps`
   binding in the dp4 kernel; removing it changes the Metal function shape
   unfavorably on this M3 run.
+- `macos-metal-reduce-single-sub`: replacing the final `while` in
+  `reduce512_mod_p` with a single conditional `sub_p5` preserved correctness
+  across `make macos-check`, field selftests, the public DP checksum, and the
+  verifier's second shape. A Python model of the current Metal reduction over
+  200k random field products plus edge cases saw at most one final subtract.
+  The microbenchmarks improved (`metal_field_square` paired speedup
+  `1.345393`, `metal_field_mul` paired speedup `1.194649`), but the actual
+  target did not pass: first DP paired run was `30,186,670.513289 ops/sec`
+  versus baseline `44,007,021.060713`, `paired_speedup=0.685951`; a repeat was
+  effectively neutral at `38,297,493.616744 ops/sec` versus
+  `38,246,490.390202`, `paired_speedup=1.001334`, still `status=discard`.
+  Manual alternating `--min-ms 200` runs showed strong warmup/order effects and
+  no reliable target win. Keep the looped reducer for the Jacobian kernel; a
+  future candidate may isolate single-sub to a smaller field microkernel, but it
+  is not the base for the DP target.
 
 ## Next Research Targets
 

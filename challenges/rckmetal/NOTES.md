@@ -225,6 +225,11 @@ they are intentionally ignored by git.
   median `28,385,107.764488 ops/sec` versus baseline
   `35,725,191.654110 ops/sec`, `paired_speedup=0.794540`. Keep the current
   dp4 kernel signature.
+- `b6eec70` replaced the final reduction loop with a single conditional
+  subtract. Field microbenchmarks improved (`square` `1.345393x`, `mul`
+  `1.194649x`), but the DP target rejected it twice: first `0.685951x`, then
+  neutral `1.001334x` below threshold. Keep the looped reducer for the target;
+  the microbench win does not translate reliably into the large Jacobian kernel.
 
 ## Current Correctness Surface
 
