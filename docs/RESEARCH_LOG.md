@@ -934,6 +934,12 @@ Commit: `a963a4d` (`perf: pack Metal dp4 infinity input`)
 
 These did not pass the performance gate or had a correctness/architecture issue:
 
+- `macos-metal-dp4-u32-accum`: narrowing only the public DP4 kernel's scalar
+  distance accumulator to `uint`, with a host safety guard and a `ulong` output
+  cast, preserved `make macos-check` and the full stable DP oracle, but failed
+  paired confirmation. Stable DP speedups were `0.950121x`, `1.200329x`, and
+  `0.991690x`, therefore `confirmation_status=discard`. Keep the promoted
+  `ulong` accumulator in the DP4 kernel.
 - `macos-metal-dp4-uchar-state`: changing the public DP4 kernel's local
   infinity state from `bool` to `uchar` after the packed input-infinity win
   preserved `make macos-check` and the full stable DP oracle, but failed paired

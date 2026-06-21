@@ -265,6 +265,11 @@ they are intentionally ignored by git.
 
 ## Rejected Retest Notes
 
+- `03ed392` narrowed the public DP4 distance accumulator from `ulong` to
+  `uint` with a host safety guard and cast back to `ulong` on output.
+  Correctness and the stable DP oracle stayed intact, but paired confirmation
+  discarded it: `0.950121x`, `1.200329x`, `0.991690x`. Keep the `ulong`
+  accumulator in the promoted DP4 kernel.
 - `d04021e` changed the public DP4 local infinity state from `bool` to
   `uchar` after packing the input infinity buffer. Correctness and the stable
   DP oracle stayed intact, but paired confirmation discarded it: `0.858733x`,
