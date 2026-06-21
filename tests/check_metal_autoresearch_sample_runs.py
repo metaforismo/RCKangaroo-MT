@@ -15,6 +15,8 @@ def main() -> int:
         sample_runs = int(data.get("sample_runs", 0))
         if sample_runs < 3:
             failures.append(f"{path.relative_to(ROOT)} sample_runs={sample_runs}, expected >= 3")
+        if data.get("name") == "metal_jacobian_jump_walk_dp" and sample_runs < 5:
+            failures.append(f"{path.relative_to(ROOT)} sample_runs={sample_runs}, expected >= 5 for primary Metal DP gate")
 
     if failures:
         sys.stdout.write("\n".join(failures) + "\n")

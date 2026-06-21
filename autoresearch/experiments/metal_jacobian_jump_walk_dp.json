@@ -3,5 +3,5 @@
   "description": "Metal Jacobian jump-table walk with projective distinguished-point candidate flags",
   "bench_target": "macos-metal-jacobian-jump-walk-dp-bench",
   "min_improvement_ratio": 0.01,
-  "sample_runs": 3
+  "sample_runs": 5
 }
