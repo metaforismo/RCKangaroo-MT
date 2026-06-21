@@ -6,7 +6,7 @@ they are intentionally ignored by git.
 
 ## Baseline
 
-- Baseline commit: `b963af7` (`perf: record Metal point-base shift gain`).
+- Baseline commit: `61fab2e` (`perf: record packed Metal index gain`).
 - Hardware track: Apple Silicon M3 Metal, 10-core GPU, 16 GB RAM.
 - Score command: `metal-jacobian-jump-walk-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 50`.
 - Local Benchforge runs observed after adding the lab:
@@ -40,6 +40,8 @@ they are intentionally ignored by git.
   - post-constant-indices local run: `run_75dcc47e-ccf9-438f-8e1b-1e803adc04cc`
   - post-point-base-shift local score: `28,672,074.856923 ops/sec`
   - post-point-base-shift local run: `run_c5a5a65e-57cf-415e-8109-d73e56025160`
+  - post-packed-indices local score: `32,162,529.860699 ops/sec`
+  - post-packed-indices local run: `run_e99acb33-7e12-4a6c-9ddc-053bf0cf8a7c`
   - verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
 
@@ -81,6 +83,10 @@ they are intentionally ignored by git.
   `(id << 3) + (id << 2)` in the two jump-walk kernels. Paired autoresearch kept
   it with candidate median `40,420,143.199132 ops/sec` versus paired baseline
   median `25,079,930.894718 ops/sec`; distance and DP checksums were unchanged.
+- `b7122fb` packs the Metal jump-index buffer to `uint8_t` while keeping the CPU
+  oracle sequence as `uint32_t`. Paired autoresearch kept it with candidate
+  median `43,384,425.365437 ops/sec` versus paired baseline median
+  `42,198,113.596848 ops/sec`; distance and DP checksums were unchanged.
 
 ## Current Correctness Surface
 
