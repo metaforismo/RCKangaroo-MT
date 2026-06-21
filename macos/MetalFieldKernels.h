@@ -590,7 +590,7 @@ kernel void jacobian_affine_walk_jump_table(constant ulong* p_xyz [[buffer(0)]],
                                             device uint* out_dp_flags [[buffer(11)]],
                                             uint id [[thread_position_in_grid]]) {
   if (id >= count) return;
-  uint p_base = id * 12;
+  uint p_base = (id << 3) + (id << 2);
   uint out_base = p_base;
   ulong x0 = p_xyz[p_base + 0], x1 = p_xyz[p_base + 1], x2 = p_xyz[p_base + 2], x3 = p_xyz[p_base + 3];
   ulong y0 = p_xyz[p_base + 4], y1 = p_xyz[p_base + 5], y2 = p_xyz[p_base + 6], y3 = p_xyz[p_base + 7];
@@ -633,7 +633,7 @@ kernel void jacobian_affine_walk_jump_table_steps8(constant ulong* p_xyz [[buffe
                                                    uint id [[thread_position_in_grid]]) {
   (void)steps;
   if (id >= count) return;
-  uint p_base = id * 12;
+  uint p_base = (id << 3) + (id << 2);
   uint out_base = p_base;
   ulong x0 = p_xyz[p_base + 0], x1 = p_xyz[p_base + 1], x2 = p_xyz[p_base + 2], x3 = p_xyz[p_base + 3];
   ulong y0 = p_xyz[p_base + 4], y1 = p_xyz[p_base + 5], y2 = p_xyz[p_base + 6], y3 = p_xyz[p_base + 7];

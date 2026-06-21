@@ -152,6 +152,8 @@ if ! awk '
 	in_walk && /device uint\* out_dp_flags/ { found_out_dp_flags = 1 }
 	in_walk && /constant ulong& dp_mask/ { found_dp_mask = 1 }
 	in_walk && /jacobian_add_affine_values/ { found_step = 1 }
+	in_walk && /uint p_base = \(id << 3\) \+ \(id << 2\)/ { found_p_base_shift = 1 }
+	in_walk && /uint p_base = id \* 12/ { found_p_base_mul = 1 }
 	in_walk && /uint out_base = p_base/ { found_out_base_reuse = 1 }
 	in_walk && /uint out_base = id \* 12/ { found_out_base_mul = 1 }
 	in_walk && /uint jump_base = id \* steps/ { found_jump_base = 1 }
@@ -167,9 +169,9 @@ if ! awk '
 	in_walk && /(1UL << dp_bits|dp_bits == 0)/ { found_hot_dp_mask_build = 1 }
 	in_walk && /% jump_count/ { found_hot_mod = 1 }
 	in_walk && /^}/ { in_walk = 0 }
-	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && found_out_distances && found_out_dp_flags && found_dp_mask && found_step && found_out_base_reuse && !found_out_base_mul && found_jump_base && found_loop && found_jump_base_fetch && found_accumulate && found_q_base_shift && !found_q_base_mul && found_store && found_dp_store && found_dp_mask_test && !found_hot_jump_mul && !found_hot_dp_mask_build && !found_hot_mod) ? 0 : 1 }
+	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && found_out_distances && found_out_dp_flags && found_dp_mask && found_step && found_p_base_shift && !found_p_base_mul && found_out_base_reuse && !found_out_base_mul && found_jump_base && found_loop && found_jump_base_fetch && found_accumulate && found_q_base_shift && !found_q_base_mul && found_store && found_dp_store && found_dp_mask_test && !found_hot_jump_mul && !found_hot_dp_mask_build && !found_hot_mod) ? 0 : 1 }
 ' "$tmp_source"; then
-	printf '%s\n' "jacobian_affine_walk_jump_table does not precompute hot state and constant read-only buffers"
+	printf '%s\n' "jacobian_affine_walk_jump_table does not precompute hot base state and constant read-only buffers"
 	exit 1
 fi
 
@@ -184,6 +186,8 @@ if ! awk '
 	in_walk && /device uint\* out_dp_flags/ { found_out_dp_flags = 1 }
 	in_walk && /constant ulong& dp_mask/ { found_dp_mask = 1 }
 	in_walk && /jacobian_add_affine_values/ { found_step = 1 }
+	in_walk && /uint p_base = \(id << 3\) \+ \(id << 2\)/ { found_p_base_shift = 1 }
+	in_walk && /uint p_base = id \* 12/ { found_p_base_mul = 1 }
 	in_walk && /uint out_base = p_base/ { found_out_base_reuse = 1 }
 	in_walk && /uint out_base = id \* 12/ { found_out_base_mul = 1 }
 	in_walk && /uint jump_base = id << 3/ { found_jump_base = 1 }
@@ -199,9 +203,9 @@ if ! awk '
 	in_walk && /(1UL << dp_bits|dp_bits == 0)/ { found_hot_dp_mask_build = 1 }
 	in_walk && /% jump_count/ { found_hot_mod = 1 }
 	in_walk && /^}/ { in_walk = 0 }
-	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && found_out_distances && found_out_dp_flags && found_dp_mask && found_step && found_out_base_reuse && !found_out_base_mul && found_jump_base && found_fixed_loop && !found_dynamic_loop && found_jump_base_fetch && found_accumulate && found_q_base_shift && !found_q_base_mul && found_store && found_dp_store && found_dp_mask_test && !found_hot_dp_mask_build && !found_hot_mod) ? 0 : 1 }
+	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && found_out_distances && found_out_dp_flags && found_dp_mask && found_step && found_p_base_shift && !found_p_base_mul && found_out_base_reuse && !found_out_base_mul && found_jump_base && found_fixed_loop && !found_dynamic_loop && found_jump_base_fetch && found_accumulate && found_q_base_shift && !found_q_base_mul && found_store && found_dp_store && found_dp_mask_test && !found_hot_dp_mask_build && !found_hot_mod) ? 0 : 1 }
 ' "$tmp_source"; then
-	printf '%s\n' "jacobian_affine_walk_jump_table_steps8 does not use the fixed steps=8 constant read-only hot path"
+	printf '%s\n' "jacobian_affine_walk_jump_table_steps8 does not use the fixed steps=8 constant read-only hot path with shifted point base"
 	exit 1
 fi
 
