@@ -1,0 +1,7 @@
+{
+  "name": "metal_jacobian_jump_walk_dp_steps4",
+  "description": "Metal Jacobian jump-table walk with projective DP flags at steps=4",
+  "bench_target": "macos-metal-jacobian-jump-walk-dp-steps4-bench",
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3
+}

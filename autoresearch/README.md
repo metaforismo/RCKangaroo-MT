@@ -177,6 +177,14 @@ python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk_dp --budget
 
 This records the same distance-aware Metal jump-table walk with `--dp-bits 4`. The kernel emits `dp_tracking=projective_x_limb0`, `dp_count`, and `dp_checksum`, and the CPU oracle verifies the same projective low-bit predicate. This is a cheap GPU-side candidate filter, not yet the affine distinguished-point key required for final collision-table matching.
 
+Run the `steps=4` projective-DP-candidate Metal Jacobian jump-walk experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk_dp_steps4 --budget-sec 5
+```
+
+This uses the same oracle surface as `metal_jacobian_jump_walk_dp`, but changes the benchmark shape to `--steps 4`. Use it for candidates that specialize shorter walk batches without changing the primary Benchforge `steps=8` score path.
+
 Run the CPU field multiplication experiment:
 
 ```sh
