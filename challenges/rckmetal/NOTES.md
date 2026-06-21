@@ -235,6 +235,10 @@ they are intentionally ignored by git.
   paired autoresearch discarded it: candidate median `35,188,997.363215
   ops/sec` versus baseline `41,028,548.928926 ops/sec`,
   `paired_speedup=0.857671`. Keep the uncapped kernel.
+- `7c1416e` used three `ulong4` vector stores for the dp4 kernel's final
+  Jacobian output. Correctness stayed intact, but paired autoresearch discarded
+  it: candidate median `42,347,381.165201 ops/sec` versus baseline
+  `45,468,279.360450 ops/sec`, `paired_speedup=0.931361`. Keep scalar stores.
 
 ## Current Correctness Surface
 

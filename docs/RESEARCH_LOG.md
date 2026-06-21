@@ -909,6 +909,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
   `dp_checksum=0x30a7914972cba014`. Keep the unconstrained dp4 kernel; the
   explicit max threadgroup attribute worsened the compiled shape on M3.
+- `macos-metal-dp4-vector-stores`: adding a `store_jacobian_xyz_only_vec4`
+  helper and using three `ulong4` stores for the dp4 kernel's final Jacobian
+  output preserved all oracle fields but failed the paired target gate.
+  Candidate median was `42,347,381.165201 ops/sec` versus baseline
+  `45,468,279.360450 ops/sec`, `paired_speedup=0.931361`,
+  `status=discard`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. Keep scalar limb stores; the vector store
+  spelling did not improve this kernel on M3.
 
 ## Next Research Targets
 
