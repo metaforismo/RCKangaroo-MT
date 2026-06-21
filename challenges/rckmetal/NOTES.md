@@ -26,6 +26,14 @@ they are intentionally ignored by git.
   - post-steps8-kernel local run: `run_1c90c406-7301-469b-a144-dd203ea596fb`
   - post-constant-jump-tables local score: `29,124,706.165467 ops/sec`
   - post-constant-jump-tables local run: `run_98e0ea38-a9a0-44eb-9fc4-600aba32883f`
+  - post-constant-jump-tables submission:
+    `sub_d9c6e3d1-0fac-4bcb-976f-f6666d6c0ae1`
+  - post-constant-jump-tables candidate score: `27,172,647.361592 ops/sec`
+  - post-constant-jump-tables accepted run:
+    `run_fc9f395a-c183-4244-b226-41fbeb5ef80b`
+  - post-constant-jump-tables accepted score: `54,784,037.786312 ops/sec`
+  - post-constant-jump-tables receipt hash:
+    `7a08ba74222ac812ea60b6304bda7c1c2d6dae26293a67e9899708f46ce24901`
   - verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
 
