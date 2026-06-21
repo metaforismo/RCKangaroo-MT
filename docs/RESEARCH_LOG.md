@@ -443,6 +443,32 @@ Commit: `68b8e3b` (`perf: use constant Metal jump-walk inputs`)
   - `threadgroup_limit=256`
   - `threads_per_threadgroup=256`
 
+### Constant Metal Jump Indices
+
+Commit: `cbfff2e` (`perf: use constant Metal jump indices`)
+
+- Changed `jump_indices` from `device const` to Metal `constant` address space
+  in the jump-walk kernels.
+- This makes all read-only jump-walk buffers use `constant` while outputs remain
+  `device`. The source gate now protects that contract.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - candidate median `25,302,152.157760 mixed-add steps/sec`
+  - paired baseline median `24,651,050.122097 mixed-add steps/sec`
+  - paired speedup `1.026413x`
+  - candidate min `19,269,715.464176 mixed-add steps/sec`
+  - candidate max `27,091,847.302376 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+  - Note: the margin is small and local Metal timings remain noisy, but the
+    paired median cleared the configured keep gate.
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
