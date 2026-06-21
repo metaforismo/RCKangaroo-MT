@@ -220,6 +220,11 @@ they are intentionally ignored by git.
   `39,023,071.164210 ops/sec` versus baseline `42,888,813.210105 ops/sec`,
   `paired_speedup=0.909866`. Keep the constant-buffer table; threadgroup preload
   and barrier overhead were not worth it on M3.
+- `983c7c3` removed the dead `steps` argument from the public dp4 Metal kernel.
+  Correctness stayed intact, but paired autoresearch discarded it: candidate
+  median `28,385,107.764488 ops/sec` versus baseline
+  `35,725,191.654110 ops/sec`, `paired_speedup=0.794540`. Keep the current
+  dp4 kernel signature.
 
 ## Current Correctness Surface
 

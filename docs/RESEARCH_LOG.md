@@ -875,6 +875,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0x30a7914972cba014`. Keep using the constant-buffer jump table on
   M3; the threadgroup preload and barrier cost more than the repeated cached
   reads in this math-heavy kernel.
+- `macos-metal-dp4-drop-steps`: removing the dead `steps` kernel argument from
+  `jacobian_affine_walk_jump_table_steps8_dp4` preserved all oracle fields but
+  failed the paired gate. Candidate median was `28,385,107.764488 ops/sec`
+  versus baseline `35,725,191.654110 ops/sec`, `paired_speedup=0.794540`,
+  `status=discard`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. Keep the apparently redundant `steps`
+  binding in the dp4 kernel; removing it changes the Metal function shape
+  unfavorably on this M3 run.
 
 ## Next Research Targets
 
