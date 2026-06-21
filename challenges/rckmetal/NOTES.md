@@ -300,6 +300,12 @@ they are intentionally ignored by git.
   autoresearch discarded it: candidate median `29,906,975.938509 ops/sec`
   versus baseline `36,536,871.605632 ops/sec`, `paired_speedup=0.818542`.
   Keep plain `static inline` helpers.
+- `9c751f6` reordered the public dp4 branch as `if (!inf)` so the finite hot
+  path appeared before the generic infinity fallback. Correctness stayed
+  intact, but paired autoresearch discarded it: candidate median
+  `27,998,203.739620 ops/sec` versus baseline `28,161,283.758521 ops/sec`,
+  `paired_speedup=0.994209`. Keep the promoted `b8e1120` fallback-first branch
+  shape.
 
 ## Current Correctness Surface
 

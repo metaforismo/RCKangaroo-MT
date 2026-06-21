@@ -1078,6 +1078,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
   `dp_checksum=0x30a7914972cba014`. Keep plain `static inline`; forcing inline
   worsened the compiled large Jacobian kernel on M3.
+- `macos-metal-dp4-finite-first`: changing the dp4 branch order to test
+  `if (!inf)` and place the finite hot path before the generic infinity
+  fallback preserved all oracle fields but failed the paired target gate.
+  Candidate median was `27,998,203.739620 ops/sec` versus baseline
+  `28,161,283.758521 ops/sec`, `paired_speedup=0.994209`,
+  `status=discard`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. Keep the promoted `if (inf)` fallback-first
+  spelling from `b8e1120`; the compiler did not reward the likely-path order on
+  this M3 run.
 
 ## Next Research Targets
 
