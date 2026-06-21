@@ -146,7 +146,7 @@ if ! awk '
 	in_walk && /constant ulong\* p_xyz/ { found_constant_p = 1 }
 	in_walk && /constant ulong\* q_xy/ { found_constant_q = 1 }
 	in_walk && /constant uint\* p_infinity/ { found_constant_inf = 1 }
-	in_walk && /device const uint\* jump_indices/ { found_indices = 1 }
+	in_walk && /constant uint\* jump_indices/ { found_indices = 1 }
 	in_walk && /constant ulong\* jump_distances/ { found_distances = 1 }
 	in_walk && /device ulong\* out_distances/ { found_out_distances = 1 }
 	in_walk && /device uint\* out_dp_flags/ { found_out_dp_flags = 1 }
@@ -178,7 +178,7 @@ if ! awk '
 	in_walk && /constant ulong\* p_xyz/ { found_constant_p = 1 }
 	in_walk && /constant ulong\* q_xy/ { found_constant_q = 1 }
 	in_walk && /constant uint\* p_infinity/ { found_constant_inf = 1 }
-	in_walk && /device const uint\* jump_indices/ { found_indices = 1 }
+	in_walk && /constant uint\* jump_indices/ { found_indices = 1 }
 	in_walk && /constant ulong\* jump_distances/ { found_distances = 1 }
 	in_walk && /device ulong\* out_distances/ { found_out_distances = 1 }
 	in_walk && /device uint\* out_dp_flags/ { found_out_dp_flags = 1 }
