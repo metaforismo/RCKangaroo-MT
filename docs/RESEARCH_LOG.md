@@ -700,6 +700,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `status=discard`, `correctness=true`. Keep input infinity flags as
   `uint32_t`; unlike jump indices, this single read per thread does not
   justify the changed compiled or buffer shape.
+- `macos-metal-direct-store-base`: removing the explicit `out_base = p_base`
+  variable in the jump-walk kernels and passing `p_base` directly to the output
+  store helper preserved all oracle fields but failed the paired gate.
+  Candidate median was `31,164,051.209361 ops/sec` versus baseline
+  `38,970,988.924523 ops/sec`, `paired_speedup=0.799673`,
+  `status=discard`, `correctness=true`. Keep the explicit output-base alias;
+  this small source simplification changed the compiled shape unfavorably.
 
 ## Next Research Targets
 
