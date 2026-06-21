@@ -157,3 +157,9 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-21T19:57:53Z	b7d977e	metal_jacobian_jump_walk_dp_stable	metal	jacobian_affine_walk_jump_table	4063232	20107017.361589	true	discard	Stable Metal Jacobian jump-table walk with projective distinguished-point candidate flags
 2026-06-21T19:58:47Z	b7d977e	metal_jacobian_jump_walk_dp_stable	metal	jacobian_affine_walk_jump_table	4063232	20109534.532677	true	discard	Stable Metal Jacobian jump-table walk with projective distinguished-point candidate flags
 2026-06-21T19:59:38Z	b7d977e	metal_jacobian_jump_walk_dp_stable	metal	jacobian_affine_walk_jump_table	8650752	42854092.024259	true	discard	Stable Metal Jacobian jump-table walk with projective distinguished-point candidate flags
+2026-06-21T20:06:34Z	1a62d47	jacobian_kangaroo_multi16_small	macos_cpu	jacobian_kangaroo_multi_small	484	9664.150793	true	discard	Apple Silicon CPU shared-tame tiny 16-target kangaroo benchmark
+2026-06-21T20:06:46Z	1a62d47	jacobian_kangaroo_multi16_small	macos_cpu	jacobian_kangaroo_multi_small	539	10768.083393	true	discard	Apple Silicon CPU shared-tame tiny 16-target kangaroo benchmark
+2026-06-21T20:06:57Z	1a62d47	jacobian_kangaroo_multi16_small	macos_cpu	jacobian_kangaroo_multi_small	618	12354.481747	true	discard	Apple Silicon CPU shared-tame tiny 16-target kangaroo benchmark
+2026-06-21T20:07:45Z	1a62d47	jacobian_kangaroo_multi_small	macos_cpu	jacobian_kangaroo_multi_small	968	19351.823854	true	discard	Apple Silicon CPU shared-tame tiny multi-target kangaroo benchmark
+2026-06-21T20:07:58Z	1a62d47	jacobian_kangaroo_multi_small	macos_cpu	jacobian_kangaroo_multi_small	388	7734.437683	true	discard	Apple Silicon CPU shared-tame tiny multi-target kangaroo benchmark
+2026-06-21T20:08:32Z	1a62d47	jacobian_kangaroo_multi_small	macos_cpu	jacobian_kangaroo_multi_small	1299	25968.898296	true	discard	Apple Silicon CPU shared-tame tiny multi-target kangaroo benchmark

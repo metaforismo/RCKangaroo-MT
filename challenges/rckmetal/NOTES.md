@@ -438,6 +438,14 @@ they are intentionally ignored by git.
   `1.001230x`, `0.968218x`, `2.089115x`. A 5-pair `--min-ms 500` direct check
   was effectively tied (`1.000162x` absolute median, `1.026724x` pairwise
   median, two pairs below `1.0x`). Keep the simpler always-bind host path.
+- `1a62d47` changed multi-target CPU wild scratch initialization from
+  `clear`/`push_back` to `resize`/indexed fill. Correctness stayed intact for
+  4 and 16 targets (`found_private_key=0x7`, `last_dp_count=84/288`), but
+  paired confirmation discarded it. Multi16 raw speedups were `0.859027x`,
+  `0.937430x`, `1.028493x`; multi4 raw speedups were `0.915628x`,
+  `0.699428x`, `1.046553x`. A 5-pair `--min-ms 200` multi4 check measured
+  `0.967105x` absolute median and `0.972254x` pairwise median. Keep the
+  current `clear`/`push_back` initialization.
 
 ## Current Correctness Surface
 

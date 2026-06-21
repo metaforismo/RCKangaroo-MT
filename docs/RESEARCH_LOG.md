@@ -1320,6 +1320,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   and two pairs below `1.0x`; this is effectively a tie, not a durable win.
   Keep the simpler always-bind host path unless future dispatch-heavy tests
   show a stable benefit.
+- `macos-wild-resize-fill-main`: replacing `clear` + `push_back` initialization
+  of multi-target wild state scratch with `resize` + indexed fill preserved the
+  4-target and 16-target correctness oracles (`found_private_key=0x7`,
+  `last_dp_count=84/288`) and `make macos-check`, but failed paired
+  confirmation. `jacobian_kangaroo_multi16_small --confirm-runs 3` recorded
+  raw runs of `0.859027x`, `0.937430x`, and `1.028493x`; the 4-target gate
+  recorded `0.915628x`, `0.699428x`, and `1.046553x`, so both ended with
+  `confirmation_status=discard`. A direct 5-pair `--min-ms 200` check on the
+  4-target shape measured absolute median `0.967105x` and pairwise median
+  `0.972254x`. Keep the existing `clear` + `push_back` initialization.
 
 ## Next Research Targets
 
