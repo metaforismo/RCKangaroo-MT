@@ -576,9 +576,9 @@ kernel void jacobian_affine_walk_fixed(device const ulong* p_xyz [[buffer(0)]],
                  z0, z1, z2, z3, out_infinity, id, inf);
 }
 
-kernel void jacobian_affine_walk_jump_table(device const ulong* p_xyz [[buffer(0)]],
+kernel void jacobian_affine_walk_jump_table(constant ulong* p_xyz [[buffer(0)]],
                                             constant ulong* q_xy [[buffer(1)]],
-                                            device const uint* p_infinity [[buffer(2)]],
+                                            constant uint* p_infinity [[buffer(2)]],
                                             device ulong* out_xyz [[buffer(3)]],
                                             device uint* out_infinity [[buffer(4)]],
                                             constant uint& count [[buffer(5)]],
@@ -618,9 +618,9 @@ kernel void jacobian_affine_walk_jump_table(device const ulong* p_xyz [[buffer(0
   out_dp_flags[id] = (!inf && ((x0 & dp_mask) == 0)) ? 1 : 0;
 }
 
-kernel void jacobian_affine_walk_jump_table_steps8(device const ulong* p_xyz [[buffer(0)]],
+kernel void jacobian_affine_walk_jump_table_steps8(constant ulong* p_xyz [[buffer(0)]],
                                                    constant ulong* q_xy [[buffer(1)]],
-                                                   device const uint* p_infinity [[buffer(2)]],
+                                                   constant uint* p_infinity [[buffer(2)]],
                                                    device ulong* out_xyz [[buffer(3)]],
                                                    device uint* out_infinity [[buffer(4)]],
                                                    constant uint& count [[buffer(5)]],
