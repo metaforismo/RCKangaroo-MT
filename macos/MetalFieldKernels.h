@@ -453,21 +453,12 @@ kernel void field_square_mul_mod_p(device const ulong* a [[buffer(0)]],
   out[base + 0] = r0; out[base + 1] = r1; out[base + 2] = r2; out[base + 3] = r3;
 }
 
-static inline JacobianValue jacobian_add_affine_values(ulong x0, ulong x1, ulong x2, ulong x3,
-                                                       ulong y0, ulong y1, ulong y2, ulong y3,
-                                                       ulong z0, ulong z1, ulong z2, ulong z3,
-                                                       uint p_infinity,
-                                                       ulong qx0, ulong qx1, ulong qx2, ulong qx3,
-                                                       ulong qy0, ulong qy1, ulong qy2, ulong qy3) {
+static inline JacobianValue jacobian_add_affine_finite_values(ulong x0, ulong x1, ulong x2, ulong x3,
+                                                              ulong y0, ulong y1, ulong y2, ulong y3,
+                                                              ulong z0, ulong z1, ulong z2, ulong z3,
+                                                              ulong qx0, ulong qx1, ulong qx2, ulong qx3,
+                                                              ulong qy0, ulong qy1, ulong qy2, ulong qy3) {
   JacobianValue out;
-  if (p_infinity) {
-    out.x0 = qx0; out.x1 = qx1; out.x2 = qx2; out.x3 = qx3;
-    out.y0 = qy0; out.y1 = qy1; out.y2 = qy2; out.y3 = qy3;
-    out.z0 = 1; out.z1 = 0; out.z2 = 0; out.z3 = 0;
-    out.inf = 0;
-    return out;
-  }
-
   ulong z20 = 0, z21 = 0, z22 = 0, z23 = 0;
   ulong z30 = 0, z31 = 0, z32 = 0, z33 = 0;
   ulong u20 = 0, u21 = 0, u22 = 0, u23 = 0;
@@ -530,6 +521,26 @@ static inline JacobianValue jacobian_add_affine_values(ulong x0, ulong x1, ulong
   out.z0 = z_out0; out.z1 = z_out1; out.z2 = z_out2; out.z3 = z_out3;
   out.inf = 0;
   return out;
+}
+
+static inline JacobianValue jacobian_add_affine_values(ulong x0, ulong x1, ulong x2, ulong x3,
+                                                       ulong y0, ulong y1, ulong y2, ulong y3,
+                                                       ulong z0, ulong z1, ulong z2, ulong z3,
+                                                       uint p_infinity,
+                                                       ulong qx0, ulong qx1, ulong qx2, ulong qx3,
+                                                       ulong qy0, ulong qy1, ulong qy2, ulong qy3) {
+  if (p_infinity) {
+    JacobianValue out;
+    out.x0 = qx0; out.x1 = qx1; out.x2 = qx2; out.x3 = qx3;
+    out.y0 = qy0; out.y1 = qy1; out.y2 = qy2; out.y3 = qy3;
+    out.z0 = 1; out.z1 = 0; out.z2 = 0; out.z3 = 0;
+    out.inf = 0;
+    return out;
+  }
+  return jacobian_add_affine_finite_values(x0, x1, x2, x3, y0, y1, y2, y3,
+                                           z0, z1, z2, z3,
+                                           qx0, qx1, qx2, qx3,
+                                           qy0, qy1, qy2, qy3);
 }
 
 kernel void jacobian_add_affine(device const ulong* p_xyz [[buffer(0)]],
@@ -695,9 +706,16 @@ kernel void jacobian_affine_walk_jump_table_steps8_dp4(constant ulong* p_xyz [[b
     uint jump_index = jump_indices[jump_base + step];
     distance += jump_distances[jump_index];
     uint q_base = jump_index << 3;
-    JacobianValue out = jacobian_add_affine_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3, inf,
-                                                   q_xy[q_base + 0], q_xy[q_base + 1], q_xy[q_base + 2], q_xy[q_base + 3],
-                                                   q_xy[q_base + 4], q_xy[q_base + 5], q_xy[q_base + 6], q_xy[q_base + 7]);
+    JacobianValue out;
+    if (inf) {
+      out = jacobian_add_affine_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3, inf,
+                                       q_xy[q_base + 0], q_xy[q_base + 1], q_xy[q_base + 2], q_xy[q_base + 3],
+                                       q_xy[q_base + 4], q_xy[q_base + 5], q_xy[q_base + 6], q_xy[q_base + 7]);
+    } else {
+      out = jacobian_add_affine_finite_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3,
+                                              q_xy[q_base + 0], q_xy[q_base + 1], q_xy[q_base + 2], q_xy[q_base + 3],
+                                              q_xy[q_base + 4], q_xy[q_base + 5], q_xy[q_base + 6], q_xy[q_base + 7]);
+    }
     x0 = out.x0; x1 = out.x1; x2 = out.x2; x3 = out.x3;
     y0 = out.y0; y1 = out.y1; y2 = out.y2; y3 = out.y3;
     z0 = out.z0; z1 = out.z1; z2 = out.z2; z3 = out.z3;

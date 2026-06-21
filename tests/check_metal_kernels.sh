@@ -120,13 +120,27 @@ fi
 
 if ! awk '
 	/static inline JacobianValue jacobian_add_affine_values/ { in_helper = 1 }
+	in_helper && /uint p_infinity/ { found_p_infinity = 1 }
+	in_helper && /if \(p_infinity\)/ { found_inf_branch = 1 }
+	in_helper && /jacobian_add_affine_finite_values/ { found_finite_delegate = 1 }
+	in_helper && /kernel void jacobian_add_affine/ { in_helper = 0 }
+	END { exit (found_p_infinity && found_inf_branch && found_finite_delegate) ? 0 : 1 }
+' "$tmp_source"; then
+	printf '%s\n' "jacobian_add_affine_values does not preserve infinity handling with finite helper delegation"
+	exit 1
+fi
+
+if ! awk '
+	/static inline JacobianValue jacobian_add_affine_finite_values/ { in_helper = 1 }
+	in_helper && /uint p_infinity/ { found_p_infinity = 1 }
+	in_helper && /if \(p_infinity\)/ { found_inf_branch = 1 }
 	in_helper && /field_square_values/ { found_square = 1 }
 	in_helper && /field_mul_values/ { found_mul = 1 }
 	in_helper && /field_sub_values/ { found_sub = 1 }
-	in_helper && /kernel void jacobian_add_affine/ { in_helper = 0 }
-	END { exit (found_square && found_mul && found_sub) ? 0 : 1 }
+	in_helper && /static inline JacobianValue jacobian_add_affine_values/ { in_helper = 0 }
+	END { exit (!found_p_infinity && !found_inf_branch && found_square && found_mul && found_sub) ? 0 : 1 }
 ' "$tmp_source"; then
-	printf '%s\n' "jacobian_add_affine_values does not use field square/mul/sub helpers"
+	printf '%s\n' "jacobian_add_affine_finite_values missing or not limited to finite input points"
 	exit 1
 fi
 
@@ -238,12 +252,14 @@ if ! awk '
 	in_walk && /\(x0 & 0xFUL\) == 0/ { found_dp4_mask = 1 }
 	in_walk && /uint jump_base = id << 3/ { found_jump_base = 1 }
 	in_walk && /for \(uint step = 0; step < 8; step\+\+\)/ { found_fixed_loop = 1 }
-	in_walk && /jacobian_add_affine_values/ { found_step = 1 }
+	in_walk && /if \(inf\)/ { found_inf_guard = 1 }
+	in_walk && /jacobian_add_affine_values/ { found_generic_step = 1 }
+	in_walk && /jacobian_add_affine_finite_values/ { found_finite_step = 1 }
 	in_walk && /out_flags\[id\]/ { found_flags_store = 1 }
 	in_walk && /^}/ { in_walk = 0 }
-	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && !found_dynamic_dp_mask && found_dp4_mask && found_jump_base && found_fixed_loop && found_step && found_flags_store) ? 0 : 1 }
+	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && !found_dynamic_dp_mask && found_dp4_mask && found_jump_base && found_fixed_loop && found_inf_guard && found_generic_step && found_finite_step && found_flags_store) ? 0 : 1 }
 ' "$tmp_source"; then
-	printf '%s\n' "jacobian_affine_walk_jump_table_steps8_dp4 does not use the fixed steps=8 dp_bits=4 hot path"
+	printf '%s\n' "jacobian_affine_walk_jump_table_steps8_dp4 does not use the finite-point hot path with generic infinity fallback"
 	exit 1
 fi
 
