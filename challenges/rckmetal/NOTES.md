@@ -413,6 +413,11 @@ they are intentionally ignored by git.
   `ulong4` loads. Correctness and the full DP oracle stayed intact, but stable
   paired confirmation discarded it: `1.121251x`, `0.764312x`, `0.921588x`.
   Keep scalar initial-state loads.
+- `9247265` changed standalone Metal `field_mul4_mod_p` from two modular
+  doublings to a direct two-bit shift plus secp256k1 high-limb fold.
+  Correctness stayed intact, but confirmation discarded it: `1.168038x`,
+  `0.867882x`, `1.489125x`. A longer direct `--min-ms 200` check also lost
+  on median (`0.907910x`). Keep the two-doubling spelling.
 
 ## Current Correctness Surface
 

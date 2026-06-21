@@ -1278,6 +1278,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `--confirm-runs 3` recorded `confirmation_status=discard` with raw runs of
   `1.121251x`, `0.764312x`, and `0.921588x`. Keep scalar initial-state loads;
   the vector load spelling increased variance and did not survive the gate.
+- `macos-metal-field-mul4-shift`: replacing the standalone Metal `4*x mod p`
+  kernel's two modular doublings with a direct two-bit shift plus secp256k1
+  high-limb fold preserved correctness, but failed confirmation. The standard
+  `metal_field_mul4 --confirm-runs 3` gate recorded raw runs of `1.168038x`,
+  `0.867882x`, and `1.489125x`, therefore `confirmation_status=discard`. A
+  separate longer-window direct check with `--min-ms 200` measured candidate
+  median `242,236,576.685757 ops/sec` versus baseline
+  `266,806,848.581355 ops/sec` (`0.907910x`). Keep the existing two-doubling
+  spelling for this microkernel on M3 Air.
 
 ## Next Research Targets
 
