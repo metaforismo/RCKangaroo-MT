@@ -148,3 +148,6 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-21T19:25:57Z	9247265	metal_field_mul4	metal	field_mul4_mod_p	13631488	246235567.596198	true	discard	Metal secp256k1 field_mul4_mod_p correctness and throughput gate
 2026-06-21T19:26:30Z	9247265	metal_field_mul4	metal	field_mul4_mod_p	5242880	101896490.037442	true	discard	Metal secp256k1 field_mul4_mod_p correctness and throughput gate
 2026-06-21T19:27:09Z	9247265	metal_field_mul4	metal	field_mul4_mod_p	8388608	154298318.553492	true	discard	Metal secp256k1 field_mul4_mod_p correctness and throughput gate
+2026-06-21T19:34:49Z	f0301ef	metal_field_neg	metal	field_neg_mod_p	5242880	99750221.099342	true	discard	Metal secp256k1 field_neg_mod_p correctness and throughput gate
+2026-06-21T19:35:28Z	f0301ef	metal_field_neg	metal	field_neg_mod_p	5242880	102360679.104753	true	discard	Metal secp256k1 field_neg_mod_p correctness and throughput gate
+2026-06-21T19:36:21Z	f0301ef	metal_field_neg	metal	field_neg_mod_p	7340032	119971184.158642	true	discard	Metal secp256k1 field_neg_mod_p correctness and throughput gate

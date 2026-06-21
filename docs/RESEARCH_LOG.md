@@ -1287,6 +1287,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   median `242,236,576.685757 ops/sec` versus baseline
   `266,806,848.581355 ops/sec` (`0.907910x`). Keep the existing two-doubling
   spelling for this microkernel on M3 Air.
+- `macos-metal-field-neg-branchless`: replacing the standalone Metal
+  `field_neg_mod_p` zero-input early return with a `nonzero_mask` preserved the
+  field-neg correctness oracle and `make macos-check`, but failed the paired
+  confirmation gate. `metal_field_neg --confirm-runs 3` recorded raw speedups
+  of `0.998645x`, `1.126949x`, and `1.834335x`, so
+  `confirmation_status=discard`. Follow-up direct checks remained too noisy:
+  `--min-ms 200` median was `205,671,822.569883 ops/sec` versus baseline
+  `183,243,136.099982 ops/sec` (`1.122399x`), but the stricter 5-pair
+  `--min-ms 500` check had absolute median `1.008415x` and pairwise median
+  `0.947659x`. Keep the current early-return spelling unless a stable gate
+  proves a durable win.
 
 ## Next Research Targets
 

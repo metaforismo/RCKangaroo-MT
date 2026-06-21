@@ -418,6 +418,12 @@ they are intentionally ignored by git.
   Correctness stayed intact, but confirmation discarded it: `1.168038x`,
   `0.867882x`, `1.489125x`. A longer direct `--min-ms 200` check also lost
   on median (`0.907910x`). Keep the two-doubling spelling.
+- `f0301ef` changed standalone Metal `field_neg_mod_p` from a zero-input
+  early return to a `nonzero_mask`. Correctness and `make macos-check` stayed
+  intact, but confirmation discarded it: `0.998645x`, `1.126949x`,
+  `1.834335x`. Longer checks did not clear the bar: `--min-ms 200` median was
+  `1.122399x`, but 5 paired `--min-ms 500` samples had absolute median
+  `1.008415x` and pairwise median `0.947659x`. Keep the early-return spelling.
 
 ## Current Correctness Surface
 
