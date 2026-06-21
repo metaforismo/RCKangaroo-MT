@@ -414,6 +414,35 @@ Commit: `ba91503` (`perf: use constant Metal jump tables`)
   - `threadgroup_limit=256`
   - `threads_per_threadgroup=256`
 
+### Constant Metal Jump-Walk Inputs
+
+Commit: `68b8e3b` (`perf: use constant Metal jump-walk inputs`)
+
+- Changed the jump-walk kernels to read the initial packed Jacobian state
+  (`p_xyz`) and infinity flags (`p_infinity`) from Metal `constant` address
+  space.
+- This extends the previous constant-table experiment to the per-sample
+  read-only inputs while keeping `jump_indices` in `device const` and all output
+  buffers in `device`.
+- The source gate now requires constant address space for the read-only input
+  buffers, the affine jump table, and the distance table while preserving every
+  existing hot-loop guard.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - candidate median `38,249,530.679262 mixed-add steps/sec`
+  - paired baseline median `23,474,473.066685 mixed-add steps/sec`
+  - paired speedup `1.629410x`
+  - candidate min `23,407,514.435039 mixed-add steps/sec`
+  - candidate max `45,292,938.764546 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
