@@ -795,6 +795,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `paired_speedup=0.836538`, `status=discard`, `correctness=true`. Keep the
   existing scalar buffers; the inline binding did not improve the dispatch
   shape for this kernel.
+- `macos-metal-branchless-flags`: replacing the final output-flag ternaries
+  with explicit `is_inf`, `dp_flag`, and `uchar(is_inf | (dp_flag << 1))`
+  preserved all oracle fields but failed the paired gate. Candidate median was
+  `26,399,879.312075 ops/sec` versus baseline `36,600,758.926891 ops/sec`,
+  `paired_speedup=0.721293`, `status=discard`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. Keep the compact ternary store; the manual
+  branchless spelling changed the compiled shape unfavorably.
 
 ## Next Research Targets
 

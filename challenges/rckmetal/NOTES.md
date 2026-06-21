@@ -178,6 +178,11 @@ they are intentionally ignored by git.
   it: candidate median `30,216,489.417128 ops/sec` versus baseline
   `30,308,267.513455 ops/sec`, `paired_speedup=0.996972`. Keep the compact
   fixed-loop steps8 kernel.
+- `5a8b985` replaced the final jump-walk flag ternaries with explicit
+  branchless `is_inf` and `dp_flag` arithmetic. The public oracle fields stayed
+  intact, but paired autoresearch discarded it: candidate median
+  `26,399,879.312075 ops/sec` versus baseline `36,600,758.926891 ops/sec`,
+  `paired_speedup=0.721293`. Keep the compact ternary flag store.
 
 ## Current Correctness Surface
 
