@@ -432,6 +432,12 @@ they are intentionally ignored by git.
   `1.429238x`, `0.518187x`, `1.961694x`. A 5-pair `--min-ms 500` direct check
   was also below the bar (`0.809660x` absolute median, `0.974441x` pairwise
   median). Keep the current branched field helpers.
+- `b7d977e` skipped allocation/binding of the unused host-side `dp_mask_buffer`
+  for the specialized `steps=8`, `dp_bits=4` Metal kernel. Correctness and the
+  public DP oracle stayed intact, but stable confirmation discarded it:
+  `1.001230x`, `0.968218x`, `2.089115x`. A 5-pair `--min-ms 500` direct check
+  was effectively tied (`1.000162x` absolute median, `1.026724x` pairwise
+  median, two pairs below `1.0x`). Keep the simpler always-bind host path.
 
 ## Current Correctness Surface
 

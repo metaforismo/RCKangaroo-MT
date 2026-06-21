@@ -1309,6 +1309,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   absolute median `0.809660x` and pairwise median `0.974441x`. Keep the current
   branched field add/sub/double helpers; the branchless spelling appears to add
   register/ALU cost without a durable M3 Air win.
+- `macos-metal-dp4-skip-dpmask-buffer`: avoiding the unused host-side
+  `dp_mask_buffer` allocation and encoder bind when dispatching the
+  `steps=8`, `dp_bits=4` specialized Metal kernel preserved `make macos-check`
+  and the public DP oracle (`distance_checksum=0xa45f471493cace2f`,
+  `dp_count=1000`, `dp_checksum=0x30a7914972cba014`), but failed stable paired
+  confirmation. Raw runs were `1.001230x`, `0.968218x`, and `2.089115x`,
+  therefore `confirmation_status=discard`. A 5-pair `--min-ms 500` direct
+  check measured absolute median `1.000162x`, pairwise median `1.026724x`,
+  and two pairs below `1.0x`; this is effectively a tie, not a durable win.
+  Keep the simpler always-bind host path unless future dispatch-heavy tests
+  show a stable benefit.
 
 ## Next Research Targets
 
