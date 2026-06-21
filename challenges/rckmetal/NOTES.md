@@ -401,6 +401,10 @@ they are intentionally ignored by git.
   stayed intact, but `metal_field_square --confirm-runs 3` discarded it:
   `1.173994x`, `0.893533x`, `0.958969x`. Keep the current square reducer until
   a repeated paired run proves a durable win.
+- `85f9fdb` added `#pragma unroll` only to the public `steps=8`, `dp_bits=4`
+  Metal loop. The runtime compiler accepted it and the full DP oracle stayed
+  intact, but stable paired confirmation discarded it: `0.891848x`,
+  `1.151186x`, `1.046198x`. Keep the current compiler-shaped dp4 loop.
 
 ## Current Correctness Surface
 

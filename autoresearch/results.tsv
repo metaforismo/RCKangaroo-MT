@@ -136,3 +136,6 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-21T18:29:06Z	43bf724	metal_field_square	metal	field_square_mod_p	9437184	164118043.318389	true	discard	Metal secp256k1 field_square_mod_p correctness and throughput gate
 2026-06-21T18:29:36Z	43bf724	metal_field_square	metal	field_square_mod_p	9437184	168428657.478260	true	discard	Metal secp256k1 field_square_mod_p correctness and throughput gate
 2026-06-21T18:30:06Z	43bf724	metal_field_square	metal	field_square_mod_p	11534336	187146596.465752	true	discard	Metal secp256k1 field_square_mod_p correctness and throughput gate
+2026-06-21T18:44:51Z	85f9fdb	metal_jacobian_jump_walk_dp_stable	metal	jacobian_affine_walk_jump_table	8388608	41325489.856177	true	discard	Stable Metal Jacobian jump-table walk with projective distinguished-point candidate flags
+2026-06-21T18:45:24Z	85f9fdb	metal_jacobian_jump_walk_dp_stable	metal	jacobian_affine_walk_jump_table	8519680	42149439.554412	true	discard	Stable Metal Jacobian jump-table walk with projective distinguished-point candidate flags
+2026-06-21T18:46:01Z	85f9fdb	metal_jacobian_jump_walk_dp_stable	metal	jacobian_affine_walk_jump_table	8912896	44423592.132378	true	discard	Stable Metal Jacobian jump-table walk with projective distinguished-point candidate flags

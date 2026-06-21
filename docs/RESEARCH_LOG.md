@@ -1255,6 +1255,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   with a raw keep at `1.173994x`, then discards at `0.893533x` and
   `0.958969x`. Do not promote the single-sub square reducer until it survives
   repeated paired confirmation on this M3 Air.
+- `macos-metal-dp4-pragma-unroll`: adding `#pragma unroll` to only the public
+  `steps=8`, `dp_bits=4` loop compiled and preserved the full public oracle
+  (`distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`), but failed the stable paired confirmation
+  gate. `--confirm-runs 3` recorded `confirmation_status=discard`: run 1 was a
+  raw discard at `41,325,489.856177 ops/sec` versus baseline
+  `46,336,900.254131` (`0.891848x`), while runs 2 and 3 were raw keeps at
+  `1.151186x` and `1.046198x`. Keep the compiler-shaped dp4 loop; a pragma
+  hint is too noisy to promote on this M3 Air.
 
 ## Next Research Targets
 
