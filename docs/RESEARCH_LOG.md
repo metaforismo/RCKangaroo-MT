@@ -1335,6 +1335,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `0.833597x`, therefore `confirmation_status=discard`. Keep the explicit
   post-branch temporaries; the source-level lifetime reduction did not survive
   repeated M3 confirmation.
+- `macos-metal-dp4-scalar-stores-first`: moving the specialized DP4 kernel's
+  scalar `out_distances`/`out_flags` stores before the bulk XYZ store preserved
+  `make macos-check` and the full stable DP oracle, but failed paired
+  confirmation. Stable DP speedups were `0.954509x`, `1.177914x`, and
+  `0.608038x`, therefore `confirmation_status=discard`. Keep the existing
+  XYZ-first store order; the source-level store scheduling did not produce a
+  durable M3 Metal win.
 - `macos-metal-dp4-skip-dpmask-buffer`: avoiding the unused host-side
   `dp_mask_buffer` allocation and encoder bind when dispatching the
   `steps=8`, `dp_bits=4` specialized Metal kernel preserved `make macos-check`

@@ -446,6 +446,10 @@ they are intentionally ignored by git.
   register lifetime. Correctness and the stable DP oracle stayed intact, but
   paired confirmation discarded it: `1.028006x`, `1.074308x`, `0.833597x`.
   Keep the explicit post-branch temporary variables.
+- `0f35050` moved the specialized DP4 kernel's scalar `out_distances` and
+  `out_flags` stores before the bulk XYZ store. Correctness and the stable DP
+  oracle stayed intact, but paired confirmation discarded it: `0.954509x`,
+  `1.177914x`, `0.608038x`. Keep the current XYZ-first store order.
 - `b7d977e` skipped allocation/binding of the unused host-side `dp_mask_buffer`
   for the specialized `steps=8`, `dp_bits=4` Metal kernel. Correctness and the
   public DP oracle stayed intact, but stable confirmation discarded it:
