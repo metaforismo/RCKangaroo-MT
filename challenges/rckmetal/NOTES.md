@@ -44,6 +44,16 @@ they are intentionally ignored by git.
   - post-packed-indices local run: `run_e99acb33-7e12-4a6c-9ddc-053bf0cf8a7c`
   - post-implicit-index-promotion local score: `25,075,671.624407 ops/sec`
   - post-implicit-index-promotion local run: `run_8fa7d17c-c78f-4dc6-a97a-4031ded46410`
+  - post-packed-dp-flags local score: `44,407,980.061147 ops/sec`
+  - post-packed-dp-flags local run: `run_a17dda9a-908e-419d-b7cd-aa6dd1aa5b80`
+  - post-packed-dp-flags submission:
+    `sub_859a9153-49dd-45a6-8ce2-1d57d94917a1`
+  - post-packed-dp-flags candidate score: `29,644,751.288810 ops/sec`
+  - post-packed-dp-flags accepted run:
+    `run_bbdd8e57-765e-4e33-8eb7-22d8368abaf2`
+  - post-packed-dp-flags accepted score: `46,030,890.793385 ops/sec`
+  - post-packed-dp-flags receipt hash:
+    `c82e916e46c716176f8249efd94d588fc688e3e7140dd1134d6af950990b216f`
   - verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
 
@@ -94,6 +104,13 @@ they are intentionally ignored by git.
   autoresearch kept it with candidate median `32,889,067.186241 ops/sec` versus
   paired baseline median `25,877,502.674679 ops/sec`; distance and DP checksums
   were unchanged.
+- `7feecd6` packs the Metal DP flag output buffer to `uint8_t` while expanding
+  back to `uint32_t` on the host before oracle comparison. Paired autoresearch
+  kept it with candidate median `37,830,025.643327 ops/sec` versus paired
+  baseline median `28,696,541.249467 ops/sec`; distance and DP checksums were
+  unchanged. The local-public verifier accepted run
+  `run_bbdd8e57-765e-4e33-8eb7-22d8368abaf2` at
+  `46,030,890.793385 ops/sec` with `trusted=false`.
 
 ## Current Correctness Surface
 
