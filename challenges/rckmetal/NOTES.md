@@ -306,6 +306,13 @@ they are intentionally ignored by git.
 
 ## Rejected Retest Notes
 
+- `macos-metal-dp4-affine-pair2` precomputed all 16x16 affine pair sums and
+  tried to replace eight public DP4 mixed-adds with four composite mixed-adds.
+  It is not a valid optimization for this lab oracle: affine point equivalence
+  is insufficient because correctness compares raw Jacobian `x/y/z`, and DP is
+  defined on projective `x[0]`. The target bench returned `correctness=false`
+  with vector-0 Jacobian mismatch and zero checksum fields. Keep exact
+  step-by-step Jacobian semantics for the Metal DP4 path.
 - `8b3d413` added an explicit `uchar` cast around the public DP4 packed
   flag-store expression. Correctness and the stable DP oracle stayed intact,
   but paired confirmation discarded it: `1.020047x`, `1.099344x`,

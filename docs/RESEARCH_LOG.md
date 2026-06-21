@@ -986,6 +986,17 @@ Commit: `3311412` (`perf: view Metal dp4 q table as struct rows`)
 
 These did not pass the performance gate or had a correctness/architecture issue:
 
+- `macos-metal-dp4-affine-pair2`: attempted a larger mathematical jump by
+  precomputing all 16x16 affine pair sums `Q_i + Q_j`, then replacing the
+  public eight-step DP4 kernel with four mixed-adds against composite pairs.
+  This is correct only at the affine curve-point level. It failed the public
+  stable oracle because the benchmark intentionally compares raw Jacobian
+  `x/y/z` coordinates and the DP bit is taken from projective `x[0]`; changing
+  the addition grouping changes the `Z` representation and therefore the raw
+  projective coordinates. Observed failure: `correctness=false`, zeroed
+  checksum fields, and vector-0 Jacobian mismatch. Do not retry affine
+  composite jumps unless the API/oracle is explicitly changed to affine
+  equivalence and affine DP semantics.
 - `macos-metal-mixed-add-h-normal-first`: moving the finite mixed-add normal
   `H != 0` path before the rare `H == 0` doubling/infinity edge path preserved
   `make macos-check`, the infinity-tail selftest, and the full stable DP
