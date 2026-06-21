@@ -230,6 +230,11 @@ they are intentionally ignored by git.
   `1.194649x`), but the DP target rejected it twice: first `0.685951x`, then
   neutral `1.001334x` below threshold. Keep the looped reducer for the target;
   the microbench win does not translate reliably into the large Jacobian kernel.
+- `108737d` capped the public dp4 Metal kernel with
+  `max_total_threads_per_threadgroup(256)`. Runtime reported the lower max, but
+  paired autoresearch discarded it: candidate median `35,188,997.363215
+  ops/sec` versus baseline `41,028,548.928926 ops/sec`,
+  `paired_speedup=0.857671`. Keep the uncapped kernel.
 
 ## Current Correctness Surface
 

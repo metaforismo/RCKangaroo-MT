@@ -899,6 +899,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   no reliable target win. Keep the looped reducer for the Jacobian kernel; a
   future candidate may isolate single-sub to a smaller field microkernel, but it
   is not the base for the DP target.
+- `macos-metal-dp4-max-tg256`: adding
+  `[[max_total_threads_per_threadgroup(256)]]` to the public dp4 kernel was
+  accepted by the runtime compiler and changed reported
+  `max_threads_per_threadgroup` from `1024` to `256`, but it failed the paired
+  target gate. Candidate median was `35,188,997.363215 ops/sec` versus baseline
+  `41,028,548.928926 ops/sec`, `paired_speedup=0.857671`,
+  `status=discard`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. Keep the unconstrained dp4 kernel; the
+  explicit max threadgroup attribute worsened the compiled shape on M3.
 
 ## Next Research Targets
 
