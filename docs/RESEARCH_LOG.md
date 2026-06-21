@@ -607,6 +607,37 @@ Commit: `e7b28c1` (`perf: pack Metal output infinity flags to uint8`)
   - `threadgroup_limit=256`
   - `threads_per_threadgroup=256`
 
+### Packed Metal Combined Output Flags
+
+Commit: `f266242` (`perf: pack Metal output flags into one byte`)
+
+- Combined the jump-walk output infinity flag and DP candidate flag into one
+  Metal `uchar` output buffer: bit 0 stores infinity and bit 1 stores the DP
+  candidate flag.
+- Removed the separate `out_dp_flags` Metal buffer from the jump-walk kernel
+  signatures. The host decodes the packed byte back into `std::vector<uint32_t>`
+  infinity and DP flag vectors before calling the existing CPU oracle checks.
+- This keeps the external correctness surface unchanged while reducing one
+  output buffer binding, one output allocation, one device write stream, and one
+  host copy.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - candidate median `38,176,865.912089 mixed-add steps/sec`
+  - paired baseline median `34,031,160.092524 mixed-add steps/sec`
+  - paired speedup `1.121821x`
+  - candidate min `17,725,221.967109 mixed-add steps/sec`
+  - candidate max `42,261,342.487773 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+  - Note: local Metal timing remained noisy, but the paired median cleared the
+    configured keep gate.
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
