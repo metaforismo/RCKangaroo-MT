@@ -549,6 +549,34 @@ Commit: `505a654` (`perf: rely on Metal uchar index promotion`)
   - `threadgroup_limit=256`
   - `threads_per_threadgroup=256`
 
+### Packed Metal DP Flags
+
+Commit: `7feecd6` (`perf: pack Metal DP flags to uint8`)
+
+- Changed the jump-walk DP flag output buffer from `device uint*` to
+  `device uchar*` in both `jacobian_affine_walk_jump_table` and
+  `jacobian_affine_walk_jump_table_steps8`.
+- The public host/oracle surface still returns `std::vector<uint32_t>`; the
+  host copies the compact Metal output into a `uint8_t` vector and expands each
+  flag back to `0/1` `uint32_t` values before validation.
+- This keeps the DP candidate semantics unchanged while reducing one output
+  write and host copy from 4 bytes to 1 byte per state.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - candidate median `37,830,025.643327 mixed-add steps/sec`
+  - paired baseline median `28,696,541.249467 mixed-add steps/sec`
+  - paired speedup `1.318278x`
+  - candidate min `31,418,999.719122 mixed-add steps/sec`
+  - candidate max `38,065,009.331453 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
