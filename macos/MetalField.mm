@@ -935,20 +935,17 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		size_t distance_bytes = jump_distances.size() * sizeof(uint64_t);
 		std::vector<uint64_t> out_xyz(p.size() * 12);
 		std::vector<uint32_t> out_infinity(p.size());
-		std::vector<uint8_t> out_infinity_metal(p.size());
+		std::vector<uint8_t> out_flags_metal(p.size());
 		std::vector<uint64_t> distance_out(p.size());
-		std::vector<uint8_t> dp_flags_out_metal(p.size());
 		size_t out_bytes = out_xyz.size() * sizeof(uint64_t);
-		size_t out_inf_bytes = out_infinity_metal.size() * sizeof(uint8_t);
+		size_t out_flags_bytes = out_flags_metal.size() * sizeof(uint8_t);
 		size_t distance_out_bytes = distance_out.size() * sizeof(uint64_t);
-		size_t dp_flags_out_bytes = dp_flags_out_metal.size() * sizeof(uint8_t);
 		id<MTLBuffer> p_buffer = [device newBufferWithBytes:p_xyz.data() length:p_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> q_buffer = [device newBufferWithBytes:q_xy.data() length:q_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> p_inf_buffer = [device newBufferWithBytes:p_infinity.data() length:p_inf_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> out_buffer = [device newBufferWithLength:out_bytes options:MTLResourceStorageModeShared];
-		id<MTLBuffer> out_inf_buffer = [device newBufferWithLength:out_inf_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> out_flags_buffer = [device newBufferWithLength:out_flags_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> out_distances_buffer = [device newBufferWithLength:distance_out_bytes options:MTLResourceStorageModeShared];
-		id<MTLBuffer> out_dp_flags_buffer = [device newBufferWithLength:dp_flags_out_bytes options:MTLResourceStorageModeShared];
 		uint32_t count = (uint32_t)p.size();
 		uint32_t step_count = steps_per_sample;
 		uint64_t dp_mask = ProjectiveDpMask(dp_bits);
@@ -957,7 +954,7 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		id<MTLBuffer> dp_mask_buffer = [device newBufferWithBytes:&dp_mask length:sizeof(dp_mask) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> jump_indices_buffer = [device newBufferWithBytes:metal_jump_indices.data() length:indices_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> jump_distances_buffer = [device newBufferWithBytes:jump_distances.data() length:distance_bytes options:MTLResourceStorageModeShared];
-		if (!p_buffer || !q_buffer || !p_inf_buffer || !out_buffer || !out_inf_buffer || !out_distances_buffer || !out_dp_flags_buffer || !count_buffer || !steps_buffer || !dp_mask_buffer || !jump_indices_buffer || !jump_distances_buffer)
+		if (!p_buffer || !q_buffer || !p_inf_buffer || !out_buffer || !out_flags_buffer || !out_distances_buffer || !count_buffer || !steps_buffer || !dp_mask_buffer || !jump_indices_buffer || !jump_distances_buffer)
 		{
 			error = "failed to allocate Metal jacobian jump walk buffers";
 			return false;
@@ -977,14 +974,13 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		[encoder setBuffer:q_buffer offset:0 atIndex:1];
 		[encoder setBuffer:p_inf_buffer offset:0 atIndex:2];
 		[encoder setBuffer:out_buffer offset:0 atIndex:3];
-		[encoder setBuffer:out_inf_buffer offset:0 atIndex:4];
+		[encoder setBuffer:out_flags_buffer offset:0 atIndex:4];
 		[encoder setBuffer:count_buffer offset:0 atIndex:5];
 		[encoder setBuffer:steps_buffer offset:0 atIndex:6];
 		[encoder setBuffer:jump_indices_buffer offset:0 atIndex:7];
 		[encoder setBuffer:jump_distances_buffer offset:0 atIndex:8];
 		[encoder setBuffer:out_distances_buffer offset:0 atIndex:9];
 		[encoder setBuffer:dp_mask_buffer offset:0 atIndex:10];
-		[encoder setBuffer:out_dp_flags_buffer offset:0 atIndex:11];
 		[encoder dispatchThreads:MTLSizeMake(count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
 		[encoder endEncoding];
 		auto start = std::chrono::steady_clock::now();
@@ -1001,19 +997,20 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		}
 
 		memcpy(out_xyz.data(), [out_buffer contents], out_bytes);
-		memcpy(out_infinity_metal.data(), [out_inf_buffer contents], out_inf_bytes);
+		memcpy(out_flags_metal.data(), [out_flags_buffer contents], out_flags_bytes);
 		memcpy(distance_out.data(), [out_distances_buffer contents], distance_out_bytes);
-		memcpy(dp_flags_out_metal.data(), [out_dp_flags_buffer contents], dp_flags_out_bytes);
-		out_infinity.resize(out_infinity_metal.size());
-		for (size_t i = 0; i < out_infinity_metal.size(); ++i)
-			out_infinity[i] = out_infinity_metal[i] ? 1U : 0U;
+		out_infinity.resize(out_flags_metal.size());
+		out_dp_flags.resize(out_flags_metal.size());
+		for (size_t i = 0; i < out_flags_metal.size(); ++i)
+		{
+			uint8_t flags = out_flags_metal[i];
+			out_infinity[i] = (flags & 1U) ? 1U : 0U;
+			out_dp_flags[i] = (flags & 2U) ? 1U : 0U;
+		}
 		out.resize(p.size());
 		for (size_t i = 0; i < p.size(); ++i)
 			out[i] = UnpackJacobianOutput(out_xyz, out_infinity, i);
 		out_distances = distance_out;
-		out_dp_flags.resize(dp_flags_out_metal.size());
-		for (size_t i = 0; i < dp_flags_out_metal.size(); ++i)
-			out_dp_flags[i] = dp_flags_out_metal[i] ? 1U : 0U;
 		return true;
 	}
 }

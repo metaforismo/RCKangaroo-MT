@@ -257,6 +257,16 @@ static inline void store_jacobian_u8_infinity(device ulong* out_xyz,
   out_infinity[id] = infinity ? 1 : 0;
 }
 
+static inline void store_jacobian_xyz_only(device ulong* out_xyz,
+                                           uint base,
+                                           ulong x0, ulong x1, ulong x2, ulong x3,
+                                           ulong y0, ulong y1, ulong y2, ulong y3,
+                                           ulong z0, ulong z1, ulong z2, ulong z3) {
+  out_xyz[base + 0] = x0; out_xyz[base + 1] = x1; out_xyz[base + 2] = x2; out_xyz[base + 3] = x3;
+  out_xyz[base + 4] = y0; out_xyz[base + 5] = y1; out_xyz[base + 6] = y2; out_xyz[base + 7] = y3;
+  out_xyz[base + 8] = z0; out_xyz[base + 9] = z1; out_xyz[base + 10] = z2; out_xyz[base + 11] = z3;
+}
+
 static inline void jacobian_double_values(ulong x0, ulong x1, ulong x2, ulong x3,
                                           ulong y0, ulong y1, ulong y2, ulong y3,
                                           ulong z0, ulong z1, ulong z2, ulong z3,
@@ -594,14 +604,13 @@ kernel void jacobian_affine_walk_jump_table(constant ulong* p_xyz [[buffer(0)]],
                                             constant ulong* q_xy [[buffer(1)]],
                                             constant uint* p_infinity [[buffer(2)]],
                                             device ulong* out_xyz [[buffer(3)]],
-                                            device uchar* out_infinity [[buffer(4)]],
+                                            device uchar* out_flags [[buffer(4)]],
                                             constant uint& count [[buffer(5)]],
                                             constant uint& steps [[buffer(6)]],
                                             constant uchar* jump_indices [[buffer(7)]],
                                             constant ulong* jump_distances [[buffer(8)]],
                                             device ulong* out_distances [[buffer(9)]],
                                             constant ulong& dp_mask [[buffer(10)]],
-                                            device uchar* out_dp_flags [[buffer(11)]],
                                             uint id [[thread_position_in_grid]]) {
   if (id >= count) return;
   uint p_base = (id << 3) + (id << 2);
@@ -626,24 +635,23 @@ kernel void jacobian_affine_walk_jump_table(constant ulong* p_xyz [[buffer(0)]],
     inf = out.inf;
   }
 
-  store_jacobian_u8_infinity(out_xyz, out_base, x0, x1, x2, x3, y0, y1, y2, y3,
-                             z0, z1, z2, z3, out_infinity, id, inf);
+  store_jacobian_xyz_only(out_xyz, out_base, x0, x1, x2, x3, y0, y1, y2, y3,
+                          z0, z1, z2, z3);
   out_distances[id] = distance;
-  out_dp_flags[id] = (!inf && ((x0 & dp_mask) == 0)) ? 1 : 0;
+  out_flags[id] = (inf ? 1 : 0) | ((!inf && ((x0 & dp_mask) == 0)) ? 2 : 0);
 }
 
 kernel void jacobian_affine_walk_jump_table_steps8(constant ulong* p_xyz [[buffer(0)]],
                                                    constant ulong* q_xy [[buffer(1)]],
                                                    constant uint* p_infinity [[buffer(2)]],
                                                    device ulong* out_xyz [[buffer(3)]],
-                                                   device uchar* out_infinity [[buffer(4)]],
+                                                   device uchar* out_flags [[buffer(4)]],
                                                    constant uint& count [[buffer(5)]],
                                                    constant uint& steps [[buffer(6)]],
                                                    constant uchar* jump_indices [[buffer(7)]],
                                                    constant ulong* jump_distances [[buffer(8)]],
                                                    device ulong* out_distances [[buffer(9)]],
                                                    constant ulong& dp_mask [[buffer(10)]],
-                                                   device uchar* out_dp_flags [[buffer(11)]],
                                                    uint id [[thread_position_in_grid]]) {
   (void)steps;
   if (id >= count) return;
@@ -669,9 +677,9 @@ kernel void jacobian_affine_walk_jump_table_steps8(constant ulong* p_xyz [[buffe
     inf = out.inf;
   }
 
-  store_jacobian_u8_infinity(out_xyz, out_base, x0, x1, x2, x3, y0, y1, y2, y3,
-                             z0, z1, z2, z3, out_infinity, id, inf);
+  store_jacobian_xyz_only(out_xyz, out_base, x0, x1, x2, x3, y0, y1, y2, y3,
+                          z0, z1, z2, z3);
   out_distances[id] = distance;
-  out_dp_flags[id] = (!inf && ((x0 & dp_mask) == 0)) ? 1 : 0;
+  out_flags[id] = (inf ? 1 : 0) | ((!inf && ((x0 & dp_mask) == 0)) ? 2 : 0);
 }
 )RCK_METAL";
