@@ -1145,6 +1145,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `status=discard`, `correctness=true`,
   `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
   `dp_checksum=0x30a7914972cba014`. Keep the promoted `< 8` loop spelling.
+- `macos-metal-dp4-const-jump-locals`: marking the public dp4 loop's
+  `jump_index` and `q_base` locals as `const uint` preserved all oracle fields
+  but failed the paired target gate. Two sandboxed runner attempts were
+  recorded as `status=skip` because the sandboxed Python runner could not see
+  Metal; the elevated paired run measured correctly. Candidate median was
+  `43,098,694.269856 ops/sec` versus baseline `49,646,792.344200 ops/sec`,
+  `paired_speedup=0.868106`, `status=discard`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. Keep mutable `uint` locals in the promoted
+  q-base-first dp4 kernel.
 
 ## Next Research Targets
 

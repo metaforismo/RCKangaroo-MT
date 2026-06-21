@@ -332,6 +332,13 @@ they are intentionally ignored by git.
   candidate median `31,734,147.843923 ops/sec` versus baseline
   `36,197,526.932618 ops/sec`, `paired_speedup=0.876694`. Keep the promoted
   `< 8` loop spelling.
+- `8c25d98` marked the public dp4 `jump_index` and `q_base` locals as
+  `const uint`. Correctness stayed intact, but paired autoresearch discarded it:
+  candidate median `43,098,694.269856 ops/sec` versus baseline
+  `49,646,792.344200 ops/sec`, `paired_speedup=0.868106`. Two earlier
+  sandboxed runner attempts were `skip` because the sandbox could not see
+  Metal; keep the elevated run as the performance signal and keep mutable
+  `uint` locals.
 
 ## Current Correctness Surface
 
