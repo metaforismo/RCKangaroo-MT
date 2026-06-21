@@ -604,6 +604,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `paired_speedup=0.783786`, `status=discard`, `correctness=true`. Keep the
   current specialized kernel signature; the unused bound buffer is not the
   limiting factor and removing it changed the compiled shape unfavorably.
+- `macos-metal-u8-infinity`: packing Metal input infinity flags from
+  `uint32_t` to `uint8_t` preserved all oracle fields but failed the paired
+  gate. Candidate median was `30,786,695.889088 ops/sec` versus baseline
+  `37,781,409.120807 ops/sec`, `paired_speedup=0.814864`,
+  `status=discard`, `correctness=true`. Keep input infinity flags as
+  `uint32_t`; unlike jump indices, this single read per thread does not
+  justify the changed compiled or buffer shape.
 
 ## Next Research Targets
 
