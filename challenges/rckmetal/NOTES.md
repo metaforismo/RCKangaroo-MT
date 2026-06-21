@@ -432,6 +432,12 @@ they are intentionally ignored by git.
   `1.429238x`, `0.518187x`, `1.961694x`. A 5-pair `--min-ms 500` direct check
   was also below the bar (`0.809660x` absolute median, `0.974441x` pairwise
   median). Keep the current branched field helpers.
+- `macos-metal-mixed-add-efd` tried an EFD-style doubled-variable replacement
+  for the finite mixed-add helper. It compiled, but the Metal add, walk, and
+  jump-walk tests failed raw Jacobian coordinate checks before benchmarking.
+  The formula is affine-equivalent but emits a differently scaled Jacobian
+  representative, which breaks the public checksum contract. Keep the current
+  raw-representation-compatible mixed-add formula.
 - `b7d977e` skipped allocation/binding of the unused host-side `dp_mask_buffer`
   for the specialized `steps=8`, `dp_bits=4` Metal kernel. Correctness and the
   public DP oracle stayed intact, but stable confirmation discarded it:

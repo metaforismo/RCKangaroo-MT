@@ -1309,6 +1309,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   absolute median `0.809660x` and pairwise median `0.974441x`. Keep the current
   branched field add/sub/double helpers; the branchless spelling appears to add
   register/ALU cost without a durable M3 Air win.
+- `macos-metal-mixed-add-efd`: replacing the finite mixed-add helper with an
+  EFD-style doubled-variable formula was rejected by correctness before
+  benchmarking. The candidate compiled and was source-gated, but
+  `metal-jacobian-add-test`, `metal-jacobian-walk-test`, and
+  `metal-jacobian-jump-walk-test` all failed raw Jacobian coordinate checks.
+  Root cause: the formula produces an affine-equivalent but differently scaled
+  Jacobian representative, while this challenge's checksum and hidden tests
+  require the exact raw coordinate representation emitted by the existing CPU
+  oracle. Do not swap mixed-add formulas unless the output representative is
+  proven byte-for-byte compatible or the checksum contract is intentionally
+  redesigned.
 - `macos-metal-dp4-skip-dpmask-buffer`: avoiding the unused host-side
   `dp_mask_buffer` allocation and encoder bind when dispatching the
   `steps=8`, `dp_bits=4` specialized Metal kernel preserved `make macos-check`
