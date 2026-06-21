@@ -6,7 +6,7 @@ they are intentionally ignored by git.
 
 ## Baseline
 
-- Baseline commit: `eed2082` (`perf: record constant Metal jump-table gain`).
+- Baseline commit: `8f76f09` (`perf: record constant Metal input gain`).
 - Hardware track: Apple Silicon M3 Metal, 10-core GPU, 16 GB RAM.
 - Score command: `metal-jacobian-jump-walk-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 50`.
 - Local Benchforge runs observed after adding the lab:
@@ -34,6 +34,8 @@ they are intentionally ignored by git.
   - post-constant-jump-tables accepted score: `54,784,037.786312 ops/sec`
   - post-constant-jump-tables receipt hash:
     `7a08ba74222ac812ea60b6304bda7c1c2d6dae26293a67e9899708f46ce24901`
+  - post-constant-inputs local score: `33,031,083.688596 ops/sec`
+  - post-constant-inputs local run: `run_8870aa52-bfec-40c7-a7df-3b9c43d2b4cb`
   - verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
 
@@ -62,6 +64,10 @@ they are intentionally ignored by git.
   `device const`. Paired autoresearch kept it with candidate median
   `36,426,708.294932 ops/sec` versus paired baseline median
   `30,769,379.445330 ops/sec`; distance and DP checksums were unchanged.
+- `68b8e3b` moves the initial packed Jacobian state and infinity flags to Metal
+  `constant` address space as read-only inputs. Paired autoresearch kept it with
+  candidate median `38,249,530.679262 ops/sec` versus paired baseline median
+  `23,474,473.066685 ops/sec`; distance and DP checksums were unchanged.
 
 ## Current Correctness Surface
 
