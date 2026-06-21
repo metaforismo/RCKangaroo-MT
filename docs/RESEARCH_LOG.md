@@ -401,6 +401,12 @@ These did not pass the performance gate or had a correctness/architecture issue:
   versus baseline `42,950,885.665018 ops/sec`, `paired_speedup=0.747874`,
   `status=discard`, `correctness=true`. Avoid this shape unless a future
   register-pressure or occupancy change alters the tradeoff.
+- `macos-metal-steps8-unroll`: explicitly unrolling all eight fixed steps in
+  `jacobian_affine_walk_jump_table_steps8` preserved all oracle fields but
+  failed the paired gate. Candidate median was `27,823,058.415239 ops/sec`
+  versus baseline `36,861,665.504647 ops/sec`, `paired_speedup=0.754797`,
+  `status=discard`, `correctness=true`. Keep the compact fixed-loop kernel;
+  avoid manual unroll unless later register-pressure data changes the tradeoff.
 
 ## Next Research Targets
 
