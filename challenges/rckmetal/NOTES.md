@@ -6,7 +6,7 @@ they are intentionally ignored by git.
 
 ## Baseline
 
-- Baseline commit: `8f76f09` (`perf: record constant Metal input gain`).
+- Baseline commit: `6525121` (`perf: record constant Metal index gain`).
 - Hardware track: Apple Silicon M3 Metal, 10-core GPU, 16 GB RAM.
 - Score command: `metal-jacobian-jump-walk-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 50`.
 - Local Benchforge runs observed after adding the lab:
@@ -36,6 +36,8 @@ they are intentionally ignored by git.
     `7a08ba74222ac812ea60b6304bda7c1c2d6dae26293a67e9899708f46ce24901`
   - post-constant-inputs local score: `33,031,083.688596 ops/sec`
   - post-constant-inputs local run: `run_8870aa52-bfec-40c7-a7df-3b9c43d2b4cb`
+  - post-constant-indices local score: `32,108,338.507637 ops/sec`
+  - post-constant-indices local run: `run_75dcc47e-ccf9-438f-8e1b-1e803adc04cc`
   - verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
 
@@ -68,6 +70,11 @@ they are intentionally ignored by git.
   `constant` address space as read-only inputs. Paired autoresearch kept it with
   candidate median `38,249,530.679262 ops/sec` versus paired baseline median
   `23,474,473.066685 ops/sec`; distance and DP checksums were unchanged.
+- `cbfff2e` moves per-sample jump indices to Metal `constant` address space.
+  Paired autoresearch kept it with candidate median `25,302,152.157760 ops/sec`
+  versus paired baseline median `24,651,050.122097 ops/sec`; distance and DP
+  checksums were unchanged. This was a small-margin keep, so treat it as a
+  modest local gain rather than a broad architectural rule.
 
 ## Current Correctness Surface
 
