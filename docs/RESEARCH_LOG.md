@@ -338,6 +338,34 @@ Commit: `dc2d1dd` (`perf: use shift for Metal q base`)
   - Note: absolute throughput was lower than some earlier local runs, but the
     paired median kept the candidate and all oracle fields matched.
 
+### Specialized Metal Steps8 Jump-Walk Kernel
+
+Commit: `7acdc28` (`perf: add Metal steps8 jump-walk kernel`)
+
+- Added `jacobian_affine_walk_jump_table_steps8`, selected only when
+  `steps_per_sample == 8`. Other step counts keep using the generic
+  `jacobian_affine_walk_jump_table` kernel.
+- The specialized kernel preserves the same buffer layout and oracle fields,
+  but uses a fixed 8-step hot loop and `id << 3` for the jump-index base.
+- The Metal source gate now requires both the generic fallback and the
+  specialized fixed-step path, including distance accumulation and projective
+  DP flag checks.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - candidate median `38,243,083.846592 mixed-add steps/sec`
+  - paired baseline median `34,828,506.038031 mixed-add steps/sec`
+  - paired speedup `1.098040x`
+  - candidate min `36,303,991.961639 mixed-add steps/sec`
+  - candidate max `42,489,642.760573 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
