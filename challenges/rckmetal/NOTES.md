@@ -389,6 +389,18 @@ they are intentionally ignored by git.
   `38,451,966.417140 ops/sec`; `--tg-limit 1024` measured
   `33,660,654.336534 ops/sec`, with matching public checksums. Keep default
   `256`.
+- `b6316fe` tried single-final-subtraction reducer helpers for isolated Metal
+  field multiply, square, and square-multiply microbenchmarks. First paired
+  samples looked interesting (`field_mul 1.010062x`, `field_square 1.133684x`,
+  `field_square_mul 1.139845x`) and the stable dp4 oracle stayed intact, but
+  `metal_field_mul --confirm-runs 3` discarded it after runs of `1.021127x`,
+  `1.647003x`, and `0.897910x`. Keep the shared looped reducer for multiply
+  paths.
+- `43bf724` narrowed the single-subtraction reducer to square-only micro paths
+  and kept multiply/Jacobian paths isolated on the shared reducer. Correctness
+  stayed intact, but `metal_field_square --confirm-runs 3` discarded it:
+  `1.173994x`, `0.893533x`, `0.958969x`. Keep the current square reducer until
+  a repeated paired run proves a durable win.
 
 ## Current Correctness Surface
 

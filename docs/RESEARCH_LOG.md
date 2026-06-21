@@ -1234,6 +1234,27 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`, and
   `dp_checksum=0x30a7914972cba014`. Keep the wrapper-based fallback branch unless
   a future compiler/code-shape experiment shows a confirmed win.
+- `macos-metal-field-single-sub-micro-all`: adding single-final-subtraction
+  reducer helpers for the isolated Metal field multiply, square, and
+  square-multiply microbenchmarks produced promising first paired samples:
+  `field_mul` was `84,087,327.209258 ops/sec` versus
+  `83,249,704.275571` (`1.010062x`), `field_square` was
+  `164,356,831.613348` versus `144,975,816.742231` (`1.133684x`), and
+  `field_square_mul` was `118,354,164.489191` versus
+  `103,833,541.695033` (`1.139845x`). The stable dp4 walk oracle also stayed
+  intact (`distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`), but the required
+  `metal_field_mul --confirm-runs 3` check discarded the candidate after runs
+  of `1.021127x`, `1.647003x`, and `0.897910x`. Keep the shared looped reducer
+  for multiply paths.
+- `macos-metal-field-single-sub-square-only`: narrowing the single-subtraction
+  reducer to square-only micro paths, while keeping `field_mul_mod_p` and
+  Jacobian kernels on the shared looped reducer, passed correctness and source
+  isolation gates. It still failed repeated confirmation:
+  `metal_field_square --confirm-runs 3` recorded `confirmation_status=discard`
+  with a raw keep at `1.173994x`, then discards at `0.893533x` and
+  `0.958969x`. Do not promote the single-sub square reducer until it survives
+  repeated paired confirmation on this M3 Air.
 
 ## Next Research Targets
 
