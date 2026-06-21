@@ -668,4 +668,47 @@ kernel void jacobian_affine_walk_jump_table_steps8(constant ulong* p_xyz [[buffe
   out_distances[id] = distance;
   out_flags[id] = (inf ? 1 : 0) | ((!inf && ((x0 & dp_mask) == 0)) ? 2 : 0);
 }
+
+kernel void jacobian_affine_walk_jump_table_steps8_distance_flags(constant ulong* p_xyz [[buffer(0)]],
+                                                                  constant ulong* q_xy [[buffer(1)]],
+                                                                  constant uint* p_infinity [[buffer(2)]],
+                                                                  device ulong* out_xyz [[buffer(3)]],
+                                                                  device uchar* out_flags [[buffer(4)]],
+                                                                  constant uint& count [[buffer(5)]],
+                                                                  constant uint& steps [[buffer(6)]],
+                                                                  constant uchar* jump_indices [[buffer(7)]],
+                                                                  constant ulong* jump_distances [[buffer(8)]],
+                                                                  device ulong* out_distances [[buffer(9)]],
+                                                                  constant ulong& dp_mask [[buffer(10)]],
+                                                                  uint id [[thread_position_in_grid]]) {
+  (void)steps;
+  (void)out_flags;
+  if (id >= count) return;
+  uint p_base = (id << 3) + (id << 2);
+  uint out_base = p_base;
+  ulong x0 = p_xyz[p_base + 0], x1 = p_xyz[p_base + 1], x2 = p_xyz[p_base + 2], x3 = p_xyz[p_base + 3];
+  ulong y0 = p_xyz[p_base + 4], y1 = p_xyz[p_base + 5], y2 = p_xyz[p_base + 6], y3 = p_xyz[p_base + 7];
+  ulong z0 = p_xyz[p_base + 8], z1 = p_xyz[p_base + 9], z2 = p_xyz[p_base + 10], z3 = p_xyz[p_base + 11];
+  uint inf = p_infinity[id];
+  uint jump_base = id << 3;
+  ulong distance = 0;
+
+  for (uint step = 0; step < 8; step++) {
+    uint jump_index = jump_indices[jump_base + step];
+    distance += jump_distances[jump_index];
+    uint q_base = jump_index << 3;
+    JacobianValue out = jacobian_add_affine_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3, inf,
+                                                   q_xy[q_base + 0], q_xy[q_base + 1], q_xy[q_base + 2], q_xy[q_base + 3],
+                                                   q_xy[q_base + 4], q_xy[q_base + 5], q_xy[q_base + 6], q_xy[q_base + 7]);
+    x0 = out.x0; x1 = out.x1; x2 = out.x2; x3 = out.x3;
+    y0 = out.y0; y1 = out.y1; y2 = out.y2; y3 = out.y3;
+    z0 = out.z0; z1 = out.z1; z2 = out.z2; z3 = out.z3;
+    inf = out.inf;
+  }
+
+  store_jacobian_xyz_only(out_xyz, out_base, x0, x1, x2, x3, y0, y1, y2, y3,
+                          z0, z1, z2, z3);
+  ulong flags = (inf ? 1UL : 0UL) | ((!inf && ((x0 & dp_mask) == 0)) ? 2UL : 0UL);
+  out_distances[id] = distance | (flags << 62);
+}
 )RCK_METAL";

@@ -17,6 +17,8 @@
 typedef std::array<uint64_t, 4> FieldElement;
 
 static constexpr unsigned int kDefaultMetalFieldThreadgroupLimit = 256;
+static constexpr uint64_t kDistanceFlagShift = 62;
+static constexpr uint64_t kDistanceValueMask = (1ULL << kDistanceFlagShift) - 1ULL;
 
 struct MetalDispatchStats
 {
@@ -846,6 +848,20 @@ static void PackAffineTable(const std::vector<CpuAffinePoint>& q,
 
 static uint64_t ProjectiveDpMask(unsigned int dp_bits);
 
+static bool CanPackStep8FlagsInDistance(unsigned int steps_per_sample,
+	const std::vector<uint64_t>& jump_distances)
+{
+	if (steps_per_sample != 8 || jump_distances.empty())
+		return false;
+	uint64_t max_distance = 0;
+	for (uint64_t jump_distance : jump_distances)
+	{
+		if (jump_distance > max_distance)
+			max_distance = jump_distance;
+	}
+	return max_distance <= kDistanceValueMask / steps_per_sample;
+}
+
 static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 	const std::vector<CpuAffinePoint>& jumps,
 	const std::vector<uint64_t>& jump_distances,
@@ -904,7 +920,8 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 			return false;
 		}
 
-		const char* function_name = steps_per_sample == 8 ? "jacobian_affine_walk_jump_table_steps8" : "jacobian_affine_walk_jump_table";
+		const bool pack_flags_in_distance = CanPackStep8FlagsInDistance(steps_per_sample, jump_distances);
+		const char* function_name = pack_flags_in_distance ? "jacobian_affine_walk_jump_table_steps8_distance_flags" : (steps_per_sample == 8 ? "jacobian_affine_walk_jump_table_steps8" : "jacobian_affine_walk_jump_table");
 		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{
@@ -998,15 +1015,29 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		}
 
 		memcpy(out_xyz.data(), [out_buffer contents], out_bytes);
-		memcpy(out_flags_metal.data(), [out_flags_buffer contents], out_flags_bytes);
 		memcpy(distance_out.data(), [out_distances_buffer contents], distance_out_bytes);
 		out_infinity.resize(out_flags_metal.size());
 		out_dp_flags.resize(out_flags_metal.size());
-		for (size_t i = 0; i < out_flags_metal.size(); ++i)
+		if (pack_flags_in_distance)
 		{
-			uint8_t flags = out_flags_metal[i];
-			out_infinity[i] = (flags & 1U) ? 1U : 0U;
-			out_dp_flags[i] = (flags & 2U) ? 1U : 0U;
+			for (size_t i = 0; i < distance_out.size(); ++i)
+			{
+				uint64_t packed_distance = distance_out[i];
+				uint8_t flags = static_cast<uint8_t>(packed_distance >> kDistanceFlagShift);
+				distance_out[i] = packed_distance & kDistanceValueMask;
+				out_infinity[i] = (flags & 1U) ? 1U : 0U;
+				out_dp_flags[i] = (flags & 2U) ? 1U : 0U;
+			}
+		}
+		else
+		{
+			memcpy(out_flags_metal.data(), [out_flags_buffer contents], out_flags_bytes);
+			for (size_t i = 0; i < out_flags_metal.size(); ++i)
+			{
+				uint8_t flags = out_flags_metal[i];
+				out_infinity[i] = (flags & 1U) ? 1U : 0U;
+				out_dp_flags[i] = (flags & 2U) ? 1U : 0U;
+			}
 		}
 		out.resize(p.size());
 		for (size_t i = 0; i < p.size(); ++i)
