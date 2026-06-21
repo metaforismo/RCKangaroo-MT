@@ -312,6 +312,32 @@ Commit: `048c827` (`perf: reuse Metal output base`)
   - Note: measured throughput is still noisy on the local MacBook Air, but this
     candidate cleared the paired keep gate and preserved every oracle field.
 
+### Shifted Metal Q-Table Base
+
+Commit: `dc2d1dd` (`perf: use shift for Metal q base`)
+
+- Changed the affine jump-table base calculation from `jump_index * 8` to
+  `jump_index << 3` inside `jacobian_affine_walk_jump_table`.
+- This is mathematically identical for the packed affine table stride, but the
+  source gate now makes the intended power-of-two addressing explicit.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - candidate median `26,896,574.393133 mixed-add steps/sec`
+  - paired baseline median `20,301,093.835039 mixed-add steps/sec`
+  - paired speedup `1.324883x`
+  - candidate min `23,151,973.252512 mixed-add steps/sec`
+  - candidate max `27,558,986.411632 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+  - Note: absolute throughput was lower than some earlier local runs, but the
+    paired median kept the candidate and all oracle fields matched.
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
