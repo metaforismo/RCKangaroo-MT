@@ -1155,6 +1155,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
   `dp_checksum=0x30a7914972cba014`. Keep mutable `uint` locals in the promoted
   q-base-first dp4 kernel.
+- `macos-metal-dp4-distance-late`: moving the public dp4 loop's
+  `distance += jump_distances[jump_index]` from before the mixed-add branch to
+  immediately after `inf = out.inf` preserved all oracle fields but failed the
+  paired target gate. Candidate median was `35,979,020.969423 ops/sec` versus
+  baseline `38,080,155.698501 ops/sec`, `paired_speedup=0.944823`,
+  `status=discard`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. Keep the promoted q-base-first distance
+  load/add position before the mixed-add block.
 
 ## Next Research Targets
 

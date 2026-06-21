@@ -339,6 +339,12 @@ they are intentionally ignored by git.
   sandboxed runner attempts were `skip` because the sandbox could not see
   Metal; keep the elevated run as the performance signal and keep mutable
   `uint` locals.
+- `04d9064` moved the public dp4 distance accumulation to after the mixed-add
+  branch's `inf = out.inf` update. Correctness stayed intact, but paired
+  autoresearch discarded it: candidate median `35,979,020.969423 ops/sec`
+  versus baseline `38,080,155.698501 ops/sec`,
+  `paired_speedup=0.944823`. Keep the promoted q-base-first baseline with the
+  distance load/add before the mixed-add block.
 
 ## Current Correctness Surface
 
