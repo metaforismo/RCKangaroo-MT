@@ -1004,6 +1004,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   autoresearch discarded it: `0.850786x`, `1.047350x`, `1.956234x`, therefore
   `confirmation_status=discard`. The one strong run was not reproducible enough
   to promote; keep per-step distance accumulation.
+- `macos-metal-dp4-z1-first-step`: specialized only the first public DP4
+  mixed-add for an initial `Z=1`, skipping the generic `Z^2`/`Z^3` work while
+  preserving exact raw Jacobian semantics and falling back to the normal
+  edge/doubling paths. `make macos-check` and the full stable DP oracle passed,
+  but paired autoresearch discarded it: `1.723581x`, `1.342978x`,
+  `0.891806x`, therefore `confirmation_status=discard`. The candidate can
+  spike high, but the signal was not durable enough to promote; keep the
+  compact uniform DP4 loop.
 - `macos-metal-mixed-add-h-normal-first`: moving the finite mixed-add normal
   `H != 0` path before the rare `H == 0` doubling/infinity edge path preserved
   `make macos-check`, the infinity-tail selftest, and the full stable DP

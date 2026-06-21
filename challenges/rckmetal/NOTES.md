@@ -317,6 +317,12 @@ they are intentionally ignored by git.
   a 16x16 table for pairwise scalar-distance accumulation. Oracle fields stayed
   intact, but paired confirmation discarded it: `0.850786x`, `1.047350x`,
   `1.956234x`. Treat the last run as noise; keep per-step distance loads.
+- `macos-metal-dp4-z1-first-step` added a raw-compatible first-step helper for
+  initial `Z=1`, skipping `Z^2`/`Z^3` only when the loaded Jacobian state is
+  exactly affine. Source gates, `make macos-check`, and the stable DP oracle
+  passed, but paired confirmation discarded it: `1.723581x`, `1.342978x`,
+  `0.891806x`. Keep the uniform DP4 loop; the z=1 branch/code-size effect is
+  too unstable on M3.
 - `8b3d413` added an explicit `uchar` cast around the public DP4 packed
   flag-store expression. Correctness and the stable DP oracle stayed intact,
   but paired confirmation discarded it: `1.020047x`, `1.099344x`,
