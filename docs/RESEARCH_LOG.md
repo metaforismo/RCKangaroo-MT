@@ -53,6 +53,8 @@ GPU work should use Metal.
   primary DP gate but runs `--min-ms 200` through
   `macos-metal-jacobian-jump-walk-dp-stable-bench` for close or noisy
   candidates.
+- Seeded stable baseline at `90697f5`: median `40,350,062.636594 ops/sec`,
+  `status=keep`, `runner_sample_count=3`, public checksum/DP oracle preserved.
 
 ### Metal Dispatch Size Tuning
 

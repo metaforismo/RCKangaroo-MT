@@ -409,6 +409,8 @@ they are intentionally ignored by git.
 - Close/noisy Metal DP candidates can be rechecked with the stable gate:
   `python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk_dp_stable --budget-sec 10 --paired-baseline-ref main`.
   This uses `--min-ms 200` while preserving the public DP checksum oracle.
+- Stable gate baseline at `90697f5`: `40,350,062.636594 ops/sec`,
+  `runner_sample_count=3`, `status=keep`, public checksum/DP oracle preserved.
 
 ## Handoff Rules
 
