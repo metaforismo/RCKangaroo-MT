@@ -366,6 +366,12 @@ they are intentionally ignored by git.
   fallback run, but `--confirm-runs 3` produced `confirmation_status=discard`:
   raw keep `1.230942x`, discard `0.900865x`, raw keep `1.046996x`. Keep the
   guarded dp4 kernel.
+- `macos-metal-dp4-first-generic-rest-finite` split the public dp4 kernel into
+  a generic first step and finite-only tail steps. The public checksum oracle
+  passed, but a direct Metal edge oracle that forces the first jump to infinity
+  failed: the candidate stayed at infinity after the next affine jump while the
+  CPU oracle returned a finite point. Keep the tail `if (inf)` guard unless a
+  new formulation passes this infinity-tail selftest.
 
 ## Current Correctness Surface
 
@@ -380,6 +386,9 @@ they are intentionally ignored by git.
   - `distance_checksum=0xbab72b58ebefa9dc`
   - `dp_count=249`
   - `dp_checksum=0x4a7f2853a4a9f546`
+- Direct Metal selftest now includes a dp4 `steps=8` infinity-tail vector:
+  first jump intentionally produces infinity, then the next affine jump must
+  resume to the same finite point as the CPU oracle.
 
 ## Handoff Rules
 

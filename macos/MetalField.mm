@@ -1528,6 +1528,35 @@ bool RCKMetalJacobianJumpWalkSelfTest(std::string& error)
 			return false;
 		}
 	}
+
+	std::vector<CpuJacobianPoint> edge_p_source;
+	std::vector<CpuAffinePoint> edge_q_source;
+	BuildJacobianAddSamples(4, edge_p_source, edge_q_source);
+
+	std::vector<CpuJacobianPoint> edge_p = {edge_p_source[2]};
+	std::vector<CpuAffinePoint> edge_jumps = {edge_q_source[2], edge_q_source[3]};
+	std::vector<uint64_t> edge_distances = {1ULL, 2ULL};
+	std::vector<uint32_t> edge_indices = {0U, 1U, 1U, 1U, 1U, 1U, 1U, 1U};
+	std::vector<CpuJacobianPoint> edge_out;
+	std::vector<uint64_t> edge_out_distances;
+	std::vector<uint32_t> edge_out_dp_flags;
+	if (!RunJacobianJumpWalkKernel(edge_p, edge_jumps, edge_distances, edge_indices, 8, edge_out, edge_out_distances, edge_out_dp_flags, dp_bits, error, NULL, 0, NULL))
+		return false;
+
+	uint64_t edge_expected_distance = 0;
+	CpuJacobianPoint edge_expected = CpuJacobianJumpWalk(edge_p[0], edge_jumps, edge_distances, edge_indices, 0, 8, &edge_expected_distance);
+	uint32_t edge_expected_dp_flag = ProjectiveDpFlag(edge_expected, dp_bits);
+	if (!CpuJacobianMatches(edge_out[0], edge_expected) || edge_out_distances[0] != edge_expected_distance || edge_out_dp_flags[0] != edge_expected_dp_flag)
+	{
+		error = "jacobian jump walk dp4 infinity-tail mismatch" +
+			std::string(": got x=") + FieldToHex(edge_out[0].x) + " y=" + FieldToHex(edge_out[0].y) +
+			" z=" + FieldToHex(edge_out[0].z) + " inf=" + (edge_out[0].infinity ? "1" : "0") +
+			" distance=" + std::to_string(edge_out_distances[0]) +
+			" dp=" + std::to_string(edge_out_dp_flags[0]) +
+			" expected x=" + FieldToHex(edge_expected.x) + " y=" + FieldToHex(edge_expected.y) +
+			" z=" + FieldToHex(edge_expected.z) + " inf=" + (edge_expected.infinity ? "1" : "0");
+		return false;
+	}
 	return true;
 }
 

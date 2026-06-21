@@ -1203,6 +1203,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `38,913,847.475444 ops/sec` (`1.046996x`). `correctness=true`,
   `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`, and
   `dp_checksum=0x30a7914972cba014` in all runs. Keep the guarded dp4 kernel.
+- `macos-metal-dp4-first-generic-rest-finite`: splitting the public dp4 kernel
+  into a generic first step followed by finite-only tail steps passed the public
+  checksum oracle but failed a new direct Metal selftest when the first jump
+  intentionally sends a lane to infinity and the next jump must resume from an
+  affine point. The candidate returned infinity with `distance=15`; the CPU
+  oracle returned a finite point. Do not remove the tail `if (inf)` guard unless
+  a replacement is proven against this infinity-tail oracle.
 
 ## Next Research Targets
 
