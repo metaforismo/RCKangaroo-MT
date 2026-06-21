@@ -226,6 +226,19 @@ they are intentionally ignored by git.
   `f275a21f5df06fe288b6f527b7206a2b0a09036c3004e5af4325e001bb86a7cf`,
   `trusted=false`; this local-public run was noisy/lower than earlier accepted
   baselines, so keep paired autoresearch as the promotion signal.
+- `21d2cb4` schedules the dp4 q-table base calculation before distance
+  accumulation while leaving arithmetic and outputs unchanged. Paired
+  autoresearch kept it twice: first candidate median
+  `38,940,533.391902 ops/sec` versus baseline `35,722,986.288468 ops/sec`,
+  then confirmation median `38,149,612.617702 ops/sec` versus baseline
+  `32,974,113.574544 ops/sec`; public and second-shape checksums were
+  unchanged. The local-public verifier accepted
+  `sub_ff829389-58e9-4493-af15-ed00ac22a0ab` as
+  `run_81f56a78-8985-4261-9a14-4c198053c97c` at
+  `51,884,059.915813 ops/sec`, receipt
+  `e8065d2aeb3548d29c8a133fb777b4e6be2ee8d751f4d65ae874cbbc9498b112`,
+  `trusted=false`; it ranked fifth on the local leaderboard at measurement
+  time.
 
 ## Rejected Retest Notes
 
