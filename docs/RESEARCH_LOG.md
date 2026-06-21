@@ -1164,6 +1164,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
   `dp_checksum=0x30a7914972cba014`. Keep the promoted q-base-first distance
   load/add position before the mixed-add block.
+- `macos-metal-dp4-branch-local-out`: declaring `JacobianValue out` inside
+  each dp4 branch and duplicating the state update preserved all oracle fields,
+  but the performance signal did not survive confirmation. Three paired runs
+  measured `42,681,923.754455` versus `25,846,773.075579 ops/sec`
+  (`1.651344x`, `keep`), then `20,418,005.034635` versus
+  `19,749,595.911307 ops/sec` (`1.033844x`, `keep`), then
+  `19,989,883.202345` versus `38,528,020.636069 ops/sec` (`0.518840x`,
+  `discard`). `correctness=true`, `distance_checksum=0xa45f471493cace2f`,
+  `dp_count=1000`, and `dp_checksum=0x30a7914972cba014` in all runs. Treat the
+  idea as unstable/rejected and keep the promoted shared post-branch update.
 
 ## Next Research Targets
 

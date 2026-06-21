@@ -345,6 +345,11 @@ they are intentionally ignored by git.
   versus baseline `38,080,155.698501 ops/sec`,
   `paired_speedup=0.944823`. Keep the promoted q-base-first baseline with the
   distance load/add before the mixed-add block.
+- `b93fb81` declared the dp4 `JacobianValue out` inside each branch and
+  duplicated the post-add state update. Correctness stayed intact, but three
+  paired autoresearch runs were unstable: `1.651344x keep`, `1.033844x keep`,
+  then `0.518840x discard`. Do not promote this shape; keep the shared
+  post-branch output update.
 
 ## Current Correctness Surface
 
