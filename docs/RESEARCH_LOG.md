@@ -678,40 +678,6 @@ Commit: `4d1cc10` (`perf: dispatch Metal jump walk by threadgroups`)
   `run_746218ad-dd52-4184-b5d3-75ea50e62374` at
   `32,143,846.853718 ops/sec`.
 
-### Metal Steps8 Distance-Packed Flags
-
-Commit: `a2bfa64` (`perf: pack Metal steps8 flags into distance`)
-
-- Added `jacobian_affine_walk_jump_table_steps8_distance_flags`, selected only
-  when `CanPackStep8FlagsInDistance` proves `steps_per_sample == 8` and the
-  maximum per-step distance cannot consume bits 62-63 of the accumulated
-  distance.
-- The specialized kernel keeps the existing steps=8 loop and distance table,
-  but packs infinity and projective-DP flags into the high two bits of
-  `out_distances[id]` instead of writing `out_flags[id]`.
-- The host decodes the high-bit flags and masks the distance with
-  `kDistanceValueMask` before the existing CPU oracle compares points,
-  distances, and DP flags. The generic and original steps=8 kernels remain as
-  fallback paths.
-- Paired M3 autoresearch against `main` for
-  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
-  and `dp_bits=4`:
-  - candidate median `29,118,843.516504 mixed-add steps/sec`
-  - paired baseline median `27,517,848.433568 mixed-add steps/sec`
-  - paired speedup `1.058180x`
-  - candidate min `28,458,832.751478 mixed-add steps/sec`
-  - candidate max `33,456,949.361673 mixed-add steps/sec`
-  - `distance_checksum=0xa45f471493cace2f`
-  - `dp_count=1000`
-  - `dp_checksum=0x30a7914972cba014`
-  - `status=keep`
-  - `correctness=true`
-  - `threadgroup_limit=256`
-  - `threads_per_threadgroup=256`
-  - Note: this is a small-margin keep. Treat it as valid only with the guard
-    and oracle in place; do not generalize high-bit packing to arbitrary step
-    counts.
-
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
