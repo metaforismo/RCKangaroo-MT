@@ -148,6 +148,8 @@ if ! awk '
 	in_walk && /constant uint\* p_infinity/ { found_constant_inf = 1 }
 	in_walk && /constant uchar\* jump_indices/ { found_indices = 1 }
 	in_walk && /constant ulong\* jump_distances/ { found_distances = 1 }
+	in_walk && /device uchar\* out_infinity/ { found_out_inf = 1 }
+	in_walk && /device uint\* out_infinity/ { found_u32_out_inf = 1 }
 	in_walk && /device ulong\* out_distances/ { found_out_distances = 1 }
 	in_walk && /device uchar\* out_dp_flags/ { found_out_dp_flags = 1 }
 	in_walk && /device uint\* out_dp_flags/ { found_u32_out_dp_flags = 1 }
@@ -171,7 +173,7 @@ if ! awk '
 	in_walk && /(1UL << dp_bits|dp_bits == 0)/ { found_hot_dp_mask_build = 1 }
 	in_walk && /% jump_count/ { found_hot_mod = 1 }
 	in_walk && /^}/ { in_walk = 0 }
-	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && found_out_distances && found_out_dp_flags && !found_u32_out_dp_flags && found_dp_mask && found_step && found_p_base_shift && !found_p_base_mul && found_out_base_reuse && !found_out_base_mul && found_jump_base && found_loop && found_jump_base_fetch && !found_jump_base_cast && found_accumulate && found_q_base_shift && !found_q_base_mul && found_store && found_dp_store && found_dp_mask_test && !found_hot_jump_mul && !found_hot_dp_mask_build && !found_hot_mod) ? 0 : 1 }
+	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && found_out_inf && !found_u32_out_inf && found_out_distances && found_out_dp_flags && !found_u32_out_dp_flags && found_dp_mask && found_step && found_p_base_shift && !found_p_base_mul && found_out_base_reuse && !found_out_base_mul && found_jump_base && found_loop && found_jump_base_fetch && !found_jump_base_cast && found_accumulate && found_q_base_shift && !found_q_base_mul && found_store && found_dp_store && found_dp_mask_test && !found_hot_jump_mul && !found_hot_dp_mask_build && !found_hot_mod) ? 0 : 1 }
 ' "$tmp_source"; then
 	printf '%s\n' "jacobian_affine_walk_jump_table does not precompute hot base state and constant read-only buffers"
 	exit 1
@@ -184,6 +186,8 @@ if ! awk '
 	in_walk && /constant uint\* p_infinity/ { found_constant_inf = 1 }
 	in_walk && /constant uchar\* jump_indices/ { found_indices = 1 }
 	in_walk && /constant ulong\* jump_distances/ { found_distances = 1 }
+	in_walk && /device uchar\* out_infinity/ { found_out_inf = 1 }
+	in_walk && /device uint\* out_infinity/ { found_u32_out_inf = 1 }
 	in_walk && /device ulong\* out_distances/ { found_out_distances = 1 }
 	in_walk && /device uchar\* out_dp_flags/ { found_out_dp_flags = 1 }
 	in_walk && /device uint\* out_dp_flags/ { found_u32_out_dp_flags = 1 }
@@ -207,7 +211,7 @@ if ! awk '
 	in_walk && /(1UL << dp_bits|dp_bits == 0)/ { found_hot_dp_mask_build = 1 }
 	in_walk && /% jump_count/ { found_hot_mod = 1 }
 	in_walk && /^}/ { in_walk = 0 }
-	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && found_out_distances && found_out_dp_flags && !found_u32_out_dp_flags && found_dp_mask && found_step && found_p_base_shift && !found_p_base_mul && found_out_base_reuse && !found_out_base_mul && found_jump_base && found_fixed_loop && !found_dynamic_loop && found_jump_base_fetch && !found_jump_base_cast && found_accumulate && found_q_base_shift && !found_q_base_mul && found_store && found_dp_store && found_dp_mask_test && !found_hot_dp_mask_build && !found_hot_mod) ? 0 : 1 }
+	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && found_out_inf && !found_u32_out_inf && found_out_distances && found_out_dp_flags && !found_u32_out_dp_flags && found_dp_mask && found_step && found_p_base_shift && !found_p_base_mul && found_out_base_reuse && !found_out_base_mul && found_jump_base && found_fixed_loop && !found_dynamic_loop && found_jump_base_fetch && !found_jump_base_cast && found_accumulate && found_q_base_shift && !found_q_base_mul && found_store && found_dp_store && found_dp_mask_test && !found_hot_dp_mask_build && !found_hot_mod) ? 0 : 1 }
 ' "$tmp_source"; then
 	printf '%s\n' "jacobian_affine_walk_jump_table_steps8 does not use the fixed steps=8 constant read-only hot path with shifted point base"
 	exit 1
@@ -220,6 +224,15 @@ if ! awk '
 	in_host && /metal_jump_indices.push_back\(static_cast<uint8_t>\(jump_index\)\)/ { found_pack_push = 1 }
 	in_host && /size_t indices_bytes = metal_jump_indices.size\(\) \* sizeof\(uint8_t\)/ { found_packed_bytes = 1 }
 	in_host && /newBufferWithBytes:metal_jump_indices.data\(\) length:indices_bytes/ { found_packed_buffer = 1 }
+	in_host && /std::vector<uint8_t> out_infinity_metal/ { found_packed_inf_out = 1 }
+	in_host && /size_t p_inf_bytes = p_infinity.size\(\) \* sizeof\(uint32_t\)/ { found_p_inf_bytes = 1 }
+	in_host && /size_t out_inf_bytes = out_infinity_metal.size\(\) \* sizeof\(uint8_t\)/ { found_packed_inf_bytes = 1 }
+	in_host && /newBufferWithBytes:p_infinity.data\(\) length:p_inf_bytes/ { found_p_inf_buffer = 1 }
+	in_host && /newBufferWithLength:out_inf_bytes/ { found_out_inf_buffer = 1 }
+	in_host && /memcpy\(out_infinity_metal.data\(\), \[out_inf_buffer contents\], out_inf_bytes\)/ { found_packed_inf_copy = 1 }
+	in_host && /out_infinity\[i\] = out_infinity_metal\[i\] \? 1U : 0U/ { found_packed_inf_expand = 1 }
+	in_host && /newBufferWithLength:inf_bytes/ { found_old_out_inf_buffer = 1 }
+	in_host && /memcpy\(out_infinity.data\(\), \[out_inf_buffer contents\], inf_bytes\)/ { found_old_inf_copy = 1 }
 	in_host && /std::vector<uint8_t> dp_flags_out_metal/ { found_packed_dp_out = 1 }
 	in_host && /size_t dp_flags_out_bytes = dp_flags_out_metal.size\(\) \* sizeof\(uint8_t\)/ { found_packed_dp_bytes = 1 }
 	in_host && /memcpy\(dp_flags_out_metal.data\(\), \[out_dp_flags_buffer contents\], dp_flags_out_bytes\)/ { found_packed_dp_copy = 1 }
@@ -228,9 +241,9 @@ if ! awk '
 	in_host && /jump_indices.size\(\) \* sizeof\(uint32_t\)/ { found_u32_bytes = 1 }
 	in_host && /newFunctionWithName:\[NSString stringWithUTF8String:function_name\]/ { found_dynamic_load = 1 }
 	in_host && /^}/ { in_host = 0 }
-	END { exit (found_selection && found_packed && found_pack_push && found_packed_bytes && found_packed_buffer && found_packed_dp_out && found_packed_dp_bytes && found_packed_dp_copy && found_packed_dp_expand && !found_u32_dp_bytes && !found_u32_bytes && found_dynamic_load) ? 0 : 1 }
+	END { exit (found_selection && found_packed && found_pack_push && found_packed_bytes && found_packed_buffer && found_packed_inf_out && found_p_inf_bytes && found_packed_inf_bytes && found_p_inf_buffer && found_out_inf_buffer && found_packed_inf_copy && found_packed_inf_expand && !found_old_out_inf_buffer && !found_old_inf_copy && found_packed_dp_out && found_packed_dp_bytes && found_packed_dp_copy && found_packed_dp_expand && !found_u32_dp_bytes && !found_u32_bytes && found_dynamic_load) ? 0 : 1 }
 ' "$host_source"; then
-	printf '%s\n' "RunJacobianJumpWalkKernel does not pack Metal jump indices and DP flags to uint8 with generic fallback"
+	printf '%s\n' "RunJacobianJumpWalkKernel does not pack Metal jump indices, infinity output, and DP flags to uint8 with generic fallback"
 	exit 1
 fi
 
