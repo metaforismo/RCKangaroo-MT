@@ -168,6 +168,17 @@ they are intentionally ignored by git.
   verifier accepted run `run_0e8d35ad-7f60-4cf7-a9b6-87cf9a5f7b0a` at
   `33,847,318.071380 ops/sec` with `trusted=false`.
 
+## Rejected Retest Notes
+
+- `56302e5` retried manual unrolling of all eight fixed steps in
+  `jacobian_affine_walk_jump_table_steps8` after the threadgroup-dispatch win
+  and after tightening the primary Metal DP gate to five samples. Correctness
+  stayed intact (`distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`), but paired autoresearch still discarded
+  it: candidate median `30,216,489.417128 ops/sec` versus baseline
+  `30,308,267.513455 ops/sec`, `paired_speedup=0.996972`. Keep the compact
+  fixed-loop steps8 kernel.
+
 ## Current Correctness Surface
 
 - Public score requires:

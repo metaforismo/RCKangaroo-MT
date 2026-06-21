@@ -719,6 +719,12 @@ These did not pass the performance gate or had a correctness/architecture issue:
   versus baseline `36,861,665.504647 ops/sec`, `paired_speedup=0.754797`,
   `status=discard`, `correctness=true`. Keep the compact fixed-loop kernel;
   avoid manual unroll unless later register-pressure data changes the tradeoff.
+  A post-threadgroup-dispatch retest at candidate commit `56302e5` with the
+  tightened five-sample Metal DP gate also discarded the idea: candidate median
+  `30,216,489.417128 ops/sec` versus baseline `30,308,267.513455 ops/sec`,
+  `paired_speedup=0.996972`, `status=discard`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`.
 - `macos-metal-steps4-kernel`: adding a compact fixed-loop
   `jacobian_affine_walk_jump_table_steps4` preserved all oracle fields but
   failed the dedicated `steps=4` paired gate. Candidate median was
