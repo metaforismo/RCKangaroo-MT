@@ -286,6 +286,32 @@ Commit: `2ba6704` (`perf: precompute Metal jump index base`)
   - Note: this run was noisy, but the paired median still cleared the configured
     keep gate.
 
+### Reused Metal Output Base
+
+Commit: `048c827` (`perf: reuse Metal output base`)
+
+- Reused `p_base` as `out_base` inside `jacobian_affine_walk_jump_table` because
+  the packed input and output Jacobian layouts use the same 12-limb stride.
+- The Metal source gate now rejects a second `id * 12` calculation in the jump
+  walk kernel while keeping the previous jump-index and DP-mask hot-path guards.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - candidate median `32,951,131.617042 mixed-add steps/sec`
+  - paired baseline median `29,806,708.480270 mixed-add steps/sec`
+  - paired speedup `1.105494x`
+  - candidate min `23,577,104.868518 mixed-add steps/sec`
+  - candidate max `39,231,627.754174 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+  - Note: measured throughput is still noisy on the local MacBook Air, but this
+    candidate cleared the paired keep gate and preserved every oracle field.
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
