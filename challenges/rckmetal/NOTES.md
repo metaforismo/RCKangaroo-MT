@@ -265,6 +265,11 @@ they are intentionally ignored by git.
 
 ## Rejected Retest Notes
 
+- `d04021e` changed the public DP4 local infinity state from `bool` to
+  `uchar` after packing the input infinity buffer. Correctness and the stable
+  DP oracle stayed intact, but paired confirmation discarded it: `0.858733x`,
+  `0.633437x`, `0.627012x`. Keep the promoted `bool` local state fed by the
+  packed `uchar` input.
 - `56302e5` retried manual unrolling of all eight fixed steps in
   `jacobian_affine_walk_jump_table_steps8` after the threadgroup-dispatch win
   and after tightening the primary Metal DP gate to five samples. Correctness

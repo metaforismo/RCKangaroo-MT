@@ -934,6 +934,12 @@ Commit: `a963a4d` (`perf: pack Metal dp4 infinity input`)
 
 These did not pass the performance gate or had a correctness/architecture issue:
 
+- `macos-metal-dp4-uchar-state`: changing the public DP4 kernel's local
+  infinity state from `bool` to `uchar` after the packed input-infinity win
+  preserved `make macos-check` and the full stable DP oracle, but failed paired
+  confirmation. Stable DP speedups were `0.858733x`, `0.633437x`, and
+  `0.627012x`, therefore `confirmation_status=discard`. Keep the promoted
+  `bool` local state fed by the packed `uchar` input buffer.
 - `macos-affine-prefix-split-tame`: speedup `0.995234`; discarded.
 - `macos-dp-combined-record`: speedup `0.987156`; discarded.
 - `macos-affine-jump-index-reuse`: incorrect behavior for the gate shape
