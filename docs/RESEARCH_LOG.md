@@ -1330,6 +1330,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `confirmation_status=discard`. A direct 5-pair `--min-ms 200` check on the
   4-target shape measured absolute median `0.967105x` and pairwise median
   `0.972254x`. Keep the existing `clear` + `push_back` initialization.
+- `macos-affine-defer-active-resize`: moving `active.resize(point_count)` out
+  of the all-active Jacobian batch-to-affine fast path preserved
+  `make macos-check`, the batch affine checksum oracle, and the 16-target
+  multi-target correctness oracle (`found_private_key=0x7`,
+  `last_dp_count=288`), but failed paired confirmation. `jacobian_batch_affine`
+  recorded raw speedups of `0.989579x`, `0.900283x`, and `1.585928x`, therefore
+  `confirmation_status=discard`; the 16-target kangaroo gate recorded
+  `0.953983x`, `0.998116x`, and `0.907080x`. Keep the current active-buffer
+  resize placement unless a broader batch-affine rewrite proves a durable win.
 
 ## Next Research Targets
 

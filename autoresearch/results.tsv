@@ -163,3 +163,9 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-21T20:07:45Z	1a62d47	jacobian_kangaroo_multi_small	macos_cpu	jacobian_kangaroo_multi_small	968	19351.823854	true	discard	Apple Silicon CPU shared-tame tiny multi-target kangaroo benchmark
 2026-06-21T20:07:58Z	1a62d47	jacobian_kangaroo_multi_small	macos_cpu	jacobian_kangaroo_multi_small	388	7734.437683	true	discard	Apple Silicon CPU shared-tame tiny multi-target kangaroo benchmark
 2026-06-21T20:08:32Z	1a62d47	jacobian_kangaroo_multi_small	macos_cpu	jacobian_kangaroo_multi_small	1299	25968.898296	true	discard	Apple Silicon CPU shared-tame tiny multi-target kangaroo benchmark
+2026-06-21T20:16:14Z	bd5506c	jacobian_batch_affine	macos_cpu	jacobian_batch_affine	28928	578151.917251	true	discard	Apple Silicon CPU Jacobian batch-to-affine conversion benchmark
+2026-06-21T20:16:23Z	bd5506c	jacobian_batch_affine	macos_cpu	jacobian_batch_affine	26368	526343.273226	true	discard	Apple Silicon CPU Jacobian batch-to-affine conversion benchmark
+2026-06-21T20:16:30Z	bd5506c	jacobian_batch_affine	macos_cpu	jacobian_batch_affine	23808	474542.597483	true	discard	Apple Silicon CPU Jacobian batch-to-affine conversion benchmark
+2026-06-21T20:17:00Z	bd5506c	jacobian_kangaroo_multi16_small	macos_cpu	jacobian_kangaroo_multi_small	631	12610.069570	true	discard	Apple Silicon CPU shared-tame tiny 16-target kangaroo benchmark
+2026-06-21T20:17:08Z	bd5506c	jacobian_kangaroo_multi16_small	macos_cpu	jacobian_kangaroo_multi_small	774	15469.712641	true	discard	Apple Silicon CPU shared-tame tiny 16-target kangaroo benchmark
+2026-06-21T20:17:15Z	bd5506c	jacobian_kangaroo_multi16_small	macos_cpu	jacobian_kangaroo_multi_small	682	13628.018791	true	discard	Apple Silicon CPU shared-tame tiny 16-target kangaroo benchmark

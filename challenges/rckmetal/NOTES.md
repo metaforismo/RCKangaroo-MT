@@ -446,6 +446,13 @@ they are intentionally ignored by git.
   `0.699428x`, `1.046553x`. A 5-pair `--min-ms 200` multi4 check measured
   `0.967105x` absolute median and `0.972254x` pairwise median. Keep the
   current `clear`/`push_back` initialization.
+- `bd5506c` moved the Jacobian batch-to-affine `active` scratch resize out of
+  the all-active fast path. It preserved `make macos-check`, the batch affine
+  checksum oracle, and the 16-target kangaroo oracle, but confirmation
+  discarded it. Batch-affine speedups were `0.989579x`, `0.900283x`,
+  `1.585928x`; multi16 speedups were `0.953983x`, `0.998116x`, `0.907080x`.
+  Keep the existing active-buffer placement until a larger batch-affine change
+  proves a stable win.
 
 ## Current Correctness Surface
 
