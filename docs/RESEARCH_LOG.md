@@ -259,6 +259,33 @@ Commit: `99ea964` (`perf: precompute Metal DP mask`)
   - `threadgroup_limit=256`
   - `threads_per_threadgroup=256`
 
+### Precomputed Metal Jump Index Base
+
+Commit: `2ba6704` (`perf: precompute Metal jump index base`)
+
+- Moved `id * steps` out of the `jacobian_affine_walk_jump_table` loop and
+  reused `jump_base + step` for each jump-index load.
+- The source gate now rejects reintroducing the per-step `id * steps + step`
+  address calculation while also preserving the no-hot-modulo and precomputed
+  DP-mask checks.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - candidate median `36,123,063.713799 mixed-add steps/sec`
+  - paired baseline median `29,592,623.352879 mixed-add steps/sec`
+  - paired speedup `1.220678x`
+  - candidate min `23,157,880.850366 mixed-add steps/sec`
+  - candidate max `46,746,041.618214 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+  - Note: this run was noisy, but the paired median still cleared the configured
+    keep gate.
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
