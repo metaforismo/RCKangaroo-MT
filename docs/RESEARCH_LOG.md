@@ -961,6 +961,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
   `dp_checksum=0x30a7914972cba014`. Keep scalar limb stores; the vector store
   spelling did not improve this kernel on M3.
+- `macos-metal-dp4-q-locals`: loading the eight affine jump-table limbs into
+  `qx*`/`qy*` locals once per dp4 step, then passing those locals to both the
+  generic infinity fallback and finite hot path, preserved all oracle fields but
+  failed the paired target gate. Candidate median was
+  `51,269,848.158566 ops/sec` versus baseline `53,225,235.044224 ops/sec`,
+  `paired_speedup=0.963262`, `status=discard`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. Keep the direct `q_xy[q_base + n]`
+  operands in the promoted dp4 finite-hot-path kernel; the explicit locals did
+  not help this M3 compiler shape.
 
 ## Next Research Targets
 

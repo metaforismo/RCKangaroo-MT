@@ -254,6 +254,12 @@ they are intentionally ignored by git.
   Jacobian output. Correctness stayed intact, but paired autoresearch discarded
   it: candidate median `42,347,381.165201 ops/sec` versus baseline
   `45,468,279.360450 ops/sec`, `paired_speedup=0.931361`. Keep scalar stores.
+- `2a0d783` loaded dp4 affine jump-table limbs into `qx*`/`qy*` locals before
+  the infinity branch so both branches reuse the same operands. Correctness
+  stayed intact, but paired autoresearch discarded it: candidate median
+  `51,269,848.158566 ops/sec` versus baseline `53,225,235.044224 ops/sec`,
+  `paired_speedup=0.963262`. Keep direct `q_xy[q_base + n]` operands in the
+  promoted finite-hot-path dp4 kernel.
 
 ## Current Correctness Surface
 
