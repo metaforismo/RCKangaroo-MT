@@ -265,6 +265,10 @@ they are intentionally ignored by git.
 
 ## Rejected Retest Notes
 
+- `8b3d413` added an explicit `uchar` cast around the public DP4 packed
+  flag-store expression. Correctness and the stable DP oracle stayed intact,
+  but paired confirmation discarded it: `1.020047x`, `1.099344x`,
+  `0.894179x`. Keep the implicit narrowing store.
 - `03ed392` narrowed the public DP4 distance accumulator from `ulong` to
   `uint` with a host safety guard and cast back to `ulong` on output.
   Correctness and the stable DP oracle stayed intact, but paired confirmation

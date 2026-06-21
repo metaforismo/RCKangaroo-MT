@@ -934,6 +934,11 @@ Commit: `a963a4d` (`perf: pack Metal dp4 infinity input`)
 
 These did not pass the performance gate or had a correctness/architecture issue:
 
+- `macos-metal-dp4-uchar-flag-cast`: adding an explicit `uchar` cast around
+  the public DP4 packed flag-store expression preserved `make macos-check` and
+  the full stable DP oracle, but failed paired confirmation. Stable DP speedups
+  were `1.020047x`, `1.099344x`, and `0.894179x`, therefore
+  `confirmation_status=discard`. Keep the implicit narrowing store.
 - `macos-metal-dp4-u32-accum`: narrowing only the public DP4 kernel's scalar
   distance accumulator to `uint`, with a host safety guard and a `ulong` output
   cast, preserved `make macos-check` and the full stable DP oracle, but failed
