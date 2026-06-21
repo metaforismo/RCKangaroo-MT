@@ -214,6 +214,12 @@ they are intentionally ignored by git.
   `34,911,331.312607 ops/sec`, while the immediate confirmation discarded it at
   `43,163,082.615191 ops/sec` versus baseline `43,781,915.905634 ops/sec`,
   `paired_speedup=0.985866`. Keep the existing dp4 kernel as the base.
+- `889a959` cached the 16-entry affine jump table and distances in threadgroup
+  memory for the public steps8 + `dp_bits=4` kernel. Correctness and fallback
+  shapes stayed intact, but paired autoresearch discarded it: candidate median
+  `39,023,071.164210 ops/sec` versus baseline `42,888,813.210105 ops/sec`,
+  `paired_speedup=0.909866`. Keep the constant-buffer table; threadgroup preload
+  and barrier overhead were not worth it on M3.
 
 ## Current Correctness Surface
 

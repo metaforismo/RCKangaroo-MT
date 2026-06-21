@@ -865,6 +865,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0x30a7914972cba014`. Do not promote this first-infinity
   specialization without a broader, repeatable gain; the removed buffer read is
   not a stable win on this M3 run.
+- `macos-metal-steps8-dp4-tgcache`: adding a steps8 + `dp_bits=4` + 16-jump
+  Metal kernel that preloads the affine jump table and scalar distances into
+  threadgroup memory preserved all oracle fields and fallback correctness, but
+  failed the paired gate. Candidate median was `39,023,071.164210 ops/sec`
+  versus baseline `42,888,813.210105 ops/sec`, `paired_speedup=0.909866`,
+  `status=discard`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. Keep using the constant-buffer jump table on
+  M3; the threadgroup preload and barrier cost more than the repeated cached
+  reads in this math-heavy kernel.
 
 ## Next Research Targets
 
