@@ -591,7 +591,7 @@ kernel void jacobian_affine_walk_jump_table(device const ulong* p_xyz [[buffer(0
                                             uint id [[thread_position_in_grid]]) {
   if (id >= count) return;
   uint p_base = id * 12;
-  uint out_base = id * 12;
+  uint out_base = p_base;
   ulong x0 = p_xyz[p_base + 0], x1 = p_xyz[p_base + 1], x2 = p_xyz[p_base + 2], x3 = p_xyz[p_base + 3];
   ulong y0 = p_xyz[p_base + 4], y1 = p_xyz[p_base + 5], y2 = p_xyz[p_base + 6], y3 = p_xyz[p_base + 7];
   ulong z0 = p_xyz[p_base + 8], z1 = p_xyz[p_base + 9], z2 = p_xyz[p_base + 10], z3 = p_xyz[p_base + 11];
