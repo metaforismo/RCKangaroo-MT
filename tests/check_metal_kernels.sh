@@ -82,11 +82,6 @@ if ! grep -q "kernel void jacobian_affine_walk_jump_table_steps8" "$tmp_source";
 	exit 1
 fi
 
-if ! grep -q "kernel void jacobian_affine_walk_jump_table_steps8_distance_flags" "$tmp_source"; then
-	printf '%s\n' "jacobian_affine_walk_jump_table_steps8_distance_flags kernel missing from Metal source"
-	exit 1
-fi
-
 if ! grep -q "field_square_values" "$tmp_source"; then
 	printf '%s\n' "field_square_values helper missing from Metal source"
 	exit 1
@@ -228,51 +223,8 @@ if ! awk '
 fi
 
 if ! awk '
-	/kernel void jacobian_affine_walk_jump_table_steps8_distance_flags/ { in_walk = 1 }
-	in_walk && /\(void\)steps/ { found_unused_steps = 1 }
-	in_walk && /\(void\)out_flags/ { found_unused_out_flags = 1 }
-	in_walk && /constant ulong\* p_xyz/ { found_constant_p = 1 }
-	in_walk && /constant ulong\* q_xy/ { found_constant_q = 1 }
-	in_walk && /constant uint\* p_infinity/ { found_constant_inf = 1 }
-	in_walk && /constant uchar\* jump_indices/ { found_indices = 1 }
-	in_walk && /constant ulong\* jump_distances/ { found_distances = 1 }
-	in_walk && /device uchar\* out_flags/ { found_out_flags_arg = 1 }
-	in_walk && /device ulong\* out_distances/ { found_out_distances = 1 }
-	in_walk && /constant ulong& dp_mask/ { found_dp_mask = 1 }
-	in_walk && /uint p_base = \(id << 3\) \+ \(id << 2\)/ { found_p_base_shift = 1 }
-	in_walk && /uint out_base = p_base/ { found_out_base_reuse = 1 }
-	in_walk && /uint jump_base = id << 3/ { found_jump_base = 1 }
-	in_walk && /for \(uint step = 0; step < 8; step\+\+\)/ { found_fixed_loop = 1 }
-	in_walk && /uint jump_index = jump_indices\[jump_base \+ step\]/ { found_jump_base_fetch = 1 }
-	in_walk && /distance \+= jump_distances\[jump_index\]/ { found_accumulate = 1 }
-	in_walk && /uint q_base = jump_index << 3/ { found_q_base_shift = 1 }
-	in_walk && /ulong flags = \(inf \? 1UL : 0UL\) \| \(\(!inf && \(\(x0 & dp_mask\) == 0\)\) \? 2UL : 0UL\)/ { found_flags = 1 }
-	in_walk && /out_distances\[id\] = distance \| \(flags << 62\)/ { found_packed_store = 1 }
-	in_walk && /out_flags\[id\]/ { found_flags_store = 1 }
-	in_walk && /^}/ { in_walk = 0 }
-	END { exit (found_unused_steps && found_unused_out_flags && found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && found_out_flags_arg && found_out_distances && found_dp_mask && found_p_base_shift && found_out_base_reuse && found_jump_base && found_fixed_loop && found_jump_base_fetch && found_accumulate && found_q_base_shift && found_flags && found_packed_store && !found_flags_store) ? 0 : 1 }
-' "$tmp_source"; then
-	printf '%s\n' "jacobian_affine_walk_jump_table_steps8_distance_flags does not pack flags into the distance output safely"
-	exit 1
-fi
-
-if ! awk '
-	/static bool CanPackStep8FlagsInDistance/ { in_helper = 1 }
-	in_helper && /steps_per_sample != 8/ { found_steps_guard = 1 }
-	in_helper && /jump_distances.empty\(\)/ { found_empty_guard = 1 }
-	in_helper && /kDistanceValueMask \/ steps_per_sample/ { found_capacity_guard = 1 }
-	in_helper && /^}/ { in_helper = 0 }
-	END { exit (found_steps_guard && found_empty_guard && found_capacity_guard) ? 0 : 1 }
-' "$host_source"; then
-	printf '%s\n' "CanPackStep8FlagsInDistance host safety guard missing or incomplete"
-	exit 1
-fi
-
-if ! awk '
 	/RunJacobianJumpWalkKernel/ { in_host = 1 }
 	in_host && /steps_per_sample == 8/ && /jacobian_affine_walk_jump_table_steps8/ && /jacobian_affine_walk_jump_table/ { found_selection = 1 }
-	in_host && /CanPackStep8FlagsInDistance\(steps_per_sample, jump_distances\)/ { found_distance_pack_guard = 1 }
-	in_host && /jacobian_affine_walk_jump_table_steps8_distance_flags/ { found_distance_pack_selection = 1 }
 	in_host && /std::vector<uint8_t> metal_jump_indices/ { found_packed = 1 }
 	in_host && /metal_jump_indices.push_back\(static_cast<uint8_t>\(jump_index\)\)/ { found_pack_push = 1 }
 	in_host && /size_t indices_bytes = metal_jump_indices.size\(\) \* sizeof\(uint8_t\)/ { found_packed_bytes = 1 }
@@ -286,9 +238,6 @@ if ! awk '
 	in_host && /uint8_t flags = out_flags_metal\[i\]/ { found_flags_local = 1 }
 	in_host && /out_infinity\[i\] = \(flags & 1U\) \? 1U : 0U/ { found_inf_expand = 1 }
 	in_host && /out_dp_flags\[i\] = \(flags & 2U\) \? 1U : 0U/ { found_dp_expand = 1 }
-	in_host && /uint64_t packed_distance = distance_out\[i\]/ { found_packed_distance_local = 1 }
-	in_host && /uint8_t flags = static_cast<uint8_t>\(packed_distance >> kDistanceFlagShift\)/ { found_distance_flags_local = 1 }
-	in_host && /distance_out\[i\] = packed_distance & kDistanceValueMask/ { found_distance_unpack = 1 }
 	in_host && /out_dp_flags_buffer/ { found_old_dp_buffer = 1 }
 	in_host && /out_infinity_metal/ { found_old_inf_metal = 1 }
 	in_host && /dp_flags_out_metal/ { found_old_dp_metal = 1 }
@@ -301,7 +250,7 @@ if ! awk '
 	in_host && /\[encoder dispatchThreadgroups:MTLSizeMake\(threadgroup_count, 1, 1\) threadsPerThreadgroup:MTLSizeMake\(threads_per_threadgroup, 1, 1\)\]/ { found_dispatch_threadgroups = 1 }
 	in_host && /\[encoder dispatchThreads:/ { found_dispatch_threads = 1 }
 	in_host && /^}/ { in_host = 0 }
-	END { exit (found_selection && found_distance_pack_guard && found_distance_pack_selection && found_packed && found_pack_push && found_packed_bytes && found_packed_buffer && found_p_inf_bytes && found_p_inf_buffer && found_packed_flags_out && found_packed_flags_bytes && found_out_flags_buffer && found_packed_flags_copy && found_flags_local && found_inf_expand && found_dp_expand && found_packed_distance_local && found_distance_flags_local && found_distance_unpack && !found_old_dp_buffer && !found_old_inf_metal && !found_old_dp_metal && !found_old_out_inf_buffer && !found_old_inf_copy && !found_u32_dp_bytes && !found_u32_bytes && found_dynamic_load && found_threadgroup_count && found_dispatch_threadgroups && !found_dispatch_threads) ? 0 : 1 }
+	END { exit (found_selection && found_packed && found_pack_push && found_packed_bytes && found_packed_buffer && found_p_inf_bytes && found_p_inf_buffer && found_packed_flags_out && found_packed_flags_bytes && found_out_flags_buffer && found_packed_flags_copy && found_flags_local && found_inf_expand && found_dp_expand && !found_old_dp_buffer && !found_old_inf_metal && !found_old_dp_metal && !found_old_out_inf_buffer && !found_old_inf_copy && !found_u32_dp_bytes && !found_u32_bytes && found_dynamic_load && found_threadgroup_count && found_dispatch_threadgroups && !found_dispatch_threads) ? 0 : 1 }
 ' "$host_source"; then
 	printf '%s\n' "RunJacobianJumpWalkKernel does not pack Metal jump indices and combined output flags to uint8 with generic fallback"
 	exit 1
