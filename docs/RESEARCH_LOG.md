@@ -469,6 +469,34 @@ Commit: `cbfff2e` (`perf: use constant Metal jump indices`)
   - Note: the margin is small and local Metal timings remain noisy, but the
     paired median cleared the configured keep gate.
 
+### Shifted Metal Point Base
+
+Commit: `c876663` (`perf: use shift for Metal point base`)
+
+- Changed the packed Jacobian point base in the jump-walk kernels from
+  `id * 12` to `(id << 3) + (id << 2)`, matching the 12-limb stride as an
+  explicit shift-add.
+- This only touches `jacobian_affine_walk_jump_table` and
+  `jacobian_affine_walk_jump_table_steps8`; the standalone add and fixed-walk
+  kernels keep their previous form.
+- The source gate now rejects reintroducing `id * 12` in the jump-walk hot
+  kernels while preserving the output-base reuse check.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - candidate median `40,420,143.199132 mixed-add steps/sec`
+  - paired baseline median `25,079,930.894718 mixed-add steps/sec`
+  - paired speedup `1.611653x`
+  - candidate min `28,374,309.720436 mixed-add steps/sec`
+  - candidate max `55,671,451.511221 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
