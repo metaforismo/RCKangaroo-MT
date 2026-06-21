@@ -378,6 +378,12 @@ they are intentionally ignored by git.
   discarded it: candidate median `30,095,459.840316 ops/sec` versus baseline
   `37,579,388.005384 ops/sec`, `paired_speedup=0.800850`. Keep constant-buffer
   table reads for the dp4 score path.
+- `33a9a83` inlined the dp4 infinity fallback as direct affine assignment
+  (`out = q, z = 1`) instead of calling the generic wrapper in the `if (inf)`
+  branch. Correctness stayed intact, including the infinity-tail selftest, but
+  paired autoresearch discarded it: candidate median `40,274,694.606662 ops/sec`
+  versus baseline `44,267,553.613436 ops/sec`, `paired_speedup=0.909802`. Keep
+  the wrapper-based fallback branch for now.
 
 ## Current Correctness Surface
 

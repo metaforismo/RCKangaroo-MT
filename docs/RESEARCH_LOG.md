@@ -1219,6 +1219,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`, and
   `dp_checksum=0x30a7914972cba014`. On M3 Air the staging barrier and local
   memory traffic outweighed any benefit over constant-buffer reads.
+- `macos-metal-dp4-inline-inf-affine`: inlining the `p.infinity + affine q`
+  fallback directly inside the public dp4 branch preserved all oracle fields,
+  including the infinity-tail selftest, but failed the paired target gate.
+  Candidate median was `40,274,694.606662 ops/sec` versus baseline
+  `44,267,553.613436 ops/sec`, `paired_speedup=0.909802`, `status=discard`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`, and
+  `dp_checksum=0x30a7914972cba014`. Keep the wrapper-based fallback branch unless
+  a future compiler/code-shape experiment shows a confirmed win.
 
 ## Next Research Targets
 
