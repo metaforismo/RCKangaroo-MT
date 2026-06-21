@@ -183,6 +183,11 @@ they are intentionally ignored by git.
   intact, but paired autoresearch discarded it: candidate median
   `26,399,879.312075 ops/sec` versus baseline `36,600,758.926891 ops/sec`,
   `paired_speedup=0.721293`. Keep the compact ternary flag store.
+- `d735b6d` created jump-walk buffers with shared storage plus
+  `MTLResourceHazardTrackingModeUntracked`. Correctness stayed intact, but
+  paired autoresearch discarded it: candidate median `20,388,792.013228
+  ops/sec` versus baseline `22,815,429.774553 ops/sec`,
+  `paired_speedup=0.893640`. Keep the default tracked shared buffers.
 
 ## Current Correctness Surface
 

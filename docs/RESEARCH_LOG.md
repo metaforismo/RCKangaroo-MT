@@ -803,6 +803,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
   `dp_checksum=0x30a7914972cba014`. Keep the compact ternary store; the manual
   branchless spelling changed the compiled shape unfavorably.
+- `macos-metal-untracked-buffers`: creating the jump-walk buffers with
+  `MTLResourceStorageModeShared | MTLResourceHazardTrackingModeUntracked`
+  preserved all oracle fields but failed the paired gate. Candidate median was
+  `20,388,792.013228 ops/sec` versus baseline `22,815,429.774553 ops/sec`,
+  `paired_speedup=0.893640`, `status=discard`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. Keep the default tracked shared buffers for
+  this single-dispatch benchmark; opting out did not reduce measured GPU time
+  on this M3 run.
 
 ## Next Research Targets
 
