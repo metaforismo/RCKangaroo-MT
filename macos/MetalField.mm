@@ -936,10 +936,10 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		std::vector<uint64_t> out_xyz(p.size() * 12);
 		std::vector<uint32_t> out_infinity(p.size());
 		std::vector<uint64_t> distance_out(p.size());
-		std::vector<uint32_t> dp_flags_out(p.size());
+		std::vector<uint8_t> dp_flags_out_metal(p.size());
 		size_t out_bytes = out_xyz.size() * sizeof(uint64_t);
 		size_t distance_out_bytes = distance_out.size() * sizeof(uint64_t);
-		size_t dp_flags_out_bytes = dp_flags_out.size() * sizeof(uint32_t);
+		size_t dp_flags_out_bytes = dp_flags_out_metal.size() * sizeof(uint8_t);
 		id<MTLBuffer> p_buffer = [device newBufferWithBytes:p_xyz.data() length:p_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> q_buffer = [device newBufferWithBytes:q_xy.data() length:q_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> p_inf_buffer = [device newBufferWithBytes:p_infinity.data() length:inf_bytes options:MTLResourceStorageModeShared];
@@ -1001,12 +1001,14 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		memcpy(out_xyz.data(), [out_buffer contents], out_bytes);
 		memcpy(out_infinity.data(), [out_inf_buffer contents], inf_bytes);
 		memcpy(distance_out.data(), [out_distances_buffer contents], distance_out_bytes);
-		memcpy(dp_flags_out.data(), [out_dp_flags_buffer contents], dp_flags_out_bytes);
+		memcpy(dp_flags_out_metal.data(), [out_dp_flags_buffer contents], dp_flags_out_bytes);
 		out.resize(p.size());
 		for (size_t i = 0; i < p.size(); ++i)
 			out[i] = UnpackJacobianOutput(out_xyz, out_infinity, i);
 		out_distances = distance_out;
-		out_dp_flags = dp_flags_out;
+		out_dp_flags.resize(dp_flags_out_metal.size());
+		for (size_t i = 0; i < dp_flags_out_metal.size(); ++i)
+			out_dp_flags[i] = dp_flags_out_metal[i] ? 1U : 0U;
 		return true;
 	}
 }
