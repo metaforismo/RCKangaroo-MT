@@ -981,7 +981,8 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		[encoder setBuffer:jump_distances_buffer offset:0 atIndex:8];
 		[encoder setBuffer:out_distances_buffer offset:0 atIndex:9];
 		[encoder setBuffer:dp_mask_buffer offset:0 atIndex:10];
-		[encoder dispatchThreads:MTLSizeMake(count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
+		NSUInteger threadgroup_count = (count + threads_per_threadgroup - 1) / threads_per_threadgroup;
+		[encoder dispatchThreadgroups:MTLSizeMake(threadgroup_count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
 		[encoder endEncoding];
 		auto start = std::chrono::steady_clock::now();
 		[command_buffer commit];

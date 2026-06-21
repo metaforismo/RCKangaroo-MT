@@ -246,8 +246,11 @@ if ! awk '
 	in_host && /dp_flags_out.size\(\) \* sizeof\(uint32_t\)/ { found_u32_dp_bytes = 1 }
 	in_host && /jump_indices.size\(\) \* sizeof\(uint32_t\)/ { found_u32_bytes = 1 }
 	in_host && /newFunctionWithName:\[NSString stringWithUTF8String:function_name\]/ { found_dynamic_load = 1 }
+	in_host && /NSUInteger threadgroup_count = \(count \+ threads_per_threadgroup - 1\) \/ threads_per_threadgroup/ { found_threadgroup_count = 1 }
+	in_host && /\[encoder dispatchThreadgroups:MTLSizeMake\(threadgroup_count, 1, 1\) threadsPerThreadgroup:MTLSizeMake\(threads_per_threadgroup, 1, 1\)\]/ { found_dispatch_threadgroups = 1 }
+	in_host && /\[encoder dispatchThreads:/ { found_dispatch_threads = 1 }
 	in_host && /^}/ { in_host = 0 }
-	END { exit (found_selection && found_packed && found_pack_push && found_packed_bytes && found_packed_buffer && found_p_inf_bytes && found_p_inf_buffer && found_packed_flags_out && found_packed_flags_bytes && found_out_flags_buffer && found_packed_flags_copy && found_flags_local && found_inf_expand && found_dp_expand && !found_old_dp_buffer && !found_old_inf_metal && !found_old_dp_metal && !found_old_out_inf_buffer && !found_old_inf_copy && !found_u32_dp_bytes && !found_u32_bytes && found_dynamic_load) ? 0 : 1 }
+	END { exit (found_selection && found_packed && found_pack_push && found_packed_bytes && found_packed_buffer && found_p_inf_bytes && found_p_inf_buffer && found_packed_flags_out && found_packed_flags_bytes && found_out_flags_buffer && found_packed_flags_copy && found_flags_local && found_inf_expand && found_dp_expand && !found_old_dp_buffer && !found_old_inf_metal && !found_old_dp_metal && !found_old_out_inf_buffer && !found_old_inf_copy && !found_u32_dp_bytes && !found_u32_bytes && found_dynamic_load && found_threadgroup_count && found_dispatch_threadgroups && !found_dispatch_threads) ? 0 : 1 }
 ' "$host_source"; then
 	printf '%s\n' "RunJacobianJumpWalkKernel does not pack Metal jump indices and combined output flags to uint8 with generic fallback"
 	exit 1
