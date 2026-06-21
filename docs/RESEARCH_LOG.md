@@ -997,6 +997,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   checksum fields, and vector-0 Jacobian mismatch. Do not retry affine
   composite jumps unless the API/oracle is explicitly changed to affine
   equivalence and affine DP semantics.
+- `macos-metal-dp4-pair-distance`: kept the exact eight public DP4 mixed-adds
+  but accumulated scalar distances through a precomputed 16x16 pair-distance
+  table, reducing distance loads from eight to four while preserving raw
+  Jacobian coordinates and oracle fields. Correctness stayed intact, but paired
+  autoresearch discarded it: `0.850786x`, `1.047350x`, `1.956234x`, therefore
+  `confirmation_status=discard`. The one strong run was not reproducible enough
+  to promote; keep per-step distance accumulation.
 - `macos-metal-mixed-add-h-normal-first`: moving the finite mixed-add normal
   `H != 0` path before the rare `H == 0` doubling/infinity edge path preserved
   `make macos-check`, the infinity-tail selftest, and the full stable DP

@@ -313,6 +313,10 @@ they are intentionally ignored by git.
   defined on projective `x[0]`. The target bench returned `correctness=false`
   with vector-0 Jacobian mismatch and zero checksum fields. Keep exact
   step-by-step Jacobian semantics for the Metal DP4 path.
+- `macos-metal-dp4-pair-distance` kept the same eight DP4 mixed-adds but used
+  a 16x16 table for pairwise scalar-distance accumulation. Oracle fields stayed
+  intact, but paired confirmation discarded it: `0.850786x`, `1.047350x`,
+  `1.956234x`. Treat the last run as noise; keep per-step distance loads.
 - `8b3d413` added an explicit `uchar` cast around the public DP4 packed
   flag-store expression. Correctness and the stable DP oracle stayed intact,
   but paired confirmation discarded it: `1.020047x`, `1.099344x`,
