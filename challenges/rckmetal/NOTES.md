@@ -167,6 +167,13 @@ they are intentionally ignored by git.
   `correctness=true`, covering non-multiple grid sizes. The local-public
   verifier accepted run `run_0e8d35ad-7f60-4cf7-a9b6-87cf9a5f7b0a` at
   `33,847,318.071380 ops/sec` with `trusted=false`.
+- `a2bfa64` adds a guarded steps=8 Metal kernel that packs infinity and DP
+  flags into bits 62-63 of `out_distances[id]`, then decodes and masks the
+  distance on the host before oracle comparison. Paired autoresearch kept it
+  with candidate median `29,118,843.516504 ops/sec` versus paired baseline
+  median `27,517,848.433568 ops/sec`; distance and DP checksums were unchanged.
+  This is a small-margin keep and should stay limited to the guarded steps=8
+  shape.
 
 ## Current Correctness Surface
 
