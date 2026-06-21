@@ -384,6 +384,11 @@ they are intentionally ignored by git.
   paired autoresearch discarded it: candidate median `40,274,694.606662 ops/sec`
   versus baseline `44,267,553.613436 ops/sec`, `paired_speedup=0.909802`. Keep
   the wrapper-based fallback branch for now.
+- A quick direct threadgroup-limit sweep on the promoted public dp4 kernel did
+  not justify a new default candidate. `--min-ms 200 --tg-limit 256` measured
+  `38,451,966.417140 ops/sec`; `--tg-limit 1024` measured
+  `33,660,654.336534 ops/sec`, with matching public checksums. Keep default
+  `256`.
 
 ## Current Correctness Surface
 
