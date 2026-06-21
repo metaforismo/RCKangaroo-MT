@@ -213,6 +213,19 @@ they are intentionally ignored by git.
   `51,293,294.688826 ops/sec`, receipt
   `3a06339d0adfef0a2da552afae54e5a0706539201350089eb113895536794d2f`,
   `trusted=false`.
+- `b8e1120` assigns the dp4 bool infinity state directly from `p_infinity[id]`
+  and `out.inf`, removing the `!= 0` comparisons while leaving fallback kernels
+  and packed output flags unchanged. Paired autoresearch kept it twice: first
+  candidate median `34,425,602.601131 ops/sec` versus baseline
+  `22,144,004.281751 ops/sec`, then confirmation median
+  `29,895,632.602187 ops/sec` versus baseline `25,779,267.617206 ops/sec`;
+  public and second-shape checksums were unchanged. The local-public verifier
+  accepted `sub_c2a9e691-40cd-4233-954f-6414743d46ba` as
+  `run_43524297-43bd-4606-8686-2807aaa1d3f3` at
+  `25,910,107.039113 ops/sec`, receipt
+  `f275a21f5df06fe288b6f527b7206a2b0a09036c3004e5af4325e001bb86a7cf`,
+  `trusted=false`; this local-public run was noisy/lower than earlier accepted
+  baselines, so keep paired autoresearch as the promotion signal.
 
 ## Rejected Retest Notes
 

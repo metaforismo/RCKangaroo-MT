@@ -801,6 +801,47 @@ Commit: `3a79ce6` (`perf: use bool Metal dp4 infinity state`)
   `verifier.trusted=false`, `platform=darwin`, `arch=arm64`, `cpus=Apple M3`.
   This accepted run landed fifth on the local leaderboard at measurement time.
 
+### Metal DP4 Direct Bool Infinity State
+
+Commit: `b8e1120` (`perf: use direct bool Metal dp4 infinity state`)
+
+- Simplified only the public `steps_per_sample == 8` and `dp_bits == 4` Metal
+  kernel's bool accumulator state by assigning `p_infinity[id]` and `out.inf`
+  directly, instead of comparing each value with zero. The fallback kernels and
+  packed output flags are unchanged.
+- The source gate now requires direct bool initialization/update and rejects
+  reintroducing `!= 0` in this dp4 state path.
+- Public oracle checks before promotion:
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - second verifier shape:
+    `distance_checksum=0xbab72b58ebefa9dc`, `dp_count=249`,
+    `dp_checksum=0x4a7f2853a4a9f546`
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - first candidate median `34,425,602.601131 mixed-add steps/sec`
+  - first paired baseline median `22,144,004.281751 mixed-add steps/sec`
+  - first paired speedup `1.554624x`
+  - confirmation candidate median `29,895,632.602187 mixed-add steps/sec`
+  - confirmation paired baseline median `25,779,267.617206 mixed-add steps/sec`
+  - confirmation paired speedup `1.159677x`
+  - `status=keep`
+  - `correctness=true`
+- `make macos-check` passed on `main` after the fast-forward merge.
+- Benchforge doctor passed with only the expected `hosted-api` warning. Local
+  run `run_5290138c-2fe6-46f2-bb39-3a4465e5e93f` scored
+  `32,963,590.095748 ops/sec`.
+- Local-public Benchforge verifier accepted submission
+  `sub_c2a9e691-40cd-4233-954f-6414743d46ba` as run
+  `run_43524297-43bd-4606-8686-2807aaa1d3f3` with score
+  `25,910,107.039113 ops/sec`, receipt hash
+  `f275a21f5df06fe288b6f527b7206a2b0a09036c3004e5af4325e001bb86a7cf`,
+  `verifier.trusted=false`, `platform=darwin`, `arch=arm64`, `cpus=Apple M3`.
+  The local-public score was lower than earlier accepted baselines in this
+  noisy/thermal window; the promotion is based on two paired `keep` runs.
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
