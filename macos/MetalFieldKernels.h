@@ -436,6 +436,11 @@ struct JacobianValue {
   uint inf;
 };
 
+struct AffineJumpValue {
+  ulong x0, x1, x2, x3;
+  ulong y0, y1, y2, y3;
+};
+
 kernel void field_square_mul_mod_p(device const ulong* a [[buffer(0)]],
                                    device const ulong* b [[buffer(1)]],
                                    device ulong* out [[buffer(2)]],
@@ -681,7 +686,7 @@ kernel void jacobian_affine_walk_jump_table_steps8(constant ulong* p_xyz [[buffe
 }
 
 kernel void jacobian_affine_walk_jump_table_steps8_dp4(constant ulong* p_xyz [[buffer(0)]],
-                                                       constant ulong* q_xy [[buffer(1)]],
+                                                       constant AffineJumpValue* q_xy [[buffer(1)]],
                                                        constant uchar* p_infinity [[buffer(2)]],
                                                        device ulong* out_xyz [[buffer(3)]],
                                                        device uchar* out_flags [[buffer(4)]],
@@ -704,17 +709,16 @@ kernel void jacobian_affine_walk_jump_table_steps8_dp4(constant ulong* p_xyz [[b
 
   for (uint step = 0; step < 8; step++) {
     uint jump_index = jump_indices[jump_base + step];
-    uint q_base = jump_index << 3;
     distance += jump_distances[jump_index];
     JacobianValue out;
     if (inf) {
       out = jacobian_add_affine_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3, inf,
-                                       q_xy[q_base + 0], q_xy[q_base + 1], q_xy[q_base + 2], q_xy[q_base + 3],
-                                       q_xy[q_base + 4], q_xy[q_base + 5], q_xy[q_base + 6], q_xy[q_base + 7]);
+                                       q_xy[jump_index].x0, q_xy[jump_index].x1, q_xy[jump_index].x2, q_xy[jump_index].x3,
+                                       q_xy[jump_index].y0, q_xy[jump_index].y1, q_xy[jump_index].y2, q_xy[jump_index].y3);
     } else {
       out = jacobian_add_affine_finite_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3,
-                                              q_xy[q_base + 0], q_xy[q_base + 1], q_xy[q_base + 2], q_xy[q_base + 3],
-                                              q_xy[q_base + 4], q_xy[q_base + 5], q_xy[q_base + 6], q_xy[q_base + 7]);
+                                              q_xy[jump_index].x0, q_xy[jump_index].x1, q_xy[jump_index].x2, q_xy[jump_index].x3,
+                                              q_xy[jump_index].y0, q_xy[jump_index].y1, q_xy[jump_index].y2, q_xy[jump_index].y3);
     }
     x0 = out.x0; x1 = out.x1; x2 = out.x2; x3 = out.x3;
     y0 = out.y0; y1 = out.y1; y2 = out.y2; y3 = out.y3;
