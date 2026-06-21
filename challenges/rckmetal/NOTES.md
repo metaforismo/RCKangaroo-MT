@@ -372,6 +372,12 @@ they are intentionally ignored by git.
   failed: the candidate stayed at infinity after the next affine jump while the
   CPU oracle returned a finite point. Keep the tail `if (inf)` guard unless a
   new formulation passes this infinity-tail selftest.
+- `4013057` specialized public `steps=8`, `dp_bits=4`, `jump_count=16` by
+  staging the jump table and distances in `threadgroup` memory. Correctness
+  stayed intact, including the infinity-tail selftest, but paired autoresearch
+  discarded it: candidate median `30,095,459.840316 ops/sec` versus baseline
+  `37,579,388.005384 ops/sec`, `paired_speedup=0.800850`. Keep constant-buffer
+  table reads for the dp4 score path.
 
 ## Current Correctness Surface
 

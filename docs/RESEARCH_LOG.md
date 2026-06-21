@@ -1210,6 +1210,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   affine point. The candidate returned infinity with `distance=15`; the CPU
   oracle returned a finite point. Do not remove the tail `if (inf)` guard unless
   a replacement is proven against this infinity-tail oracle.
+- `macos-metal-dp4-j16-threadgroup-table`: adding a public-shape specialization
+  for `steps=8`, `dp_bits=4`, `jump_count=16` that stages the 16-point jump
+  table and 16 distances into `threadgroup` memory preserved correctness,
+  including the infinity-tail selftest, but failed the paired target gate.
+  Candidate median was `30,095,459.840316 ops/sec` versus baseline
+  `37,579,388.005384 ops/sec`, `paired_speedup=0.800850`, `status=discard`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`, and
+  `dp_checksum=0x30a7914972cba014`. On M3 Air the staging barrier and local
+  memory traffic outweighed any benefit over constant-buffer reads.
 
 ## Next Research Targets
 
