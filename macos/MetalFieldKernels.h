@@ -243,20 +243,6 @@ static inline void store_jacobian(device ulong* out_xyz,
   out_infinity[id] = infinity;
 }
 
-static inline void store_jacobian_u8_infinity(device ulong* out_xyz,
-                                              uint base,
-                                              ulong x0, ulong x1, ulong x2, ulong x3,
-                                              ulong y0, ulong y1, ulong y2, ulong y3,
-                                              ulong z0, ulong z1, ulong z2, ulong z3,
-                                              device uchar* out_infinity,
-                                              uint id,
-                                              uint infinity) {
-  out_xyz[base + 0] = x0; out_xyz[base + 1] = x1; out_xyz[base + 2] = x2; out_xyz[base + 3] = x3;
-  out_xyz[base + 4] = y0; out_xyz[base + 5] = y1; out_xyz[base + 6] = y2; out_xyz[base + 7] = y3;
-  out_xyz[base + 8] = z0; out_xyz[base + 9] = z1; out_xyz[base + 10] = z2; out_xyz[base + 11] = z3;
-  out_infinity[id] = infinity ? 1 : 0;
-}
-
 static inline void store_jacobian_xyz_only(device ulong* out_xyz,
                                            uint base,
                                            ulong x0, ulong x1, ulong x2, ulong x3,

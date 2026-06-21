@@ -87,6 +87,11 @@ if ! grep -q "field_square_values" "$tmp_source"; then
 	exit 1
 fi
 
+if grep -q "store_jacobian_u8_infinity" "$tmp_source"; then
+	printf '%s\n' "stale store_jacobian_u8_infinity helper still present"
+	exit 1
+fi
+
 if ! awk '
 	/kernel void field_square_mod_p/ { in_square = 1 }
 	in_square && /field_square_values/ { found = 1 }
