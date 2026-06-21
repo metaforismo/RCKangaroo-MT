@@ -852,6 +852,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0x30a7914972cba014`. Keep the default tracked shared buffers for
   this single-dispatch benchmark; opting out did not reduce measured GPU time
   on this M3 run.
+- `macos-metal-steps8-dp4-firstinf`: adding a host guard for the benchmark
+  pattern where only point 0 starts at infinity, then selecting a steps8 +
+  `dp_bits=4` Metal kernel that replaces `p_infinity[id]` with
+  `id == 0 ? 1U : 0U`, preserved all oracle fields but did not pass
+  confirmation. The first paired run kept it at candidate median
+  `43,313,091.164017 ops/sec` versus baseline `34,911,331.312607 ops/sec`,
+  `paired_speedup=1.240660`; the immediate confirmation discarded it at
+  `43,163,082.615191 ops/sec` versus baseline `43,781,915.905634 ops/sec`,
+  `paired_speedup=0.985866`, `correctness=true`,
+  `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. Do not promote this first-infinity
+  specialization without a broader, repeatable gain; the removed buffer read is
+  not a stable win on this M3 run.
 
 ## Next Research Targets
 

@@ -207,6 +207,13 @@ they are intentionally ignored by git.
   paired autoresearch discarded it: candidate median `20,388,792.013228
   ops/sec` versus baseline `22,815,429.774553 ops/sec`,
   `paired_speedup=0.893640`. Keep the default tracked shared buffers.
+- `12261fd` added a guarded steps8 + `dp_bits=4` first-infinity Metal kernel
+  that avoids reading `p_infinity[id]` when only point 0 starts at infinity.
+  Correctness stayed intact, but the result did not confirm: first paired run
+  kept it at `43,313,091.164017 ops/sec` versus baseline
+  `34,911,331.312607 ops/sec`, while the immediate confirmation discarded it at
+  `43,163,082.615191 ops/sec` versus baseline `43,781,915.905634 ops/sec`,
+  `paired_speedup=0.985866`. Keep the existing dp4 kernel as the base.
 
 ## Current Correctness Surface
 
