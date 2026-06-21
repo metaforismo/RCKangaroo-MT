@@ -517,6 +517,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `paired_speedup=0.962141`, `status=discard`, `correctness=true`. Keep
   `steps=4` on the generic kernel; the `steps=8` specialization does not
   automatically generalize to shorter batches.
+- `macos-metal-steps8-no-steps-arg`: removing the unused `steps` buffer
+  argument from `jacobian_affine_walk_jump_table_steps8` preserved all oracle
+  fields but failed the paired gate. Candidate median was
+  `25,295,762.625885 ops/sec` versus baseline `32,273,831.165649 ops/sec`,
+  `paired_speedup=0.783786`, `status=discard`, `correctness=true`. Keep the
+  current specialized kernel signature; the unused bound buffer is not the
+  limiting factor and removing it changed the compiled shape unfavorably.
 
 ## Next Research Targets
 
