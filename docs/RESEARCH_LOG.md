@@ -638,6 +638,37 @@ Commit: `f266242` (`perf: pack Metal output flags into one byte`)
   - Note: local Metal timing remained noisy, but the paired median cleared the
     configured keep gate.
 
+### Metal Jump-Walk Threadgroup Dispatch
+
+Commit: `4d1cc10` (`perf: dispatch Metal jump walk by threadgroups`)
+
+- Changed only the jump-walk host dispatch from `dispatchThreads` to explicit
+  `dispatchThreadgroups`, using
+  `(count + threads_per_threadgroup - 1) / threads_per_threadgroup` and keeping
+  the existing `id >= count` guard in the Metal kernels.
+- Kernel math, buffer layout, packed jump indices, combined output flags,
+  distance tracking, and DP predicate are unchanged.
+- The source gate now rejects reintroducing `dispatchThreads` in
+  `RunJacobianJumpWalkKernel` while preserving the existing packed-buffer
+  checks.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - candidate median `37,756,893.905525 mixed-add steps/sec`
+  - paired baseline median `25,763,516.307986 mixed-add steps/sec`
+  - paired speedup `1.465518x`
+  - candidate min `28,708,135.305072 mixed-add steps/sec`
+  - candidate max `39,217,770.951406 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+  - A non-multiple micro-benchmark with `sample_count=9` also returned
+    `correctness=true`, covering the ceiling dispatch shape.
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:

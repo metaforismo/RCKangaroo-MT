@@ -147,6 +147,13 @@ they are intentionally ignored by git.
   `run_98dfbad3-63fb-4970-b293-fa3f3449e6e3` at
   `25,244,587.273860 ops/sec` with `trusted=false`, so treat the local
   leaderboard effect as noisy.
+- `4d1cc10` dispatches the Metal jump-walk grid with explicit
+  `dispatchThreadgroups` instead of `dispatchThreads`, using a ceiling
+  `threadgroup_count` and the existing kernel-side `id >= count` guard. Paired
+  autoresearch kept it with candidate median `37,756,893.905525 ops/sec`
+  versus paired baseline median `25,763,516.307986 ops/sec`; distance and DP
+  checksums were unchanged. A `sample_count=9` micro-benchmark also returned
+  `correctness=true`, covering non-multiple grid sizes.
 
 ## Current Correctness Surface
 
