@@ -6,7 +6,7 @@ they are intentionally ignored by git.
 
 ## Baseline
 
-- Baseline commit: `a74eaee` (`perf: record Metal DP mask gain`).
+- Baseline commit: `d8f0c79` (`perf: record Metal jump index base gain`).
 - Hardware track: Apple Silicon M3 Metal, 10-core GPU, 16 GB RAM.
 - Score command: `metal-jacobian-jump-walk-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 50`.
 - Local Benchforge runs observed after adding the lab:
@@ -16,8 +16,17 @@ they are intentionally ignored by git.
   - main-worktree `accepted` score: `25,722,311.096430 ops/sec`
   - main-worktree submission: `sub_071211c2-eedb-4692-ad99-9bf0e9de876f`
   - main-worktree accepted run: `run_d53dea0b-08b6-4f5f-a1ac-ba6ecd371a23`
+  - post-jump-base local score: `30,990,357.579458 ops/sec`
+  - post-jump-base local run: `run_22aed968-ccae-440b-b02e-face51b800c0`
   - verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
+
+## Accepted Optimization Notes
+
+- `d8f0c79` precomputes the Metal jump-index base once per GPU thread. Paired
+  autoresearch kept it with candidate median `36,123,063.713799 ops/sec`
+  versus paired baseline median `29,592,623.352879 ops/sec`; distance and DP
+  checksums were unchanged.
 
 ## Current Correctness Surface
 
