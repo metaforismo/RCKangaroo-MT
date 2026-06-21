@@ -888,6 +888,48 @@ Commit: `21d2cb4` (`perf: schedule q base before Metal dp4 distance`)
   `verifier.trusted=false`, `platform=darwin`, `arch=arm64`, `cpus=Apple M3`.
   The local leaderboard placed this accepted run fifth at measurement time.
 
+### Metal DP4 Packed Input Infinity
+
+Commit: `a963a4d` (`perf: pack Metal dp4 infinity input`)
+
+- Changed only the public `steps_per_sample == 8` and `dp_bits == 4` Metal
+  kernel's input infinity buffer from `constant uint*` to `constant uchar*`.
+  The host now packs `p_infinity` to one byte per sample only when selecting
+  `jacobian_affine_walk_jump_table_steps8_dp4`; generic and verifier fallback
+  shapes keep the existing `uint32_t` input buffer.
+- The source gates now require the dp4 packed input path, the direct bool
+  infinity state, the q-base-before-distance ordering, and the generic
+  fallback path for non-public shapes.
+- Public oracle checks before promotion:
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp_stable`, `steps_per_sample=8`,
+  `jump_count=16`, and `dp_bits=4`:
+  - confirmation 1 speedup `1.190133x`
+  - confirmation 2 speedup `1.081899x`
+  - confirmation 3 speedup `1.432397x`
+  - `confirmation_status=keep`
+  - `status=keep`
+  - `correctness=true`
+- Candidate worktree verification passed:
+  - `python3 tests/check_metal_dp4_uchar_infinity_source.py`
+  - `sh tests/check_metal_kernels.sh`
+  - `make macos-check`
+- `make macos-check` passed on `main` after the fast-forward merge.
+- Benchforge doctor passed with only the expected `hosted-api` warning. Local
+  run `run_171b8a17-908c-4e9d-b673-f7df024bfe4f` scored
+  `18,060,317.733834 ops/sec`.
+- Local-public Benchforge verifier accepted submission
+  `sub_1cc10e05-76a9-4108-994d-949042388cfc` as run
+  `run_64462ed9-026e-4823-a8f7-9c1041946409` with score
+  `32,680,850.854894 ops/sec`, receipt hash
+  `2b9a4a74a2d58cf3013bcf90af215088f8c6cdf4f64371888acd4491b4d03942`,
+  `verifier.trusted=false`, `platform=darwin`, `arch=arm64`, `cpus=Apple M3`.
+  The candidate submission's local pre-verifier score was
+  `41,426,588.802440 ops/sec`.
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:

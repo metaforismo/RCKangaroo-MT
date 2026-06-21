@@ -96,6 +96,19 @@ they are intentionally ignored by git.
   - post-steps8-dp4 accepted score: `46,317,921.229795 ops/sec`
   - post-steps8-dp4 receipt hash:
     `f1cccd47b625caecc8b16c2cdac1204f935ca5382513c2e4ac12571abac49a82`
+  - post-dp4-packed-input-infinity local score: `18,060,317.733834 ops/sec`
+  - post-dp4-packed-input-infinity local run:
+    `run_171b8a17-908c-4e9d-b673-f7df024bfe4f`
+  - post-dp4-packed-input-infinity submission:
+    `sub_1cc10e05-76a9-4108-994d-949042388cfc`
+  - post-dp4-packed-input-infinity candidate score:
+    `41,426,588.802440 ops/sec`
+  - post-dp4-packed-input-infinity accepted run:
+    `run_64462ed9-026e-4823-a8f7-9c1041946409`
+  - post-dp4-packed-input-infinity accepted score:
+    `32,680,850.854894 ops/sec`
+  - post-dp4-packed-input-infinity receipt hash:
+    `2b9a4a74a2d58cf3013bcf90af215088f8c6cdf4f64371888acd4491b4d03942`
   - verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
 
@@ -239,6 +252,16 @@ they are intentionally ignored by git.
   `e8065d2aeb3548d29c8a133fb777b4e6be2ee8d751f4d65ae874cbbc9498b112`,
   `trusted=false`; it ranked fifth on the local leaderboard at measurement
   time.
+- `a963a4d` packs the public steps8 + `dp_bits=4` input infinity buffer to
+  one byte per sample while leaving generic/verifier fallback shapes on the
+  existing `uint32_t` input buffer. This is narrower than the older rejected
+  generic `macos-metal-u8-infinity` experiment. Stable paired autoresearch kept
+  it across three confirmations: `1.190133x`, `1.081899x`, `1.432397x`;
+  public checksum and DP counts were unchanged. The local-public verifier
+  accepted `sub_1cc10e05-76a9-4108-994d-949042388cfc` as
+  `run_64462ed9-026e-4823-a8f7-9c1041946409` at `32,680,850.854894 ops/sec`,
+  receipt `2b9a4a74a2d58cf3013bcf90af215088f8c6cdf4f64371888acd4491b4d03942`,
+  `trusted=false`.
 
 ## Rejected Retest Notes
 
