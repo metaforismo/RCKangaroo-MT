@@ -1264,6 +1264,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `46,336,900.254131` (`0.891848x`), while runs 2 and 3 were raw keeps at
   `1.151186x` and `1.046198x`. Keep the compiler-shaped dp4 loop; a pragma
   hint is too noisy to promote on this M3 Air.
+- `macos-metal-dp4-q-vec4-loads`: changing only the public dp4 kernel's affine
+  jump-table argument from scalar `ulong*` indexing to two `ulong4` loads per
+  jump preserved the full public oracle, including `distance_checksum`,
+  `dp_count=1000`, and `dp_checksum=0x30a7914972cba014`, but failed repeated
+  paired confirmation. `--confirm-runs 3` recorded `confirmation_status=discard`
+  with raw runs of `1.098654x`, `0.945560x`, and `1.202391x`. Keep the scalar
+  q-table load shape; the vector load version is not durable enough on this M3
+  Air.
 
 ## Next Research Targets
 

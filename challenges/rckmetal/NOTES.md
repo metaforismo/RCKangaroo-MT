@@ -405,6 +405,10 @@ they are intentionally ignored by git.
   Metal loop. The runtime compiler accepted it and the full DP oracle stayed
   intact, but stable paired confirmation discarded it: `0.891848x`,
   `1.151186x`, `1.046198x`. Keep the current compiler-shaped dp4 loop.
+- `373d008` changed the public dp4 affine jump-table reads to two `ulong4`
+  loads per step. Correctness and the full DP oracle stayed intact, but stable
+  paired confirmation discarded it: `1.098654x`, `0.945560x`, `1.202391x`.
+  Keep scalar q-table loads.
 
 ## Current Correctness Surface
 
