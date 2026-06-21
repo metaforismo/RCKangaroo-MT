@@ -6,7 +6,7 @@ they are intentionally ignored by git.
 
 ## Baseline
 
-- Baseline commit: `e41de58` (`perf: record Metal q-base shift gain`).
+- Baseline commit: `1273a54` (`perf: record Metal steps8 kernel gain`).
 - Hardware track: Apple Silicon M3 Metal, 10-core GPU, 16 GB RAM.
 - Score command: `metal-jacobian-jump-walk-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 50`.
 - Local Benchforge runs observed after adding the lab:
@@ -22,6 +22,8 @@ they are intentionally ignored by git.
   - post-output-base local run: `run_1a28f784-579d-4177-a089-db2af80d3d9e`
   - post-q-base-shift local score: `28,639,753.915254 ops/sec`
   - post-q-base-shift local run: `run_4df90d72-1f08-437d-b6d8-e5a1eef4e1e5`
+  - post-steps8-kernel local score: `30,268,511.454293 ops/sec`
+  - post-steps8-kernel local run: `run_1c90c406-7301-469b-a144-dd203ea596fb`
   - verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
 
@@ -40,6 +42,11 @@ they are intentionally ignored by git.
   with candidate median `26,896,574.393133 ops/sec` versus paired baseline
   median `20,301,093.835039 ops/sec`; distance and DP checksums were
   unchanged.
+- `7acdc28` adds a Metal jump-table kernel specialized for
+  `steps_per_sample == 8`, while preserving the generic fallback for all other
+  step counts. Paired autoresearch kept it with candidate median
+  `38,243,083.846592 ops/sec` versus paired baseline median
+  `34,828,506.038031 ops/sec`; distance and DP checksums were unchanged.
 
 ## Current Correctness Surface
 
