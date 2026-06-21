@@ -1088,6 +1088,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0x30a7914972cba014`. Keep the promoted `if (inf)` fallback-first
   spelling from `b8e1120`; the compiler did not reward the likely-path order on
   this M3 run.
+- `macos-metal-dp4-uchar-index`: narrowing the dp4 loop's local jump index to
+  `uchar` and casting back to `uint` for `jump_distances` and `q_base`
+  preserved all oracle fields, but did not survive confirmation. The first
+  paired run kept it: candidate median `38,098,881.915015 ops/sec` versus
+  baseline `27,330,823.387611 ops/sec`, `paired_speedup=1.393990`. The
+  confirmation discarded it: candidate median `30,444,886.448562 ops/sec`
+  versus baseline `33,237,046.959255 ops/sec`, `paired_speedup=0.915993`.
+  `correctness=true`, `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  and `dp_checksum=0x30a7914972cba014` in both runs. Treat this as unstable and
+  keep the promoted `uint jump_index` spelling until a stronger repeated signal
+  appears.
 
 ## Next Research Targets
 

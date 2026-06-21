@@ -306,6 +306,14 @@ they are intentionally ignored by git.
   `27,998,203.739620 ops/sec` versus baseline `28,161,283.758521 ops/sec`,
   `paired_speedup=0.994209`. Keep the promoted `b8e1120` fallback-first branch
   shape.
+- `da3086d` narrowed the public dp4 loop's `jump_index` local to `uchar` and
+  cast it back to `uint` for distance and q-table indexing. Correctness stayed
+  intact, but the signal was unstable: first paired run kept it at
+  `38,098,881.915015 ops/sec` versus baseline `27,330,823.387611 ops/sec`
+  (`1.393990x`), while confirmation discarded it at `30,444,886.448562
+  ops/sec` versus baseline `33,237,046.959255 ops/sec` (`0.915993x`). Do not
+  promote without stronger repeated evidence; keep the `uint jump_index`
+  baseline.
 
 ## Current Correctness Surface
 
