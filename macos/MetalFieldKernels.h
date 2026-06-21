@@ -704,8 +704,8 @@ kernel void jacobian_affine_walk_jump_table_steps8_dp4(constant ulong* p_xyz [[b
 
   for (uint step = 0; step < 8; step++) {
     uint jump_index = jump_indices[jump_base + step];
-    distance += jump_distances[jump_index];
     uint q_base = jump_index << 3;
+    distance += jump_distances[jump_index];
     JacobianValue out;
     if (inf) {
       out = jacobian_add_affine_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3, inf,

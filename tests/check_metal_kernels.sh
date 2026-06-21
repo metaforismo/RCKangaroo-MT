@@ -257,14 +257,16 @@ if ! awk '
 	in_walk && /inf = out.inf != 0/ { found_bool_inf_update_compare = 1 }
 	in_walk && /uint jump_base = id << 3/ { found_jump_base = 1 }
 	in_walk && /for \(uint step = 0; step < 8; step\+\+\)/ { found_fixed_loop = 1 }
+	in_walk && /distance \+= jump_distances\[jump_index\]/ { found_accumulate = 1; distance_line = NR }
+	in_walk && /uint q_base = jump_index << 3/ { found_q_base = 1; q_base_line = NR }
 	in_walk && /if \(inf\)/ { found_inf_guard = 1 }
 	in_walk && /jacobian_add_affine_values/ { found_generic_step = 1 }
 	in_walk && /jacobian_add_affine_finite_values/ { found_finite_step = 1 }
 	in_walk && /out_flags\[id\]/ { found_flags_store = 1 }
 	in_walk && /^}/ { in_walk = 0 }
-	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && !found_dynamic_dp_mask && found_dp4_mask && found_bool_inf && !found_bool_inf_compare && !found_uint_inf && found_bool_inf_update && !found_bool_inf_update_compare && found_jump_base && found_fixed_loop && found_inf_guard && found_generic_step && found_finite_step && found_flags_store) ? 0 : 1 }
+	END { exit (found_constant_p && found_constant_q && found_constant_inf && found_indices && found_distances && !found_dynamic_dp_mask && found_dp4_mask && found_bool_inf && !found_bool_inf_compare && !found_uint_inf && found_bool_inf_update && !found_bool_inf_update_compare && found_jump_base && found_fixed_loop && found_accumulate && found_q_base && q_base_line < distance_line && found_inf_guard && found_generic_step && found_finite_step && found_flags_store) ? 0 : 1 }
 ' "$tmp_source"; then
-	printf '%s\n' "jacobian_affine_walk_jump_table_steps8_dp4 does not keep the finite hot path with direct bool infinity state"
+	printf '%s\n' "jacobian_affine_walk_jump_table_steps8_dp4 does not keep the qbase-first finite hot path with direct bool infinity state"
 	exit 1
 fi
 
