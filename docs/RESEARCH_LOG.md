@@ -1298,6 +1298,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `--min-ms 500` check had absolute median `1.008415x` and pairwise median
   `0.947659x`. Keep the current early-return spelling unless a stable gate
   proves a durable win.
+- `macos-metal-branchless-addsubdouble`: replacing the conditional add/sub
+  branches in `field_add_values`, `field_sub_values`, and
+  `field_double_values` with masked limb selection preserved all public Metal
+  DP oracle fields (`distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`) and `make macos-check`, but failed stable
+  paired confirmation. `metal_jacobian_jump_walk_dp_stable --confirm-runs 3`
+  recorded raw runs of `1.429238x`, `0.518187x`, and `1.961694x`, therefore
+  `confirmation_status=discard`. A 5-pair `--min-ms 500` direct check measured
+  absolute median `0.809660x` and pairwise median `0.974441x`. Keep the current
+  branched field add/sub/double helpers; the branchless spelling appears to add
+  register/ALU cost without a durable M3 Air win.
 
 ## Next Research Targets
 

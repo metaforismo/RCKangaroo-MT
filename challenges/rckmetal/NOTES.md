@@ -424,6 +424,14 @@ they are intentionally ignored by git.
   `1.834335x`. Longer checks did not clear the bar: `--min-ms 200` median was
   `1.122399x`, but 5 paired `--min-ms 500` samples had absolute median
   `1.008415x` and pairwise median `0.947659x`. Keep the early-return spelling.
+- `c313c94` made `field_add_values`, `field_sub_values`, and
+  `field_double_values` use masked branchless conditional add/sub helpers.
+  `make macos-check` and the public DP oracle stayed intact
+  (`distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`), but stable confirmation discarded it:
+  `1.429238x`, `0.518187x`, `1.961694x`. A 5-pair `--min-ms 500` direct check
+  was also below the bar (`0.809660x` absolute median, `0.974441x` pairwise
+  median). Keep the current branched field helpers.
 
 ## Current Correctness Surface
 
