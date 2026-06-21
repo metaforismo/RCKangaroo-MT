@@ -900,10 +900,11 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 			return false;
 		}
 
-		id<MTLFunction> function = [library newFunctionWithName:@"jacobian_affine_walk_jump_table"];
+		const char* function_name = steps_per_sample == 8 ? "jacobian_affine_walk_jump_table_steps8" : "jacobian_affine_walk_jump_table";
+		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{
-			error = "failed to load jacobian_affine_walk_jump_table function";
+			error = std::string("failed to load ") + function_name + " function";
 			return false;
 		}
 
