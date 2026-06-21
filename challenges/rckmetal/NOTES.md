@@ -456,6 +456,11 @@ they are intentionally ignored by git.
   paired confirmation discarded it: `0.614190x`, `0.894849x`, `1.371729x`.
   Keep the current finite-path struct-return spelling; the M3 compiler appears
   to schedule it better than the larger in-place helper.
+- `c6b63f4` moved the finite mixed-add normal `H != 0` path before the rare
+  `H == 0` doubling/infinity edge path. Correctness, the infinity-tail
+  selftest, and the full DP oracle stayed intact, but stable paired
+  confirmation discarded it: `0.797689x`, `1.444925x`, `0.701535x`. Keep the
+  current edge-first helper order.
 - `9247265` changed standalone Metal `field_mul4_mod_p` from two modular
   doublings to a direct two-bit shift plus secp256k1 high-limb fold.
   Correctness stayed intact, but confirmation discarded it: `1.168038x`,

@@ -934,6 +934,13 @@ Commit: `a963a4d` (`perf: pack Metal dp4 infinity input`)
 
 These did not pass the performance gate or had a correctness/architecture issue:
 
+- `macos-metal-mixed-add-h-normal-first`: moving the finite mixed-add normal
+  `H != 0` path before the rare `H == 0` doubling/infinity edge path preserved
+  `make macos-check`, the infinity-tail selftest, and the full stable DP
+  oracle, but failed paired confirmation. Stable DP speedups were `0.797689x`,
+  `1.444925x`, and `0.701535x`, therefore `confirmation_status=discard`.
+  Keep the existing edge-first helper order; the normal-first source shape was
+  too unstable on M3.
 - `macos-metal-dp4-finite-inplace`: adding a DP4-only finite mixed-add helper
   that updates the local Jacobian limbs in place, instead of returning a
   `JacobianValue`, preserved `make macos-check` and the full stable DP oracle,
