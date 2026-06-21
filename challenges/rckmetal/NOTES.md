@@ -6,7 +6,7 @@ they are intentionally ignored by git.
 
 ## Baseline
 
-- Baseline commit: `d8f0c79` (`perf: record Metal jump index base gain`).
+- Baseline commit: `52c88e3` (`perf: record Metal output base gain`).
 - Hardware track: Apple Silicon M3 Metal, 10-core GPU, 16 GB RAM.
 - Score command: `metal-jacobian-jump-walk-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 50`.
 - Local Benchforge runs observed after adding the lab:
@@ -18,6 +18,8 @@ they are intentionally ignored by git.
   - main-worktree accepted run: `run_d53dea0b-08b6-4f5f-a1ac-ba6ecd371a23`
   - post-jump-base local score: `30,990,357.579458 ops/sec`
   - post-jump-base local run: `run_22aed968-ccae-440b-b02e-face51b800c0`
+  - post-output-base local score: `50,841,692.181350 ops/sec`
+  - post-output-base local run: `run_1a28f784-579d-4177-a089-db2af80d3d9e`
   - verifier trust: `false`
 - Treat these as local iteration baselines, not public proof.
 
@@ -27,6 +29,10 @@ they are intentionally ignored by git.
   autoresearch kept it with candidate median `36,123,063.713799 ops/sec`
   versus paired baseline median `29,592,623.352879 ops/sec`; distance and DP
   checksums were unchanged.
+- `52c88e3` reuses the packed Jacobian input base as the output base in the
+  Metal jump-table kernel. Paired autoresearch kept it with candidate median
+  `32,951,131.617042 ops/sec` versus paired baseline median
+  `29,806,708.480270 ops/sec`; distance and DP checksums were unchanged.
 
 ## Current Correctness Surface
 
