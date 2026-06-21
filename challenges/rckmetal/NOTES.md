@@ -450,6 +450,12 @@ they are intentionally ignored by git.
   `ulong4` loads. Correctness and the full DP oracle stayed intact, but stable
   paired confirmation discarded it: `1.121251x`, `0.764312x`, `0.921588x`.
   Keep scalar initial-state loads.
+- `959e118` added a DP4-only finite mixed-add helper that writes the local
+  Jacobian limbs and infinity flag in place instead of returning a
+  `JacobianValue`. Correctness and the full DP oracle stayed intact, but stable
+  paired confirmation discarded it: `0.614190x`, `0.894849x`, `1.371729x`.
+  Keep the current finite-path struct-return spelling; the M3 compiler appears
+  to schedule it better than the larger in-place helper.
 - `9247265` changed standalone Metal `field_mul4_mod_p` from two modular
   doublings to a direct two-bit shift plus secp256k1 high-limb fold.
   Correctness stayed intact, but confirmation discarded it: `1.168038x`,

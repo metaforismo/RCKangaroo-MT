@@ -934,6 +934,13 @@ Commit: `a963a4d` (`perf: pack Metal dp4 infinity input`)
 
 These did not pass the performance gate or had a correctness/architecture issue:
 
+- `macos-metal-dp4-finite-inplace`: adding a DP4-only finite mixed-add helper
+  that updates the local Jacobian limbs in place, instead of returning a
+  `JacobianValue`, preserved `make macos-check` and the full stable DP oracle,
+  but failed paired confirmation. Stable DP speedups were `0.614190x`,
+  `0.894849x`, and `1.371729x`, therefore `confirmation_status=discard`.
+  Keep the current compiler-shaped `JacobianValue` return on the finite DP4
+  path; the attempted register-pressure reduction was not durable on M3.
 - `macos-metal-dp4-uchar-flag-cast`: adding an explicit `uchar` cast around
   the public DP4 packed flag-store expression preserved `make macos-check` and
   the full stable DP oracle, but failed paired confirmation. Stable DP speedups
