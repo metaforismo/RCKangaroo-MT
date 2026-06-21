@@ -525,6 +525,30 @@ Commit: `b7122fb` (`perf: pack Metal jump indices to uint8`)
   - Note: this is a small-margin keep, but it reduces jump-index bandwidth in
     the Metal dispatch path without changing the CPU oracle surface.
 
+### Implicit Metal Uchar Index Promotion
+
+Commit: `505a654` (`perf: rely on Metal uchar index promotion`)
+
+- Removed the explicit `(uint)` cast when loading packed `uchar` jump indices in
+  the jump-walk kernels.
+- The destination variable remains `uint`, so the semantic value is unchanged;
+  this only tests the generated Metal code shape.
+- Paired M3 autoresearch against `main` for
+  `metal_jacobian_jump_walk_dp`, `steps_per_sample=8`, `jump_count=16`,
+  and `dp_bits=4`:
+  - candidate median `32,889,067.186241 mixed-add steps/sec`
+  - paired baseline median `25,877,502.674679 mixed-add steps/sec`
+  - paired speedup `1.270952x`
+  - candidate min `28,617,488.562270 mixed-add steps/sec`
+  - candidate max `36,398,807.719108 mixed-add steps/sec`
+  - `distance_checksum=0xa45f471493cace2f`
+  - `dp_count=1000`
+  - `dp_checksum=0x30a7914972cba014`
+  - `status=keep`
+  - `correctness=true`
+  - `threadgroup_limit=256`
+  - `threads_per_threadgroup=256`
+
 ## Rejected Or Non-Merged Experiments
 
 These did not pass the performance gate or had a correctness/architecture issue:
