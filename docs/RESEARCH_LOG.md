@@ -1678,6 +1678,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   discarded it with raw speedups of `1.120441x`, `0.898834x`, and `0.900900x`,
   therefore `confirmation_status=discard`. Keep the distance-table load; the
   implicit shift won one noisy run and then lost the stable gate.
+- `macos-metal-dynamic-limbfold-mixer`: tried replacing the dynamic Metal
+  in-kernel jump selector's 64-bit avalanche multiply with a lightweight
+  32-bit limb-fold/xorshift mixer over shifted `x/y/z` limbs, while adding a
+  temporary JSON `jump_mixer` marker and jump-bucket histogram oracle so the
+  faster partition function could not hide obvious skew. Correctness stayed
+  intact with source gates, `make macos-check`, the dynamic CLI test, and a
+  stable-shape smoke run; the 16384-sample histogram was reasonably balanced
+  (`min=7938`, `max=8359`, `max_deviation_ppm=31006`) and produced
+  `distance_checksum=0x0d545b572884b45e`, `dp_count=1003`, and
+  `dp_checksum=0xda21c96e8974048a`. Stable paired confirmation discarded it:
+  raw speedups were `1.028646x`, `0.690314x`, and `1.119847x`, therefore
+  `confirmation_status=discard`. Keep the current 64-bit avalanche mixer until
+  a lighter partition function wins all stable confirmations and has a durable
+  distribution-quality gate.
 - Added `metal_jacobian_dynamic_walk_dp_stable` plus the
   `macos-metal-jacobian-dynamic-walk-stable-bench` target so future dynamic
   Metal candidates can use the same three-sample autoresearch discipline as

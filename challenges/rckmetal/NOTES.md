@@ -672,6 +672,14 @@ they are intentionally ignored by git.
   distance-table load with `distance += (1UL << jump_index)`. Correctness and
   the stable dynamic oracle stayed intact, but paired confirmation discarded it:
   `1.120441x`, `0.898834x`, `0.900900x`. Keep the distance-table load.
+- `macos-metal-dynamic-limbfold-mixer` tried a dynamic-only 32-bit shifted-limb
+  xorshift mixer instead of the 64-bit avalanche multiply, with a temporary
+  histogram oracle to check partition quality. Correctness, `make macos-check`,
+  and the dynamic CLI gate stayed intact; the stable-shape histogram was
+  balanced enough (`min=7938`, `max=8359`, `max_deviation_ppm=31006`), but
+  paired confirmation discarded it: `1.028646x`, `0.690314x`, `1.119847x`.
+  Keep the current dynamic avalanche mixer until a lighter selector wins every
+  stable confirmation and keeps an explicit distribution-quality gate.
 - `metal_jacobian_dynamic_walk_dp_stable` now exists as a stable autoresearch
   gate for the dynamic Metal walk. Use it for future in-kernel jump-selection
   experiments after the target exists on both candidate and baseline refs.
