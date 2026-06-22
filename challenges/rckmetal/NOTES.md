@@ -1040,6 +1040,13 @@ they are intentionally ignored by git.
   it (`31,361,809.164586` versus `27,944,840.858156`, `1.122275x`), but
   confirmation discarded it (`19,168,913.507147` versus `20,875,904.079754`,
   `0.918232x`). Keep the current 12-limb AoS input for the public score path.
+- `macos-metal-public-dp4-local-jump-row` was rejected. Loading
+  `AffineJumpValue jump = q_xy[jump_index]` once per step preserved the public
+  and verifier fallback oracles, but stable paired confirmation discarded it:
+  `0.485932x` and `0.716055x`. Keep direct `q_xy[jump_index].x*/y*` field
+  operands in the public precomputed-index DP4 kernel; the local row spelling
+  appears to worsen the M3 compiler/register shape here, despite helping some
+  sparse stream kernels.
 
 ## Current Correctness Surface
 

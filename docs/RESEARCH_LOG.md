@@ -2332,6 +2332,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   baseline `20,875,904.079754` ops/sec (`paired_speedup=0.918232`). Keep the
   promoted AoS input layout for the public DP4 path; initial memory-coalescing
   wins are not stable enough to offset the changed compiler/kernel shape.
+- `macos-metal-public-dp4-local-jump-row`: rejected loading
+  `AffineJumpValue jump = q_xy[jump_index]` once per public DP4 step. The
+  public smoke oracle stayed intact (`distance_checksum=0xa45f471493cace2f`,
+  `dp_count=1000`, `dp_checksum=0x30a7914972cba014`) and the verifier fallback
+  shape stayed intact (`distance_checksum=0xbab72b58ebefa9dc`, `dp_count=249`,
+  `dp_checksum=0x4a7f2853a4a9f546`), but stable paired confirmation discarded
+  it. Raw speedups were `0.485932x` and `0.716055x`; final candidate median
+  was `21,962,885.587314` versus baseline `30,672,067.959967` ops/sec. Keep
+  the current direct `q_xy[jump_index].x*/y*` spelling for the public DP4
+  precomputed-index kernel.
 
 ## Next Research Targets
 
