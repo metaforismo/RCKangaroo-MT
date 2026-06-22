@@ -1328,6 +1328,15 @@ they are intentionally ignored by git.
   (`max_deviation_ppm=2279`) and was oracle-correct, but five pairs versus
   accepted avalanche XYZZ `steps512` had median `0.999157x`. Keep
   `avalanche64`.
+- `macos-metal-dp8-xyzz-saturated-batch` was accepted as an operational Mac
+  throughput gate, not a kernel/math shortcut. With accepted XYZZ `steps512`,
+  `--iterations 262144 --min-ms 500` reached a three-run median
+  `121,797,922.693007` steps/sec, stayed oracle-clean (`dp_count=1015`,
+  `output_bytes_total=20300`, `max_deviation_ppm=759`, `correctness=true`),
+  and now has its own Makefile/autoresearch target. Keep the historical
+  `steps512@16384` gate for fair packet-size comparisons; at saturated batch
+  size, `steps512` versus `steps256` was near parity (median `1.001235x`).
+  Extra threadgroup cap sweeps did not beat the default 128-thread cap.
 
 ## Current Correctness Surface
 

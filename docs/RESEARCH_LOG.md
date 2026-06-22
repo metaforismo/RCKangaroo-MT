@@ -2717,6 +2717,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `1.026622x`, `1.019740x`, `0.994033x`, `0.999157x`, and `0.996267x`
   (median `0.999157x`, mean `1.007164x`). Keep `avalanche64`; the partition
   mixer is not the next limiting cost for the XYZZ packet kernel.
+- `macos-metal-dp8-xyzz-saturated-batch`: accepted a separate operational
+  benchmark for the promoted XYZZ `steps512` packet using a 262144-state batch.
+  This is not a new mathematical shortcut and not a packet-size comparison; it
+  records the batch size needed to saturate the M3 Air GPU more consistently.
+  Three-run `--min-ms 500` medians rose from `110,036,117.399121` steps/sec at
+  `iterations=16384` to `118,510,442.585526` at `65536`,
+  `121,601,740.083494` at `131072`, and `121,797,922.693007` at `262144`.
+  The largest run stayed oracle-clean with `dp_count=1015`,
+  `output_bytes_total=20300`, `jump_histogram_max_deviation_ppm=759`, and
+  `correctness=true`. At this saturated batch size, `steps512` and `steps256`
+  were near parity in three alternating pairs (median `1.001235x`, mean
+  `1.010083x`), so keep the historical `steps512@16384` experiment as the fair
+  packet-size gate and use
+  `macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-saturated-bench` for
+  peak-throughput Mac benchmarking. A broader runtime-only threadgroup sweep
+  also failed to beat the default 128-thread cap (`tg64` median `0.995565x`,
+  `tg96` median `0.982280x`), so leave the cap unchanged.
 
 ## Next Research Targets
 
