@@ -2276,6 +2276,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `max=34,517,404.415027`). A same-turn Benchforge local run at
   `18,036,840.326574` ops/sec was lower, so treat single local Benchforge runs
   as noisy and keep using paired/stable gates for promotion decisions.
+- `macos-metal-dynamic-dp16-large-stream-gate`: accepted a command-backed
+  autoresearch gate for very sparse DP16 stream experiments using
+  `--iterations 65536 --steps 8 --jumps 16 --dp-bits 16 --min-ms 200`. The
+  smaller `sample_count=16384` DP16 shape emitted zero records and is not a
+  useful stream gate. The large shape emits one record and preserved the oracle:
+  `emitted_records=1`, `output_bytes_total=20`,
+  `dp_distance_checksum=0x9e3779b97f4bab4a`,
+  `dp_checksum=0xebe643771995a1fa`, and `correctness=true`. Baseline median at
+  the shared 256 default was `52,989,830.333319` DP16 steps/sec
+  (`min=32,678,324.080216`, `max=70,280,067.920733`). Manual sweeps did not
+  justify a default change: DP14 was order-sensitive with one emitted record,
+  and DP16-large kept 256/512 close enough that a 512 default would be another
+  noisy scheduling bet rather than a confirmed improvement.
 - `macos-metal-dynamic-dp8-stream-tg-sweep-after-no-overflow`: recorded a
   manual explicit `--tg-limit` sweep after accepting the DP8 no-overflow
   branch. No production code changed. The DP8 stream oracle stayed unchanged

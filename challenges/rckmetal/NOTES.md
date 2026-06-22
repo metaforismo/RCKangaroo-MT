@@ -1010,6 +1010,13 @@ they are intentionally ignored by git.
   `27,922,343.656972` ops/sec over three 200 ms samples. A same-turn local
   Benchforge run measured `18,036,840.326574` ops/sec, confirming that single
   local score runs are too noisy for promotion decisions.
+- `macos-metal-dynamic-dp16-large-stream-gate` adds a reusable gate for very
+  sparse DP16 stream experiments. The ordinary `sample_count=16384` DP16 shape
+  emitted zero records, so the gate uses `--iterations 65536` and emits one
+  record with `dp_distance_checksum=0x9e3779b97f4bab4a`,
+  `dp_checksum=0xebe643771995a1fa`, and `correctness=true`. Initial median was
+  `52,989,830.333319` steps/sec at the existing 256 default. No DP16 default
+  threadgroup change was promoted; manual 256/512 sweeps were too close/noisy.
 - A manual post-DP8-no-overflow `--tg-limit` sweep kept the existing 256
   default. With the accepted DP8 no-overflow kernel and unchanged oracle
   (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,
