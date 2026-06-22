@@ -1809,6 +1809,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   count-only DP8 baseline median `53,546,106.476522`. Do not promote this
   specialization; the first-infinity branch is not the next useful bottleneck
   on the local M3 profile.
+- `macos-metal-dynamic-dp-stream-group-reserve`: rejected a stream-emission
+  variant that used threadgroup-local DP counting plus one global reservation
+  per threadgroup, then wrote each DP record into that reserved block. The
+  oracle stayed intact (`emitted_records=61`,
+  `dp_checksum=0xab1c2cd29cd70a84`,
+  `dp_distance_checksum=0x822e141de4770a0b`, no overflow), but the final clean
+  DP8 autoresearch run on commit `e48ade7` discarded it: median
+  `34,241,001.868863` steps/sec across three samples
+  (`min=30,214,085.775297`, `max=56,510,398.787670`) versus the existing DP8
+  stream baseline median `37,013,170.931979`. A preliminary DP4 run with the
+  same group-reserve strategy also discarded at median `38,666,572.600191`
+  steps/sec. Keep the simple per-record global atomic path; the extra
+  threadgroup synchronization is not a durable win on this M3 profile.
 
 ## Next Research Targets
 

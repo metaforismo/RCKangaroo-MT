@@ -742,6 +742,15 @@ they are intentionally ignored by git.
   `41,917,696.770121` steps/sec (`min=39,051,687.094501`,
   `max=59,087,644.282271`) versus the count-only DP8 baseline median
   `53,546,106.476522`, with `dp_count=61`. Do not promote this specialization.
+- `macos-metal-dynamic-dp-stream-group-reserve` was rejected. It used
+  threadgroup-local DP counting and one global reservation per threadgroup
+  before writing sparse DP stream records. Correctness stayed intact for DP8
+  (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,
+  `dp_distance_checksum=0x822e141de4770a0b`), but clean autoresearch on
+  commit `e48ade7` discarded it: median `34,241,001.868863` steps/sec
+  (`min=30,214,085.775297`, `max=56,510,398.787670`) versus DP8 stream
+  baseline `37,013,170.931979`. A preliminary DP4 run also discarded at median
+  `38,666,572.600191` steps/sec. Keep the simpler per-record global atomic.
 
 ## Current Correctness Surface
 
