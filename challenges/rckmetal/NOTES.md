@@ -1341,7 +1341,8 @@ they are intentionally ignored by git.
   peak-throughput probe. The 524288-state batch beat the 262144-state saturated
   gate in three alternating pairs with median `1.011536x` and stayed
   oracle-clean (`dp_count=1976`, `output_bytes_total=39520`,
-  `max_deviation_ppm=553`, `correctness=true`). A 1048576-state scout reached
+  `max_deviation_ppm=553`, `correctness=true`). Autoresearch kept it with
+  runner median `124,648,214.520876` steps/sec. A 1048576-state scout reached
   `125,056,788.093871` steps/sec and stayed correct, but is not promoted yet
   because the gain over 524288 was small for much slower validation.
 
