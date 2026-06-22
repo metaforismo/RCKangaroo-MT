@@ -54,6 +54,8 @@ required_host_markers = (
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_dp8_pow2_u32_distance\"",
     "\\\"state_layout\\\":\\\"xyzz\\\"",
     "steps_per_sample != 256 && steps_per_sample != 512",
+    "CanAccumulateDistanceU32(jump_distances, steps_per_sample)",
+    "XYZZ dynamic dp stream packet distance exceeds uint32 accumulator",
 )
 for marker in required_host_markers:
     if marker not in host_source:

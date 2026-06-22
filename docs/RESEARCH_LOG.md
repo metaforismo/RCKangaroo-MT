@@ -2680,6 +2680,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   autoresearch still discarded it: final candidate `105,641,474.264747`
   versus baseline `107,077,069.857827` steps/sec (`0.986593x`). Keep the
   distance-table load in the promoted XYZZ packet path.
+- `macos-metal-dp8-packet-u32-distance-guard`: accepted a correctness guard
+  for packet kernels that accumulate per-dispatch scalar distance in `uint32`.
+  The accepted in-place `steps256` and XYZZ `steps512` paths are valid at
+  `jumps=16`, but `jumps=32` can make
+  `max_jump_distance * steps_per_sample` exceed `UINT32_MAX`. Small benchmark
+  samples can hide this because no distinguished-point record is emitted, so
+  the bench wrappers now reject the configuration before dispatch with
+  `correctness=false` and an explicit reason. The hidden-test shape
+  `xyzz --iterations 128 --steps 512 --jumps 32 --dp-bits 8` reports
+  `reason="XYZZ dynamic dp stream packet distance exceeds uint32 accumulator"`;
+  the in-place shape `--iterations 128 --steps 256 --jumps 32 --dp-bits 8`
+  reports the analogous in-place reason. This is a correctness-surface
+  promotion, not a speed claim.
 
 ## Next Research Targets
 

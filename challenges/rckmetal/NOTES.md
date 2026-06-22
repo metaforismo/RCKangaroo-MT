@@ -1312,6 +1312,12 @@ they are intentionally ignored by git.
   packet `jump_distances[jump_index]` load with `1U << jump_index`, preserving
   the accepted `steps512` oracle, but paired autoresearch discarded it at
   `0.986593x`. Keep the table load.
+- `macos-metal-dp8-packet-u32-distance-guard` was accepted as a correctness
+  guard, not a speedup. Packet kernels keep an internal `uint32` scalar
+  distance accumulator, so `jumps=32` can overflow at the accepted large packet
+  sizes (`in-place steps256`, `XYZZ steps512`). The bench wrappers now reject
+  those shapes before Metal dispatch with `correctness=false` and explicit
+  reasons instead of relying on emitted DP records to expose the mismatch.
 
 ## Current Correctness Surface
 

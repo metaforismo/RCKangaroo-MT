@@ -2026,6 +2026,11 @@ static bool RunJacobianDynamicDpStreamInplaceKernel(const std::vector<CpuJacobia
 		error = "invalid jacobian dynamic dp stream in-place input";
 		return false;
 	}
+	if (!CanAccumulateDistanceU32(jump_distances, steps_per_sample))
+	{
+		error = "in-place dynamic dp stream packet distance exceeds uint32 accumulator";
+		return false;
+	}
 
 	std::vector<uint64_t> p_xyz;
 	std::vector<uint64_t> q_xy;
@@ -2212,6 +2217,11 @@ static bool RunJacobianDynamicDpStreamXyzzKernel(const std::vector<CpuJacobianPo
 	if (p.empty() || jumps.empty() || jumps.size() != jump_distances.size() || (steps_per_sample != 256 && steps_per_sample != 512) || dp_bits != 8 || !IsMetalPowerOfTwo((unsigned int)jumps.size()) || jumps.size() > 32)
 	{
 		error = "invalid jacobian dynamic dp stream XYZZ input";
+		return false;
+	}
+	if (!CanAccumulateDistanceU32(jump_distances, steps_per_sample))
+	{
+		error = "XYZZ dynamic dp stream packet distance exceeds uint32 accumulator";
 		return false;
 	}
 
@@ -4115,6 +4125,11 @@ std::string RCKMetalJacobianDynamicDpStreamInplaceBenchJson(unsigned int iterati
 	std::vector<uint64_t> jump_distances;
 	BuildJacobianJumpWalkSamples(sample_count, jump_count, p, jumps);
 	BuildJacobianJumpDistances(jump_count, jump_distances);
+	if (!CanAccumulateDistanceU32(jump_distances, steps_per_sample))
+	{
+		std::string reason = "in-place dynamic dp stream packet distance exceeds uint32 accumulator";
+		return MetalJacobianDynamicDpStreamBenchJson("jacobian_affine_walk_dynamic_dp_stream_inplace", (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, false, false, reason);
+	}
 
 	std::vector<CpuJacobianPoint> state_out;
 	std::vector<uint32_t> out_indices;
@@ -4190,6 +4205,11 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzBenchJson(unsigned int iterations
 	std::vector<uint64_t> jump_distances;
 	BuildJacobianJumpWalkSamples(sample_count, jump_count, p, jumps);
 	BuildJacobianJumpDistances(jump_count, jump_distances);
+	if (!CanAccumulateDistanceU32(jump_distances, steps_per_sample))
+	{
+		std::string reason = "XYZZ dynamic dp stream packet distance exceeds uint32 accumulator";
+		return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, false, false, reason);
+	}
 
 	std::vector<CpuXyzzPoint> state_out;
 	std::vector<uint32_t> out_indices;

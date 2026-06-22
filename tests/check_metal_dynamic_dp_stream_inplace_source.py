@@ -63,22 +63,24 @@ required_host_markers = (
     "\"jacobian_affine_walk_dynamic_dp_stream_inplace_steps32_dp8_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_inplace_steps64_dp8_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_inplace_steps128_dp8_pow2_u32_distance\"",
-    "\"jacobian_affine_walk_dynamic_dp_stream_inplace_steps256_dp8_pow2_u32_distance\"",
-    "\"jacobian_affine_walk_dynamic_dp_stream_inplace\"",
-    "ValidateDynamicStateOutputs",
+	"\"jacobian_affine_walk_dynamic_dp_stream_inplace_steps256_dp8_pow2_u32_distance\"",
+	"\"jacobian_affine_walk_dynamic_dp_stream_inplace\"",
+	"ValidateDynamicStateOutputs",
+	"CanAccumulateDistanceU32(jump_distances, steps_per_sample)",
+	"in-place dynamic dp stream packet distance exceeds uint32 accumulator",
 )
 for marker in required_host_markers:
-    if marker not in host_source:
-        raise SystemExit("missing in-place DP8 stream host marker: " + marker)
+	if marker not in host_source:
+		raise SystemExit("missing in-place DP8 stream host marker: " + marker)
 
 for marker in (
     "EffectiveDynamicDpStreamInplaceThreadgroupLimit",
-    "EffectiveDynamicDpStreamInplaceThreadgroupLimit(threadgroup_limit, dp_bits, steps_per_sample)",
-    "steps_per_sample >= 16",
-    "return (NSUInteger)128;",
+	"EffectiveDynamicDpStreamInplaceThreadgroupLimit(threadgroup_limit, dp_bits, steps_per_sample)",
+	"steps_per_sample >= 16",
+	"return (NSUInteger)128;",
 ):
-    if marker not in host_source:
-        raise SystemExit("missing in-place DP8 stream threadgroup policy marker: " + marker)
+	if marker not in host_source:
+		raise SystemExit("missing in-place DP8 stream threadgroup policy marker: " + marker)
 
 inplace_host_start = host_source.index("static bool RunJacobianDynamicDpStreamInplaceKernel")
 inplace_host_end = host_source.index("static bool RunJacobianDynamicDpCountKernel", inplace_host_start)

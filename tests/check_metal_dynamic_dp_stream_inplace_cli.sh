@@ -138,3 +138,21 @@ case "$steps256_output" in
 		exit 1
 		;;
 esac
+
+overflow_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-inplace-bench --iterations 128 --steps 256 --jumps 32 --dp-bits 8 --min-ms 1 2>&1)"
+overflow_status=$?
+if [ "$overflow_status" -ne 0 ]; then
+	printf 'metal-jacobian-dynamic-dp-stream-inplace-bench overflow guard returned status %s\n' "$overflow_status"
+	printf '%s\n' "$overflow_output"
+	exit 1
+fi
+
+case "$overflow_output" in
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_inplace\""*"\"steps_per_sample\":256"*"\"jump_count\":32"*"\"correctness\":false"*"\"reason\":\"in-place dynamic dp stream packet distance exceeds uint32 accumulator\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected metal-jacobian-dynamic-dp-stream-inplace-bench overflow guard output"
+		printf '%s\n' "$overflow_output"
+		exit 1
+		;;
+esac
