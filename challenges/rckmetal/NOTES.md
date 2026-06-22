@@ -1181,6 +1181,16 @@ they are intentionally ignored by git.
   `--min-ms 500` pairs fell below the gate at median `1.009593x` with speedups
   from `0.975577x` to `1.025456x`. Keep the accepted ladder at 256 steps until
   a later change produces a clearer paired win.
+- `macos-metal-dp8-inplace-u32-distances` was rejected. It changed only the
+  in-place packet kernels' jump-distance table from `constant ulong*` to
+  `constant uint*` and added a host distance-fit guard, while preserving the
+  accepted `steps256` oracle (`emitted_records=57`,
+  `dp_distance_checksum=0x0ab81bcdffe988ca`,
+  `dp_checksum=0xbb961e8e4fffeeb0`, `correctness=true`). Paired autoresearch
+  against `main` discarded the candidate: final median candidate
+  `89,514,131.722479` versus baseline `91,969,442.817225` steps/sec
+  (`paired_speedup=0.973303`). The tiny distance table is not the limiting
+  memory path for this kernel family on the M3 Air.
 
 ## Current Correctness Surface
 

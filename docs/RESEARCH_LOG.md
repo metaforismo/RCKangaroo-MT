@@ -2509,6 +2509,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `1.009593x` with range `0.975577x..1.025456x`. The packet ladder appears to
   be at a local plateau on this M3 Air; keep `steps256` as the largest accepted
   packet for now.
+- `macos-metal-dp8-inplace-u32-distances`: rejected changing the in-place
+  packet kernels' jump-distance buffer from `constant ulong*` to
+  `constant uint*`. The candidate preserved the accepted `steps256` oracle
+  (`emitted_records=57`, `dp_distance_checksum=0x0ab81bcdffe988ca`,
+  `dp_checksum=0xbb961e8e4fffeeb0`, `correctness=true`) and added a host
+  distance-fit guard, but paired autoresearch against `main` discarded it:
+  candidate median `89,514,131.722479` versus baseline
+  `91,969,442.817225` steps/sec (`paired_speedup=0.973303`). Keep the 64-bit
+  distance table; this buffer is too small/cached to justify the changed
+  kernel shape.
 
 ## Next Research Targets
 
