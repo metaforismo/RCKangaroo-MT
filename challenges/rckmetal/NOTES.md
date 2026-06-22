@@ -644,6 +644,11 @@ they are intentionally ignored by git.
   runs and the stable dynamic oracle, but paired autoresearch confirmation
   discarded it: `1.075168x`, `1.071071x`, `0.991099x`. Keep direct
   `q_xy[jump_index].field` access until a repeatable dynamic gain appears.
+- `macos-metal-dynamic-u32-mask` tried `((uint)mixed) & jump_mask` in the
+  dynamic pow2 DP4 kernel. Correctness and `make macos-check` stayed intact,
+  including pow2/modulo smoke runs and the stable dynamic oracle, but paired
+  autoresearch confirmation discarded it: `0.684326x`, `1.196446x`,
+  `1.062018x`. Keep the current 64-bit mask spelling for now.
 - `metal_jacobian_dynamic_walk_dp_stable` now exists as a stable autoresearch
   gate for the dynamic Metal walk. Use it for future in-kernel jump-selection
   experiments after the target exists on both candidate and baseline refs.

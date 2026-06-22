@@ -1619,6 +1619,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `confirmation_status=discard`. The first two runs were promising, but the
   third missed the 1% gate; keep direct `q_xy[jump_index].field` accesses for
   now.
+- `macos-metal-dynamic-u32-mask`: tried computing the dynamic pow2 DP4 jump
+  index as `((uint)mixed) & jump_mask` instead of
+  `(uint)(mixed & (ulong)jump_mask)`. This is equivalent for the supported
+  `jumps <= 32` dynamic path, and correctness stayed intact with
+  `make macos-check`, the dynamic selftest, pow2/modulo smoke runs, and the
+  stable dynamic oracle (`distance_checksum=0x5c36c706ffa2cbaa`,
+  `dp_count=1017`, `dp_checksum=0xbfd3b2319760e774`), but paired
+  autoresearch confirmation discarded it: `0.684326x`, `1.196446x`,
+  `1.062018x`, therefore `confirmation_status=discard`. Keep the current
+  64-bit mask spelling until a broader compiler-shape change makes this stable.
 - Added `metal_jacobian_dynamic_walk_dp_stable` plus the
   `macos-metal-jacobian-dynamic-walk-stable-bench` target so future dynamic
   Metal candidates can use the same three-sample autoresearch discipline as
