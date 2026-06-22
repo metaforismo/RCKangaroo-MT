@@ -988,6 +988,14 @@ they are intentionally ignored by git.
   `paired_speedup=1.107058`. The DP12 oracle stayed unchanged:
   `emitted_records=3`, `dp_distance_checksum=0xfb58c602127bde02`,
   `dp_checksum=0xccdf6d15eaf2c6b0`, and `correctness=true`.
+- `macos-metal-dynamic-dp10-stream-tg512-default` was rejected. Forward and
+  reverse explicit sweeps were order-sensitive, and the paired gate confirmed
+  the risk: first run kept the 512 default at `paired_speedup=1.064623`, but
+  the two-run confirmation discarded it at `paired_speedup=0.942086`. The DP10
+  oracle stayed unchanged (`emitted_records=15`,
+  `dp_distance_checksum=0xb6973c2035ff6351`,
+  `dp_checksum=0xcbfdc2badaf0e57a`, `correctness=true`). Keep DP10 on the
+  shared 256 default.
 - A manual post-DP8-no-overflow `--tg-limit` sweep kept the existing 256
   default. With the accepted DP8 no-overflow kernel and unchanged oracle
   (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,
