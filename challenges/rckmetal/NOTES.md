@@ -724,7 +724,9 @@ they are intentionally ignored by git.
   `dp_distance_checksum=0x822e141de4770a0b`, while the adjacent DP4 stream
   oracle stayed at `1017` records and `dp_checksum=0xbfd3b2319760e774`. Treat
   this as an accepted high-`dp_bits` measurement surface, not a change in
-  kangaroo asymptotics.
+  kangaroo asymptotics. Clean autoresearch on commit `0bf960d` recorded
+  `status=keep`, median `37,013,170.931979` steps/sec across three stable
+  samples, `output_bytes_total=1220`, `emitted_records=61`, and no overflow.
 
 ## Current Correctness Surface
 

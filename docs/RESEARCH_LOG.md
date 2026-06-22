@@ -1769,7 +1769,11 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0xbfd3b2319760e774`, `dp_distance_checksum=0x19e43ca50eec2a74`)
   and measured `48.429M` steps/sec in that run. Treat this as an accepted
   sparse-emission capability and a better high-`dp_bits` measurement surface;
-  it does not change the underlying kangaroo search complexity.
+  it does not change the underlying kangaroo search complexity. Clean
+  autoresearch on commit `0bf960d` recorded `status=keep`, median
+  `37,013,170.931979` steps/sec across three stable samples
+  (`min=36,486,346.807153`, `max=61,356,369.208598`), with
+  `output_bytes_total=1220`, `emitted_records=61`, and no stream overflow.
 
 ## Next Research Targets
 
