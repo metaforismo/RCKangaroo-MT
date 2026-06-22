@@ -1025,6 +1025,14 @@ they are intentionally ignored by git.
   `65,340,428.908829`, tg512 `63,549,730.568347`, and tg1024
   `64,773,844.447836` steps/sec. Do not retune DP8 threadgroup default from
   this sample.
+- `macos-metal-dynamic-dp16-stream-no-overflow-specialization` was rejected.
+  A DP16-only const-mask/no-overflow kernel kept correctness
+  (`emitted_records=1`, `output_bytes_total=20`,
+  `dp_distance_checksum=0x9e3779b97f4bab4a`,
+  `dp_checksum=0xebe643771995a1fa`) but lost badly in the paired gate:
+  candidate `58,886,361.624760` versus baseline `81,212,851.782611`
+  steps/sec (`paired_speedup=0.725087`). Keep sparse DP16 on the generic
+  runtime-mask u32-distance stream kernel.
 
 ## Current Correctness Surface
 

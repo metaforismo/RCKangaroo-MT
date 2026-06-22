@@ -2300,6 +2300,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `64,773,844.447836` DP8 steps/sec. Keep the existing 256 default; the
   accepted no-overflow branch does not justify reopening the previously
   rejected tg64 default.
+- `macos-metal-dynamic-dp16-stream-no-overflow-specialization`: rejected a
+  dedicated DP16 const-mask/no-overflow stream kernel. The candidate preserved
+  the sparse DP16-large oracle (`emitted_records=1`, `output_bytes_total=20`,
+  `dp_distance_checksum=0x9e3779b97f4bab4a`,
+  `dp_checksum=0xebe643771995a1fa`, `correctness=true`), but the paired
+  autoresearch gate discarded it: candidate median `58,886,361.624760` versus
+  baseline median `81,212,851.782611` DP16 steps/sec
+  (`paired_speedup=0.725087`). Keep DP16 on the generic runtime-mask
+  u32-distance stream kernel; the DP8 no-overflow success does not transfer to
+  very sparse DP16 on this M3 Air.
 
 ## Next Research Targets
 
