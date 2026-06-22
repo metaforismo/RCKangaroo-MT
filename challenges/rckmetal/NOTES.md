@@ -883,6 +883,12 @@ they are intentionally ignored by git.
   `metal_field_add` smoke row built once, preserved `correctness=true`, and
   recorded median `225,377,938.159104 ops/sec`; treat this as harness
   stabilization for future arithmetic experiments, not a solver-code speedup.
+- The stable DP8 dynamic stream gate now uses the same build-once command path.
+  The first smoke row preserved the DP8 stream oracle (`emitted_records=61`,
+  `dp_distance_checksum=0x822e141de4770a0b`,
+  `dp_checksum=0xab1c2cd29cd70a84`) and recorded median
+  `67,169,019.394725` steps/sec. Use this cleaner DP8 baseline for future
+  point-level experiments.
 - `macos-metal-dynamic-dp10-stream-specialization` was rejected. A dedicated
   DP10 const-mask sparse stream kernel preserved the oracle, but paired
   autoresearch discarded it: candidate median `54,324,631.189670` steps/sec

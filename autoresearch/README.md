@@ -26,8 +26,9 @@ probes that should not grow the Makefile, an experiment may instead set
 `make <build_target>`, then runs the explicit command for each sample and parses
 its final JSON line. Paired runs build each side once, then alternate the same
 benchmark command in the baseline and candidate worktrees. The core Metal field
-add, multiply, square, and fused square-mul gates use this form so arithmetic
-kernel experiments do not pay a phony Make rebuild before every timing sample.
+add, multiply, square, fused square-mul, and stable DP8 stream gates use this
+form so arithmetic and stream experiments do not pay a phony Make rebuild
+before every timing sample.
 
 For especially noisy Metal candidates, require repeated full decisions before a keep can enter the ledger:
 

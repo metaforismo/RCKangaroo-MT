@@ -15,13 +15,13 @@ def check_command_backed_gate(
 ) -> None:
     path = EXPERIMENTS / filename
     if not path.exists():
-        failures.append(f"{path.relative_to(ROOT)} missing command-backed Metal field gate")
+        failures.append(f"{path.relative_to(ROOT)} missing command-backed Metal gate")
         return
     data = json.loads(path.read_text(encoding="utf-8"))
     if data.get("build_target") != "macos-build":
         failures.append(f"{path.relative_to(ROOT)} build_target should use macos-build")
     if data.get("bench_command") != command:
-        failures.append(f"{path.relative_to(ROOT)} bench_command should run the direct Metal field CLI")
+        failures.append(f"{path.relative_to(ROOT)} bench_command should run the direct Metal CLI")
     if int(data.get("sample_runs", 0)) < 3:
         failures.append(f"{path.relative_to(ROOT)} sample_runs={data.get('sample_runs')}, expected >= 3")
 
@@ -128,13 +128,26 @@ def main() -> int:
         failures.append(f"{stream_dynamic_dp8_path.relative_to(ROOT)} missing dynamic DP stream dp8 gate")
     else:
         stream_dynamic_dp8 = json.loads(stream_dynamic_dp8_path.read_text(encoding="utf-8"))
-        if stream_dynamic_dp8.get("bench_target") != "macos-metal-jacobian-dynamic-dp-stream-dp8-stable-bench":
-            failures.append(f"{stream_dynamic_dp8_path.relative_to(ROOT)} bench_target should use the stable dynamic DP stream dp8 make target")
+        expected_command = [
+            "./macos/rck_macos",
+            "metal-jacobian-dynamic-dp-stream-bench",
+            "--iterations",
+            "16384",
+            "--steps",
+            "8",
+            "--jumps",
+            "16",
+            "--dp-bits",
+            "8",
+            "--min-ms",
+            "200",
+        ]
+        if stream_dynamic_dp8.get("build_target") != "macos-build":
+            failures.append(f"{stream_dynamic_dp8_path.relative_to(ROOT)} build_target should use macos-build")
+        if stream_dynamic_dp8.get("bench_command") != expected_command:
+            failures.append(f"{stream_dynamic_dp8_path.relative_to(ROOT)} bench_command should run the DP8 stream CLI")
         if int(stream_dynamic_dp8.get("sample_runs", 0)) < 3:
             failures.append(f"{stream_dynamic_dp8_path.relative_to(ROOT)} sample_runs={stream_dynamic_dp8.get('sample_runs')}, expected >= 3")
-
-    if "macos-metal-jacobian-dynamic-dp-stream-dp8-stable-bench:" not in makefile:
-        failures.append("Makefile missing macos-metal-jacobian-dynamic-dp-stream-dp8-stable-bench target")
 
     stream_dynamic_dp10_path = EXPERIMENTS / "metal_jacobian_dynamic_dp_stream_dp10.json"
     if not stream_dynamic_dp10_path.exists():

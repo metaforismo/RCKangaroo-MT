@@ -68,6 +68,13 @@ GPU work should use Metal.
   `metal_field_add` smoke run on the local M3 built once, ran three direct
   samples, kept the CPU oracle (`correctness=true`), and recorded median
   `225,377,938.159104 ops/sec`.
+- Converted the stable DP8 dynamic stream gate to `build_target=macos-build`
+  plus an explicit `bench_command`. The first smoke run preserved the DP8
+  stream oracle (`emitted_records=61`,
+  `dp_distance_checksum=0x822e141de4770a0b`,
+  `dp_checksum=0xab1c2cd29cd70a84`) and recorded median
+  `67,169,019.394725` steps/sec with one build followed by three direct
+  samples.
 
 ### Metal Dispatch Size Tuning
 
