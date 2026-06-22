@@ -2649,6 +2649,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `0.994181x`, `1.013145x`, `1.010970x`, `0.996255x`, and `0.995709x`
   (median `0.996255x`, mean `1.002052x`). Do not promote a non-power-of-two
   XYZZ packet unless it clears paired autoresearch, not just a quick run.
+- `macos-metal-dp8-xyzz-finite-add`: rejected splitting the XYZZ mixed-add into
+  a finite-state helper plus an explicit packet-loop branch for the rare
+  infinity case. This mirrored a useful Jacobian pattern, but on the XYZZ
+  packet kernels it likely increased inlined code/branch pressure more than it
+  saved. Correctness and the accepted `steps512` oracle stayed unchanged
+  (`emitted_records=76`,
+  `dp_distance_checksum=0x59171fb04821054e`,
+  `dp_checksum=0x979de1728771393c`, `dp_stream_overflow=false`,
+  `jump_histogram_max_deviation_ppm=2724`, and `correctness=true`).
+  Paired autoresearch against `main` discarded the candidate; the final
+  decision row measured `107,116,303.469940` versus baseline
+  `110,658,142.122193` steps/sec (`0.967993x`). Keep the compact generic XYZZ
+  add wrapper in the packet loop.
 
 ## Next Research Targets
 

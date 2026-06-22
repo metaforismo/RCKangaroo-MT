@@ -1299,6 +1299,11 @@ they are intentionally ignored by git.
   `dp_checksum=0xb0b7efeef3f178a8`, `correctness=true`), but five alternating
   `--min-ms 500` pairs versus accepted `steps512` had median `0.996255x` and
   mean `1.002052x`. Keep `steps512`.
+- `macos-metal-dp8-xyzz-finite-add` was rejected. It split the XYZZ mixed-add
+  into an explicit finite-state helper and a rare infinity branch in the packet
+  loop. Correctness/checksums matched accepted `steps512`, but paired
+  autoresearch discarded it; final speedup was `0.967993x`. Keep the current
+  compact generic XYZZ add wrapper.
 
 ## Current Correctness Surface
 
