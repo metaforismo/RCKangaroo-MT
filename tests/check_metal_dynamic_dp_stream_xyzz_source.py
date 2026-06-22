@@ -73,6 +73,9 @@ required_host_markers = (
     "ParallelForSamples(p.size()",
     "std::thread::hardware_concurrency()",
     "\\\"validation_seconds\\\"",
+    "emitted_indices_bytes",
+    "emitted_distances_bytes",
+    "emitted_dp_terms_bytes",
 )
 for marker in required_host_markers:
     if marker not in host_source:

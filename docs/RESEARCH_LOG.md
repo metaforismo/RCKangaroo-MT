@@ -75,6 +75,17 @@ GPU work should use Metal.
   `dp_checksum=0xab1c2cd29cd70a84`) and recorded median
   `67,169,019.394725` steps/sec with one build followed by three direct
   samples.
+- Accepted `macos-metal-dp-stream-emitted-copy`: the host DP stream readers now
+  copy only the dense emitted prefix from Metal output buffers instead of the
+  full `dp_capacity` arrays, preserving overflow handling and the sparse stream
+  oracle. This is a host-side cleanup, not a kernel speed claim. On a copy-bound
+  sparse case (`metal-jacobian-dynamic-dp-stream-bench --iterations 1048576
+  --steps 8 --jumps 8 --dp-bits 16 --min-ms 1`), baseline/candidate real times
+  were `0.67s/0.52s` and `0.54s/0.51s`; both preserved
+  `emitted_records=20`, `dp_distance_checksum=0x922cdf80931679e6`, and
+  `dp_checksum=0xb2b3088fcf6ad384`. On the persistent XYZZ `131072 x 512 x 4`
+  case, checksums were unchanged but validation time stayed dominated by CPU
+  replay, so this is promoted as less host memory traffic for sparse streams.
 - Added `metal_jacobian_dynamic_dp_stream_inplace`, a DP8 Metal stream kernel
   that updates each Jacobian state in-place on the GPU while emitting only
   sparse DP records. The oracle verifies both the DP stream and the final raw

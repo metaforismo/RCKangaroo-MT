@@ -168,6 +168,16 @@ they are intentionally ignored by git.
   (`paired_speedup=1.139820`) and `42,203,534.028814` versus
   `37,060,740.353657` (`paired_speedup=1.138767`). The DP8 oracle stayed
   unchanged.
+- `macos-metal-dp-stream-emitted-copy` copies only `emitted_records` dense DP
+  stream slots back from Metal buffers instead of reading full capacity arrays
+  before resizing. This applies to the generic, in-place, XYZZ, and persistent
+  XYZZ stream runners. Sparse copy-bound probe:
+  `metal-jacobian-dynamic-dp-stream-bench --iterations 1048576 --steps 8
+  --jumps 8 --dp-bits 16 --min-ms 1` kept `emitted_records=20`,
+  `dp_distance_checksum=0x922cdf80931679e6`, and
+  `dp_checksum=0xb2b3088fcf6ad384`; baseline/candidate real times were
+  `0.67s/0.52s` and `0.54s/0.51s`. Persistent XYZZ checksums also stayed fixed,
+  but that shape remains CPU-oracle dominated.
 - `macos-metal-dynamic-dp4-stream-local-jump-row` applies the same explicit
   affine row reuse to the DP4 sparse stream kernel. Paired autoresearch kept it
   with candidate median `65,061,282.305496 ops/sec` versus paired baseline
