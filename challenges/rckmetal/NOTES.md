@@ -1304,6 +1304,10 @@ they are intentionally ignored by git.
   loop. Correctness/checksums matched accepted `steps512`, but paired
   autoresearch discarded it; final speedup was `0.967993x`. Keep the current
   compact generic XYZZ add wrapper.
+- `macos-metal-dp8-xyzz-state-struct` was rejected. It changed the XYZZ state
+  buffer from raw `ulong*` indexing to a binary-compatible struct-row view.
+  Correctness/checksums matched accepted `steps512`, but paired autoresearch
+  discarded it at `0.991328x`. Keep the raw contiguous limb buffer.
 
 ## Current Correctness Surface
 

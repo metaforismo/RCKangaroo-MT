@@ -2662,6 +2662,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   decision row measured `107,116,303.469940` versus baseline
   `110,658,142.122193` steps/sec (`0.967993x`). Keep the compact generic XYZZ
   add wrapper in the packet loop.
+- `macos-metal-dp8-xyzz-state-struct`: rejected rewriting the XYZZ packet state
+  buffer from raw `ulong*` indexing to a `XyzzStateValue` struct-row view. The
+  binary layout was kept identical and correctness/checksums matched accepted
+  `steps512`, but the compiler did not turn the cleaner address expression into
+  a speedup. Paired autoresearch discarded the candidate with final
+  `106,925,077.911796` versus baseline `107,860,427.099762` steps/sec
+  (`0.991328x`). Keep the raw contiguous limb buffer for XYZZ state.
 
 ## Next Research Targets
 
