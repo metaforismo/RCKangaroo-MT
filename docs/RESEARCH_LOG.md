@@ -1668,6 +1668,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `confirmation_status=discard`. Keep the default 256-thread limit for dynamic
   runs; 512 can be explored manually with `--tg-limit` but is not a durable
   default on this M3 gate.
+- `macos-metal-dynamic-implicit-distance`: tried replacing the dynamic pow2 DP4
+  kernel's scalar-distance table load with `distance += (1UL << jump_index)`.
+  This is mathematically equivalent for the current dynamic jump-distance table
+  (`distance[i] = 2^i`) and kept the generic modulo path unchanged. Correctness
+  stayed intact with `make macos-check`, pow2/modulo dynamic smoke runs, and the
+  stable dynamic oracle (`distance_checksum=0x5c36c706ffa2cbaa`,
+  `dp_count=1017`, `dp_checksum=0xbfd3b2319760e774`), but paired confirmation
+  discarded it with raw speedups of `1.120441x`, `0.898834x`, and `0.900900x`,
+  therefore `confirmation_status=discard`. Keep the distance-table load; the
+  implicit shift won one noisy run and then lost the stable gate.
 - Added `metal_jacobian_dynamic_walk_dp_stable` plus the
   `macos-metal-jacobian-dynamic-walk-stable-bench` target so future dynamic
   Metal candidates can use the same three-sample autoresearch discipline as

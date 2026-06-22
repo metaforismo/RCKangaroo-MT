@@ -668,6 +668,10 @@ they are intentionally ignored by git.
   `--tg-limit` overrides. Correctness and the stable dynamic oracle stayed
   intact, but paired confirmation discarded it: `0.453954x`, `0.945385x`,
   `0.938971x`. Keep the 256 default; a short 512 sweep was not reproducible.
+- `macos-metal-dynamic-implicit-distance` tried replacing the dynamic pow2 DP4
+  distance-table load with `distance += (1UL << jump_index)`. Correctness and
+  the stable dynamic oracle stayed intact, but paired confirmation discarded it:
+  `1.120441x`, `0.898834x`, `0.900900x`. Keep the distance-table load.
 - `metal_jacobian_dynamic_walk_dp_stable` now exists as a stable autoresearch
   gate for the dynamic Metal walk. Use it for future in-kernel jump-selection
   experiments after the target exists on both candidate and baseline refs.
