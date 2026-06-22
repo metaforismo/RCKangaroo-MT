@@ -699,7 +699,9 @@ they are intentionally ignored by git.
   (`distance_checksum=0x5c36c706ffa2cbaa`, `dp_count=1017`,
   `dp_checksum=0xbfd3b2319760e774`), and passed `make macos-check`. Treat this
   as DP-emission layout infrastructure; the full dynamic walk remains the
-  final-state correctness reference.
+  final-state correctness reference. Clean autoresearch on commit `1a03888`
+  recorded `status=keep`, median `54,351,372.121311` steps/sec across three
+  stable samples, with `output_bytes_per_sample=17`.
 
 ## Current Correctness Surface
 

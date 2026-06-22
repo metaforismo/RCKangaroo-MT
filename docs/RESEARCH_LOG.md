@@ -1723,7 +1723,10 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `32.655M`), and a later warmed stable compact run reached `51.621M`. Treat
   this as promoted layout/correctness infrastructure for future GPU-side DP
   candidate emission, not yet proof that compact emission is always faster than
-  the full dynamic final-state oracle.
+  the full dynamic final-state oracle. Clean autoresearch on commit `1a03888`
+  recorded `status=keep`, median `54,351,372.121311` steps/sec across three
+  stable samples (`min=41,407,648.422616`, `max=58,936,405.734283`), with the
+  same dynamic oracle and `output_bytes_per_sample=17`.
 
 ## Next Research Targets
 
