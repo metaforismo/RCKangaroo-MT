@@ -2038,6 +2038,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   median `55,663,782.861444`, `paired_speedup=0.715635`. Keep DP6 on the
   generic runtime-mask u32-distance stream path; the new DP6 gate remains for
   future density-intermediate experiments.
+- `macos-metal-dynamic-dp8-stream-u32-output-distance`: rejected narrowing the
+  DP8 sparse stream record distance output from 64 to 32 bits. The prototype
+  reduced `output_bytes_per_record` from `20` to `16` and preserved the DP8
+  oracle (`emitted_records=61`,
+  `dp_distance_checksum=0x822e141de4770a0b`,
+  `dp_checksum=0xab1c2cd29cd70a84`), but paired autoresearch discarded it:
+  candidate median `32,233,487.865141` steps/sec
+  (`min=31,206,309.497131`, `max=53,615,043.294360`) versus paired baseline
+  median `38,353,440.458919`, `paired_speedup=0.840433`. Keep DP8 stream
+  record distances as 64-bit host-visible output; the saved output bytes do
+  not offset the extra host/path complexity on this M3 profile.
 
 ## Next Research Targets
 

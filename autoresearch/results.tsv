@@ -220,3 +220,4 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-22T09:53:05Z	0c18528-dirty	metal_jacobian_dynamic_dp_stream_dp10	metal	jacobian_affine_walk_dynamic_dp_stream	10878976	54324631.189670	true	discard	Metal dynamic Jacobian DP stream with runtime dp_bits=10 mask
 2026-06-22T09:57:23Z	9624a50-dirty	metal_jacobian_dynamic_dp_stream_dp10	metal	jacobian_affine_walk_dynamic_dp_stream	11141120	55120744.100756	true	discard	Metal dynamic Jacobian DP stream with runtime dp_bits=10 mask
 2026-06-22T10:01:43Z	98bc52a-dirty	metal_jacobian_dynamic_dp_stream_dp6	metal	jacobian_affine_walk_dynamic_dp_stream	7995392	39834931.340750	true	discard	Metal dynamic Jacobian DP stream with runtime dp_bits=6 mask
+2026-06-22T10:11:10Z	b6240da-dirty	metal_jacobian_dynamic_dp_stream_dp8	metal	jacobian_affine_walk_dynamic_dp_stream	6553600	32233487.865141	true	discard	Metal dynamic Jacobian DP stream with runtime dp_bits=8 mask

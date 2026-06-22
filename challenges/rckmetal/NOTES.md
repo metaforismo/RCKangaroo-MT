@@ -877,6 +877,11 @@ they are intentionally ignored by git.
   `dp_checksum=0xb302d085b993018a`, but paired autoresearch discarded it:
   candidate median `39,834,931.340750` steps/sec versus paired baseline
   `55,663,782.861444`, `paired_speedup=0.715635`.
+- `macos-metal-dynamic-dp8-stream-u32-output-distance` was rejected. Narrowing
+  DP8 stream record distances to 32-bit reduced each emitted record from 20 to
+  16 bytes and preserved the oracle, but paired autoresearch discarded it:
+  candidate median `32,233,487.865141` steps/sec versus paired baseline
+  `38,353,440.458919`, `paired_speedup=0.840433`.
 
 ## Current Correctness Surface
 
