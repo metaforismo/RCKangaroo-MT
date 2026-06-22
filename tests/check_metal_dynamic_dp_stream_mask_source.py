@@ -64,8 +64,10 @@ dp8_end = dp8_next if dp8_next != -1 and dp8_next < dp8_end_marker else dp8_end_
 dp8_body = kernel_source[dp8_start:dp8_end]
 
 required_dp8_markers = (
+    "AffineJumpValue jump = q_xy[jump_index];",
     "uint distance = 0;",
     "distance += (uint)jump_distances[jump_index];",
+    "jump.x0, jump.x1, jump.x2, jump.x3,",
     "if (!inf && ((x0 & 0xFFUL) == 0))",
     "out_distances[slot] = (ulong)distance;",
     "out_dp_terms[slot] = x0 ^ (y0 << 1) ^ (z0 << 7);",
@@ -78,6 +80,7 @@ for forbidden in (
     "constant ulong& dp_mask",
     "x0 & dp_mask",
     "ulong distance = 0;",
+    "q_xy[jump_index].",
 ):
     if forbidden in dp8_body:
         raise SystemExit("dynamic dp8 stream const-mask kernel must not keep marker: " + forbidden)

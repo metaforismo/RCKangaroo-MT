@@ -143,6 +143,13 @@ they are intentionally ignored by git.
 
 ## Accepted Optimization Notes
 
+- `macos-metal-dynamic-dp8-stream-local-jump-row` makes the accepted DP8 sparse
+  stream kernel load `q_xy[jump_index]` once into a local `AffineJumpValue`
+  before choosing the infinity or finite mixed-add path. Paired autoresearch
+  kept it with candidate median `62,611,858.275279 ops/sec` versus paired
+  baseline median `56,207,874.481378 ops/sec`; `emitted_records=61`,
+  `dp_checksum=0xab1c2cd29cd70a84`, and
+  `dp_distance_checksum=0x822e141de4770a0b` were unchanged.
 - `d8f0c79` precomputes the Metal jump-index base once per GPU thread. Paired
   autoresearch kept it with candidate median `36,123,063.713799 ops/sec`
   versus paired baseline median `29,592,623.352879 ops/sec`; distance and DP

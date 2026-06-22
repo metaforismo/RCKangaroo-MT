@@ -1803,6 +1803,18 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `emitted_records=61`, `output_bytes_total=1220`, no overflow,
   `dp_checksum=0xab1c2cd29cd70a84`, and
   `dp_distance_checksum=0x822e141de4770a0b`.
+- `macos-metal-dynamic-dp8-stream-local-jump-row`: updated the accepted DP8
+  sparse stream const-mask kernel to load `q_xy[jump_index]` into one local
+  `AffineJumpValue` before the infinity/finite mixed-add branch. This keeps
+  the exact walk, DP predicate, output layout, and CPU replay oracle unchanged
+  while making row reuse explicit for the Metal compiler. Paired autoresearch
+  against `main` kept the candidate with median `62,611,858.275279` DP8
+  steps/sec (`min=49,232,473.114760`, `max=74,206,989.027034`) versus paired
+  baseline median `56,207,874.481378`, `paired_speedup=1.113934`. The oracle
+  stayed unchanged: `emitted_records=61`, `output_bytes_total=1220`, no
+  overflow, `dp_checksum=0xab1c2cd29cd70a84`, and
+  `dp_distance_checksum=0x822e141de4770a0b`. Treat this as a local DP8 stream
+  code-generation win, not a new mathematical walk.
 - `macos-metal-dynamic-dp-count-probe`: added a count-only Metal diagnostic for
   the same dynamic `steps=8`, power-of-two jump walk. It runs the runtime
   `ProjectiveDpMask(dp_bits)` predicate and increments only one atomic
