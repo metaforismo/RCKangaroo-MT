@@ -1734,6 +1734,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   were `29.174M`, `37.518M`, and `32.654M` steps/sec; the three 512 runs were
   `29.076M`, `31.289M`, and `28.083M`, with identical compact dynamic oracle
   fields throughout. Keep the inherited 256 default for compact dynamic DP.
+- `macos-metal-dynamic-dp-stream-emission`: added a separate dynamic Metal
+  `steps=8`, `dp_bits=4`, power-of-two jump-count kernel that emits only
+  actual DP records through a Metal atomic counter. Each stream record is
+  `(sample_index, distance, dp_term)`, so runtime JSON reports
+  `output_layout=dp_stream`, `output_bytes_per_record=20`, `emitted_records`,
+  `dp_capacity`, `dp_stream_overflow`, and `dp_distance_checksum`. The stream
+  order is intentionally treated as nondeterministic; host verification
+  reconstructs per-sample DP flags and compares every emitted record against
+  CPU replay. `make macos-check` passed, and the 16384-sample DP4 smoke run
+  emitted `1017` records (`20,340` logical output bytes) with
+  `dp_checksum=0xbfd3b2319760e774`, histogram `min=8082`, `max=8336`,
+  `max_deviation_ppm=17578`, and no overflow. DP4 direct timing was slower
+  than compact/full dynamic in one 200 ms comparison (`35.652M` stream versus
+  `43.512M` compact and `54.579M` full dynamic steps/sec), so keep this as a
+  sparse-emission architecture probe for higher `dp_bits`, not a DP4 speed win.
 
 ## Next Research Targets
 

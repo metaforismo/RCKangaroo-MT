@@ -706,6 +706,14 @@ they are intentionally ignored by git.
   sweep. A single pass made 512 look competitive, but the 256/512 alternating
   sequence favored the existing 256 cap: 256 median `32.654M` steps/sec versus
   512 median `29.076M`, with identical compact dynamic oracle fields.
+- `macos-metal-dynamic-dp-stream-emission` added a separate sparse stream
+  architecture for dynamic DP candidates. The Metal kernel emits only actual
+  DP records through an atomic counter, reporting `output_layout=dp_stream`,
+  `output_bytes_per_record=20`, `emitted_records`, `dp_capacity`, and
+  `dp_stream_overflow`. The DP4 smoke run emitted `1017` records
+  (`20,340` logical output bytes), preserved `dp_checksum=0xbfd3b2319760e774`,
+  and passed `make macos-check`; direct DP4 timing was slower than compact/full
+  dynamic, so treat it as a high-`dp_bits` sparse-emission probe.
 
 ## Current Correctness Surface
 

@@ -224,6 +224,21 @@ checksum term. The JSON reports `output_layout=dp_compact` and
 GPU-side DP-emission layout gate; the full dynamic walk remains the final-state
 correctness oracle.
 
+Run the sparse dynamic DP-stream Metal experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream --budget-sec 10
+```
+
+This records `metal` `jacobian_affine_walk_dynamic_dp_stream` throughput. The
+kernel reserves stream slots with a Metal atomic counter and writes only actual
+DP records as sample index, scalar distance, and compact DP term. The JSON
+reports `output_layout=dp_stream`, `output_bytes_per_record=20`,
+`emitted_records`, `dp_capacity`, `dp_stream_overflow`, and a
+`dp_distance_checksum`. Use it to measure sparse GPU-side DP emission; DP4 may
+be slower than per-sample compact output because atomics are visible at this
+density.
+
 Run the CPU field multiplication experiment:
 
 ```sh

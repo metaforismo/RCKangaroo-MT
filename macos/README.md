@@ -111,6 +111,9 @@ make macos-metal-jacobian-dynamic-walk-stable-bench
 ./macos/rck_macos metal-jacobian-dynamic-compact-dp-test
 make macos-metal-jacobian-dynamic-compact-dp-bench
 make macos-metal-jacobian-dynamic-compact-dp-stable-bench
+./macos/rck_macos metal-jacobian-dynamic-dp-stream-test
+make macos-metal-jacobian-dynamic-dp-stream-bench
+make macos-metal-jacobian-dynamic-dp-stream-stable-bench
 make macos-metal-kernels-check
 ```
 
@@ -120,6 +123,8 @@ The field kernels use four little-endian 64-bit limbs modulo the secp256k1 prime
 For power-of-two jump counts, the dynamic `steps=8`, `dp_bits=4` path uses a branchless `jump_mask` specialization. Non-power-of-two jump counts stay on the generic dynamic kernel so modulo behavior remains covered by the same CPU replay oracle.
 
 `jacobian_affine_walk_dynamic_dp_compact` is a dynamic-only `steps=8`, `dp_bits=4`, power-of-two jump-count benchmark for future GPU-side distinguished-point emission. It uses the same in-kernel jump mixer and CPU replay oracle as the full dynamic walk, but emits only packed flags, 64-bit scalar distance, and a compact DP checksum term instead of copying the final 96-byte Jacobian state. Runtime JSON marks this as `output_layout=dp_compact` and `output_bytes_per_sample=17`; the full dynamic walk remains the exact final-state oracle and collision-verification reference.
+
+`jacobian_affine_walk_dynamic_dp_stream` pushes the same idea further by using an atomic counter to emit only actual DP records as `(sample_index, distance, dp_term)`. Runtime JSON marks this as `output_layout=dp_stream`, `output_bytes_per_record=20`, `emitted_records`, `dp_capacity`, and `dp_stream_overflow`. The stream is unordered, so host verification reconstructs per-sample DP flags before comparing against the CPU replay oracle. On the DP4 gate this reduces logical output volume sharply, but atomics can make it slower than per-sample compact output; treat it as a sparse-emission architecture probe for higher `dp_bits`, not as a replacement for the full final-state oracle.
 
 Example threadgroup sweep commands:
 
@@ -133,6 +138,7 @@ Example threadgroup sweep commands:
 ./macos/rck_macos metal-jacobian-jump-walk-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 50 --tg-limit 256
 ./macos/rck_macos metal-jacobian-dynamic-walk-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 50 --tg-limit 256
 ./macos/rck_macos metal-jacobian-dynamic-compact-dp-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 200 --tg-limit 256
+./macos/rck_macos metal-jacobian-dynamic-dp-stream-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 200 --tg-limit 256
 ```
 
 ## Prepare a target list
