@@ -1653,12 +1653,15 @@ static bool RunJacobianDynamicDpStreamKernel(const std::vector<CpuJacobianPoint>
 		}
 
 		const bool use_stream_dp4_specialization = dp_bits == 4;
-		const bool use_stream_u32_distance = !use_stream_dp4_specialization && CanAccumulateDistanceU32(jump_distances, steps_per_sample);
+		const bool use_stream_dp8_specialization = dp_bits == 8 && CanAccumulateDistanceU32(jump_distances, steps_per_sample);
+		const bool use_stream_u32_distance = !use_stream_dp4_specialization && !use_stream_dp8_specialization && CanAccumulateDistanceU32(jump_distances, steps_per_sample);
 		const char* function_name = use_stream_dp4_specialization
 			? "jacobian_affine_walk_dynamic_dp_stream_steps8_dp4_pow2"
-			: (use_stream_u32_distance
-				? "jacobian_affine_walk_dynamic_dp_stream_steps8_pow2_mask_u32_distance"
-				: "jacobian_affine_walk_dynamic_dp_stream_steps8_pow2_mask");
+			: (use_stream_dp8_specialization
+				? "jacobian_affine_walk_dynamic_dp_stream_steps8_dp8_pow2_u32_distance"
+				: (use_stream_u32_distance
+					? "jacobian_affine_walk_dynamic_dp_stream_steps8_pow2_mask_u32_distance"
+					: "jacobian_affine_walk_dynamic_dp_stream_steps8_pow2_mask"));
 		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{
@@ -1711,8 +1714,8 @@ static bool RunJacobianDynamicDpStreamKernel(const std::vector<CpuJacobianPoint>
 		id<MTLBuffer> jump_mask_buffer = [device newBufferWithBytes:&jump_mask length:sizeof(jump_mask) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> dp_capacity_buffer = [device newBufferWithBytes:&dp_capacity length:sizeof(dp_capacity) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> overflow_buffer = [device newBufferWithBytes:&zero length:sizeof(zero) options:MTLResourceStorageModeShared];
-		id<MTLBuffer> dp_mask_buffer = use_stream_dp4_specialization ? nil : [device newBufferWithBytes:&dp_mask length:sizeof(dp_mask) options:MTLResourceStorageModeShared];
-		if (!p_buffer || !q_buffer || !p_inf_buffer || !dp_count_buffer || !indices_buffer || !count_buffer || !steps_buffer || !jump_distances_buffer || !out_distances_buffer || !out_dp_terms_buffer || !jump_mask_buffer || !dp_capacity_buffer || !overflow_buffer || (!use_stream_dp4_specialization && !dp_mask_buffer))
+		id<MTLBuffer> dp_mask_buffer = (use_stream_dp4_specialization || use_stream_dp8_specialization) ? nil : [device newBufferWithBytes:&dp_mask length:sizeof(dp_mask) options:MTLResourceStorageModeShared];
+		if (!p_buffer || !q_buffer || !p_inf_buffer || !dp_count_buffer || !indices_buffer || !count_buffer || !steps_buffer || !jump_distances_buffer || !out_distances_buffer || !out_dp_terms_buffer || !jump_mask_buffer || !dp_capacity_buffer || !overflow_buffer || ((!use_stream_dp4_specialization && !use_stream_dp8_specialization) && !dp_mask_buffer))
 		{
 			error = "failed to allocate Metal jacobian dynamic dp stream buffers";
 			return false;
@@ -1741,7 +1744,7 @@ static bool RunJacobianDynamicDpStreamKernel(const std::vector<CpuJacobianPoint>
 		[encoder setBuffer:jump_mask_buffer offset:0 atIndex:11];
 		[encoder setBuffer:dp_capacity_buffer offset:0 atIndex:12];
 		[encoder setBuffer:overflow_buffer offset:0 atIndex:13];
-		if (!use_stream_dp4_specialization)
+		if (!use_stream_dp4_specialization && !use_stream_dp8_specialization)
 			[encoder setBuffer:dp_mask_buffer offset:0 atIndex:14];
 		NSUInteger threadgroup_count = (count + threads_per_threadgroup - 1) / threads_per_threadgroup;
 		[encoder dispatchThreadgroups:MTLSizeMake(threadgroup_count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];

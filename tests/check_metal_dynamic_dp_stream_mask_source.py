@@ -53,6 +53,35 @@ for marker in required_u32_markers:
 if "ulong distance = 0;" in u32_body:
     raise SystemExit("u32-distance stream kernel must not keep a ulong accumulator")
 
+dp8_kernel_name = "jacobian_affine_walk_dynamic_dp_stream_steps8_dp8_pow2_u32_distance"
+if f"kernel void {dp8_kernel_name}" not in kernel_source:
+    raise SystemExit(f"{dp8_kernel_name} kernel missing from Metal source")
+
+dp8_start = kernel_source.index(f"kernel void {dp8_kernel_name}")
+dp8_next = kernel_source.find("\nkernel void ", dp8_start + 1)
+dp8_end_marker = kernel_source.find("\n)RCK_METAL", dp8_start + 1)
+dp8_end = dp8_next if dp8_next != -1 and dp8_next < dp8_end_marker else dp8_end_marker
+dp8_body = kernel_source[dp8_start:dp8_end]
+
+required_dp8_markers = (
+    "uint distance = 0;",
+    "distance += (uint)jump_distances[jump_index];",
+    "if (!inf && ((x0 & 0xFFUL) == 0))",
+    "out_distances[slot] = (ulong)distance;",
+    "out_dp_terms[slot] = x0 ^ (y0 << 1) ^ (z0 << 7);",
+)
+for marker in required_dp8_markers:
+    if marker not in dp8_body:
+        raise SystemExit("missing dynamic dp8 stream const-mask marker: " + marker)
+
+for forbidden in (
+    "constant ulong& dp_mask",
+    "x0 & dp_mask",
+    "ulong distance = 0;",
+):
+    if forbidden in dp8_body:
+        raise SystemExit("dynamic dp8 stream const-mask kernel must not keep marker: " + forbidden)
+
 for forbidden in (
     "(x0 & 0xFUL) == 0",
     "device ulong* out_xyz",
@@ -66,7 +95,9 @@ for forbidden in (
 required_host_markers = (
     "\"jacobian_affine_walk_dynamic_dp_stream_steps8_pow2_mask\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_steps8_pow2_mask_u32_distance\"",
+    "\"jacobian_affine_walk_dynamic_dp_stream_steps8_dp8_pow2_u32_distance\"",
     "use_stream_dp4_specialization",
+    "use_stream_dp8_specialization",
     "CanAccumulateDistanceU32(jump_distances, steps_per_sample)",
     "use_stream_u32_distance",
     "ProjectiveDpMask(dp_bits)",
