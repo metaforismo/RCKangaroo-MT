@@ -335,6 +335,11 @@ they are intentionally ignored by git.
   regressed to `1,234,220.937488` and `15,541,034.229553 ops/sec`. Keep the
   byte-per-step constant-buffer loads; the packed-word extraction shape is much
   slower on M3.
+- `macos-metal-bool-jacobian-inf` changed the internal `JacobianValue.inf`
+  result field to `bool`, leaving external buffers unchanged. Correctness,
+  source gates, and `make macos-check` passed, but paired confirmation
+  discarded it: `0.756774x`, `1.006789x`, `1.413763x`. Keep the `uint` result
+  field; the bool-shaped helper result has too much low-tail variance on M3.
 - `8b3d413` added an explicit `uchar` cast around the public DP4 packed
   flag-store expression. Correctness and the stable DP oracle stayed intact,
   but paired confirmation discarded it: `1.020047x`, `1.099344x`,

@@ -1028,6 +1028,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   and `15,541,034.229553 ops/sec`. Do not promote to paired autoresearch; keep
   byte-per-step index loads because the `ulong` extraction path hurts the M3
   compiled DP4 kernel shape.
+- `macos-metal-bool-jacobian-inf`: changed the internal Metal
+  `JacobianValue.inf` field from `uint` to `bool` while preserving external
+  `uint`/`uchar` buffers and the public DP4 bool accumulator. Source gates,
+  `make macos-check`, and the full stable DP oracle passed, but paired
+  autoresearch discarded it: `0.756774x`, `1.006789x`, `1.413763x`, therefore
+  `confirmation_status=discard`. The late strong run was not durable enough;
+  keep the current `uint` struct field because the bool result shape introduced
+  large low-tail variance on M3.
 - `macos-metal-mixed-add-h-normal-first`: moving the finite mixed-add normal
   `H != 0` path before the rare `H == 0` doubling/infinity edge path preserved
   `make macos-check`, the infinity-tail selftest, and the full stable DP
