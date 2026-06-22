@@ -617,6 +617,10 @@ they are intentionally ignored by git.
   confirmation discarded it: `0.975124x`, `0.902597x`, `1.004439x`. Keep the
   embedded overflow vector; the smaller slot did not repay pointer/allocation
   cost in the tiny multi-target gate.
+- `macos-kangaroo-collision-unlikely` added `RCK_UNLIKELY` hints around the
+  CPU kangaroo collision-found branches. Correctness and the multi16 oracle
+  stayed intact, but paired confirmation discarded it: `0.984887x`,
+  `0.997734x`, `1.008084x`. Keep the unhinted collision branches.
 - `macos-metal-dynamic-jump-walk` added a separate Metal benchmark that derives
   the jump index inside the kernel from the current Jacobian state using the
   same CPU `x/y/z` mixer. It preserves `make macos-check` and has its own

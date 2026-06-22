@@ -1576,6 +1576,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `0.975124x`, `0.902597x`, and `1.004439x`, therefore
   `confirmation_status=discard`. Keep the embedded overflow vector; reducing
   slot footprint did not offset pointer indirection/allocation noise.
+- `macos-kangaroo-collision-unlikely`: adding a portable `RCK_UNLIKELY` branch
+  hint around the single-target and multi-target collision-found checks
+  preserved `make macos-check` and the multi16 oracle
+  (`found_private_key=0x7`, `found_target_index=15`, `last_dp_count=288`), but
+  failed paired confirmation. Raw multi16 speedups were `0.984887x`,
+  `0.997734x`, and `1.008084x`, therefore `confirmation_status=discard`. Keep
+  the unhinted collision branches; the hint is neutral-to-slightly negative on
+  this M3 Air gate.
 - `macos-metal-dynamic-jump-walk`: added a separate Metal walk architecture
   that computes the kangaroo jump index inside the kernel from the current
   Jacobian state, matching the CPU `x/y/z` mixer and supporting both
