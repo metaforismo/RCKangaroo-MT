@@ -901,6 +901,13 @@ they are intentionally ignored by git.
   `--min-ms 500` pairs). A pure-stream comparison was near parity on absolute
   median (`0.986428x`) and noisy pairwise, so use this when persistent GPU
   state is required, not as a pure sparse-stream replacement.
+- `macos-metal-dp8-inplace-emit-before-store` was rejected. Moving the sparse
+  DP record emission before the final in-place state stores preserved the DP8
+  stream oracle (`emitted_records=61`,
+  `dp_distance_checksum=0x822e141de4770a0b`,
+  `dp_checksum=0xab1c2cd29cd70a84`), but paired confirmation discarded it with
+  raw speedups `0.907874x`, `0.955029x`, and `0.807249x`. Keep the accepted
+  state-store-before-DP-emit order in the in-place stream kernel.
 - `macos-metal-dynamic-dp10-stream-specialization` was rejected. A dedicated
   DP10 const-mask sparse stream kernel preserved the oracle, but paired
   autoresearch discarded it: candidate median `54,324,631.189670` steps/sec

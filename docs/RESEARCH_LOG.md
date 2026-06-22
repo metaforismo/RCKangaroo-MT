@@ -2426,6 +2426,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   (`paired_speedup=0.562870`, `confirmation_status=discard`). Keep one field
   element per Metal thread for add; reducing thread-level parallelism costs
   more than it saves on this M3 Air memory/ALU mix.
+- `macos-metal-dp8-inplace-emit-before-store`: rejected moving DP record
+  emission before the final in-place Jacobian state stores in
+  `jacobian_affine_walk_dynamic_dp_stream_inplace_steps8_dp8_pow2_u32_distance`.
+  The candidate preserved the in-place DP8 stream oracle (`emitted_records=61`,
+  `dp_distance_checksum=0x822e141de4770a0b`,
+  `dp_checksum=0xab1c2cd29cd70a84`, `correctness=true`) and
+  `tests/check_metal_dynamic_dp_stream_inplace_source.py` passed during the
+  experiment, but paired confirmation discarded it. The three raw paired
+  speedups were `0.907874x`, `0.955029x`, and `0.807249x`; final median was
+  candidate `54,676,152.869964` versus baseline `67,731,465.636918`
+  steps/sec. Keep the accepted state-store-before-DP-emit order.
 
 ## Next Research Targets
 
