@@ -2197,6 +2197,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `56,888,060.463320` versus `42,842,463.991402`
   (`paired_speedup=1.327843`), but overall `confirmation_status=discard`.
   Keep the shared default threadgroup cap at 256 for count-only.
+- `macos-metal-dynamic-dp12-stream-gate`: added a command-backed autoresearch
+  gate and Makefile stable target for the very sparse DP12 stream shape
+  (`--steps 8 --jumps 16 --dp-bits 12 --min-ms 200`). The initial baseline
+  preserved the stream oracle with `emitted_records=3`, `output_bytes_total=60`,
+  `dp_distance_checksum=0xfb58c602127bde02`, and
+  `dp_checksum=0xccdf6d15eaf2c6b0`; median was `39,603,303.230057` steps/sec
+  (`min=32,723,053.250208`, `max=39,707,503.885942`). Use this gate for DP12
+  sparse-stream experiments instead of ad hoc CLI runs.
 - `macos-metal-dynamic-dp8-stream-tg-sweep-after-no-overflow`: recorded a
   manual explicit `--tg-limit` sweep after accepting the DP8 no-overflow
   branch. No production code changed. The DP8 stream oracle stayed unchanged

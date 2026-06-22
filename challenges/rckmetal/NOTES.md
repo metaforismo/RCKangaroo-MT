@@ -968,6 +968,10 @@ they are intentionally ignored by git.
   run 1 `0.896486`, confirmation run 2 `1.327843`, with overall
   `confirmation_status=discard`. Keep count-only default threadgroup cap at
   256.
+- `macos-metal-dynamic-dp12-stream-gate` adds a reusable autoresearch gate for
+  the sparse DP12 stream shape. Baseline median was `39,603,303.230057`
+  steps/sec with `emitted_records=3`, `dp_distance_checksum=0xfb58c602127bde02`,
+  and `dp_checksum=0xccdf6d15eaf2c6b0`.
 - A manual post-DP8-no-overflow `--tg-limit` sweep kept the existing 256
   default. With the accepted DP8 no-overflow kernel and unchanged oracle
   (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,
