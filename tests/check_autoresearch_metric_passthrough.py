@@ -267,6 +267,62 @@ assert paired_build_once_calls == [
 assert paired_build_baseline_metrics["ops_per_sec"] == 100.0
 assert paired_build_candidate_metrics["ops_per_sec"] == 105.0
 
+paired_confirm_calls: list[tuple[Path, list[str]]] = []
+paired_confirm_ops = {
+    "baseline": [100.0, 110.0, 120.0, 130.0],
+    "candidate": [105.0, 115.0, 125.0, 135.0],
+}
+
+
+def fake_paired_confirmation_runner(args: list[str], timeout: int, cwd: Path = runner.ROOT) -> subprocess.CompletedProcess[str]:
+    paired_confirm_calls.append((cwd, args))
+    if args[:3] == ["git", "worktree", "add"]:
+        return subprocess.CompletedProcess(args, 0, stdout="added baseline\n")
+    if args[:3] == ["git", "worktree", "remove"]:
+        return subprocess.CompletedProcess(args, 0, stdout="removed baseline\n")
+    if args == ["make", "macos-check"]:
+        return subprocess.CompletedProcess(args, 0, stdout="checked baseline\n")
+    if args == ["make", "macos-build"]:
+        return subprocess.CompletedProcess(args, 0, stdout="built once\n")
+    if args == ["./macos/rck_macos", "fake-bench"]:
+        label = "baseline" if cwd.name == "baseline" else "candidate"
+        ops = paired_confirm_ops[label].pop(0)
+        payload = dict(metrics, ops_per_sec=ops, iterations=int(ops))
+        return subprocess.CompletedProcess(args, 0, stdout=f"{runner.json.dumps(payload)}\n")
+    raise AssertionError(f"unexpected paired confirmation command: {args!r}")
+
+
+original_git_commit = runner.git_commit
+runner.run_command = fake_paired_confirmation_runner
+runner.git_commit = lambda cwd=runner.ROOT: "base123"
+try:
+    with contextlib.redirect_stdout(io.StringIO()):
+        paired_confirmation_metrics = runner.run_paired_baseline_and_candidate_confirmations(
+            dict(
+                experiment,
+                build_target="macos-build",
+                bench_command=["./macos/rck_macos", "fake-bench"],
+                sample_runs=2,
+            ),
+            timeout=10,
+            ref="main",
+            candidate_cwd=candidate_cwd,
+            confirm_runs=2,
+        )
+finally:
+    runner.run_command = original_run_command
+    runner.git_commit = original_git_commit
+
+paired_confirm_command_args = [args for _, args in paired_confirm_calls]
+assert paired_confirm_command_args.count(["make", "macos-check"]) == 1
+assert paired_confirm_command_args.count(["make", "macos-build"]) == 2
+assert paired_confirm_command_args.count(["./macos/rck_macos", "fake-bench"]) == 8
+assert len(paired_confirmation_metrics) == 2
+assert paired_confirmation_metrics[0][0]["ops_per_sec"] == 105.0
+assert paired_confirmation_metrics[0][1]["ops_per_sec"] == 110.0
+assert paired_confirmation_metrics[1][0]["ops_per_sec"] == 125.0
+assert paired_confirmation_metrics[1][1]["ops_per_sec"] == 130.0
+
 confirmation_rows = [
     runner.build_benchmark_row(
         experiment=experiment,

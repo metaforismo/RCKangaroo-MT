@@ -23,12 +23,16 @@ Run a baseline or candidate through:
 python3 autoresearch/runner.py --experiment baseline --budget-sec 5
 ```
 
-The runner always executes:
+The runner always executes the repository quality gate before measuring:
 
 ```sh
 make macos-check
-make macos-bench
 ```
+
+Then it runs either the experiment's `bench_target` through `make`, or an
+explicit `bench_command` after an optional `build_target`. Command-backed
+experiments are useful for targeted Metal probes because they can build once
+and then run the measured command repeatedly.
 
 ## Current Metric
 
@@ -60,7 +64,7 @@ For noisy local performance work, run with a paired ref:
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5 --paired-baseline-ref main
 ```
 
-When the paired baseline is correct, keep/discard compares against that fresh same-run baseline and records `paired_baseline_ops_per_sec` plus `paired_speedup` in `benchmarks.jsonl`. Paired runs alternate baseline and candidate samples so CPU load and thermal drift affect both sides more evenly.
+When the paired baseline is correct, keep/discard compares against that fresh same-run baseline and records `paired_baseline_ops_per_sec` plus `paired_speedup` in `benchmarks.jsonl`. Paired runs alternate baseline and candidate samples so CPU load and thermal drift affect both sides more evenly. For command-backed experiments, paired confirmation runs create the baseline worktree once and build baseline plus candidate once for the whole confirmation series.
 
 For candidates with high variance, add confirmation:
 

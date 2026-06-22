@@ -1086,10 +1086,11 @@ they are intentionally ignored by git.
 - Close/noisy Metal DP candidates can be rechecked with the stable gate:
   `python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk_dp_stable --budget-sec 10 --paired-baseline-ref main`.
   This uses `--min-ms 200` while preserving the public DP checksum oracle.
-- Command-backed autoresearch gates build once per sample set; paired runs
-  build baseline and candidate once each, then alternate benchmark commands.
-  Prefer this shape for parameter sweeps because it removes repeated phony
-  rebuilds from the timing window without changing the benchmark oracle.
+- Command-backed autoresearch gates build once per sample set; paired
+  confirmation runs build baseline and candidate once each for the whole
+  confirmation series, then alternate benchmark commands. Prefer this shape for
+  parameter sweeps because it removes repeated phony rebuilds from the timing
+  window without changing the benchmark oracle.
 - Stable gate baseline at `90697f5`: `40,350,062.636594 ops/sec`,
   `runner_sample_count=3`, `status=keep`, public checksum/DP oracle preserved.
 

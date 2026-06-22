@@ -271,12 +271,13 @@ def run_experiment_samples(experiment: dict, timeout: int, cwd: Path) -> dict:
     return aggregate_metric_samples(metric_samples)
 
 
-def run_paired_experiment_samples(experiment: dict, timeout: int, baseline_cwd: Path, candidate_cwd: Path) -> tuple[dict, dict]:
+def run_paired_experiment_samples(experiment: dict, timeout: int, baseline_cwd: Path, candidate_cwd: Path, *, build: bool = True) -> tuple[dict, dict]:
     sample_runs = max(1, int(experiment.get("sample_runs", 1)))
     baseline_samples: list[dict] = []
     candidate_samples: list[dict] = []
-    build_experiment(experiment, timeout, baseline_cwd)
-    build_experiment(experiment, timeout, candidate_cwd)
+    if build:
+        build_experiment(experiment, timeout, baseline_cwd)
+        build_experiment(experiment, timeout, candidate_cwd)
     for sample_index in range(sample_runs):
         if sample_runs > 1:
             print(f"paired sample {sample_index + 1}/{sample_runs} baseline:")
@@ -289,6 +290,10 @@ def run_paired_experiment_samples(experiment: dict, timeout: int, baseline_cwd: 
 
 
 def run_paired_baseline_and_candidate(experiment: dict, timeout: int, ref: str, candidate_cwd: Path) -> tuple[dict, dict]:
+    return run_paired_baseline_and_candidate_confirmations(experiment, timeout, ref, candidate_cwd, 1)[0]
+
+
+def run_paired_baseline_and_candidate_confirmations(experiment: dict, timeout: int, ref: str, candidate_cwd: Path, confirm_runs: int) -> list[tuple[dict, dict]]:
     with tempfile.TemporaryDirectory(prefix="rck-paired-baseline-") as tmp:
         worktree_path = Path(tmp) / "baseline"
         add = run_command(["git", "worktree", "add", "--detach", str(worktree_path), ref], timeout=timeout)
@@ -299,7 +304,14 @@ def run_paired_baseline_and_candidate(experiment: dict, timeout: int, ref: str, 
             if check.returncode != 0:
                 raise RuntimeError(check.stdout)
             print(f"paired baseline ref {ref} ({git_commit(worktree_path)}):")
-            return run_paired_experiment_samples(experiment, timeout, worktree_path, candidate_cwd)
+            build_experiment(experiment, timeout, worktree_path)
+            build_experiment(experiment, timeout, candidate_cwd)
+            confirmation_metrics: list[tuple[dict, dict]] = []
+            for confirmation_index in range(max(1, confirm_runs)):
+                if confirm_runs > 1:
+                    print(f"confirmation run {confirmation_index + 1}/{confirm_runs}:")
+                confirmation_metrics.append(run_paired_experiment_samples(experiment, timeout, worktree_path, candidate_cwd, build=False))
+            return confirmation_metrics
         finally:
             remove = run_command(["git", "worktree", "remove", "--force", str(worktree_path)], timeout=timeout)
             if remove.returncode != 0:
@@ -325,32 +337,48 @@ def main() -> int:
 
     rows: list[dict] = []
     try:
-        for confirmation_index in range(confirm_runs):
-            if confirm_runs > 1:
-                print(f"confirmation run {confirmation_index + 1}/{confirm_runs}:")
-            paired_baseline = None
-            if args.paired_baseline_ref:
-                paired_baseline, metrics = run_paired_baseline_and_candidate(experiment, timeout, args.paired_baseline_ref, ROOT)
-            else:
-                metrics = run_experiment_samples(experiment, timeout, ROOT)
-
-            backend = str(metrics.get("backend", "unknown"))
-            operation = str(metrics.get("operation", "unknown"))
-            previous = best_previous(experiment["name"], backend, operation)
-            now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-            rows.append(
-                build_benchmark_row(
-                    experiment=experiment,
-                    metrics=metrics,
-                    budget_sec=args.budget_sec,
-                    commit=git_commit(),
-                    machine=platform.platform(),
-                    previous=previous,
-                    paired_baseline=paired_baseline,
-                    paired_baseline_ref=args.paired_baseline_ref,
-                    timestamp=now,
+        if args.paired_baseline_ref:
+            paired_runs = run_paired_baseline_and_candidate_confirmations(experiment, timeout, args.paired_baseline_ref, ROOT, confirm_runs)
+            for paired_baseline, metrics in paired_runs:
+                backend = str(metrics.get("backend", "unknown"))
+                operation = str(metrics.get("operation", "unknown"))
+                previous = best_previous(experiment["name"], backend, operation)
+                now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                rows.append(
+                    build_benchmark_row(
+                        experiment=experiment,
+                        metrics=metrics,
+                        budget_sec=args.budget_sec,
+                        commit=git_commit(),
+                        machine=platform.platform(),
+                        previous=previous,
+                        paired_baseline=paired_baseline,
+                        paired_baseline_ref=args.paired_baseline_ref,
+                        timestamp=now,
+                    )
                 )
-            )
+        else:
+            for confirmation_index in range(confirm_runs):
+                if confirm_runs > 1:
+                    print(f"confirmation run {confirmation_index + 1}/{confirm_runs}:")
+                metrics = run_experiment_samples(experiment, timeout, ROOT)
+                backend = str(metrics.get("backend", "unknown"))
+                operation = str(metrics.get("operation", "unknown"))
+                previous = best_previous(experiment["name"], backend, operation)
+                now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                rows.append(
+                    build_benchmark_row(
+                        experiment=experiment,
+                        metrics=metrics,
+                        budget_sec=args.budget_sec,
+                        commit=git_commit(),
+                        machine=platform.platform(),
+                        previous=previous,
+                        paired_baseline=None,
+                        paired_baseline_ref=args.paired_baseline_ref,
+                        timestamp=now,
+                    )
+                )
     except Exception as exc:
         print(f"failed to parse benchmark JSON: {exc}", file=sys.stderr)
         return 1
