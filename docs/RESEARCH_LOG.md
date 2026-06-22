@@ -63,6 +63,11 @@ GPU work should use Metal.
 - Converted the public stable DP gate to `build_target=macos-build` plus an
   explicit `bench_command`, so future stable paired runs use the build-once
   path without adding one-off Make targets.
+- Converted the core Metal field add, multiply, square, and fused square-mul
+  autoresearch gates to the same command-backed build-once path. A
+  `metal_field_add` smoke run on the local M3 built once, ran three direct
+  samples, kept the CPU oracle (`correctness=true`), and recorded median
+  `225,377,938.159104 ops/sec`.
 
 ### Metal Dispatch Size Tuning
 

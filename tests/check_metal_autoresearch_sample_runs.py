@@ -8,6 +8,24 @@ ROOT = Path(__file__).resolve().parents[1]
 EXPERIMENTS = ROOT / "autoresearch" / "experiments"
 
 
+def check_command_backed_gate(
+    failures: list[str],
+    filename: str,
+    command: list[str],
+) -> None:
+    path = EXPERIMENTS / filename
+    if not path.exists():
+        failures.append(f"{path.relative_to(ROOT)} missing command-backed Metal field gate")
+        return
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("build_target") != "macos-build":
+        failures.append(f"{path.relative_to(ROOT)} build_target should use macos-build")
+    if data.get("bench_command") != command:
+        failures.append(f"{path.relative_to(ROOT)} bench_command should run the direct Metal field CLI")
+    if int(data.get("sample_runs", 0)) < 3:
+        failures.append(f"{path.relative_to(ROOT)} sample_runs={data.get('sample_runs')}, expected >= 3")
+
+
 def main() -> int:
     failures: list[str] = []
     for path in sorted(EXPERIMENTS.glob("metal_*.json")):
@@ -17,6 +35,27 @@ def main() -> int:
             failures.append(f"{path.relative_to(ROOT)} sample_runs={sample_runs}, expected >= 3")
         if data.get("name") == "metal_jacobian_jump_walk_dp" and sample_runs < 5:
             failures.append(f"{path.relative_to(ROOT)} sample_runs={sample_runs}, expected >= 5 for primary Metal DP gate")
+
+    check_command_backed_gate(
+        failures,
+        "metal_field_add.json",
+        ["./macos/rck_macos", "metal-field-bench", "--iterations", "1048576", "--min-ms", "50"],
+    )
+    check_command_backed_gate(
+        failures,
+        "metal_field_mul.json",
+        ["./macos/rck_macos", "metal-field-mul-bench", "--iterations", "1048576", "--min-ms", "50"],
+    )
+    check_command_backed_gate(
+        failures,
+        "metal_field_square.json",
+        ["./macos/rck_macos", "metal-field-square-bench", "--iterations", "1048576", "--min-ms", "50"],
+    )
+    check_command_backed_gate(
+        failures,
+        "metal_field_square_mul.json",
+        ["./macos/rck_macos", "metal-field-square-mul-bench", "--iterations", "1048576", "--min-ms", "50"],
+    )
 
     stable_path = EXPERIMENTS / "metal_jacobian_jump_walk_dp_stable.json"
     if not stable_path.exists():

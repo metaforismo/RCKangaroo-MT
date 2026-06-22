@@ -878,6 +878,11 @@ they are intentionally ignored by git.
   `dp_checksum=0xcbfdc2badaf0e57a`) and recorded `paired_speedup=0.894409`
   for same-code candidate/baseline, so it is a DP10 baseline record, not a
   solver-code promotion.
+- The Metal field add/mul/square/square-mul autoresearch gates now also use
+  `build_target=macos-build` plus direct benchmark commands. The first
+  `metal_field_add` smoke row built once, preserved `correctness=true`, and
+  recorded median `225,377,938.159104 ops/sec`; treat this as harness
+  stabilization for future arithmetic experiments, not a solver-code speedup.
 - `macos-metal-dynamic-dp10-stream-specialization` was rejected. A dedicated
   DP10 const-mask sparse stream kernel preserved the oracle, but paired
   autoresearch discarded it: candidate median `54,324,631.189670` steps/sec
