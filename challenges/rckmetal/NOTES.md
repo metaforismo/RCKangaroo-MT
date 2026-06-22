@@ -1388,6 +1388,14 @@ they are intentionally ignored by git.
   first chain row, but its long run was thermally noisy (`52,054,794.687903`
   median), so use it as a reproducibility marker for the new operation rather
   than a peak-speed claim.
+- Rejected `macos-metal-dp8-xyzz-chain2-fused-kernel`: a single Metal kernel
+  for `steps=512, packets=2` preserved the same cumulative-chain DP count and
+  checksums, but lost speed. Candidate: `123,091,730.623771` steps/sec at
+  default 128 threads and `123,841,752.582641` at `--tg-limit 256`; temporary
+  `b324ce9` baseline generic chain: `127,967,260.451385` on the same
+  `262144 x 512 x 2` command. Keep the generic two-dispatch chain; the fused
+  1024-step thread body appears to cost more occupancy/register pressure than
+  it saves in state traffic.
 
 ## Current Correctness Surface
 

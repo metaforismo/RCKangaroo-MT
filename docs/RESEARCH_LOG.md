@@ -2833,6 +2833,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   row for this new operation, but the long three-sample runner was thermally
   noisy (`52,054,794.687903` median steps/sec); treat it as a reproducibility
   row for the cumulative-distance operation, not as a peak-throughput record.
+- Rejected follow-up `macos-metal-dp8-xyzz-chain2-fused-kernel`: fusing the
+  common `steps=512, packets=2` chain into one Metal kernel kept correctness
+  and produced the same cumulative-chain oracle values (`dp_count=2016`,
+  `dp_distance_checksum=0x7a221c62b92a5ed3`,
+  `dp_checksum=0x23509000c8141686`, `correctness=true`), but regressed
+  throughput. The fused candidate measured `123,091,730.623771` steps/sec at
+  the default 128-thread cap and `123,841,752.582641` steps/sec at
+  `--tg-limit 256`, while a temporary `b324ce9` baseline worktree measured the
+  generic two-dispatch chain at `127,967,260.451385` steps/sec on the same
+  `262144 x 512 x 2` command. The likely cause is reduced occupancy/register
+  pressure from serializing 1024 dynamic jumps in one thread; keep the generic
+  packet chain as the base and pursue persistent-state improvements without
+  doubling the per-thread packet body.
 
 ## Next Research Targets
 
