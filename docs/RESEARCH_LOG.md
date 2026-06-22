@@ -89,6 +89,22 @@ GPU work should use Metal.
   absolute median was near parity (`0.986428x`) and paired median was noisy, so
   treat this as a state-preserving primitive for persistent GPU walks, not a
   replacement for pure sparse-stream scoring.
+- Added `metal_jacobian_dynamic_dp_stream_inplace_steps16`, a second in-place
+  DP8 stream packet that performs 16 dynamic Jacobian jumps per Metal thread
+  before storing the state and checking/emitting a DP record. This amortizes the
+  same state load/store over more group operations while preserving the CPU
+  replay oracle for both the emitted DP stream and final `x/y/z/inf` state.
+  Autoresearch ran three confirmation groups with three samples each and kept
+  the candidate at median `76,531,591.057923` steps/sec,
+  `correctness=true`, `emitted_records=67`,
+  `dp_distance_checksum=0x68fbd251ce4fd08e`, and
+  `dp_checksum=0xdd7021cb96f924c0`. A same-binary alternating comparison
+  against the existing in-place `steps=8` packet measured `1.085387x` median
+  speedup over five `--min-ms 200` pairs; a longer three-pair `--min-ms 500`
+  probe was noisy but still positive at `1.087669x` median, with one negative
+  pair. Treat `steps16` as a longer packet-size option for persistent walks; it
+  checks the DP predicate at the packet boundary, not at every intermediate
+  step.
 
 ### Metal Dispatch Size Tuning
 

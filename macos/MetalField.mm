@@ -1810,7 +1810,7 @@ static bool RunJacobianDynamicDpStreamInplaceKernel(const std::vector<CpuJacobia
 	if (dispatch_stats)
 		dispatch_stats->threadgroup_limit = (unsigned int)effective_threadgroup_limit;
 
-	if (p.empty() || jumps.empty() || jumps.size() != jump_distances.size() || steps_per_sample != 8 || dp_bits != 8 || !IsMetalPowerOfTwo((unsigned int)jumps.size()) || jumps.size() > 32)
+	if (p.empty() || jumps.empty() || jumps.size() != jump_distances.size() || (steps_per_sample != 8 && steps_per_sample != 16) || dp_bits != 8 || !IsMetalPowerOfTwo((unsigned int)jumps.size()) || jumps.size() > 32)
 	{
 		error = "invalid jacobian dynamic dp stream in-place input";
 		return false;
@@ -1844,7 +1844,9 @@ static bool RunJacobianDynamicDpStreamInplaceKernel(const std::vector<CpuJacobia
 			return false;
 		}
 
-		const char* function_name = "jacobian_affine_walk_dynamic_dp_stream_inplace_steps8_dp8_pow2_u32_distance";
+		const char* function_name = steps_per_sample == 16
+			? "jacobian_affine_walk_dynamic_dp_stream_inplace_steps16_dp8_pow2_u32_distance"
+			: "jacobian_affine_walk_dynamic_dp_stream_inplace_steps8_dp8_pow2_u32_distance";
 		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{
@@ -3013,7 +3015,6 @@ bool RCKMetalJacobianDynamicDpStreamSelfTest(std::string& error)
 bool RCKMetalJacobianDynamicDpStreamInplaceSelfTest(std::string& error)
 {
 	const unsigned int sample_count = 24;
-	const unsigned int steps_per_sample = 8;
 	const unsigned int dp_bits = 8;
 	const unsigned int jump_count = 8;
 
@@ -3023,18 +3024,23 @@ bool RCKMetalJacobianDynamicDpStreamInplaceSelfTest(std::string& error)
 	BuildJacobianJumpWalkSamples(sample_count, jump_count, p, jumps);
 	BuildJacobianJumpDistances(jump_count, jump_distances);
 
-	std::vector<CpuJacobianPoint> state_out;
-	std::vector<uint32_t> out_indices;
-	std::vector<uint64_t> out_distances;
-	std::vector<uint64_t> out_dp_terms;
-	uint32_t emitted_records = 0;
-	bool dp_stream_overflow = false;
-	if (!RunJacobianDynamicDpStreamInplaceKernel(p, jumps, jump_distances, steps_per_sample, state_out, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, error, NULL, 0, NULL))
-		return false;
+	for (unsigned int steps_per_sample : {8U, 16U})
+	{
+		std::vector<CpuJacobianPoint> state_out;
+		std::vector<uint32_t> out_indices;
+		std::vector<uint64_t> out_distances;
+		std::vector<uint64_t> out_dp_terms;
+		uint32_t emitted_records = 0;
+		bool dp_stream_overflow = false;
+		if (!RunJacobianDynamicDpStreamInplaceKernel(p, jumps, jump_distances, steps_per_sample, state_out, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, error, NULL, 0, NULL))
+			return false;
 
-	if (!ValidateDynamicDpStreamOutputs(p, jumps, jump_distances, steps_per_sample, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, NULL, NULL, NULL, NULL, error))
-		return false;
-	return ValidateDynamicStateOutputs(p, jumps, jump_distances, steps_per_sample, state_out, error);
+		if (!ValidateDynamicDpStreamOutputs(p, jumps, jump_distances, steps_per_sample, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, NULL, NULL, NULL, NULL, error))
+			return false;
+		if (!ValidateDynamicStateOutputs(p, jumps, jump_distances, steps_per_sample, state_out, error))
+			return false;
+	}
+	return true;
 }
 
 static FieldElement DeterministicElement(uint64_t i, uint64_t salt)
@@ -3472,9 +3478,9 @@ std::string RCKMetalJacobianDynamicDpStreamInplaceBenchJson(unsigned int iterati
 
 	MetalDispatchStats dispatch_stats;
 	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveDynamicDpStreamThreadgroupLimit(threadgroup_limit, dp_bits);
-	if (steps_per_sample != 8 || dp_bits != 8 || !IsMetalPowerOfTwo(jump_count))
+	if ((steps_per_sample != 8 && steps_per_sample != 16) || dp_bits != 8 || !IsMetalPowerOfTwo(jump_count))
 	{
-		std::string reason = "in-place stream dynamic dp supports steps=8, power-of-two jumps, dp_bits=8";
+		std::string reason = "in-place stream dynamic dp supports steps=8 or steps=16, power-of-two jumps, dp_bits=8";
 		return MetalJacobianDynamicDpStreamBenchJson("jacobian_affine_walk_dynamic_dp_stream_inplace", (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, false, false, reason);
 	}
 

@@ -11,12 +11,20 @@ makefile = Path("Makefile").read_text()
 kernel_name = "jacobian_affine_walk_dynamic_dp_stream_inplace_steps8_dp8_pow2_u32_distance"
 if f"kernel void {kernel_name}" not in kernel_source:
     raise SystemExit(f"{kernel_name} kernel missing from Metal source")
+steps16_kernel_name = "jacobian_affine_walk_dynamic_dp_stream_inplace_steps16_dp8_pow2_u32_distance"
+if f"kernel void {steps16_kernel_name}" not in kernel_source:
+    raise SystemExit(f"{steps16_kernel_name} kernel missing from Metal source")
 
 start = kernel_source.index(f"kernel void {kernel_name}")
 next_kernel = kernel_source.find("\nkernel void ", start + 1)
 end_marker = kernel_source.find("\n)RCK_METAL", start + 1)
 end = next_kernel if next_kernel != -1 and next_kernel < end_marker else end_marker
 body = kernel_source[start:end]
+steps16_start = kernel_source.index(f"kernel void {steps16_kernel_name}")
+steps16_next_kernel = kernel_source.find("\nkernel void ", steps16_start + 1)
+steps16_end_marker = kernel_source.find("\n)RCK_METAL", steps16_start + 1)
+steps16_end = steps16_next_kernel if steps16_next_kernel != -1 and steps16_next_kernel < steps16_end_marker else steps16_end_marker
+steps16_body = kernel_source[steps16_start:steps16_end]
 
 required_kernel_markers = (
     "device ulong* p_xyz [[buffer(0)]]",
@@ -34,6 +42,11 @@ required_kernel_markers = (
 for marker in required_kernel_markers:
     if marker not in body:
         raise SystemExit("missing in-place DP8 stream kernel marker: " + marker)
+    if marker not in steps16_body:
+        raise SystemExit("missing in-place DP8 stream steps16 kernel marker: " + marker)
+
+if "step < 16" not in steps16_body:
+    raise SystemExit("in-place DP8 stream steps16 kernel must run 16 dynamic jumps")
 
 for forbidden in (
     "constant uint& steps",
@@ -45,12 +58,15 @@ for forbidden in (
 ):
     if forbidden in body:
         raise SystemExit("in-place DP8 stream kernel must not keep marker: " + forbidden)
+    if forbidden in steps16_body:
+        raise SystemExit("in-place DP8 stream steps16 kernel must not keep marker: " + forbidden)
 
 required_host_markers = (
     "RunJacobianDynamicDpStreamInplaceKernel",
     "RCKMetalJacobianDynamicDpStreamInplaceSelfTest",
     "RCKMetalJacobianDynamicDpStreamInplaceBenchJson",
     "\"jacobian_affine_walk_dynamic_dp_stream_inplace_steps8_dp8_pow2_u32_distance\"",
+    "\"jacobian_affine_walk_dynamic_dp_stream_inplace_steps16_dp8_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_inplace\"",
     "ValidateDynamicStateOutputs",
 )
@@ -79,6 +95,8 @@ for marker in (
     "macos-metal-jacobian-dynamic-dp-stream-inplace-test",
     "macos-metal-jacobian-dynamic-dp-stream-inplace-bench",
     "macos-metal-jacobian-dynamic-dp-stream-inplace-stable-bench",
+    "macos-metal-jacobian-dynamic-dp-stream-inplace-steps16-bench",
+    "macos-metal-jacobian-dynamic-dp-stream-inplace-steps16-stable-bench",
 ):
     if marker not in makefile:
         raise SystemExit("missing in-place DP8 stream Makefile marker: " + marker)
@@ -86,5 +104,9 @@ for marker in (
 experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_inplace.json")
 if not experiment.exists():
     raise SystemExit("missing in-place DP8 stream autoresearch experiment")
+
+steps16_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_inplace_steps16.json")
+if not steps16_experiment.exists():
+    raise SystemExit("missing in-place DP8 stream steps16 autoresearch experiment")
 
 print("metal dynamic dp stream in-place source ok")

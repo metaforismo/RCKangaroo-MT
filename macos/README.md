@@ -115,6 +115,8 @@ make macos-metal-jacobian-dynamic-compact-dp-stable-bench
 make macos-metal-jacobian-dynamic-dp-stream-bench
 make macos-metal-jacobian-dynamic-dp-stream-stable-bench
 make macos-metal-jacobian-dynamic-dp-stream-dp8-stable-bench
+make macos-metal-jacobian-dynamic-dp-stream-inplace-stable-bench
+make macos-metal-jacobian-dynamic-dp-stream-inplace-steps16-stable-bench
 make macos-metal-jacobian-dynamic-dp-count-dp8-stable-bench
 make macos-metal-kernels-check
 ```
@@ -123,6 +125,7 @@ The field kernels use four little-endian 64-bit limbs modulo the secp256k1 prime
 
 `jacobian_affine_walk_dynamic_jump_table` is a separate Metal walk architecture that computes the kangaroo jump index inside the kernel from the current Jacobian state, using the same `x/y/z` mixer as the CPU kangaroo path. It supports both power-of-two mask and modulo jump counts, tracks 64-bit distance and projective DP candidates, and has a `steps=8`, `dp_bits=4` specialization with packed infinity flags plus struct-row jump table access. This path is closer to a real GPU kangaroo walk than the synthetic precomputed-index benchmark, but it is reported separately and is not used for the public precomputed DP score path.
 For power-of-two jump counts, the dynamic `steps=8`, `dp_bits=4` path uses a branchless `jump_mask` specialization. Non-power-of-two jump counts stay on the generic dynamic kernel so modulo behavior remains covered by the same CPU replay oracle.
+The in-place DP8 stream path also has a `steps=16` packet specialization. It performs 16 dynamic jumps per thread, stores the updated Jacobian state back to the input buffer, and validates the sparse DP stream plus final state against CPU replay. This mode is useful for persistent GPU-walk packet tuning because it amortizes state load/store traffic over more group operations; it checks the DP predicate only at the packet boundary.
 
 `jacobian_affine_walk_dynamic_dp_compact` is a dynamic-only `steps=8`, `dp_bits=4`, power-of-two jump-count benchmark for future GPU-side distinguished-point emission. It uses the same in-kernel jump mixer and CPU replay oracle as the full dynamic walk, but emits only packed flags, 64-bit scalar distance, and a compact DP checksum term instead of copying the final 96-byte Jacobian state. Runtime JSON marks this as `output_layout=dp_compact` and `output_bytes_per_sample=17`; the full dynamic walk remains the exact final-state oracle and collision-verification reference.
 

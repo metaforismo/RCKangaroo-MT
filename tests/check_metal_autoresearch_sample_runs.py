@@ -243,6 +243,32 @@ def main() -> int:
         if int(inplace_stream.get("sample_runs", 0)) < 3:
             failures.append(f"{inplace_stream_path.relative_to(ROOT)} sample_runs={inplace_stream.get('sample_runs')}, expected >= 3")
 
+    inplace_steps16_path = EXPERIMENTS / "metal_jacobian_dynamic_dp_stream_inplace_steps16.json"
+    if not inplace_steps16_path.exists():
+        failures.append(f"{inplace_steps16_path.relative_to(ROOT)} missing command-backed in-place DP8 stream steps16 gate")
+    else:
+        inplace_steps16 = json.loads(inplace_steps16_path.read_text(encoding="utf-8"))
+        expected_command = [
+            "./macos/rck_macos",
+            "metal-jacobian-dynamic-dp-stream-inplace-bench",
+            "--iterations",
+            "16384",
+            "--steps",
+            "16",
+            "--jumps",
+            "16",
+            "--dp-bits",
+            "8",
+            "--min-ms",
+            "200",
+        ]
+        if inplace_steps16.get("build_target") != "macos-build":
+            failures.append(f"{inplace_steps16_path.relative_to(ROOT)} build_target should use macos-build")
+        if inplace_steps16.get("bench_command") != expected_command:
+            failures.append(f"{inplace_steps16_path.relative_to(ROOT)} bench_command should run the in-place DP8 stream steps16 CLI")
+        if int(inplace_steps16.get("sample_runs", 0)) < 3:
+            failures.append(f"{inplace_steps16_path.relative_to(ROOT)} sample_runs={inplace_steps16.get('sample_runs')}, expected >= 3")
+
     stream_dynamic_dp14_path = EXPERIMENTS / "metal_jacobian_dynamic_dp_stream_dp14.json"
     if not stream_dynamic_dp14_path.exists():
         failures.append(f"{stream_dynamic_dp14_path.relative_to(ROOT)} missing command-backed dynamic DP stream dp14 gate")

@@ -115,6 +115,8 @@ make macos-metal-jacobian-dynamic-compact-dp-stable-bench
 make macos-metal-jacobian-dynamic-dp-stream-bench
 make macos-metal-jacobian-dynamic-dp-stream-stable-bench
 make macos-metal-jacobian-dynamic-dp-stream-dp8-stable-bench
+make macos-metal-jacobian-dynamic-dp-stream-inplace-stable-bench
+make macos-metal-jacobian-dynamic-dp-stream-inplace-steps16-stable-bench
 make macos-metal-jacobian-dynamic-dp-count-dp8-stable-bench
 make macos-metal-kernels-check
 ```
@@ -123,6 +125,7 @@ I kernel field usano quattro limb little-endian da 64 bit modulo il primo secp25
 
 `jacobian_affine_walk_dynamic_jump_table` e' un'architettura Metal separata che calcola l'indice di salto kangaroo dentro il kernel dallo stato Jacobian corrente, usando lo stesso mixer `x/y/z` del percorso kangaroo CPU. Supporta sia mask power-of-two sia modulo, traccia distanza a 64 bit e candidati DP projective, e ha una specializzazione `steps=8`, `dp_bits=4` con flag infinito packed e accesso struct-row alla tabella dei jump. Questo percorso e' piu' vicino a un vero walk kangaroo GPU rispetto al benchmark sintetico con indici precomputati, ma viene riportato separatamente e non e' usato per il public score path DP precomputato.
 Per jump count power-of-two, il percorso dinamico `steps=8`, `dp_bits=4` usa una specializzazione branchless con `jump_mask`. I jump count non power-of-two restano sul kernel dinamico generico, così il comportamento modulo resta coperto dallo stesso oracle CPU.
+Il percorso DP8 stream in-place ha anche una specializzazione packet `steps=16`. Esegue 16 salti dinamici per thread, salva lo stato Jacobian aggiornato nel buffer di input, e valida sia lo stream DP sparso sia lo stato finale contro replay CPU. Questa modalita' e' utile per tuning di packet in walk GPU persistenti perche' ammortizza load/store dello stato su piu' operazioni di gruppo; controlla il predicato DP solo al confine del packet.
 
 `jacobian_affine_walk_dynamic_dp_compact` e' un benchmark solo dinamico per `steps=8`, `dp_bits=4` e jump count power-of-two, pensato per la futura emissione GPU dei distinguished point. Usa lo stesso mixer di salto dentro il kernel e lo stesso oracle CPU replay del walk dinamico completo, ma emette solo flag packed, distanza scalare a 64 bit e un termine checksum DP compatto invece di copiare lo stato Jacobian finale da 96 byte. Il JSON runtime lo marca come `output_layout=dp_compact` e `output_bytes_per_sample=17`; il walk dinamico completo resta l'oracle esatto dello stato finale e il riferimento per la verifica delle collisioni.
 

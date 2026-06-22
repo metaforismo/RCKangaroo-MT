@@ -1116,6 +1116,19 @@ they are intentionally ignored by git.
   four smoke case, but paired confirmation discarded it at `0.562870x`
   (`125,737,724.391583` versus `223,386,636.821191` ops/sec). Keep one field
   element per thread for add; x4 underutilizes the M3 GPU for this kernel.
+- `macos-metal-dp8-inplace-steps16` was accepted as a longer in-place stream
+  packet. It runs 16 dynamic Jacobian jumps per thread before storing the
+  updated state and checking/emitting a DP record, while preserving CPU replay
+  for both the sparse DP stream and final `x/y/z/inf` state. Autoresearch kept
+  the candidate after three confirmation groups: median
+  `76,531,591.057923` steps/sec, `emitted_records=67`,
+  `dp_distance_checksum=0x68fbd251ce4fd08e`,
+  `dp_checksum=0xdd7021cb96f924c0`, `correctness=true`. Alternating local
+  comparison against the existing `steps=8` in-place packet measured
+  `1.085387x` median over five `--min-ms 200` pairs; a three-pair
+  `--min-ms 500` run stayed positive at `1.087669x` median but included one
+  negative pair. Use it as a packet-size/throughput option, not as an
+  every-intermediate-step DP checker.
 
 ## Current Correctness Surface
 

@@ -274,6 +274,20 @@ the final raw Jacobian state against CPU replay. Use it for persistent GPU-walk
 experiments where state must survive the batch; it is not a replacement for the
 pure DP8 stream benchmark when final state is not needed.
 
+Run the 16-step in-place DP8 sparse stream packet experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_inplace_steps16 --budget-sec 10
+```
+
+This records the same in-place DP8 stream architecture with `--steps 16`. The
+kernel performs 16 dynamic Jacobian jumps per thread before storing the updated
+state and checking/emitting a DP record, so it amortizes state memory traffic
+over a larger work packet. The CPU oracle validates the 16-step DP stream and
+final state. Use this gate when testing persistent walks or packet-size tuning;
+it samples the DP predicate at the 16-step packet boundary, not at each
+intermediate step.
+
 Run the command-backed DP6 sparse stream experiment:
 
 ```sh
