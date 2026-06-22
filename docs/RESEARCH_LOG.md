@@ -2541,6 +2541,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   (`paired_speedup=1.089128`) but did not satisfy the all-confirmations keep
   policy. Keep the accepted in-place DP8 packet default at 128 threads for
   `steps16+`.
+- `macos-metal-dp8-inplace-steps192`: rejected a non-power-of-two packet-size
+  probe between accepted `steps128` and `steps256`. The prototype preserved
+  the sparse-stream/final-state oracle (`emitted_records=74`,
+  `dp_distance_checksum=0x72cf07344a308edc`,
+  `dp_checksum=0x69bfc127c31638b0`, `correctness=true`). A quick cap sweep
+  found the best `steps192` median at `--tg-limit 96`, but it was still below
+  accepted `steps256 --tg-limit 128` (`0.984702x` in the two-run sweep). Five
+  `--min-ms 500` same-binary pairs confirmed the rejection: ratios were
+  `0.951722x`, `0.966900x`, `0.919687x`, `0.965682x`, and `0.971917x`
+  (median `0.965682x`). Keep `steps256/tg128` as the packet-size plateau.
 
 ## Next Research Targets
 

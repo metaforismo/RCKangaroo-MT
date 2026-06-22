@@ -1214,6 +1214,18 @@ they are intentionally ignored by git.
   candidate at `67,980,915.994864` versus baseline `62,417,739.448993`
   steps/sec (`paired_speedup=1.089128`). Keep the accepted `steps16+` default
   at 128 threads.
+- `macos-metal-dp8-inplace-steps192` was rejected. It inserted a
+  non-power-of-two `steps192` kernel between accepted `steps128` and
+  `steps256`. Correctness
+  held (`emitted_records=74`,
+  `dp_distance_checksum=0x72cf07344a308edc`,
+  `dp_checksum=0x69bfc127c31638b0`, `correctness=true`). A two-run threadgroup
+  sweep showed `--tg-limit 96` as the best `steps192` cap but still below
+  accepted `steps256 --tg-limit 128` (`0.984702x`). Five longer
+  `--min-ms 500` same-binary pairs measured speedup ratios `0.951722x`,
+  `0.966900x`, `0.919687x`, `0.965682x`, and `0.971917x` (median
+  `0.965682x`). Do not add `steps192` unless another kernel-shape change moves
+  the plateau.
 
 ## Current Correctness Surface
 
