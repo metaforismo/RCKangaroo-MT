@@ -2063,6 +2063,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   median `38,353,440.458919`, `paired_speedup=0.840433`. Keep DP8 stream
   record distances as 64-bit host-visible output; the saved output bytes do
   not offset the extra host/path complexity on this M3 profile.
+- `macos-metal-dynamic-dp4-stream-no-overflow-branch`: rejected applying the
+  accepted DP8 no-overflow branch idea to the denser DP4 sparse stream
+  specialization. The prototype preserved the DP4 stream oracle
+  (`emitted_records=1017`, `output_bytes_total=20340`,
+  `dp_distance_checksum=0x19e43ca50eec2a74`,
+  `dp_checksum=0xbfd3b2319760e774`), but paired autoresearch discarded it:
+  candidate median `31,405,650.680564` steps/sec
+  (`min=27,107,472.594526`, `max=58,509,134.530611`) versus paired baseline
+  median `41,006,978.823522`, `paired_speedup=0.765861`. Keep the overflow
+  branch in the DP4 sparse stream kernel; branch removal is currently a
+  DP8-specific win, not a general stream rule.
 
 ## Next Research Targets
 

@@ -891,6 +891,14 @@ they are intentionally ignored by git.
   16 bytes and preserved the oracle, but paired autoresearch discarded it:
   candidate median `32,233,487.865141` steps/sec versus paired baseline
   `38,353,440.458919`, `paired_speedup=0.840433`.
+- `macos-metal-dynamic-dp4-stream-no-overflow-branch` was rejected. Removing
+  the DP4 sparse stream specialization's in-kernel `slot < dp_capacity` /
+  `out_overflow` branch preserved `emitted_records=1017`,
+  `dp_distance_checksum=0x19e43ca50eec2a74`, and
+  `dp_checksum=0xbfd3b2319760e774`, but paired autoresearch discarded it:
+  candidate median `31,405,650.680564` steps/sec versus paired baseline
+  `41,006,978.823522`, `paired_speedup=0.765861`. Keep the DP4 overflow
+  branch even though the DP8 variant benefits from removing it.
 
 ## Current Correctness Surface
 
