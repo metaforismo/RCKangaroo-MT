@@ -727,6 +727,14 @@ they are intentionally ignored by git.
   kangaroo asymptotics. Clean autoresearch on commit `0bf960d` recorded
   `status=keep`, median `37,013,170.931979` steps/sec across three stable
   samples, `output_bytes_total=1220`, `emitted_records=61`, and no overflow.
+- `macos-metal-dynamic-dp-count-probe` added a count-only diagnostic kernel for
+  the dynamic DP8 path. It uses the same runtime DP mask but only increments
+  one atomic `dp_count`, writing no candidate records. Clean autoresearch on
+  commit `4b4014c` recorded `status=keep`, median `53,546,106.476522`
+  steps/sec with `dp_count=61`; a same-worktree stream DP8 rerun recorded
+  median `39,287,501.787886` steps/sec with the full stream oracle
+  (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`). Treat this as a
+  diagnostic for record-write overhead, not as a candidate-emission path.
 
 ## Current Correctness Surface
 

@@ -1780,6 +1780,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   emitted `0` records and measured `60.199M` steps/sec. The oracle stayed
   correct in both cases, but the spread points to dispatch/scheduler noise and
   arithmetic-walk cost once atomic pressure is mostly gone.
+- `macos-metal-dynamic-dp-count-probe`: added a count-only Metal diagnostic for
+  the same dynamic `steps=8`, power-of-two jump walk. It runs the runtime
+  `ProjectiveDpMask(dp_bits)` predicate and increments only one atomic
+  `dp_count`, writing no stream records, distances, or DP checksum terms.
+  Runtime JSON reports `output_layout=dp_count`, `output_bytes_total=4`, and
+  `distance_tracking=none`; host correctness compares the GPU count against
+  CPU replay. This is a measurement surface, not a candidate-emission path.
+  Clean autoresearch on commit `4b4014c` recorded `status=keep`, median
+  `53,546,106.476522` steps/sec across three DP8 stable samples
+  (`min=30,340,248.668051`, `max=56,088,173.485608`), with `dp_count=61`.
+  A same-worktree DP8 stream rerun recorded median `39,287,501.787886`
+  steps/sec (`min=22,269,031.791864`, `max=40,036,781.483343`) while preserving
+  `emitted_records=61`, `output_bytes_total=1220`, and
+  `dp_checksum=0xab1c2cd29cd70a84`. The count-only probe suggests record writes
+  are visible at DP8, but the wide spread still says the arithmetic walk and
+  local Metal scheduling dominate; do not treat count-only as a replacement for
+  stream emission.
 
 ## Next Research Targets
 
