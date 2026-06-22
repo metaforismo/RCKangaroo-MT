@@ -727,6 +727,15 @@ they are intentionally ignored by git.
   kangaroo asymptotics. Clean autoresearch on commit `0bf960d` recorded
   `status=keep`, median `37,013,170.931979` steps/sec across three stable
   samples, `output_bytes_total=1220`, `emitted_records=61`, and no overflow.
+- `macos-metal-dynamic-dp-stream-u32-distance` keeps DP4 on the promoted
+  hardcoded stream kernel but lets non-DP4 stream shapes use a guarded 32-bit
+  internal distance accumulator when the host proves the maximum scalar
+  distance fits in `uint32_t`. The external stream and validator stay
+  `uint64_t`. Clean autoresearch on commit `62c5298` kept it with median
+  `56,977,760.954224` DP8 steps/sec (`min=38,851,216.280614`,
+  `max=57,571,900.124877`) versus baseline `37,013,170.931979`, with
+  `emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`, and
+  `dp_distance_checksum=0x822e141de4770a0b`.
 - `macos-metal-dynamic-dp-count-probe` added a count-only diagnostic kernel for
   the dynamic DP8 path. It uses the same runtime DP mask but only increments
   one atomic `dp_count`, writing no candidate records. Clean autoresearch on

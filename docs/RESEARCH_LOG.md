@@ -1780,6 +1780,18 @@ These did not pass the performance gate or had a correctness/architecture issue:
   emitted `0` records and measured `60.199M` steps/sec. The oracle stayed
   correct in both cases, but the spread points to dispatch/scheduler noise and
   arithmetic-walk cost once atomic pressure is mostly gone.
+- `macos-metal-dynamic-dp-stream-u32-distance`: added a guarded non-DP4 sparse
+  stream kernel that keeps the external distance stream as `uint64_t` but uses
+  a 32-bit internal distance accumulator when the host proves
+  `max_jump_distance * steps_per_sample <= UINT32_MAX`. DP4 remains on the
+  promoted hardcoded DP4 stream kernel. Clean autoresearch on commit `62c5298`
+  recorded `status=keep`, median `56,977,760.954224` DP8 steps/sec across
+  three stable samples (`min=38,851,216.280614`,
+  `max=57,571,900.124877`) versus the previous DP8 stream baseline median
+  `37,013,170.931979`. The oracle stayed unchanged:
+  `emitted_records=61`, `output_bytes_total=1220`, no overflow,
+  `dp_checksum=0xab1c2cd29cd70a84`, and
+  `dp_distance_checksum=0x822e141de4770a0b`.
 - `macos-metal-dynamic-dp-count-probe`: added a count-only Metal diagnostic for
   the same dynamic `steps=8`, power-of-two jump walk. It runs the runtime
   `ProjectiveDpMask(dp_bits)` predicate and increments only one atomic

@@ -34,7 +34,7 @@ Apple Silicon/macOS non puo eseguire kernel CUDA sulla GPU Apple. Questa repo or
 |---|---|---|
 | CUDA | Solver completo | Motore kangaroo CUDA originale con aggiunte multi-target. |
 | macOS CPU | Funzionante | Oracle tiny-range, test secp256k1, benchmark baseline e microbenchmark `field_mul_mod_p`. |
-| macOS Metal | Backend aritmetico iniziale | Compila ed esegue smoke Metal piu' microkernel `field_add_mod_p`, `field_sub_mod_p`, `field_double_mod_p`, `field_mul4_mod_p`, `field_neg_mod_p`, `field_mul_mod_p` e `field_square_mod_p` quando un device Metal e' visibile. |
+| macOS Metal | Backend walk sperimentale | Compila ed esegue smoke Metal, microkernel field, kernel Jacobian walk, probe dynamic DP stream e benchmark DP8 sparse-emission quando un device Metal e' visibile. |
 | Autoresearch | Funzionante | Esegue check e benchmark con gate fissi e registra righe keep/discard. |
 | Benchforge | Funzionante | Loop challenge locale per benchmark Metal, note, submission, verifier JSON e export leaderboard statico. |
 
