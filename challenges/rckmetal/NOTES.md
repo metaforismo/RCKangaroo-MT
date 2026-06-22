@@ -600,6 +600,12 @@ they are intentionally ignored by git.
   `0.966583x`, `1.016373x`. Keep the current compiler-shaped dp4 loop; both
   explicit unroll and explicit no-unroll have now failed the M3 confirmation
   gate.
+- `5ec7a80` uploaded the public DP4 read-only input buffers into
+  `MTLResourceStorageModePrivate` via pre-compute blits while leaving outputs
+  shared. Correctness, `make macos-check`, and the full DP oracle stayed
+  intact, but stable paired confirmation discarded it: `0.532957x`,
+  `1.216758x`, `0.729656x`. Keep shared inputs for the score path; private
+  storage did not produce a repeatable M3 win.
 
 ## Current Correctness Surface
 

@@ -1554,6 +1554,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   of `0.794078x`, `0.966583x`, and `1.016373x`, therefore
   `confirmation_status=discard`. Keep the current compiler-shaped dp4 loop;
   neither forced unroll nor forced no-unroll has produced a durable M3 win.
+- `macos-metal-dp4-private-inputs`: uploading the public DP4 read-only inputs
+  into `MTLResourceStorageModePrivate` buffers before the timed compute, while
+  leaving output buffers shared, preserved `make macos-check` and the full DP
+  oracle but failed stable paired confirmation. Raw speedups were `0.532957x`,
+  `1.216758x`, and `0.729656x`, therefore `confirmation_status=discard`.
+  Keep shared input buffers for this benchmark; private storage plus blit
+  staging produced too much variance and no durable M3 target win.
 
 ## Next Research Targets
 
