@@ -939,6 +939,14 @@ they are intentionally ignored by git.
   candidate median `40,455,982.284936` steps/sec versus paired baseline
   `54,871,015.351268`, `paired_speedup=0.737292`. Keep the DP8 stream
   distance table as `ulong*` with an explicit cast to `uint`.
+- `macos-metal-dynamic-dp8-stream-j16-mask-after-no-steps` was rejected. A
+  dedicated post-no-overflow/no-steps DP8 kernel for `jumps=16` hardcoded
+  `mixed & 0xF` and preserved `emitted_records=61`,
+  `dp_distance_checksum=0x822e141de4770a0b`, and
+  `dp_checksum=0xab1c2cd29cd70a84`, but paired autoresearch discarded it:
+  candidate median `20,232,288.968150` steps/sec versus paired baseline
+  `52,397,986.361443`, `paired_speedup=0.386127`. Keep the existing shared
+  DP8 mask kernel for `jumps=16`.
 - A manual post-DP8-no-overflow `--tg-limit` sweep kept the existing 256
   default. With the accepted DP8 no-overflow kernel and unchanged oracle
   (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,

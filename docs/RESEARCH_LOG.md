@@ -2144,6 +2144,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   distance table as 64-bit host data with the explicit in-kernel cast to
   `uint`; the narrower table changes the compiled/buffer shape unfavorably on
   this M3 profile.
+- `macos-metal-dynamic-dp8-stream-j16-mask-after-no-steps`: rejected a
+  dedicated `jumps=16` DP8 sparse stream kernel after the accepted DP8
+  no-overflow and no-steps-argument changes. The candidate hardcoded the jump
+  mask to `0xF` while preserving the DP8 no-capacity/overflow shape, but paired
+  autoresearch showed a large regression. Correctness stayed intact:
+  `emitted_records=61`, `output_bytes_total=1220`,
+  `dp_distance_checksum=0x822e141de4770a0b`, and
+  `dp_checksum=0xab1c2cd29cd70a84`. Candidate median was
+  `20,232,288.968150` DP8 steps/sec (`min=19,756,963.738793`,
+  `max=32,213,287.036171`) versus paired baseline median
+  `52,397,986.361443`, `paired_speedup=0.386127`. Keep the shared DP8
+  `jump_mask` specialization for `jumps=16`; the extra entry point/codegen
+  shape is not favorable on this M3 profile.
 - `macos-metal-dynamic-dp8-stream-tg-sweep-after-no-overflow`: recorded a
   manual explicit `--tg-limit` sweep after accepting the DP8 no-overflow
   branch. No production code changed. The DP8 stream oracle stayed unchanged
