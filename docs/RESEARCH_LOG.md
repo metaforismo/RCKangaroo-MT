@@ -2297,6 +2297,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   justify a default change: DP14 was order-sensitive with one emitted record,
   and DP16-large kept 256/512 close enough that a 512 default would be another
   noisy scheduling bet rather than a confirmed improvement.
+- `macos-metal-dynamic-dp14-stream-gate`: accepted a command-backed
+  autoresearch gate between the DP12 and DP16 sparse stream shapes using
+  `--iterations 16384 --steps 8 --jumps 16 --dp-bits 14 --min-ms 200`. This
+  shape emits one record without needing the larger DP16 sample count, giving
+  future sparse-stream experiments a middle-density oracle. Baseline median was
+  `34,457,601.167211` DP14 steps/sec (`min=34,358,055.162337`,
+  `max=44,057,552.043881`) with `emitted_records=1`,
+  `output_bytes_total=20`, `dp_distance_checksum=0x9e3779b97f4b39c1`,
+  `dp_checksum=0x252996ea8a0dca38`, and `correctness=true`.
 - `macos-metal-dynamic-dp8-stream-tg-sweep-after-no-overflow`: recorded a
   manual explicit `--tg-limit` sweep after accepting the DP8 no-overflow
   branch. No production code changed. The DP8 stream oracle stayed unchanged

@@ -1017,6 +1017,12 @@ they are intentionally ignored by git.
   `dp_checksum=0xebe643771995a1fa`, and `correctness=true`. Initial median was
   `52,989,830.333319` steps/sec at the existing 256 default. No DP16 default
   threadgroup change was promoted; manual 256/512 sweeps were too close/noisy.
+- `macos-metal-dynamic-dp14-stream-gate` adds a middle-density sparse stream
+  gate between DP12 and DP16. The `sample_count=16384`, `dp_bits=14` shape
+  emits one record with `dp_distance_checksum=0x9e3779b97f4b39c1`,
+  `dp_checksum=0x252996ea8a0dca38`, and `correctness=true`. Initial median was
+  `34,457,601.167211` steps/sec at the existing 256 default. Use it when DP12
+  is too dense but DP16-large is too sparse for a candidate's expected effect.
 - A manual post-DP8-no-overflow `--tg-limit` sweep kept the existing 256
   default. With the accepted DP8 no-overflow kernel and unchanged oracle
   (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,
