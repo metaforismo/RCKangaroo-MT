@@ -852,6 +852,14 @@ they are intentionally ignored by git.
   alternating probe preserved the DP6/DP10/DP12 stream oracle, but only DP6
   improved (`1.032495x`); DP10 fell to `0.776477x` and DP12 to `0.966718x`.
   Keep generic runtime-mask u32 stream row access unchanged.
+- `autoresearch-command-backed-experiments` was accepted for harness coverage.
+  Experiments may now use `build_target` plus `bench_command` instead of a
+  Makefile benchmark target. The first DP10 command-backed paired row preserved
+  the stream oracle (`emitted_records=15`,
+  `dp_distance_checksum=0xb6973c2035ff6351`,
+  `dp_checksum=0xcbfdc2badaf0e57a`) and recorded `paired_speedup=0.894409`
+  for same-code candidate/baseline, so it is a DP10 baseline record, not a
+  solver-code promotion.
 
 ## Current Correctness Surface
 

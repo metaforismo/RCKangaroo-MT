@@ -1992,6 +1992,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   median `50,834,993.140300`, `paired_speedup=0.682913`. Keep the accepted
   single-kernel DP8 stream path; removing the infinity branch makes the kernel
   shape worse on this M3 profile.
+- `autoresearch-command-backed-experiments`: accepted runner infrastructure for
+  parameterized probes that should not grow the Makefile. Experiments can now
+  set `build_target` plus `bench_command`; paired baselines run the same
+  command in both worktrees and still parse the final benchmark JSON line. The
+  first command-backed gate is
+  `metal_jacobian_dynamic_dp_stream_dp10`, which recorded a clean same-code
+  paired DP10 stream row at commit `9aae4d3`: candidate median
+  `30,209,443.482633` steps/sec (`min=26,595,828.945919`,
+  `max=46,241,502.977642`) versus paired baseline median
+  `33,775,886.308299`, `paired_speedup=0.894409`, `status=discard`. The oracle
+  was stable (`emitted_records=15`,
+  `dp_distance_checksum=0xb6973c2035ff6351`,
+  `dp_checksum=0xcbfdc2badaf0e57a`); treat this as harness coverage and a DP10
+  baseline record, not a solver-code promotion.
 
 ## Next Research Targets
 
