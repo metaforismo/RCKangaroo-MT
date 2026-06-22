@@ -2953,6 +2953,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   is effectively noise while the small case regresses, so keep direct constant
   jump-table reads and avoid the extra threadgroup copy/barrier in the promoted
   kernel.
+- Rejected follow-up `macos-metal-dp8-xyzz-normal-first-mixed-add`: moving the
+  XYZZ mixed-add helper's common `H != 0` path before the rare
+  doubling/infinity edge path preserved the persistent-chain DP checksums but
+  regressed the first paired M3 check. On `131072 x 512 x 4`, baseline measured
+  `100,388,887.681252` steps/sec and the candidate measured
+  `78,739,589.676166`, both with `dp_count=2042`,
+  `dp_distance_checksum=0x2fc17b9313fc0204`, and
+  `dp_checksum=0x2b1728330fd9cdc6`. A follow-up baseline repeat was dominated
+  by thermal throttling (`20,652,861.141964`) and was not used for promotion.
+  This mirrors the earlier non-XYZZ normal-first rejection; keep the existing
+  edge-first helper shape.
 
 ## Next Research Targets
 

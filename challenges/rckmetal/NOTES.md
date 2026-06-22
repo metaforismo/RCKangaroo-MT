@@ -1450,6 +1450,14 @@ they are intentionally ignored by git.
   `127.17M` versus candidate `125.50M`; `262144 x 512 x 4` baseline
   `126.235M` versus candidate `126.256M`. The extra copy/barrier is not worth
   promoting on M3.
+- Rejected `macos-metal-dp8-xyzz-normal-first-mixed-add`: putting the common
+  `H != 0` XYZZ mixed-add body before the rare edge path kept
+  `dp_count=2042`, `dp_distance_checksum=0x2fc17b9313fc0204`, and
+  `dp_checksum=0x2b1728330fd9cdc6`, but the first paired run regressed from
+  `100.39M` to `78.74M` steps/sec on `131072 x 512 x 4`. A repeat baseline run
+  was thermally throttled to `20.65M`, so do not overfit it. Keep the existing
+  edge-first source shape; normal-first is not stable on this M3 compiler/GPU
+  path.
 
 ## Current Correctness Surface
 
