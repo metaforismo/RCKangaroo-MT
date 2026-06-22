@@ -2027,6 +2027,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   (`min=44,358,197.083863`, `max=61,234,592.955097`) versus paired baseline
   median `57,341,488.499819`, `paired_speedup=0.961272`. Keep the DP10 stream
   default at the shared 256 threadgroup limit.
+- `macos-metal-dynamic-dp6-stream-specialization`: added a command-backed DP6
+  sparse stream gate, then rejected a dedicated DP6 const-mask/local-row
+  kernel. The prototype preserved the DP6 stream oracle
+  (`emitted_records=248`,
+  `dp_distance_checksum=0xcd602d19c5edfa05`,
+  `dp_checksum=0xb302d085b993018a`), but paired autoresearch discarded it:
+  candidate median `39,834,931.340750` steps/sec
+  (`min=30,115,365.114382`, `max=59,170,008.949403`) versus paired baseline
+  median `55,663,782.861444`, `paired_speedup=0.715635`. Keep DP6 on the
+  generic runtime-mask u32-distance stream path; the new DP6 gate remains for
+  future density-intermediate experiments.
 
 ## Next Research Targets
 

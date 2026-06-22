@@ -258,6 +258,17 @@ runtime `ProjectiveDpMask(dp_bits)` Metal kernel. Use this gate to test whether
 rarer distinguished-point emission reduces atomic pressure and output traffic
 without changing the CPU replay oracle.
 
+Run the command-backed DP6 sparse stream experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_dp6 --budget-sec 10 --paired-baseline-ref main
+```
+
+This records the generic runtime-mask sparse stream path with `dp_bits=6`.
+Use it for density-between-DP4-and-DP8 candidates, where record emission is
+still common enough to stress atomics but sparse enough to differ from the DP4
+score path.
+
 Run the command-backed DP10 sparse stream experiment:
 
 ```sh

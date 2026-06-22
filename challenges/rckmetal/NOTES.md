@@ -870,6 +870,13 @@ they are intentionally ignored by git.
   but paired autoresearch discarded it: candidate median
   `55,120,744.100756` steps/sec versus paired baseline `57,341,488.499819`,
   `paired_speedup=0.961272`. Keep the shared 256 default.
+- `macos-metal-dynamic-dp6-stream-specialization` was rejected, but the DP6
+  command-backed gate was kept. The dedicated DP6 const-mask/local-row kernel
+  preserved `emitted_records=248`,
+  `dp_distance_checksum=0xcd602d19c5edfa05`, and
+  `dp_checksum=0xb302d085b993018a`, but paired autoresearch discarded it:
+  candidate median `39,834,931.340750` steps/sec versus paired baseline
+  `55,663,782.861444`, `paired_speedup=0.715635`.
 
 ## Current Correctness Surface
 
