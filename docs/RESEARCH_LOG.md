@@ -2931,6 +2931,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0x23509000c8141686`. Keep the 128 long-step default; allow
   manual `--tg-limit 256` only as a local tuning knob, not as a promoted
   default.
+- Rejected follow-up `macos-metal-dp8-xyzz-chain512-threadgroup-jumps`: caching
+  the 16 affine jump points and jump distances in threadgroup memory for the
+  specialized `steps=512, dp8, pow2` XYZZ chain kernel preserved correctness but
+  did not produce a stable win. Paired baseline/candidate checks on the M3 kept
+  the same `dp_count`, `dp_distance_checksum`, and `dp_checksum`: at
+  `131072 x 512 x 4`, baseline measured `127,167,485.779238` steps/sec versus
+  candidate `125,503,008.316048`; at `262144 x 512 x 4`, baseline measured
+  `126,235,013.656556` versus candidate `126,255,966.259504`. The large result
+  is effectively noise while the small case regresses, so keep direct constant
+  jump-table reads and avoid the extra threadgroup copy/barrier in the promoted
+  kernel.
 
 ## Next Research Targets
 

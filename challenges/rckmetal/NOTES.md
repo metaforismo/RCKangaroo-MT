@@ -1433,6 +1433,13 @@ they are intentionally ignored by git.
   at `109.6M`. The chain `262144 x 512 x 2` favored 128
   (`124.1M` versus `122.8M` at 256). Keep the 128 long-step default and use
   `--tg-limit 256` only for local experimentation.
+- Rejected `macos-metal-dp8-xyzz-chain512-threadgroup-jumps`: localizing the
+  tiny 16-entry jump table into threadgroup memory for the specialized
+  `steps=512` persistent chain preserved DP checksums but did not beat direct
+  constant-buffer reads. Paired checks: `131072 x 512 x 4` baseline
+  `127.17M` versus candidate `125.50M`; `262144 x 512 x 4` baseline
+  `126.235M` versus candidate `126.256M`. The extra copy/barrier is not worth
+  promoting on M3.
 
 ## Current Correctness Surface
 
