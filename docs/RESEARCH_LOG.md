@@ -2752,6 +2752,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-large-batch-bench` for
   peak-throughput exploration, while keeping the 262144-state saturated target
   as the standard repeatable Mac gate.
+- `macos-metal-dp8-xyzz-parallel-oracle`: accepted parallel CPU replay for the
+  dynamic DP stream validators. This does not change Metal `seconds` or
+  `ops_per_sec`; it preserves full per-sample replay and only splits expected
+  state/DP generation across CPU cores, reducing the wall-clock cost of large
+  Mac gates. On the 524288-state XYZZ `steps512` large-batch command, the
+  previous serial oracle took `81.46s` wall-clock (`user=76.70s`) and the new
+  parallel oracle took `16.55s` wall-clock (`user=101.39s`), a `4.92x`
+  end-to-end benchmark/oracle speedup. The outputs matched exactly:
+  `dp_count=1976`, `dp_distance_checksum=0x7325bd945494b7be`,
+  `dp_checksum=0x390f891179fdcbea`,
+  `jump_histogram_max_deviation_ppm=553`, and `correctness=true`. XYZZ JSON now
+  reports `validation_seconds` separately (`14.248229s` in the measured
+  large-batch run) so future speedups cannot hide inside kernel throughput.
 
 ## Next Research Targets
 

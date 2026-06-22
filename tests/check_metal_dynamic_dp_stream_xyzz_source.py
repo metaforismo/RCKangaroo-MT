@@ -56,6 +56,9 @@ required_host_markers = (
     "steps_per_sample != 256 && steps_per_sample != 512",
     "CanAccumulateDistanceU32(jump_distances, steps_per_sample)",
     "XYZZ dynamic dp stream packet distance exceeds uint32 accumulator",
+    "ParallelForSamples(p.size()",
+    "std::thread::hardware_concurrency()",
+    "\\\"validation_seconds\\\"",
 )
 for marker in required_host_markers:
     if marker not in host_source:

@@ -1345,6 +1345,11 @@ they are intentionally ignored by git.
   runner median `124,648,214.520876` steps/sec. A 1048576-state scout reached
   `125,056,788.093871` steps/sec and stayed correct, but is not promoted yet
   because the gain over 524288 was small for much slower validation.
+- `macos-metal-dp8-xyzz-parallel-oracle` was accepted for benchmark/research
+  efficiency. It parallelizes full CPU replay validation without sampling or
+  changing Metal timing. The 524288-state XYZZ large-batch command dropped from
+  `81.46s` to `16.55s` wall-clock with identical DP count/checksums and
+  `correctness=true`; XYZZ JSON now reports `validation_seconds` separately.
 
 ## Current Correctness Surface
 
