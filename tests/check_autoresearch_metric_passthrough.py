@@ -267,6 +267,59 @@ assert paired_build_once_calls == [
 assert paired_build_baseline_metrics["ops_per_sec"] == 100.0
 assert paired_build_candidate_metrics["ops_per_sec"] == 105.0
 
+paired_baseline_command_calls: list[tuple[Path, list[str]]] = []
+paired_baseline_command_ops = {
+    "baseline": [100.0, 101.0, 102.0],
+    "candidate": [110.0, 111.0, 112.0],
+}
+
+
+def fake_paired_baseline_command_runner(args: list[str], timeout: int, cwd: Path = runner.ROOT) -> subprocess.CompletedProcess[str]:
+    paired_baseline_command_calls.append((cwd, args))
+    if args == ["make", "macos-build"]:
+        return subprocess.CompletedProcess(args, 0, stdout="paired built once\n")
+    if args == ["./macos/rck_macos", "baseline-bench"]:
+        ops = paired_baseline_command_ops["baseline"].pop(0)
+        payload = dict(metrics, ops_per_sec=ops, iterations=int(ops))
+        return subprocess.CompletedProcess(args, 0, stdout=f"{runner.json.dumps(payload)}\n")
+    if args == ["./macos/rck_macos", "candidate-bench"]:
+        ops = paired_baseline_command_ops["candidate"].pop(0)
+        payload = dict(metrics, ops_per_sec=ops, iterations=int(ops))
+        return subprocess.CompletedProcess(args, 0, stdout=f"{runner.json.dumps(payload)}\n")
+    raise AssertionError(f"unexpected paired baseline-command args: {args!r}")
+
+
+runner.run_command = fake_paired_baseline_command_runner
+try:
+    with contextlib.redirect_stdout(io.StringIO()):
+        paired_baseline_command_metrics, paired_candidate_command_metrics = runner.run_paired_experiment_samples(
+            dict(
+                experiment,
+                build_target="macos-build",
+                paired_baseline_command=["./macos/rck_macos", "baseline-bench"],
+                bench_command=["./macos/rck_macos", "candidate-bench"],
+                sample_runs=3,
+            ),
+            timeout=10,
+            baseline_cwd=baseline_cwd,
+            candidate_cwd=candidate_cwd,
+        )
+finally:
+    runner.run_command = original_run_command
+
+assert paired_baseline_command_calls == [
+    (baseline_cwd, ["make", "macos-build"]),
+    (candidate_cwd, ["make", "macos-build"]),
+    (baseline_cwd, ["./macos/rck_macos", "baseline-bench"]),
+    (candidate_cwd, ["./macos/rck_macos", "candidate-bench"]),
+    (baseline_cwd, ["./macos/rck_macos", "baseline-bench"]),
+    (candidate_cwd, ["./macos/rck_macos", "candidate-bench"]),
+    (baseline_cwd, ["./macos/rck_macos", "baseline-bench"]),
+    (candidate_cwd, ["./macos/rck_macos", "candidate-bench"]),
+]
+assert paired_baseline_command_metrics["ops_per_sec"] == 101.0
+assert paired_candidate_command_metrics["ops_per_sec"] == 111.0
+
 paired_confirm_calls: list[tuple[Path, list[str]]] = []
 paired_confirm_ops = {
     "baseline": [100.0, 110.0, 120.0, 130.0],

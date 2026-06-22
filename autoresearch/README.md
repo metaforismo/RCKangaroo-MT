@@ -30,6 +30,12 @@ add, multiply, square, fused square-mul, and stable DP8 stream gates use this
 form so arithmetic and stream experiments do not pay a phony Make rebuild
 before every timing sample.
 
+Architecture probes that introduce a new command may also set
+`paired_baseline_command`. Paired runs then build both worktrees once, run the
+baseline command only in the baseline worktree, and run `bench_command` in the
+candidate worktree. This keeps comparisons reproducible when a candidate
+cannot be invoked from the baseline ref.
+
 For especially noisy Metal candidates, require repeated full decisions before a keep can enter the ledger:
 
 ```sh

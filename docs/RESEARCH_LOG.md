@@ -2578,10 +2578,37 @@ These did not pass the performance gate or had a correctness/architecture issue:
   autoresearch discarded it. Confirmation groups were approximately
   `0.965x`, `1.003x`, and final `0.993241x` versus `main`. Keep the compiler's
   default loop-shaping for the 256-step packet.
+- `macos-metal-dp8-xyzz-packet`: accepted a separate 256-step DP8 dynamic
+  packet kernel using `X,Y,ZZ,ZZZ` state instead of Jacobian `X,Y,Z`. This is
+  the first promoted coordinate-system change in the Metal packet path. The
+  XYZZ mixed-add formula avoids recomputing `Z^2` and `Z^3` from `Z` on every
+  jump; it updates `ZZ *= H^2` and `ZZZ *= H^3` directly, while keeping a full
+  CPU XYZZ replay oracle, a rare-case XYZZ doubling path, DP stream
+  validation, final-state validation, and jump-bucket histogram reporting. The
+  partition mixer remains the same avalanche structure but uses `ZZ0` in place
+  of unavailable `Z0`, so the walk is reported as its own operation
+  (`jacobian_affine_walk_dynamic_dp_stream_xyzz`) rather than silently
+  replacing the accepted Jacobian packet. Correctness was stable:
+  `emitted_records=66`,
+  `dp_distance_checksum=0x8c7a04f6c070c09d`,
+  `dp_checksum=0x7dbd6d4ef9312f92`, `dp_stream_overflow=false`,
+  `jump_histogram_max_deviation_ppm=2800`, and `correctness=true`.
+  Autoresearch now supports `paired_baseline_command`, allowing new commands to
+  compare against an accepted baseline command. Three paired confirmations
+  against `main` in-place `steps256` all kept the candidate: `108,430,652.959344`
+  vs `97,116,935.449139` steps/sec (`1.116496x`), `109,797,276.536427`
+  vs `99,516,980.914828` (`1.103302x`), and `109,205,454.549881`
+  vs `98,548,542.510903` (`1.108139x`). Use
+  `metal-jacobian-dynamic-dp-stream-xyzz-bench --steps 256 --jumps 16
+  --dp-bits 8 --min-ms 200` as the new architecture probe and keep the older
+  Jacobian in-place packet as the direct same-walk baseline.
 
 ## Next Research Targets
 
 - Move from isolated field kernels toward Jacobian point kernels on Metal.
+- Explore chaining XYZZ packets into solver-facing GPU walks, including affine
+  recovery/collision verification from `X,Y,ZZ,ZZZ` without reintroducing a
+  per-step `Z` dependency.
 - Keep CPU tiny-range kangaroo as the correctness oracle while GPU kernels are
   introduced one layer at a time.
 - Prefer fused kernels only when paired benchmarks show a real win. The fused

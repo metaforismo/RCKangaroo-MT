@@ -32,4 +32,6 @@ bool RCKMetalJacobianDynamicDpStreamSelfTest(std::string& error);
 std::string RCKMetalJacobianDynamicDpStreamBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int jump_count, unsigned int min_ms, unsigned int threadgroup_limit = 0, unsigned int dp_bits = 0);
 bool RCKMetalJacobianDynamicDpStreamInplaceSelfTest(std::string& error);
 std::string RCKMetalJacobianDynamicDpStreamInplaceBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int jump_count, unsigned int min_ms, unsigned int threadgroup_limit = 0, unsigned int dp_bits = 0);
+bool RCKMetalJacobianDynamicDpStreamXyzzSelfTest(std::string& error);
+std::string RCKMetalJacobianDynamicDpStreamXyzzBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int jump_count, unsigned int min_ms, unsigned int threadgroup_limit = 0, unsigned int dp_bits = 0);
 std::string RCKMetalJacobianDynamicDpCountBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int jump_count, unsigned int min_ms, unsigned int threadgroup_limit = 0, unsigned int dp_bits = 0);

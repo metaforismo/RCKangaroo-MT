@@ -1254,6 +1254,22 @@ they are intentionally ignored by git.
   autoresearch discarded the candidate. Confirmation groups were about
   `0.965x`, `1.003x`, and final `0.993241x` versus `main`. Leave loop shaping
   to the Metal compiler for this packet.
+- `macos-metal-dp8-xyzz-packet` was accepted as a separate architecture probe.
+  It stores dynamic packet state as `X,Y,ZZ,ZZZ`, updates `ZZ` and `ZZZ`
+  directly in the mixed-add formula, and validates against a full CPU XYZZ
+  replay oracle rather than reusing the Jacobian oracle. Because the state no
+  longer stores `Z`, the partition mixer uses the same avalanche finalizer with
+  `ZZ0` in place of `Z0`; the command is reported separately as
+  `jacobian_affine_walk_dynamic_dp_stream_xyzz`. Correctness held with
+  `emitted_records=66`,
+  `dp_distance_checksum=0x8c7a04f6c070c09d`,
+  `dp_checksum=0x7dbd6d4ef9312f92`,
+  `jump_histogram_max_deviation_ppm=2800`, and `correctness=true`. Paired
+  autoresearch, using the new `paired_baseline_command` support to compare
+  against main's accepted in-place `steps256` command, kept all three
+  confirmations: `1.116496x`, `1.103302x`, and `1.108139x`. Command:
+  `./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations
+  16384 --steps 256 --jumps 16 --dp-bits 8 --min-ms 200`.
 
 ## Current Correctness Surface
 

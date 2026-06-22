@@ -226,15 +226,19 @@ def build_benchmark_row(
     return row
 
 
-def experiment_bench_command(experiment: dict) -> list[str]:
-    if "bench_command" not in experiment:
-        return ["make", str(experiment.get("bench_target", "macos-bench"))]
+def experiment_bench_command(experiment: dict, key: str = "bench_command") -> list[str]:
+    if key not in experiment:
+        if key == "paired_baseline_command":
+            return experiment_bench_command(experiment, "bench_command")
+        if key == "bench_command":
+            return ["make", str(experiment.get("bench_target", "macos-bench"))]
+        raise ValueError(f"{key} must be present when requested")
 
-    command = experiment["bench_command"]
+    command = experiment[key]
     if not isinstance(command, list) or not command:
-        raise ValueError("bench_command must be a non-empty list of strings")
+        raise ValueError(f"{key} must be a non-empty list of strings")
     if not all(isinstance(part, str) and part for part in command):
-        raise ValueError("bench_command must contain only non-empty strings")
+        raise ValueError(f"{key} must contain only non-empty strings")
     return command
 
 
@@ -247,11 +251,11 @@ def build_experiment(experiment: dict, timeout: int, cwd: Path) -> None:
             raise RuntimeError(f"build target failed with status {build.returncode}")
 
 
-def run_experiment_sample(experiment: dict, timeout: int, cwd: Path, *, build: bool = True) -> dict:
+def run_experiment_sample(experiment: dict, timeout: int, cwd: Path, *, build: bool = True, command_key: str = "bench_command") -> dict:
     if build:
         build_experiment(experiment, timeout, cwd)
 
-    bench = run_command(experiment_bench_command(experiment), timeout=timeout, cwd=cwd)
+    bench = run_command(experiment_bench_command(experiment, command_key), timeout=timeout, cwd=cwd)
     print(bench.stdout, end="")
     if bench.returncode != 0:
         raise RuntimeError(f"benchmark command failed with status {bench.returncode}")
@@ -281,7 +285,7 @@ def run_paired_experiment_samples(experiment: dict, timeout: int, baseline_cwd: 
     for sample_index in range(sample_runs):
         if sample_runs > 1:
             print(f"paired sample {sample_index + 1}/{sample_runs} baseline:")
-        baseline_samples.append(run_experiment_sample(experiment, timeout, baseline_cwd, build=False))
+        baseline_samples.append(run_experiment_sample(experiment, timeout, baseline_cwd, build=False, command_key="paired_baseline_command"))
         if sample_runs > 1:
             print(f"paired sample {sample_index + 1}/{sample_runs} candidate:")
         candidate_samples.append(run_experiment_sample(experiment, timeout, candidate_cwd, build=False))

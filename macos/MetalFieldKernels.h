@@ -441,6 +441,14 @@ struct AffineJumpValue {
   ulong y0, y1, y2, y3;
 };
 
+struct XyzzValue {
+  ulong x0, x1, x2, x3;
+  ulong y0, y1, y2, y3;
+  ulong zz0, zz1, zz2, zz3;
+  ulong zzz0, zzz1, zzz2, zzz3;
+  uint inf;
+};
+
 kernel void field_square_mul_mod_p(device const ulong* a [[buffer(0)]],
                                    device const ulong* b [[buffer(1)]],
                                    device ulong* out [[buffer(2)]],
@@ -546,6 +554,137 @@ static inline JacobianValue jacobian_add_affine_values(ulong x0, ulong x1, ulong
                                            z0, z1, z2, z3,
                                            qx0, qx1, qx2, qx3,
                                            qy0, qy1, qy2, qy3);
+}
+
+static inline XyzzValue jacobian_double_xyzz_values(ulong x0, ulong x1, ulong x2, ulong x3,
+                                                    ulong y0, ulong y1, ulong y2, ulong y3,
+                                                    ulong zz0, ulong zz1, ulong zz2, ulong zz3,
+                                                    ulong zzz0, ulong zzz1, ulong zzz2, ulong zzz3) {
+  XyzzValue out;
+  if (field_is_zero(y0, y1, y2, y3)) {
+    out.x0 = 0; out.x1 = 0; out.x2 = 0; out.x3 = 0;
+    out.y0 = 0; out.y1 = 0; out.y2 = 0; out.y3 = 0;
+    out.zz0 = 0; out.zz1 = 0; out.zz2 = 0; out.zz3 = 0;
+    out.zzz0 = 0; out.zzz1 = 0; out.zzz2 = 0; out.zzz3 = 0;
+    out.inf = 1;
+    return out;
+  }
+
+  ulong xx0 = 0, xx1 = 0, xx2 = 0, xx3 = 0;
+  ulong yy0 = 0, yy1 = 0, yy2 = 0, yy3 = 0;
+  ulong yyyy0 = 0, yyyy1 = 0, yyyy2 = 0, yyyy3 = 0;
+  ulong xyy0 = 0, xyy1 = 0, xyy2 = 0, xyy3 = 0;
+  ulong tmp0 = 0, tmp1 = 0, tmp2 = 0, tmp3 = 0;
+  ulong s0 = 0, s1 = 0, s2 = 0, s3 = 0;
+  ulong m0 = 0, m1 = 0, m2 = 0, m3 = 0;
+  ulong t0 = 0, t1 = 0, t2 = 0, t3 = 0;
+  ulong two_s0 = 0, two_s1 = 0, two_s2 = 0, two_s3 = 0;
+  ulong eight0 = 0, eight1 = 0, eight2 = 0, eight3 = 0;
+  ulong s_minus_t0 = 0, s_minus_t1 = 0, s_minus_t2 = 0, s_minus_t3 = 0;
+  ulong ymul0 = 0, ymul1 = 0, ymul2 = 0, ymul3 = 0;
+  ulong four_yy0 = 0, four_yy1 = 0, four_yy2 = 0, four_yy3 = 0;
+  ulong yyy0 = 0, yyy1 = 0, yyy2 = 0, yyy3 = 0;
+  ulong eight_yyy0 = 0, eight_yyy1 = 0, eight_yyy2 = 0, eight_yyy3 = 0;
+
+  field_square_values(x0, x1, x2, x3, xx0, xx1, xx2, xx3);
+  field_square_values(y0, y1, y2, y3, yy0, yy1, yy2, yy3);
+  field_square_values(yy0, yy1, yy2, yy3, yyyy0, yyyy1, yyyy2, yyyy3);
+  field_add_values(x0, x1, x2, x3, yy0, yy1, yy2, yy3, xyy0, xyy1, xyy2, xyy3);
+  field_square_values(xyy0, xyy1, xyy2, xyy3, tmp0, tmp1, tmp2, tmp3);
+  field_sub_values(tmp0, tmp1, tmp2, tmp3, xx0, xx1, xx2, xx3, tmp0, tmp1, tmp2, tmp3);
+  field_sub_values(tmp0, tmp1, tmp2, tmp3, yyyy0, yyyy1, yyyy2, yyyy3, tmp0, tmp1, tmp2, tmp3);
+  field_double_values(tmp0, tmp1, tmp2, tmp3, s0, s1, s2, s3);
+  field_double_values(xx0, xx1, xx2, xx3, m0, m1, m2, m3);
+  field_add_values(m0, m1, m2, m3, xx0, xx1, xx2, xx3, m0, m1, m2, m3);
+  field_square_values(m0, m1, m2, m3, t0, t1, t2, t3);
+  field_double_values(s0, s1, s2, s3, two_s0, two_s1, two_s2, two_s3);
+  field_sub_values(t0, t1, t2, t3, two_s0, two_s1, two_s2, two_s3, t0, t1, t2, t3);
+  field_double_values(yyyy0, yyyy1, yyyy2, yyyy3, eight0, eight1, eight2, eight3);
+  field_double_values(eight0, eight1, eight2, eight3, eight0, eight1, eight2, eight3);
+  field_double_values(eight0, eight1, eight2, eight3, eight0, eight1, eight2, eight3);
+  field_sub_values(s0, s1, s2, s3, t0, t1, t2, t3, s_minus_t0, s_minus_t1, s_minus_t2, s_minus_t3);
+  field_mul_values(m0, m1, m2, m3, s_minus_t0, s_minus_t1, s_minus_t2, s_minus_t3, ymul0, ymul1, ymul2, ymul3);
+  field_sub_values(ymul0, ymul1, ymul2, ymul3, eight0, eight1, eight2, eight3, out.y0, out.y1, out.y2, out.y3);
+  field_double_values(yy0, yy1, yy2, yy3, four_yy0, four_yy1, four_yy2, four_yy3);
+  field_double_values(four_yy0, four_yy1, four_yy2, four_yy3, four_yy0, four_yy1, four_yy2, four_yy3);
+  field_mul_values(four_yy0, four_yy1, four_yy2, four_yy3, zz0, zz1, zz2, zz3, out.zz0, out.zz1, out.zz2, out.zz3);
+  field_mul_values(yy0, yy1, yy2, yy3, y0, y1, y2, y3, yyy0, yyy1, yyy2, yyy3);
+  field_double_values(yyy0, yyy1, yyy2, yyy3, eight_yyy0, eight_yyy1, eight_yyy2, eight_yyy3);
+  field_double_values(eight_yyy0, eight_yyy1, eight_yyy2, eight_yyy3, eight_yyy0, eight_yyy1, eight_yyy2, eight_yyy3);
+  field_double_values(eight_yyy0, eight_yyy1, eight_yyy2, eight_yyy3, eight_yyy0, eight_yyy1, eight_yyy2, eight_yyy3);
+  field_mul_values(eight_yyy0, eight_yyy1, eight_yyy2, eight_yyy3, zzz0, zzz1, zzz2, zzz3, out.zzz0, out.zzz1, out.zzz2, out.zzz3);
+  out.x0 = t0; out.x1 = t1; out.x2 = t2; out.x3 = t3;
+  out.inf = 0;
+  return out;
+}
+
+static inline XyzzValue jacobian_add_affine_xyzz_values(ulong x0, ulong x1, ulong x2, ulong x3,
+                                                        ulong y0, ulong y1, ulong y2, ulong y3,
+                                                        ulong zz0, ulong zz1, ulong zz2, ulong zz3,
+                                                        ulong zzz0, ulong zzz1, ulong zzz2, ulong zzz3,
+                                                        uint p_infinity,
+                                                        ulong qx0, ulong qx1, ulong qx2, ulong qx3,
+                                                        ulong qy0, ulong qy1, ulong qy2, ulong qy3) {
+  XyzzValue out;
+  if (p_infinity) {
+    out.x0 = qx0; out.x1 = qx1; out.x2 = qx2; out.x3 = qx3;
+    out.y0 = qy0; out.y1 = qy1; out.y2 = qy2; out.y3 = qy3;
+    out.zz0 = 1; out.zz1 = 0; out.zz2 = 0; out.zz3 = 0;
+    out.zzz0 = 1; out.zzz1 = 0; out.zzz2 = 0; out.zzz3 = 0;
+    out.inf = 0;
+    return out;
+  }
+
+  ulong u20 = 0, u21 = 0, u22 = 0, u23 = 0;
+  ulong s20 = 0, s21 = 0, s22 = 0, s23 = 0;
+  ulong h0 = 0, h1 = 0, h2 = 0, h3 = 0;
+  ulong r0 = 0, r1 = 0, r2 = 0, r3 = 0;
+  field_mul_values(qx0, qx1, qx2, qx3, zz0, zz1, zz2, zz3, u20, u21, u22, u23);
+  field_mul_values(qy0, qy1, qy2, qy3, zzz0, zzz1, zzz2, zzz3, s20, s21, s22, s23);
+  field_sub_values(u20, u21, u22, u23, x0, x1, x2, x3, h0, h1, h2, h3);
+  field_sub_values(s20, s21, s22, s23, y0, y1, y2, y3, r0, r1, r2, r3);
+
+  if (field_is_zero(h0, h1, h2, h3)) {
+    if (field_is_zero(r0, r1, r2, r3))
+      return jacobian_double_xyzz_values(x0, x1, x2, x3, y0, y1, y2, y3, zz0, zz1, zz2, zz3, zzz0, zzz1, zzz2, zzz3);
+    out.x0 = 0; out.x1 = 0; out.x2 = 0; out.x3 = 0;
+    out.y0 = 0; out.y1 = 0; out.y2 = 0; out.y3 = 0;
+    out.zz0 = 0; out.zz1 = 0; out.zz2 = 0; out.zz3 = 0;
+    out.zzz0 = 0; out.zzz1 = 0; out.zzz2 = 0; out.zzz3 = 0;
+    out.inf = 1;
+    return out;
+  }
+
+  ulong hh0 = 0, hh1 = 0, hh2 = 0, hh3 = 0;
+  ulong hhh0 = 0, hhh1 = 0, hhh2 = 0, hhh3 = 0;
+  ulong v0 = 0, v1 = 0, v2 = 0, v3 = 0;
+  ulong x30 = 0, x31 = 0, x32 = 0, x33 = 0;
+  ulong two_v0 = 0, two_v1 = 0, two_v2 = 0, two_v3 = 0;
+  ulong v_minus_x0 = 0, v_minus_x1 = 0, v_minus_x2 = 0, v_minus_x3 = 0;
+  ulong y_mul_hhh0 = 0, y_mul_hhh1 = 0, y_mul_hhh2 = 0, y_mul_hhh3 = 0;
+  ulong y30 = 0, y31 = 0, y32 = 0, y33 = 0;
+  ulong zz_out0 = 0, zz_out1 = 0, zz_out2 = 0, zz_out3 = 0;
+  ulong zzz_out0 = 0, zzz_out1 = 0, zzz_out2 = 0, zzz_out3 = 0;
+
+  field_square_values(h0, h1, h2, h3, hh0, hh1, hh2, hh3);
+  field_mul_values(hh0, hh1, hh2, hh3, h0, h1, h2, h3, hhh0, hhh1, hhh2, hhh3);
+  field_mul_values(x0, x1, x2, x3, hh0, hh1, hh2, hh3, v0, v1, v2, v3);
+  field_square_values(r0, r1, r2, r3, x30, x31, x32, x33);
+  field_sub_values(x30, x31, x32, x33, hhh0, hhh1, hhh2, hhh3, x30, x31, x32, x33);
+  field_double_values(v0, v1, v2, v3, two_v0, two_v1, two_v2, two_v3);
+  field_sub_values(x30, x31, x32, x33, two_v0, two_v1, two_v2, two_v3, x30, x31, x32, x33);
+  field_sub_values(v0, v1, v2, v3, x30, x31, x32, x33, v_minus_x0, v_minus_x1, v_minus_x2, v_minus_x3);
+  field_mul_values(r0, r1, r2, r3, v_minus_x0, v_minus_x1, v_minus_x2, v_minus_x3, y30, y31, y32, y33);
+  field_mul_values(y0, y1, y2, y3, hhh0, hhh1, hhh2, hhh3, y_mul_hhh0, y_mul_hhh1, y_mul_hhh2, y_mul_hhh3);
+  field_sub_values(y30, y31, y32, y33, y_mul_hhh0, y_mul_hhh1, y_mul_hhh2, y_mul_hhh3, y30, y31, y32, y33);
+  field_mul_values(zz0, zz1, zz2, zz3, hh0, hh1, hh2, hh3, zz_out0, zz_out1, zz_out2, zz_out3);
+  field_mul_values(zzz0, zzz1, zzz2, zzz3, hhh0, hhh1, hhh2, hhh3, zzz_out0, zzz_out1, zzz_out2, zzz_out3);
+  out.x0 = x30; out.x1 = x31; out.x2 = x32; out.x3 = x33;
+  out.y0 = y30; out.y1 = y31; out.y2 = y32; out.y3 = y33;
+  out.zz0 = zz_out0; out.zz1 = zz_out1; out.zz2 = zz_out2; out.zz3 = zz_out3;
+  out.zzz0 = zzz_out0; out.zzz1 = zzz_out1; out.zzz2 = zzz_out2; out.zzz3 = zzz_out3;
+  out.inf = 0;
+  return out;
 }
 
 kernel void jacobian_add_affine(device const ulong* p_xyz [[buffer(0)]],
@@ -1483,6 +1622,62 @@ kernel void jacobian_affine_walk_dynamic_dp_stream_inplace_steps256_dp8_pow2_u32
     out_indices[slot] = id;
     out_distances[slot] = (ulong)distance;
     out_dp_terms[slot] = x0 ^ (y0 << 1) ^ (z0 << 7);
+  }
+}
+
+kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp8_pow2_u32_distance(device ulong* p_xyzz [[buffer(0)]],
+                                                                                       constant AffineJumpValue* q_xy [[buffer(1)]],
+                                                                                       device uchar* p_infinity [[buffer(2)]],
+                                                                                       device atomic_uint* out_dp_count [[buffer(4)]],
+                                                                                       device uint* out_indices [[buffer(5)]],
+                                                                                       constant uint& count [[buffer(6)]],
+                                                                                       constant ulong* jump_distances [[buffer(8)]],
+                                                                                       device ulong* out_distances [[buffer(9)]],
+                                                                                       device ulong* out_dp_terms [[buffer(10)]],
+                                                                                       constant uint& jump_mask [[buffer(11)]],
+                                                                                       uint id [[thread_position_in_grid]]) {
+  if (id >= count) return;
+  uint p_base = id << 4;
+  ulong x0 = p_xyzz[p_base + 0], x1 = p_xyzz[p_base + 1], x2 = p_xyzz[p_base + 2], x3 = p_xyzz[p_base + 3];
+  ulong y0 = p_xyzz[p_base + 4], y1 = p_xyzz[p_base + 5], y2 = p_xyzz[p_base + 6], y3 = p_xyzz[p_base + 7];
+  ulong zz0 = p_xyzz[p_base + 8], zz1 = p_xyzz[p_base + 9], zz2 = p_xyzz[p_base + 10], zz3 = p_xyzz[p_base + 11];
+  ulong zzz0 = p_xyzz[p_base + 12], zzz1 = p_xyzz[p_base + 13], zzz2 = p_xyzz[p_base + 14], zzz3 = p_xyzz[p_base + 15];
+  bool inf = p_infinity[id];
+  uint distance = 0;
+
+  for (uint step = 0; step < 256; step++) {
+    ulong mixed = x0 ^ (x1 << 7) ^ (y0 >> 3) ^ zz0;
+    mixed ^= mixed >> 33;
+    mixed *= 0xff51afd7ed558ccdUL;
+    mixed ^= mixed >> 33;
+    uint jump_index = (uint)(mixed & (ulong)jump_mask);
+    distance += (uint)jump_distances[jump_index];
+    AffineJumpValue jump = q_xy[jump_index];
+    XyzzValue out = jacobian_add_affine_xyzz_values(x0, x1, x2, x3,
+                                                    y0, y1, y2, y3,
+                                                    zz0, zz1, zz2, zz3,
+                                                    zzz0, zzz1, zzz2, zzz3,
+                                                    inf,
+                                                    jump.x0, jump.x1, jump.x2, jump.x3,
+                                                    jump.y0, jump.y1, jump.y2, jump.y3);
+    x0 = out.x0; x1 = out.x1; x2 = out.x2; x3 = out.x3;
+    y0 = out.y0; y1 = out.y1; y2 = out.y2; y3 = out.y3;
+    zz0 = out.zz0; zz1 = out.zz1; zz2 = out.zz2; zz3 = out.zz3;
+    zzz0 = out.zzz0; zzz1 = out.zzz1; zzz2 = out.zzz2; zzz3 = out.zzz3;
+    inf = out.inf;
+  }
+
+  p_xyzz[p_base + 0] = x0; p_xyzz[p_base + 1] = x1; p_xyzz[p_base + 2] = x2; p_xyzz[p_base + 3] = x3;
+  p_xyzz[p_base + 4] = y0; p_xyzz[p_base + 5] = y1; p_xyzz[p_base + 6] = y2; p_xyzz[p_base + 7] = y3;
+  p_xyzz[p_base + 8] = zz0; p_xyzz[p_base + 9] = zz1; p_xyzz[p_base + 10] = zz2; p_xyzz[p_base + 11] = zz3;
+  p_xyzz[p_base + 12] = zzz0; p_xyzz[p_base + 13] = zzz1; p_xyzz[p_base + 14] = zzz2; p_xyzz[p_base + 15] = zzz3;
+  p_infinity[id] = inf ? 1 : 0;
+
+  if (!inf && ((x0 & 0xFFUL) == 0)) {
+    uint slot = atomic_fetch_add_explicit(out_dp_count, 1U, memory_order_relaxed);
+    out_indices[slot] = id;
+    out_distances[slot] = (ulong)distance;
+    out_dp_terms[slot] = x0 ^ (y0 << 1) ^ (zz0 << 7) ^ (zzz0 << 13);
   }
 }
 

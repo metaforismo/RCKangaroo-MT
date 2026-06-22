@@ -115,13 +115,16 @@ macos-metal-dynamic-dp-stream-mask-source-check:
 macos-metal-dynamic-dp-stream-inplace-source-check:
 	python3 tests/check_metal_dynamic_dp_stream_inplace_source.py
 
+macos-metal-dynamic-dp-stream-xyzz-source-check:
+	python3 tests/check_metal_dynamic_dp_stream_xyzz_source.py
+
 macos-metal-dynamic-dp-count-source-check:
 	python3 tests/check_metal_dynamic_dp_count_source.py
 
 macos-build:
 	$(CXX) $(MACOS_CXXFLAGS) $(MACOS_SRC) -o $(MACOS_TARGET) $(MACOS_LDFLAGS)
 
-macos-check: check-host check-autoresearch check-quality-gates macos-lto-flags-check macos-jump-index-source-check macos-ecint-carry-source-check macos-hotpath-microbatch-source-check macos-affine-z-check-source-check macos-affine-inplace-field-source-check macos-affine-reverse-loop-source-check macos-metal-dp4-uchar-infinity-source-check macos-metal-dp4-q-struct-row-source-check macos-metal-dynamic-jump-walk-source-check macos-metal-dynamic-compact-dp-source-check macos-metal-dynamic-dp-stream-source-check macos-metal-dynamic-dp-stream-mask-source-check macos-metal-dynamic-dp-stream-inplace-source-check macos-metal-dynamic-dp-count-source-check macos-build
+macos-check: check-host check-autoresearch check-quality-gates macos-lto-flags-check macos-jump-index-source-check macos-ecint-carry-source-check macos-hotpath-microbatch-source-check macos-affine-z-check-source-check macos-affine-inplace-field-source-check macos-affine-reverse-loop-source-check macos-metal-dp4-uchar-infinity-source-check macos-metal-dp4-q-struct-row-source-check macos-metal-dynamic-jump-walk-source-check macos-metal-dynamic-compact-dp-source-check macos-metal-dynamic-dp-stream-source-check macos-metal-dynamic-dp-stream-mask-source-check macos-metal-dynamic-dp-stream-inplace-source-check macos-metal-dynamic-dp-stream-xyzz-source-check macos-metal-dynamic-dp-count-source-check macos-build
 	./$(MACOS_TARGET) selftest
 	sh tests/check_point_bench_cli.sh
 	sh tests/check_jacobian_point_bench_cli.sh
@@ -153,6 +156,7 @@ macos-check: check-host check-autoresearch check-quality-gates macos-lto-flags-c
 	sh tests/check_metal_dynamic_dp_stream_cli.sh
 	sh tests/check_metal_dynamic_dp_stream_dp8_cli.sh
 	sh tests/check_metal_dynamic_dp_stream_inplace_cli.sh
+	sh tests/check_metal_dynamic_dp_stream_xyzz_cli.sh
 	sh tests/check_metal_dynamic_dp_count_cli.sh
 
 macos-bench: macos-build
@@ -358,6 +362,15 @@ macos-metal-jacobian-dynamic-dp-stream-inplace-steps256-bench: macos-build
 
 macos-metal-jacobian-dynamic-dp-stream-inplace-steps256-stable-bench: macos-build
 	./$(MACOS_TARGET) metal-jacobian-dynamic-dp-stream-inplace-bench --iterations 16384 --steps 256 --jumps 16 --dp-bits 8 --min-ms 200
+
+macos-metal-jacobian-dynamic-dp-stream-xyzz-test: macos-build
+	./$(MACOS_TARGET) metal-jacobian-dynamic-dp-stream-xyzz-test
+
+macos-metal-jacobian-dynamic-dp-stream-xyzz-steps256-bench: macos-build
+	./$(MACOS_TARGET) metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations 16384 --steps 256 --jumps 16 --dp-bits 8 --min-ms 50
+
+macos-metal-jacobian-dynamic-dp-stream-xyzz-steps256-stable-bench: macos-build
+	./$(MACOS_TARGET) metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations 16384 --steps 256 --jumps 16 --dp-bits 8 --min-ms 200
 
 macos-metal-jacobian-dynamic-dp-stream-dp12-bench: macos-build
 	./$(MACOS_TARGET) metal-jacobian-dynamic-dp-stream-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 12 --min-ms 50
