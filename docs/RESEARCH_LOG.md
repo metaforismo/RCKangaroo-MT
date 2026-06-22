@@ -2858,6 +2858,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   distance table, the narrower device type appears to worsen the M3 Metal
   kernel shape more than it saves memory bandwidth; keep the cumulative state
   as `ulong`.
+- Rejected follow-up `macos-metal-dp8-xyzz-steps512-tg256-default`: a targeted
+  attempt to promote `--tg-limit 256` as the default only for the single XYZZ
+  `steps=512` packet was too noisy to keep. Sequential M3 sweep on
+  `262144 x 512`: default/128 measured `122,329,483.687279`, then explicit 64
+  measured `120,995,659.976640`, 256 measured `122,905,172.380591`, 512
+  measured `109,615,654.426453`, a repeat of 128 measured
+  `122,894,659.561174`, and a repeat of 256 measured `124,000,810.433201`.
+  After implementing the candidate and rebuilding, the fresh default-256 run
+  measured `123,444,698.882605`, while explicit 128 in the same pass measured
+  `124,983,727.140317` and another explicit 256 measured
+  `124,355,526.442211`. The chain check also favored 128:
+  `262144 x 512 x 2` measured `124,077,279.673762` at 128 versus
+  `122,837,859.768948` at 256, preserving
+  `dp_distance_checksum=0x7a221c62b92a5ed3` and
+  `dp_checksum=0x23509000c8141686`. Keep the 128 long-step default; allow
+  manual `--tg-limit 256` only as a local tuning knob, not as a promoted
+  default.
 
 ## Next Research Targets
 

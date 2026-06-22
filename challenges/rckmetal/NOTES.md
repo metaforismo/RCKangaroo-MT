@@ -1403,6 +1403,13 @@ they are intentionally ignored by git.
   `106,452,461.969635` steps/sec at 128 threads and `112,562,977.345142` at
   `--tg-limit 256`. Keep the cumulative state as `ulong`; the narrower type
   worsens the M3 kernel shape.
+- Rejected `macos-metal-dp8-xyzz-steps512-tg256-default`: 256 threads was a
+  tempting local tuning knob for single XYZZ `steps=512`, but the signal did
+  not replicate. Sweep on `262144 x 512`: 128/default around
+  `122.3M-125.0M` steps/sec, 256 around `122.9M-124.4M`, 64 at `121.0M`, 512
+  at `109.6M`. The chain `262144 x 512 x 2` favored 128
+  (`124.1M` versus `122.8M` at 256). Keep the 128 long-step default and use
+  `--tg-limit 256` only for local experimentation.
 
 ## Current Correctness Surface
 
