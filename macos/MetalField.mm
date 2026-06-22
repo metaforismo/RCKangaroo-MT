@@ -1556,7 +1556,7 @@ static bool RunJacobianDynamicDpStreamKernel(const std::vector<CpuJacobianPoint>
 	if (dispatch_stats)
 		dispatch_stats->threadgroup_limit = (unsigned int)EffectiveThreadgroupLimit(threadgroup_limit);
 
-	if (p.empty() || jumps.empty() || jumps.size() != jump_distances.size() || steps_per_sample != 8 || dp_bits != 4 || !IsMetalPowerOfTwo((unsigned int)jumps.size()) || jumps.size() > 32)
+	if (p.empty() || jumps.empty() || jumps.size() != jump_distances.size() || steps_per_sample != 8 || dp_bits > 32 || !IsMetalPowerOfTwo((unsigned int)jumps.size()) || jumps.size() > 32)
 	{
 		error = "invalid jacobian dynamic dp stream input";
 		return false;
@@ -1590,7 +1590,10 @@ static bool RunJacobianDynamicDpStreamKernel(const std::vector<CpuJacobianPoint>
 			return false;
 		}
 
-		const char* function_name = "jacobian_affine_walk_dynamic_dp_stream_steps8_dp4_pow2";
+		const bool use_stream_dp4_specialization = dp_bits == 4;
+		const char* function_name = use_stream_dp4_specialization
+			? "jacobian_affine_walk_dynamic_dp_stream_steps8_dp4_pow2"
+			: "jacobian_affine_walk_dynamic_dp_stream_steps8_pow2_mask";
 		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{
@@ -1621,6 +1624,7 @@ static bool RunJacobianDynamicDpStreamKernel(const std::vector<CpuJacobianPoint>
 		uint32_t count = (uint32_t)p.size();
 		uint32_t step_count = steps_per_sample;
 		uint32_t jump_mask = (uint32_t)jumps.size() - 1U;
+		uint64_t dp_mask = ProjectiveDpMask(dp_bits);
 		uint32_t dp_capacity = count;
 		uint32_t zero = 0;
 		std::vector<uint32_t> indices_out(dp_capacity);
@@ -1642,7 +1646,8 @@ static bool RunJacobianDynamicDpStreamKernel(const std::vector<CpuJacobianPoint>
 		id<MTLBuffer> jump_mask_buffer = [device newBufferWithBytes:&jump_mask length:sizeof(jump_mask) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> dp_capacity_buffer = [device newBufferWithBytes:&dp_capacity length:sizeof(dp_capacity) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> overflow_buffer = [device newBufferWithBytes:&zero length:sizeof(zero) options:MTLResourceStorageModeShared];
-		if (!p_buffer || !q_buffer || !p_inf_buffer || !dp_count_buffer || !indices_buffer || !count_buffer || !steps_buffer || !jump_distances_buffer || !out_distances_buffer || !out_dp_terms_buffer || !jump_mask_buffer || !dp_capacity_buffer || !overflow_buffer)
+		id<MTLBuffer> dp_mask_buffer = use_stream_dp4_specialization ? nil : [device newBufferWithBytes:&dp_mask length:sizeof(dp_mask) options:MTLResourceStorageModeShared];
+		if (!p_buffer || !q_buffer || !p_inf_buffer || !dp_count_buffer || !indices_buffer || !count_buffer || !steps_buffer || !jump_distances_buffer || !out_distances_buffer || !out_dp_terms_buffer || !jump_mask_buffer || !dp_capacity_buffer || !overflow_buffer || (!use_stream_dp4_specialization && !dp_mask_buffer))
 		{
 			error = "failed to allocate Metal jacobian dynamic dp stream buffers";
 			return false;
@@ -1671,6 +1676,8 @@ static bool RunJacobianDynamicDpStreamKernel(const std::vector<CpuJacobianPoint>
 		[encoder setBuffer:jump_mask_buffer offset:0 atIndex:11];
 		[encoder setBuffer:dp_capacity_buffer offset:0 atIndex:12];
 		[encoder setBuffer:overflow_buffer offset:0 atIndex:13];
+		if (!use_stream_dp4_specialization)
+			[encoder setBuffer:dp_mask_buffer offset:0 atIndex:14];
 		NSUInteger threadgroup_count = (count + threads_per_threadgroup - 1) / threads_per_threadgroup;
 		[encoder dispatchThreadgroups:MTLSizeMake(threadgroup_count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
 		[encoder endEncoding];
@@ -2557,7 +2564,7 @@ bool RCKMetalJacobianDynamicDpStreamSelfTest(std::string& error)
 {
 	const unsigned int sample_count = 24;
 	const unsigned int steps_per_sample = 8;
-	const unsigned int dp_bits = 4;
+	const unsigned int dp_bit_cases[] = {4, 8};
 	const unsigned int jump_count = 8;
 
 	std::vector<CpuJacobianPoint> p;
@@ -2566,15 +2573,20 @@ bool RCKMetalJacobianDynamicDpStreamSelfTest(std::string& error)
 	BuildJacobianJumpWalkSamples(sample_count, jump_count, p, jumps);
 	BuildJacobianJumpDistances(jump_count, jump_distances);
 
-	std::vector<uint32_t> out_indices;
-	std::vector<uint64_t> out_distances;
-	std::vector<uint64_t> out_dp_terms;
-	uint32_t emitted_records = 0;
-	bool dp_stream_overflow = false;
-	if (!RunJacobianDynamicDpStreamKernel(p, jumps, jump_distances, steps_per_sample, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, error, NULL, 0, NULL))
-		return false;
+	for (unsigned int dp_bits : dp_bit_cases)
+	{
+		std::vector<uint32_t> out_indices;
+		std::vector<uint64_t> out_distances;
+		std::vector<uint64_t> out_dp_terms;
+		uint32_t emitted_records = 0;
+		bool dp_stream_overflow = false;
+		if (!RunJacobianDynamicDpStreamKernel(p, jumps, jump_distances, steps_per_sample, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, error, NULL, 0, NULL))
+			return false;
 
-	return ValidateDynamicDpStreamOutputs(p, jumps, jump_distances, steps_per_sample, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, NULL, NULL, NULL, NULL, error);
+		if (!ValidateDynamicDpStreamOutputs(p, jumps, jump_distances, steps_per_sample, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, NULL, NULL, NULL, NULL, error))
+			return false;
+	}
+	return true;
 }
 
 static FieldElement DeterministicElement(uint64_t i, uint64_t salt)
@@ -2942,9 +2954,9 @@ std::string RCKMetalJacobianDynamicDpStreamBenchJson(unsigned int iterations, un
 
 	MetalDispatchStats dispatch_stats;
 	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveThreadgroupLimit(threadgroup_limit);
-	if (steps_per_sample != 8 || dp_bits != 4 || !IsMetalPowerOfTwo(jump_count))
+	if (steps_per_sample != 8 || dp_bits > 32 || !IsMetalPowerOfTwo(jump_count))
 	{
-		std::string reason = "stream dynamic dp supports steps=8, power-of-two jumps, dp_bits=4";
+		std::string reason = "stream dynamic dp supports steps=8, power-of-two jumps, dp_bits=0..32";
 		return MetalJacobianDynamicDpStreamBenchJson("jacobian_affine_walk_dynamic_dp_stream", (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, false, false, reason);
 	}
 

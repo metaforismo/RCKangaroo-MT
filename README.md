@@ -179,6 +179,7 @@ python3 autoresearch/runner.py --experiment metal_field_mul --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_square --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_compact_dp --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream --budget-sec 10
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_dp8 --budget-sec 10
 ```
 
 The default macOS build enables ThinLTO (`MACOS_LTO_FLAGS=-flto=thin`) so clang can optimize the small Jacobian and field-arithmetic call graph across translation units on Apple Silicon. Disable it for toolchain debugging or generic compile checks with `make macos-check MACOS_LTO_FLAGS=`.

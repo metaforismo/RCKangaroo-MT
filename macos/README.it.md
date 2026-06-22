@@ -114,6 +114,7 @@ make macos-metal-jacobian-dynamic-compact-dp-stable-bench
 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-test
 make macos-metal-jacobian-dynamic-dp-stream-bench
 make macos-metal-jacobian-dynamic-dp-stream-stable-bench
+make macos-metal-jacobian-dynamic-dp-stream-dp8-stable-bench
 make macos-metal-kernels-check
 ```
 
@@ -124,7 +125,7 @@ Per jump count power-of-two, il percorso dinamico `steps=8`, `dp_bits=4` usa una
 
 `jacobian_affine_walk_dynamic_dp_compact` e' un benchmark solo dinamico per `steps=8`, `dp_bits=4` e jump count power-of-two, pensato per la futura emissione GPU dei distinguished point. Usa lo stesso mixer di salto dentro il kernel e lo stesso oracle CPU replay del walk dinamico completo, ma emette solo flag packed, distanza scalare a 64 bit e un termine checksum DP compatto invece di copiare lo stato Jacobian finale da 96 byte. Il JSON runtime lo marca come `output_layout=dp_compact` e `output_bytes_per_sample=17`; il walk dinamico completo resta l'oracle esatto dello stato finale e il riferimento per la verifica delle collisioni.
 
-`jacobian_affine_walk_dynamic_dp_stream` spinge la stessa idea oltre usando un contatore atomico per emettere solo i record DP effettivi come `(sample_index, distance, dp_term)`. Il JSON runtime lo marca come `output_layout=dp_stream`, `output_bytes_per_record=20`, `emitted_records`, `dp_capacity` e `dp_stream_overflow`. Lo stream non ha ordine garantito, quindi la verifica host ricostruisce i flag DP per campione prima del confronto con l'oracle CPU replay. Sul gate DP4 riduce molto il volume logico di output, ma gli atomics possono renderlo piu' lento dell'output compact per campione; trattalo come probe architetturale di emissione sparsa per `dp_bits` piu' alti, non come sostituto dell'oracle completo dello stato finale.
+`jacobian_affine_walk_dynamic_dp_stream` spinge la stessa idea oltre usando un contatore atomico per emettere solo i record DP effettivi come `(sample_index, distance, dp_term)`. Il JSON runtime lo marca come `output_layout=dp_stream`, `output_bytes_per_record=20`, `emitted_records`, `dp_capacity` e `dp_stream_overflow`. Lo stream non ha ordine garantito, quindi la verifica host ricostruisce i flag DP per campione prima del confronto con l'oracle CPU replay. Il gate DP4 usa ancora il kernel hardcoded DP4; gli altri valori di `dp_bits` usano un kernel con maschera runtime `ProjectiveDpMask(dp_bits)`, così le forme sparse DP8/DP12 si possono misurare senza cambiare l'oracle del walk. Sul gate DP4 riduce molto il volume logico di output, ma gli atomics possono renderlo piu' lento dell'output compact per campione; trattalo come probe architetturale di emissione sparsa per `dp_bits` piu' alti, non come sostituto dell'oracle completo dello stato finale.
 
 Comandi esempio per sweep threadgroup:
 
@@ -139,6 +140,7 @@ Comandi esempio per sweep threadgroup:
 ./macos/rck_macos metal-jacobian-dynamic-walk-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 50 --tg-limit 256
 ./macos/rck_macos metal-jacobian-dynamic-compact-dp-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 200 --tg-limit 256
 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 200 --tg-limit 256
+./macos/rck_macos metal-jacobian-dynamic-dp-stream-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 8 --min-ms 200 --tg-limit 256
 ```
 
 ## Preparare una lista target

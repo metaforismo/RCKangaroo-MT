@@ -716,6 +716,15 @@ they are intentionally ignored by git.
   dynamic, so treat it as a high-`dp_bits` sparse-emission probe. Clean
   autoresearch on commit `f3599da` recorded `status=keep`, median
   `41,222,124.404033` steps/sec, `output_bytes_total=20340`, and no overflow.
+- `macos-metal-dynamic-dp-stream-runtime-mask` keeps the DP4 sparse stream on
+  the hardcoded kernel and adds a runtime-mask stream kernel for non-DP4
+  `dp_bits`. The DP8 stable smoke shape (`steps=8`, `jumps=16`, `min_ms=200`)
+  emitted `61` records (`1,220` logical output bytes), preserved
+  `correctness=true`, `dp_checksum=0xab1c2cd29cd70a84`, and
+  `dp_distance_checksum=0x822e141de4770a0b`, while the adjacent DP4 stream
+  oracle stayed at `1017` records and `dp_checksum=0xbfd3b2319760e774`. Treat
+  this as an accepted high-`dp_bits` measurement surface, not a change in
+  kangaroo asymptotics.
 
 ## Current Correctness Surface
 

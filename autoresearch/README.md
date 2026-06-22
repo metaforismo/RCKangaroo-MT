@@ -239,6 +239,18 @@ reports `output_layout=dp_stream`, `output_bytes_per_record=20`,
 be slower than per-sample compact output because atomics are visible at this
 density.
 
+Run the runtime-mask DP8 sparse stream experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_dp8 --budget-sec 10
+```
+
+This records the same dynamic DP-stream architecture with `dp_bits=8`. The DP4
+shape keeps its hardcoded kernel, while DP8 and other non-DP4 shapes use a
+runtime `ProjectiveDpMask(dp_bits)` Metal kernel. Use this gate to test whether
+rarer distinguished-point emission reduces atomic pressure and output traffic
+without changing the CPU replay oracle.
+
 Run the CPU field multiplication experiment:
 
 ```sh

@@ -1753,6 +1753,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `41,222,124.404033` steps/sec across three stable samples
   (`min=32,638,499.393993`, `max=56,276,112.414753`), with
   `output_bytes_total=20340`, `emitted_records=1017`, and no stream overflow.
+- `macos-metal-dynamic-dp-stream-runtime-mask`: added a second sparse-stream
+  Metal kernel for `steps=8` and power-of-two jump counts that keeps DP4 on the
+  hardcoded stream specialization but uses runtime `ProjectiveDpMask(dp_bits)`
+  for non-DP4 shapes. This lets DP8/DP12 sparse-emission probes run without
+  changing the dynamic walk mixer or the CPU replay oracle. The new DP8 smoke
+  gate and selftest validate emitted `(sample_index, distance, dp_term)`
+  records against the same oracle. A direct M3 stable run for `iterations=16384`,
+  `steps=8`, `jumps=16`, `dp_bits=8`, and `min_ms=200` emitted `61` records
+  (`1,220` logical output bytes), preserved `correctness=true`, reported
+  `dp_checksum=0xab1c2cd29cd70a84`, `dp_distance_checksum=0x822e141de4770a0b`,
+  histogram `min=8082`, `max=8336`, `max_deviation_ppm=17578`, and measured
+  `59.347M` steps/sec. The adjacent DP4 stream check kept the existing oracle
+  (`emitted_records=1017`, `output_bytes_total=20340`,
+  `dp_checksum=0xbfd3b2319760e774`, `dp_distance_checksum=0x19e43ca50eec2a74`)
+  and measured `48.429M` steps/sec in that run. Treat this as an accepted
+  sparse-emission capability and a better high-`dp_bits` measurement surface;
+  it does not change the underlying kangaroo search complexity.
 
 ## Next Research Targets
 
