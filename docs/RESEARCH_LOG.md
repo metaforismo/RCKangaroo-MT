@@ -1914,6 +1914,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `38,552,397.853331`, `paired_speedup=0.814131`. This keeps the row-reuse
   rule scoped to sparse stream kernels; in count-only, register/codegen cost
   outweighs removing repeated row references.
+- `macos-metal-dynamic-u32-stream-local-jump-row`: rejected applying local
+  affine row reuse to the generic runtime-mask u32-distance stream kernel for
+  non-DP4/non-DP8 sparse cases. A direct alternating baseline/candidate probe
+  preserved the DP stream oracle for DP6, DP10, and DP12, but the median signal
+  was not generally positive: DP6 candidate `31,739,129.323942` steps/sec
+  versus baseline `30,740,222.068791` (`1.032495x`), DP10 candidate
+  `27,665,051.593804` versus baseline `35,628,935.854107` (`0.776477x`),
+  and DP12 candidate `39,021,049.148668` versus baseline
+  `40,364,460.030482` (`0.966718x`). Keep the generic u32 stream's direct
+  `q_xy[jump_index]` row references; local row reuse remains limited to the
+  dedicated DP4 and DP8 sparse stream kernels.
 - `macos-metal-dynamic-dp8-stream-j16-mask`: rejected hardcoding the DP8 stream
   jump mask to `0xF` behind a `jumps.size()==16` host guard. The prototype
   removed the runtime `jump_mask` constant from the DP8+j16 kernel while

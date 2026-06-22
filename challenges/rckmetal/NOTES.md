@@ -848,6 +848,10 @@ they are intentionally ignored by git.
   `31,386,712.313105` steps/sec versus paired baseline
   `38,552,397.853331`, `paired_speedup=0.814131`. Keep row reuse scoped to
   sparse stream kernels.
+- `macos-metal-dynamic-u32-stream-local-jump-row` was rejected. A direct
+  alternating probe preserved the DP6/DP10/DP12 stream oracle, but only DP6
+  improved (`1.032495x`); DP10 fell to `0.776477x` and DP12 to `0.966718x`.
+  Keep generic runtime-mask u32 stream row access unchanged.
 
 ## Current Correctness Surface
 
