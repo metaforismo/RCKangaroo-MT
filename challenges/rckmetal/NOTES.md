@@ -329,6 +329,12 @@ they are intentionally ignored by git.
   passed, but paired confirmation discarded it: `1.024585x`, `0.824733x`,
   `0.548792x`. Keep the compact Jacobian state; the extra live limbs are too
   expensive for this M3 kernel shape.
+- `macos-metal-dp4-index-word` packed each sample's eight DP4 jump-index bytes
+  into one `uint64_t` and unpacked with shifts in the Metal loop. Correctness,
+  source gates, and `make macos-check` passed, but direct public-shape runs
+  regressed to `1,234,220.937488` and `15,541,034.229553 ops/sec`. Keep the
+  byte-per-step constant-buffer loads; the packed-word extraction shape is much
+  slower on M3.
 - `8b3d413` added an explicit `uchar` cast around the public DP4 packed
   flag-store expression. Correctness and the stable DP oracle stayed intact,
   but paired confirmation discarded it: `1.020047x`, `1.099344x`,

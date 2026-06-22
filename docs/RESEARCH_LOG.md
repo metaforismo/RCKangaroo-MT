@@ -1020,6 +1020,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `0.548792x`, therefore `confirmation_status=discard`. The extra coordinate
   state and register pressure outweighed the dependency reduction on M3; keep
   the compact Jacobian DP4 state.
+- `macos-metal-dp4-index-word`: packed the public DP4 kernel's eight
+  per-sample jump-index bytes into one `uint64_t` host word and extracted each
+  index with shifts inside the loop, reducing index-buffer loads from eight to
+  one per thread. Source gates, `make macos-check`, and the public DP oracle
+  passed, but direct runs were gross regressions: `1,234,220.937488 ops/sec`
+  and `15,541,034.229553 ops/sec`. Do not promote to paired autoresearch; keep
+  byte-per-step index loads because the `ulong` extraction path hurts the M3
+  compiled DP4 kernel shape.
 - `macos-metal-mixed-add-h-normal-first`: moving the finite mixed-add normal
   `H != 0` path before the rare `H == 0` doubling/infinity edge path preserved
   `make macos-check`, the infinity-tail selftest, and the full stable DP
