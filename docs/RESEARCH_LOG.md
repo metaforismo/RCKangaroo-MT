@@ -1589,6 +1589,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   check measured dynamic `steps=8`, `jumps=16`, `dp_bits=4` at
   `44,774,506.250851 ops/sec` versus the precomputed-index public path at
   `63,690,640.815902 ops/sec`.
+- `macos-metal-dynamic-pow2-dp4`: added a branchless power-of-two
+  specialization for the dynamic Metal `steps=8`, `dp_bits=4` walk. The new
+  kernel receives `jump_mask = jump_count - 1` and computes
+  `jump_index = mixed & jump_mask`, avoiding the generic dynamic kernel's
+  per-step power-of-two branch/modulo choice. It preserves the dynamic walk
+  CPU replay oracle and `make macos-check`; the `jumps=16` checksum surface
+  remained `distance_checksum=0x9ac6c2b53e09365b`, `dp_count=2000`,
+  `dp_checksum=0x04df71e7a6aaf936` on the 32768-sample local gate. Manual M3
+  paired runs were noisy (`0.544x`, `1.646x`, `1.605x` at 1s; `0.878x` and
+  `1.487x` with reversed 3s ordering), so treat this as a low-risk dynamic
+  architecture specialization, not a public score claim.
+- Added `metal_jacobian_dynamic_walk_dp_stable` plus the
+  `macos-metal-jacobian-dynamic-walk-stable-bench` target so future dynamic
+  Metal candidates can use the same three-sample autoresearch discipline as
+  the public precomputed DP gate.
 
 ## Next Research Targets
 

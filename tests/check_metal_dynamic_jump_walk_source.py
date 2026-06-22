@@ -85,11 +85,55 @@ for forbidden in (
     if forbidden in dp4_body:
         raise SystemExit("dynamic dp4 jump walk kernel has stale generic marker: " + forbidden)
 
+pow2_kernel_name = "jacobian_affine_walk_dynamic_jump_table_steps8_dp4_pow2"
+if f"kernel void {pow2_kernel_name}" not in kernel_source:
+    raise SystemExit(f"{pow2_kernel_name} kernel missing from Metal source")
+
+pow2_start = kernel_source.index(f"kernel void {pow2_kernel_name}")
+pow2_next_kernel = kernel_source.find("\nkernel void ", pow2_start + 1)
+pow2_end_marker = kernel_source.find("\n)RCK_METAL", pow2_start + 1)
+pow2_end = pow2_next_kernel if pow2_next_kernel != -1 and pow2_next_kernel < pow2_end_marker else pow2_end_marker
+pow2_body = kernel_source[pow2_start:pow2_end]
+
+required_pow2_markers = (
+    "constant AffineJumpValue* q_xy [[buffer(1)]]",
+    "constant uchar* p_infinity [[buffer(2)]]",
+    "constant uint& jump_mask [[buffer(9)]]",
+    "bool inf = p_infinity[id];",
+    "for (uint step = 0; step < 8; step++)",
+    "ulong mixed = x0 ^ (x1 << 7) ^ (y0 >> 3) ^ z0;",
+    "mixed *= 0xff51afd7ed558ccdUL;",
+    "uint jump_index = (uint)(mixed & (ulong)jump_mask);",
+    "distance += jump_distances[jump_index];",
+    "q_xy[jump_index].x0",
+    "q_xy[jump_index].y3",
+    "jacobian_add_affine_finite_values",
+    "(x0 & 0xFUL) == 0",
+)
+for marker in required_pow2_markers:
+    if marker not in pow2_body:
+        raise SystemExit("missing dynamic pow2 dp4 kernel marker: " + marker)
+
+for forbidden in (
+    "constant uchar* jump_indices",
+    "jump_indices[",
+    "jump_count",
+    "% (ulong)",
+    "((jump_count & (jump_count - 1)) == 0)",
+    "uint q_base = jump_index << 3",
+    "constant ulong& dp_mask",
+):
+    if forbidden in pow2_body:
+        raise SystemExit("dynamic pow2 dp4 kernel has stale generic marker: " + forbidden)
+
 required_host_markers = (
     "RunJacobianDynamicJumpWalkKernel",
     "\"jacobian_affine_walk_dynamic_jump_table\"",
     "\"jacobian_affine_walk_dynamic_jump_table_steps8_dp4\"",
+    "\"jacobian_affine_walk_dynamic_jump_table_steps8_dp4_pow2\"",
     "const bool use_dynamic_dp4_specialization = steps_per_sample == 8 && dp_bits == 4;",
+    "const bool use_dynamic_dp4_pow2_specialization = use_dynamic_dp4_specialization && IsMetalPowerOfTwo((unsigned int)jumps.size());",
+    "uint32_t jump_mask = jump_count - 1U;",
     "std::vector<uint8_t> dynamic_p_infinity;",
     "dynamic_p_infinity.push_back(p_infinity_value ? 1U : 0U);",
     "CpuJacobianDynamicJumpWalk",

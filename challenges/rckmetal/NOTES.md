@@ -625,6 +625,15 @@ they are intentionally ignored by git.
   precomputed-index DP score path: a 1-second local M3 Air check measured
   dynamic `jumps=16` at `44,774,506.250851 ops/sec` versus the public
   precomputed path at `63,690,640.815902 ops/sec`.
+- `macos-metal-dynamic-pow2-dp4` added a dynamic-only branchless power-of-two
+  DP4 specialization using `jump_mask` instead of the generic dynamic
+  branch/modulo selector. Correctness and `make macos-check` stayed intact, but
+  manual local timing remained noisy, with both wins and losses against the
+  previous dynamic kernel. Treat it as dynamic-walk infrastructure; it does not
+  change the public precomputed-index score path.
+- `metal_jacobian_dynamic_walk_dp_stable` now exists as a stable autoresearch
+  gate for the dynamic Metal walk. Use it for future in-kernel jump-selection
+  experiments after the target exists on both candidate and baseline refs.
 
 ## Current Correctness Surface
 

@@ -892,6 +892,7 @@ static void PackAffineTable(const std::vector<CpuAffinePoint>& q,
 }
 
 static uint64_t ProjectiveDpMask(unsigned int dp_bits);
+static bool IsMetalPowerOfTwo(unsigned int value);
 
 static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 	const std::vector<CpuAffinePoint>& jumps,
@@ -1121,8 +1122,10 @@ static bool RunJacobianDynamicJumpWalkKernel(const std::vector<CpuJacobianPoint>
 		}
 
 		const bool use_dynamic_dp4_specialization = steps_per_sample == 8 && dp_bits == 4;
-		const char* function_name = use_dynamic_dp4_specialization ?
-			"jacobian_affine_walk_dynamic_jump_table_steps8_dp4" : "jacobian_affine_walk_dynamic_jump_table";
+		const bool use_dynamic_dp4_pow2_specialization = use_dynamic_dp4_specialization && IsMetalPowerOfTwo((unsigned int)jumps.size());
+		const char* function_name = use_dynamic_dp4_pow2_specialization ?
+			"jacobian_affine_walk_dynamic_jump_table_steps8_dp4_pow2" :
+			(use_dynamic_dp4_specialization ? "jacobian_affine_walk_dynamic_jump_table_steps8_dp4" : "jacobian_affine_walk_dynamic_jump_table");
 		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{
@@ -1176,13 +1179,15 @@ static bool RunJacobianDynamicJumpWalkKernel(const std::vector<CpuJacobianPoint>
 		uint32_t count = (uint32_t)p.size();
 		uint32_t step_count = steps_per_sample;
 		uint32_t jump_count = (uint32_t)jumps.size();
+		uint32_t jump_mask = jump_count - 1U;
 		uint64_t dp_mask = ProjectiveDpMask(dp_bits);
 		id<MTLBuffer> count_buffer = [device newBufferWithBytes:&count length:sizeof(count) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> steps_buffer = [device newBufferWithBytes:&step_count length:sizeof(step_count) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> jump_distances_buffer = [device newBufferWithBytes:jump_distances.data() length:distance_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> dp_mask_buffer = use_dynamic_dp4_specialization ? nil : [device newBufferWithBytes:&dp_mask length:sizeof(dp_mask) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> jump_count_buffer = [device newBufferWithBytes:&jump_count length:sizeof(jump_count) options:MTLResourceStorageModeShared];
-		if (!p_buffer || !q_buffer || !p_inf_buffer || !out_buffer || !out_flags_buffer || !out_distances_buffer || !count_buffer || !steps_buffer || !jump_distances_buffer || (!use_dynamic_dp4_specialization && !dp_mask_buffer) || !jump_count_buffer)
+		id<MTLBuffer> jump_mask_buffer = use_dynamic_dp4_pow2_specialization ? [device newBufferWithBytes:&jump_mask length:sizeof(jump_mask) options:MTLResourceStorageModeShared] : nil;
+		if (!p_buffer || !q_buffer || !p_inf_buffer || !out_buffer || !out_flags_buffer || !out_distances_buffer || !count_buffer || !steps_buffer || !jump_distances_buffer || (!use_dynamic_dp4_specialization && !dp_mask_buffer) || (!use_dynamic_dp4_pow2_specialization && !jump_count_buffer) || (use_dynamic_dp4_pow2_specialization && !jump_mask_buffer))
 		{
 			error = "failed to allocate Metal jacobian dynamic jump walk buffers";
 			return false;
@@ -1207,7 +1212,11 @@ static bool RunJacobianDynamicJumpWalkKernel(const std::vector<CpuJacobianPoint>
 		[encoder setBuffer:steps_buffer offset:0 atIndex:6];
 		[encoder setBuffer:jump_distances_buffer offset:0 atIndex:7];
 		[encoder setBuffer:out_distances_buffer offset:0 atIndex:8];
-		if (use_dynamic_dp4_specialization)
+		if (use_dynamic_dp4_pow2_specialization)
+		{
+			[encoder setBuffer:jump_mask_buffer offset:0 atIndex:9];
+		}
+		else if (use_dynamic_dp4_specialization)
 		{
 			[encoder setBuffer:jump_count_buffer offset:0 atIndex:9];
 		}

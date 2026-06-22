@@ -1,0 +1,7 @@
+{
+  "name": "metal_jacobian_dynamic_walk_dp_stable",
+  "description": "Stable Metal dynamic Jacobian jump walk with in-kernel jump selection and projective distinguished-point candidate flags",
+  "bench_target": "macos-metal-jacobian-dynamic-walk-stable-bench",
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3
+}
