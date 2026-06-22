@@ -2104,6 +2104,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `max=54,091,492.986425`) versus paired baseline `56,053,192.101321`,
   `paired_speedup=0.646843`, `confirmation_status=discard`. Do not promote a
   DP10 no-overflow specialization from the earlier single-run keep signal.
+- `macos-metal-dynamic-dp8-stream-tg-sweep-after-no-overflow`: recorded a
+  manual explicit `--tg-limit` sweep after accepting the DP8 no-overflow
+  branch. No production code changed. The DP8 stream oracle stayed unchanged
+  for all samples (`emitted_records=61`, `output_bytes_total=1220`,
+  `dp_distance_checksum=0x822e141de4770a0b`,
+  `dp_checksum=0xab1c2cd29cd70a84`). One 200 ms sweep measured tg64
+  `47,760,021.663871`, tg128 `62,608,992.429817`, tg256
+  `65,340,428.908829`, tg512 `63,549,730.568347`, and tg1024
+  `64,773,844.447836` DP8 steps/sec. Keep the existing 256 default; the
+  accepted no-overflow branch does not justify reopening the previously
+  rejected tg64 default.
 
 ## Next Research Targets
 

@@ -914,6 +914,14 @@ they are intentionally ignored by git.
   `50,590,171.559774` versus `57,834,567.954473` steps/sec
   (`paired_speedup=0.874739`) and `36,257,628.573029` versus
   `56,053,192.101321` (`paired_speedup=0.646843`).
+- A manual post-DP8-no-overflow `--tg-limit` sweep kept the existing 256
+  default. With the accepted DP8 no-overflow kernel and unchanged oracle
+  (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,
+  `dp_distance_checksum=0x822e141de4770a0b`), one explicit sweep measured:
+  tg64 `47,760,021.663871`, tg128 `62,608,992.429817`, tg256
+  `65,340,428.908829`, tg512 `63,549,730.568347`, and tg1024
+  `64,773,844.447836` steps/sec. Do not retune DP8 threadgroup default from
+  this sample.
 
 ## Current Correctness Surface
 
