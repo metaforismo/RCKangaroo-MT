@@ -2561,6 +2561,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   the candidate: confirmation speedups were `0.994935x`, `0.973389x`, and
   `1.004171x` (`confirmation_status=discard`). Keep the explicit per-run
   pipeline setup unless a future wall-clock metric is added and gated.
+- `macos-metal-dp8-inplace-steps256-no-unroll`: rejected pinning the accepted
+  `steps256` packet loop with `#pragma clang loop unroll(disable)`. The
+  candidate preserved the accepted oracle (`emitted_records=57`,
+  `dp_distance_checksum=0x0ab81bcdffe988ca`,
+  `dp_checksum=0xbb961e8e4fffeeb0`, `correctness=true`), but paired
+  autoresearch discarded it. Confirmation groups were approximately
+  `0.965x`, `1.003x`, and final `0.993241x` versus `main`. Keep the compiler's
+  default loop-shaping for the 256-step packet.
 
 ## Next Research Targets
 

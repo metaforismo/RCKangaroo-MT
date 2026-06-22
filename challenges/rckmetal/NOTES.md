@@ -1236,6 +1236,15 @@ they are intentionally ignored by git.
   command-buffer execution, not host pipeline setup. Confirmation speedups were
   `0.994935x`, `0.973389x`, and `1.004171x`. Keep pipeline caching out of the
   score path unless the harness grows a separate wall-clock metric.
+- `macos-metal-dp8-inplace-steps256-no-unroll` was rejected. It added
+  `#pragma clang loop unroll(disable)` before the accepted `steps256` packet
+  loop. Correctness and the accepted oracle stayed intact
+  (`emitted_records=57`,
+  `dp_distance_checksum=0x0ab81bcdffe988ca`,
+  `dp_checksum=0xbb961e8e4fffeeb0`, `correctness=true`), but paired
+  autoresearch discarded the candidate. Confirmation groups were about
+  `0.965x`, `1.003x`, and final `0.993241x` versus `main`. Leave loop shaping
+  to the Metal compiler for this packet.
 
 ## Current Correctness Surface
 
