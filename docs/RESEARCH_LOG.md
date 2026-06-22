@@ -2602,6 +2602,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `metal-jacobian-dynamic-dp-stream-xyzz-bench --steps 256 --jumps 16
   --dp-bits 8 --min-ms 200` as the new architecture probe and keep the older
   Jacobian in-place packet as the direct same-walk baseline.
+- `macos-metal-dp8-xyzz-steps512`: accepted a 512-step specialization for the
+  XYZZ DP8 packet path. This deliberately reopens a packet-size question that
+  was rejected for the older Jacobian in-place layout: the coordinate-system
+  change shifts enough work out of the hot loop for a larger packet to clear
+  the paired gate on this M3 Air. The same CPU XYZZ replay oracle validated the
+  sparse stream and final state with `emitted_records=76`,
+  `dp_distance_checksum=0x59171fb04821054e`,
+  `dp_checksum=0x979de1728771393c`, `dp_stream_overflow=false`,
+  `jump_histogram_max_deviation_ppm=2724`, and `correctness=true`.
+  Autoresearch compared the candidate command against accepted XYZZ
+  `steps256`; all three confirmation groups kept the candidate:
+  `105,678,664.660821` vs `102,653,102.552273` steps/sec (`1.029474x`),
+  `105,831,859.880228` vs `102,675,656.563845` (`1.030740x`), and
+  `107,388,329.480794` vs `103,951,832.856458` (`1.033059x`). Use
+  `metal-jacobian-dynamic-dp-stream-xyzz-bench --steps 512 --jumps 16
+  --dp-bits 8 --min-ms 200` as the current XYZZ packet plateau while keeping
+  `--steps 256` available for direct architecture regression checks.
 
 ## Next Research Targets
 

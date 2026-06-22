@@ -1681,6 +1681,62 @@ kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp8_pow2_u32_di
   }
 }
 
+kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_dp8_pow2_u32_distance(device ulong* p_xyzz [[buffer(0)]],
+                                                                                       constant AffineJumpValue* q_xy [[buffer(1)]],
+                                                                                       device uchar* p_infinity [[buffer(2)]],
+                                                                                       device atomic_uint* out_dp_count [[buffer(4)]],
+                                                                                       device uint* out_indices [[buffer(5)]],
+                                                                                       constant uint& count [[buffer(6)]],
+                                                                                       constant ulong* jump_distances [[buffer(8)]],
+                                                                                       device ulong* out_distances [[buffer(9)]],
+                                                                                       device ulong* out_dp_terms [[buffer(10)]],
+                                                                                       constant uint& jump_mask [[buffer(11)]],
+                                                                                       uint id [[thread_position_in_grid]]) {
+  if (id >= count) return;
+  uint p_base = id << 4;
+  ulong x0 = p_xyzz[p_base + 0], x1 = p_xyzz[p_base + 1], x2 = p_xyzz[p_base + 2], x3 = p_xyzz[p_base + 3];
+  ulong y0 = p_xyzz[p_base + 4], y1 = p_xyzz[p_base + 5], y2 = p_xyzz[p_base + 6], y3 = p_xyzz[p_base + 7];
+  ulong zz0 = p_xyzz[p_base + 8], zz1 = p_xyzz[p_base + 9], zz2 = p_xyzz[p_base + 10], zz3 = p_xyzz[p_base + 11];
+  ulong zzz0 = p_xyzz[p_base + 12], zzz1 = p_xyzz[p_base + 13], zzz2 = p_xyzz[p_base + 14], zzz3 = p_xyzz[p_base + 15];
+  bool inf = p_infinity[id];
+  uint distance = 0;
+
+  for (uint step = 0; step < 512; step++) {
+    ulong mixed = x0 ^ (x1 << 7) ^ (y0 >> 3) ^ zz0;
+    mixed ^= mixed >> 33;
+    mixed *= 0xff51afd7ed558ccdUL;
+    mixed ^= mixed >> 33;
+    uint jump_index = (uint)(mixed & (ulong)jump_mask);
+    distance += (uint)jump_distances[jump_index];
+    AffineJumpValue jump = q_xy[jump_index];
+    XyzzValue out = jacobian_add_affine_xyzz_values(x0, x1, x2, x3,
+                                                    y0, y1, y2, y3,
+                                                    zz0, zz1, zz2, zz3,
+                                                    zzz0, zzz1, zzz2, zzz3,
+                                                    inf,
+                                                    jump.x0, jump.x1, jump.x2, jump.x3,
+                                                    jump.y0, jump.y1, jump.y2, jump.y3);
+    x0 = out.x0; x1 = out.x1; x2 = out.x2; x3 = out.x3;
+    y0 = out.y0; y1 = out.y1; y2 = out.y2; y3 = out.y3;
+    zz0 = out.zz0; zz1 = out.zz1; zz2 = out.zz2; zz3 = out.zz3;
+    zzz0 = out.zzz0; zzz1 = out.zzz1; zzz2 = out.zzz2; zzz3 = out.zzz3;
+    inf = out.inf;
+  }
+
+  p_xyzz[p_base + 0] = x0; p_xyzz[p_base + 1] = x1; p_xyzz[p_base + 2] = x2; p_xyzz[p_base + 3] = x3;
+  p_xyzz[p_base + 4] = y0; p_xyzz[p_base + 5] = y1; p_xyzz[p_base + 6] = y2; p_xyzz[p_base + 7] = y3;
+  p_xyzz[p_base + 8] = zz0; p_xyzz[p_base + 9] = zz1; p_xyzz[p_base + 10] = zz2; p_xyzz[p_base + 11] = zz3;
+  p_xyzz[p_base + 12] = zzz0; p_xyzz[p_base + 13] = zzz1; p_xyzz[p_base + 14] = zzz2; p_xyzz[p_base + 15] = zzz3;
+  p_infinity[id] = inf ? 1 : 0;
+
+  if (!inf && ((x0 & 0xFFUL) == 0)) {
+    uint slot = atomic_fetch_add_explicit(out_dp_count, 1U, memory_order_relaxed);
+    out_indices[slot] = id;
+    out_distances[slot] = (ulong)distance;
+    out_dp_terms[slot] = x0 ^ (y0 << 1) ^ (zz0 << 7) ^ (zzz0 << 13);
+  }
+}
+
 kernel void jacobian_affine_walk_dynamic_dp_count_steps8_pow2_mask(constant ulong* p_xyz [[buffer(0)]],
                                                                    constant AffineJumpValue* q_xy [[buffer(1)]],
                                                                    constant uchar* p_infinity [[buffer(2)]],

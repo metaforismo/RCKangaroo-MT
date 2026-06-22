@@ -372,6 +372,12 @@ macos-metal-jacobian-dynamic-dp-stream-xyzz-steps256-bench: macos-build
 macos-metal-jacobian-dynamic-dp-stream-xyzz-steps256-stable-bench: macos-build
 	./$(MACOS_TARGET) metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations 16384 --steps 256 --jumps 16 --dp-bits 8 --min-ms 200
 
+macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-bench: macos-build
+	./$(MACOS_TARGET) metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations 16384 --steps 512 --jumps 16 --dp-bits 8 --min-ms 50
+
+macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-stable-bench: macos-build
+	./$(MACOS_TARGET) metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations 16384 --steps 512 --jumps 16 --dp-bits 8 --min-ms 200
+
 macos-metal-jacobian-dynamic-dp-stream-dp12-bench: macos-build
 	./$(MACOS_TARGET) metal-jacobian-dynamic-dp-stream-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 12 --min-ms 50
 

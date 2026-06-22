@@ -2209,7 +2209,7 @@ static bool RunJacobianDynamicDpStreamXyzzKernel(const std::vector<CpuJacobianPo
 	if (dispatch_stats)
 		dispatch_stats->threadgroup_limit = (unsigned int)effective_threadgroup_limit;
 
-	if (p.empty() || jumps.empty() || jumps.size() != jump_distances.size() || steps_per_sample != 256 || dp_bits != 8 || !IsMetalPowerOfTwo((unsigned int)jumps.size()) || jumps.size() > 32)
+	if (p.empty() || jumps.empty() || jumps.size() != jump_distances.size() || (steps_per_sample != 256 && steps_per_sample != 512) || dp_bits != 8 || !IsMetalPowerOfTwo((unsigned int)jumps.size()) || jumps.size() > 32)
 	{
 		error = "invalid jacobian dynamic dp stream XYZZ input";
 		return false;
@@ -2243,7 +2243,9 @@ static bool RunJacobianDynamicDpStreamXyzzKernel(const std::vector<CpuJacobianPo
 			return false;
 		}
 
-		const char* function_name = "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp8_pow2_u32_distance";
+		const char* function_name = steps_per_sample == 512
+			? "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_dp8_pow2_u32_distance"
+			: "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp8_pow2_u32_distance";
 		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{
@@ -3640,7 +3642,6 @@ bool RCKMetalJacobianDynamicDpStreamInplaceSelfTest(std::string& error)
 bool RCKMetalJacobianDynamicDpStreamXyzzSelfTest(std::string& error)
 {
 	const unsigned int sample_count = 24;
-	const unsigned int steps_per_sample = 256;
 	const unsigned int dp_bits = 8;
 	const unsigned int jump_count = 8;
 
@@ -3650,18 +3651,21 @@ bool RCKMetalJacobianDynamicDpStreamXyzzSelfTest(std::string& error)
 	BuildJacobianJumpWalkSamples(sample_count, jump_count, p, jumps);
 	BuildJacobianJumpDistances(jump_count, jump_distances);
 
-	std::vector<CpuXyzzPoint> state_out;
-	std::vector<uint32_t> out_indices;
-	std::vector<uint64_t> out_distances;
-	std::vector<uint64_t> out_dp_terms;
-	uint32_t emitted_records = 0;
-	bool dp_stream_overflow = false;
-	if (!RunJacobianDynamicDpStreamXyzzKernel(p, jumps, jump_distances, steps_per_sample, state_out, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, error, NULL, 0, NULL))
-		return false;
-	if (!ValidateDynamicXyzzDpStreamOutputs(p, jumps, jump_distances, steps_per_sample, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, NULL, NULL, NULL, NULL, error))
-		return false;
-	if (!ValidateDynamicXyzzStateOutputs(p, jumps, jump_distances, steps_per_sample, state_out, error))
-		return false;
+	for (unsigned int steps_per_sample : {256U, 512U})
+	{
+		std::vector<CpuXyzzPoint> state_out;
+		std::vector<uint32_t> out_indices;
+		std::vector<uint64_t> out_distances;
+		std::vector<uint64_t> out_dp_terms;
+		uint32_t emitted_records = 0;
+		bool dp_stream_overflow = false;
+		if (!RunJacobianDynamicDpStreamXyzzKernel(p, jumps, jump_distances, steps_per_sample, state_out, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, error, NULL, 0, NULL))
+			return false;
+		if (!ValidateDynamicXyzzDpStreamOutputs(p, jumps, jump_distances, steps_per_sample, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, NULL, NULL, NULL, NULL, error))
+			return false;
+		if (!ValidateDynamicXyzzStateOutputs(p, jumps, jump_distances, steps_per_sample, state_out, error))
+			return false;
+	}
 	return true;
 }
 
@@ -4175,9 +4179,9 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzBenchJson(unsigned int iterations
 
 	MetalDispatchStats dispatch_stats;
 	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveDynamicDpStreamInplaceThreadgroupLimit(threadgroup_limit, dp_bits, steps_per_sample);
-	if (steps_per_sample != 256 || dp_bits != 8 || !IsMetalPowerOfTwo(jump_count))
+	if ((steps_per_sample != 256 && steps_per_sample != 512) || dp_bits != 8 || !IsMetalPowerOfTwo(jump_count))
 	{
-		std::string reason = "XYZZ dynamic dp stream supports steps=256, power-of-two jumps, dp_bits=8";
+		std::string reason = "XYZZ dynamic dp stream supports steps=256 or steps=512, power-of-two jumps, dp_bits=8";
 		return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, false, false, reason);
 	}
 

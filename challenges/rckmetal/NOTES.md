@@ -1270,6 +1270,17 @@ they are intentionally ignored by git.
   confirmations: `1.116496x`, `1.103302x`, and `1.108139x`. Command:
   `./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations
   16384 --steps 256 --jumps 16 --dp-bits 8 --min-ms 200`.
+- `macos-metal-dp8-xyzz-steps512` was accepted as the current XYZZ packet-size
+  plateau. The older Jacobian in-place `steps512` remained rejected, but the
+  accepted XYZZ state layout made a larger packet worthwhile. Correctness held
+  with `emitted_records=76`,
+  `dp_distance_checksum=0x59171fb04821054e`,
+  `dp_checksum=0x979de1728771393c`,
+  `jump_histogram_max_deviation_ppm=2724`, `dp_stream_overflow=false`, and
+  `correctness=true`. Paired autoresearch against accepted XYZZ `steps256`
+  kept all three confirmations: `1.029474x`, `1.030740x`, and `1.033059x`.
+  Command: `./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-bench
+  --iterations 16384 --steps 512 --jumps 16 --dp-bits 8 --min-ms 200`.
 
 ## Current Correctness Surface
 
