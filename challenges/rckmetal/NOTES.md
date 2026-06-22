@@ -594,6 +594,12 @@ they are intentionally ignored by git.
   `1.585928x`; multi16 speedups were `0.953983x`, `0.998116x`, `0.907080x`.
   Keep the existing active-buffer placement until a larger batch-affine change
   proves a stable win.
+- `1a2e4f0` added `#pragma clang loop unroll(disable)` only to the public
+  `steps=8`, `dp_bits=4` Metal loop. The full DP oracle and `make macos-check`
+  stayed intact, but stable paired confirmation discarded it: `0.794078x`,
+  `0.966583x`, `1.016373x`. Keep the current compiler-shaped dp4 loop; both
+  explicit unroll and explicit no-unroll have now failed the M3 confirmation
+  gate.
 
 ## Current Correctness Surface
 

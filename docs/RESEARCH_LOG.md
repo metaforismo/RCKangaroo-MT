@@ -1547,6 +1547,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `confirmation_status=discard`; the 16-target kangaroo gate recorded
   `0.953983x`, `0.998116x`, and `0.907080x`. Keep the current active-buffer
   resize placement unless a broader batch-affine rewrite proves a durable win.
+- `macos-metal-dp4-nounroll`: adding
+  `#pragma clang loop unroll(disable)` to only the public `steps=8`,
+  `dp_bits=4` Metal loop preserved `make macos-check` and the full DP oracle,
+  but failed stable paired confirmation. The stable gate recorded raw speedups
+  of `0.794078x`, `0.966583x`, and `1.016373x`, therefore
+  `confirmation_status=discard`. Keep the current compiler-shaped dp4 loop;
+  neither forced unroll nor forced no-unroll has produced a durable M3 win.
 
 ## Next Research Targets
 
