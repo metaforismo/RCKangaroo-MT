@@ -2799,6 +2799,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   at `124,929,059.823944` steps/sec. Keep the XYZZ distance table as `ulong`
   with the explicit in-kernel cast to `uint`; the narrower buffer changes the
   compiled shape unfavorably on this M3 profile.
+- Rejected follow-up `macos-metal-dp8-xyzz-hybrid-expected-stores`: keeping
+  dense expected DP arrays but only writing expected distance/term values for
+  DP samples preserved the large-batch oracle (`dp_count=1976`,
+  `dp_distance_checksum=0x7325bd945494b7be`,
+  `dp_checksum=0x390f891179fdcbea`, `correctness=true`), but did not improve
+  fused validation. The same 524288-state command measured
+  `validation_seconds=7.984267` and `10.18s` wall-clock versus the accepted
+  fused-oracle reference of `validation_seconds=7.298625` and `9.57s`
+  wall-clock. Keep the current straight-line dense writes; the branch does not
+  pay for itself at DP8.
 
 ## Next Research Targets
 

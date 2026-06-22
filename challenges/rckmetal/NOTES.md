@@ -1368,6 +1368,11 @@ they are intentionally ignored by git.
   `118,540,009.154867` (`paired_speedup=0.950046`). Keep the existing `ulong`
   table plus in-kernel `uint` cast; the smaller table worsens this M3 kernel
   shape.
+- Rejected `macos-metal-dp8-xyzz-hybrid-expected-stores`: guarding expected
+  distance/term writes behind `expected_dp_flag` kept the large-batch oracle
+  intact, but validation regressed to `7.984267s` and wall-clock to `10.18s`
+  versus the accepted fused reference (`7.298625s`, `9.57s`). Keep the
+  straight-line dense expected writes.
 
 ## Current Correctness Surface
 
