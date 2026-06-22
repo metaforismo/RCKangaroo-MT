@@ -1361,6 +1361,13 @@ they are intentionally ignored by git.
   `dp_checksum=0x390f891179fdcbea`), but regressed wall-clock to `11.89s` and
   `validation_seconds` to `9.597125`. Keep the fused dense per-sample oracle
   layout; its linear arrays beat sparse vectors plus sorting for DP8.
+- Rejected `macos-metal-dp8-xyzz-u32-distances`: changing only the XYZZ packet
+  jump-distance table from `constant ulong*` to `constant uint*` preserved the
+  same large-batch DP count/checksums, but paired autoresearch discarded it:
+  candidate median `112,618,477.633033` steps/sec versus paired baseline
+  `118,540,009.154867` (`paired_speedup=0.950046`). Keep the existing `ulong`
+  table plus in-kernel `uint` cast; the smaller table worsens this M3 kernel
+  shape.
 
 ## Current Correctness Surface
 

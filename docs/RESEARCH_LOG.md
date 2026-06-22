@@ -2788,6 +2788,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `validation_seconds=9.597125`. The sort/vector overhead outweighed the lower
   dense-array memory footprint for DP8, so keep the fused dense validation
   layout as the base.
+- Rejected follow-up `macos-metal-dp8-xyzz-u32-distances`: packing the XYZZ
+  DP8 jump-distance table as `uint32_t` and changing the XYZZ packet kernels
+  to read `constant uint* jump_distances` preserved the large-batch oracle
+  (`dp_count=1976`, `dp_distance_checksum=0x7325bd945494b7be`,
+  `dp_checksum=0x390f891179fdcbea`, `correctness=true`), but paired
+  autoresearch against `main` discarded it. The candidate median was
+  `112,618,477.633033` steps/sec versus paired baseline
+  `118,540,009.154867` (`paired_speedup=0.950046`), despite one direct scout
+  at `124,929,059.823944` steps/sec. Keep the XYZZ distance table as `ulong`
+  with the explicit in-kernel cast to `uint`; the narrower buffer changes the
+  compiled shape unfavorably on this M3 profile.
 
 ## Next Research Targets
 
