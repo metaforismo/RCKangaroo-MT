@@ -1834,6 +1834,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   same group-reserve strategy also discarded at median `38,666,572.600191`
   steps/sec. Keep the simple per-record global atomic path; the extra
   threadgroup synchronization is not a durable win on this M3 profile.
+- `macos-metal-dynamic-dp-stream-u32-pow2-distance`: rejected a follow-up to
+  the accepted DP8 u32-distance stream kernel that replaced the guarded
+  `jump_distances[jump_index]` load with `1U << jump_index` when the host
+  verified the power-of-two distance table. Correctness stayed intact
+  (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,
+  `dp_distance_checksum=0x822e141de4770a0b`, no overflow), but clean
+  autoresearch on commit `413b1cb` discarded it: median `40,186,882.764342`
+  steps/sec across three DP8 samples (`min=32,100,455.469615`,
+  `max=58,747,215.509733`) versus the promoted u32-distance baseline median
+  `56,977,760.954224`. Keep the table-load u32-distance kernel; the shift form
+  is too low-tail-heavy on this M3 profile.
 
 ## Next Research Targets
 

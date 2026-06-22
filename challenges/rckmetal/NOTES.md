@@ -760,6 +760,13 @@ they are intentionally ignored by git.
   (`min=30,214,085.775297`, `max=56,510,398.787670`) versus DP8 stream
   baseline `37,013,170.931979`. A preliminary DP4 run also discarded at median
   `38,666,572.600191` steps/sec. Keep the simpler per-record global atomic.
+- `macos-metal-dynamic-dp-stream-u32-pow2-distance` was rejected. It replaced
+  the accepted u32-distance table load with `1U << jump_index` under a host
+  power-of-two distance-table guard. Correctness stayed intact, but clean
+  autoresearch on commit `413b1cb` discarded it: median
+  `40,186,882.764342` DP8 steps/sec (`min=32,100,455.469615`,
+  `max=58,747,215.509733`) versus promoted u32-distance baseline
+  `56,977,760.954224`. Keep the table-load u32-distance kernel.
 
 ## Current Correctness Surface
 
