@@ -2172,6 +2172,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   median `68,896,134.342987`, `paired_speedup=0.731459`. Keep the generic
   runtime-mask count kernel for DP8; the DP8 stream-specific signature cleanup
   does not transfer to the count-only diagnostic path.
+- `macos-metal-dynamic-dp-count-no-steps-arg`: rejected the more conservative
+  shared count-only cleanup that removed only the unused `steps` kernel
+  argument and host buffer binding while keeping the generic runtime DP mask
+  path. Correctness stayed intact (`output_layout=dp_count`, `dp_count=61`,
+  `distance_tracking=none`, `correctness=true`), but paired autoresearch
+  discarded it with candidate median `36,757,514.206820` steps/sec
+  (`min=20,607,438.290084`, `max=58,109,926.786046`) versus paired baseline
+  median `40,073,503.015154`, `paired_speedup=0.917252`. Keep the count-only
+  `steps` argument even though the DP8 sparse stream kernel benefits from
+  removing its unused `steps` argument.
 - `macos-metal-dynamic-dp8-stream-tg-sweep-after-no-overflow`: recorded a
   manual explicit `--tg-limit` sweep after accepting the DP8 no-overflow
   branch. No production code changed. The DP8 stream oracle stayed unchanged

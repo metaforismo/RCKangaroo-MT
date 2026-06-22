@@ -955,6 +955,12 @@ they are intentionally ignored by git.
   direct-`q_xy` variant measured `50,394,707.554658` versus
   `68,896,134.342987`, `paired_speedup=0.731459`. Keep DP8 count-only on the
   shared runtime-mask kernel.
+- `macos-metal-dynamic-dp-count-no-steps-arg` was rejected. Removing only the
+  unused `steps` argument/buffer from the shared count-only kernel preserved
+  `dp_count=61` and `correctness=true`, but paired autoresearch discarded it:
+  candidate median `36,757,514.206820` steps/sec versus paired baseline
+  `40,073,503.015154`, `paired_speedup=0.917252`. Keep the count-only
+  signature unchanged.
 - A manual post-DP8-no-overflow `--tg-limit` sweep kept the existing 256
   default. With the accepted DP8 no-overflow kernel and unchanged oracle
   (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,
