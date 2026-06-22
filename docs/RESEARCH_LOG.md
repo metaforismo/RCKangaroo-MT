@@ -2310,6 +2310,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   (`paired_speedup=0.725087`). Keep DP16 on the generic runtime-mask
   u32-distance stream kernel; the DP8 no-overflow success does not transfer to
   very sparse DP16 on this M3 Air.
+- `macos-metal-dp4-soa-input-layout`: rejected changing the public
+  `steps=8`, `dp_bits=4` jump-walk input layout from 12-limb AoS to a
+  structure-of-arrays buffer while keeping the final output AoS and the
+  fallback paths unchanged. Smoke tests preserved both the public oracle
+  (`distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`) and the verifier fallback shape
+  (`distance_checksum=0xbab72b58ebefa9dc`, `dp_count=249`,
+  `dp_checksum=0x4a7f2853a4a9f546`). The first paired gate kept it at
+  candidate median `31,361,809.164586` versus baseline
+  `27,944,840.858156` ops/sec (`paired_speedup=1.122275`), but the immediate
+  confirmation discarded it at candidate median `19,168,913.507147` versus
+  baseline `20,875,904.079754` ops/sec (`paired_speedup=0.918232`). Keep the
+  promoted AoS input layout for the public DP4 path; initial memory-coalescing
+  wins are not stable enough to offset the changed compiler/kernel shape.
 
 ## Next Research Targets
 

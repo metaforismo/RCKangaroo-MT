@@ -1033,6 +1033,13 @@ they are intentionally ignored by git.
   candidate `58,886,361.624760` versus baseline `81,212,851.782611`
   steps/sec (`paired_speedup=0.725087`). Keep sparse DP16 on the generic
   runtime-mask u32-distance stream kernel.
+- `macos-metal-dp4-soa-input-layout` was rejected. Repacking the public DP4
+  input Jacobian batch as SoA kept correctness for both score and verifier
+  fallback oracles (`0xa45f471493cace2f`/`1000`/`0x30a7914972cba014` and
+  `0xbab72b58ebefa9dc`/`249`/`0x4a7f2853a4a9f546`). The first paired run kept
+  it (`31,361,809.164586` versus `27,944,840.858156`, `1.122275x`), but
+  confirmation discarded it (`19,168,913.507147` versus `20,875,904.079754`,
+  `0.918232x`). Keep the current 12-limb AoS input for the public score path.
 
 ## Current Correctness Surface
 
