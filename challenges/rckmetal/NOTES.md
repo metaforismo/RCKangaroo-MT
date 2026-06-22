@@ -1226,6 +1226,16 @@ they are intentionally ignored by git.
   `0.966900x`, `0.919687x`, `0.965682x`, and `0.971917x` (median
   `0.965682x`). Do not add `steps192` unless another kernel-shape change moves
   the plateau.
+- `macos-metal-dp8-inplace-pipeline-cache` was rejected. It cached the in-place
+  DP8 runner's Metal device, library, command queue, and specialized pipeline.
+  Correctness stayed identical for the accepted `steps256` oracle
+  (`emitted_records=57`,
+  `dp_distance_checksum=0x0ab81bcdffe988ca`,
+  `dp_checksum=0xbb961e8e4fffeeb0`, `correctness=true`), but paired
+  autoresearch discarded the candidate because the official timing window is
+  command-buffer execution, not host pipeline setup. Confirmation speedups were
+  `0.994935x`, `0.973389x`, and `1.004171x`. Keep pipeline caching out of the
+  score path unless the harness grows a separate wall-clock metric.
 
 ## Current Correctness Surface
 

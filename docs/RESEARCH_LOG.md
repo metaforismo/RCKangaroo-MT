@@ -2551,6 +2551,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `--min-ms 500` same-binary pairs confirmed the rejection: ratios were
   `0.951722x`, `0.966900x`, `0.919687x`, `0.965682x`, and `0.971917x`
   (median `0.965682x`). Keep `steps256/tg128` as the packet-size plateau.
+- `macos-metal-dp8-inplace-pipeline-cache`: rejected caching the in-place DP8
+  runner's Metal device, library, command queue, and specialized pipeline.
+  The prototype preserved the accepted `steps256` oracle
+  (`emitted_records=57`, `dp_distance_checksum=0x0ab81bcdffe988ca`,
+  `dp_checksum=0xbb961e8e4fffeeb0`, `correctness=true`), but the benchmark
+  timer starts around command-buffer commit, so pipeline setup is outside the
+  official `ops_per_sec` metric. Paired autoresearch against `main` discarded
+  the candidate: confirmation speedups were `0.994935x`, `0.973389x`, and
+  `1.004171x` (`confirmation_status=discard`). Keep the explicit per-run
+  pipeline setup unless a future wall-clock metric is added and gated.
 
 ## Next Research Targets
 
