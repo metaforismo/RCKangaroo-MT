@@ -843,6 +843,11 @@ they are intentionally ignored by git.
   `dp_checksum=0xbfd3b2319760e774`, but paired autoresearch discarded it:
   candidate median `37,929,646.083412` steps/sec versus paired baseline
   `49,708,107.924197`, `paired_speedup=0.763047`.
+- `macos-metal-dynamic-dp-count-local-jump-row` was rejected. It preserved
+  `dp_count=61`, but paired autoresearch discarded it: candidate median
+  `31,386,712.313105` steps/sec versus paired baseline
+  `38,552,397.853331`, `paired_speedup=0.814131`. Keep row reuse scoped to
+  sparse stream kernels.
 
 ## Current Correctness Surface
 

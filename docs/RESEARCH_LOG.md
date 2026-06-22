@@ -1906,6 +1906,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `max=53,617,873.109935`) versus paired baseline median
   `49,708,107.924197`, `paired_speedup=0.763047`. Keep explicit local affine
   row reuse scoped to sparse stream kernels for now.
+- `macos-metal-dynamic-dp-count-local-jump-row`: rejected applying the local
+  affine row-reuse pattern to the DP8 count-only kernel. Correctness stayed
+  intact (`dp_count=61`), but paired autoresearch discarded it: candidate
+  median `31,386,712.313105` steps/sec (`min=27,381,736.631399`,
+  `max=53,030,510.888202`) versus paired baseline median
+  `38,552,397.853331`, `paired_speedup=0.814131`. This keeps the row-reuse
+  rule scoped to sparse stream kernels; in count-only, register/codegen cost
+  outweighs removing repeated row references.
 - `macos-metal-dynamic-dp8-stream-j16-mask`: rejected hardcoding the DP8 stream
   jump mask to `0xF` behind a `jumps.size()==16` host guard. The prototype
   removed the runtime `jump_mask` constant from the DP8+j16 kernel while
