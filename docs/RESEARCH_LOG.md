@@ -1905,6 +1905,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   median `31,783,403.981837`, `paired_speedup=0.937573`. Keep the current
   `avalanche64` mixer until a cheaper partition function wins paired
   confirmation and preserves distribution quality.
+- `macos-metal-dp8-stream-firstinf`: rejected specializing the DP8 sparse
+  stream kernel for the benchmark shape where only `p[0]` starts at infinity.
+  The prototype removed the `p_infinity[id]` buffer load and used
+  `bool inf = id == 0` behind a host guard equivalent to
+  `HasOnlyFirstInfinity(p)`. Correctness stayed intact
+  (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,
+  `dp_distance_checksum=0x822e141de4770a0b`, no overflow), but direct samples
+  were already poor (`2,059,055.018133` and `2,239,296.581508` steps/sec).
+  Paired autoresearch against `main` discarded it with candidate median
+  `910,556.434373` steps/sec (`min=836,748.733737`,
+  `max=1,191,971.044843`) versus paired baseline median
+  `1,799,640.261424`, `paired_speedup=0.505966`. Do not remove the tiny
+  `p_infinity` load in this path; the first-lane special case appears to hurt
+  generated code or lane behavior far more than it saves on this M3 profile.
 
 ## Next Research Targets
 

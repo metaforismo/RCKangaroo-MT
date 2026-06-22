@@ -801,6 +801,15 @@ they are intentionally ignored by git.
   (`min=8039`, `max=8347`, `max_deviation_ppm=18921`), but paired autoresearch
   discarded it: candidate median `29,799,267.712366` steps/sec versus paired
   baseline `31,783,403.981837`, `paired_speedup=0.937573`. Keep `avalanche64`.
+- `macos-metal-dp8-stream-firstinf` was rejected. It removed the DP8 sparse
+  stream `p_infinity[id]` load for the common benchmark shape where only
+  `p[0]` starts at infinity and used `id == 0` instead. The DP8 stream oracle
+  stayed unchanged (`emitted_records=61`,
+  `dp_checksum=0xab1c2cd29cd70a84`,
+  `dp_distance_checksum=0x822e141de4770a0b`), but paired autoresearch
+  discarded it: candidate median `910,556.434373` steps/sec versus paired
+  baseline `1,799,640.261424`, `paired_speedup=0.505966`. Keep the current
+  explicit infinity buffer in the DP8 stream path.
 
 ## Current Correctness Surface
 
