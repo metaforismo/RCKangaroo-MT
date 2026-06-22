@@ -1727,6 +1727,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   recorded `status=keep`, median `54,351,372.121311` steps/sec across three
   stable samples (`min=41,407,648.422616`, `max=58,936,405.734283`), with the
   same dynamic oracle and `output_bytes_per_sample=17`.
+- `macos-metal-dynamic-compact-dp-tg512`: rejected a compact-DP-only
+  threadgroup cap increase from 256 to 512. A first direct sweep looked
+  ambiguous (`128=33.200M`, `256=37.218M`, `512=38.891M` steps/sec), but an
+  alternating 256/512 sequence favored the current 256 cap. The three 256 runs
+  were `29.174M`, `37.518M`, and `32.654M` steps/sec; the three 512 runs were
+  `29.076M`, `31.289M`, and `28.083M`, with identical compact dynamic oracle
+  fields throughout. Keep the inherited 256 default for compact dynamic DP.
 
 ## Next Research Targets
 

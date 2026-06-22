@@ -702,6 +702,10 @@ they are intentionally ignored by git.
   final-state correctness reference. Clean autoresearch on commit `1a03888`
   recorded `status=keep`, median `54,351,372.121311` steps/sec across three
   stable samples, with `output_bytes_per_sample=17`.
+- `macos-metal-dynamic-compact-dp-tg512` was rejected by a direct alternating
+  sweep. A single pass made 512 look competitive, but the 256/512 alternating
+  sequence favored the existing 256 cap: 256 median `32.654M` steps/sec versus
+  512 median `29.076M`, with identical compact dynamic oracle fields.
 
 ## Current Correctness Surface
 
