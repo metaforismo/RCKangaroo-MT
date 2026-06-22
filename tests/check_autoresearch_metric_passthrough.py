@@ -54,6 +54,7 @@ assert row["speedup_vs_single"] == 4.0
 assert row["target_throughput_vs_single"] == 16.0
 assert row["commit"] == "abc123"
 assert row["machine"] == "test-machine"
+assert row["cooldown_sec"] == 0.0
 
 git_call_args: list[list[str]] = []
 
@@ -80,7 +81,7 @@ assert git_call_args == [
 ]
 
 paired_row = runner.build_benchmark_row(
-    experiment=experiment,
+    experiment=dict(experiment, cooldown_sec=3),
     metrics=dict(metrics, ops_per_sec=84.0),
     budget_sec=5,
     commit="abc124",
@@ -94,6 +95,7 @@ assert paired_row["status"] == "keep"
 assert paired_row["paired_baseline_ref"] == "main"
 assert paired_row["paired_baseline_ops_per_sec"] == 80.0
 assert paired_row["paired_speedup"] == 1.05
+assert paired_row["cooldown_sec"] == 3.0
 
 samples = [
     dict(metrics, iterations=5, seconds=0.10, ops_per_sec=50.0),

@@ -208,6 +208,7 @@ def build_benchmark_row(
             "min_ms": int(metrics.get("min_ms", 0)),
             "seconds": float(metrics.get("seconds", 0.0)),
             "ops_per_sec": ops_per_sec,
+            "cooldown_sec": cooldown_seconds(experiment),
             "correctness": correctness,
             "skipped": skipped,
             "reason": str(metrics.get("reason", "")),
