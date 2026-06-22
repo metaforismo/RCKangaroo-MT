@@ -837,6 +837,12 @@ they are intentionally ignored by git.
   candidate median `28,896,380.858909` steps/sec versus paired baseline
   `54,829,695.882427`, `paired_speedup=0.527021`. Keep the row-reuse pattern
   to sparse stream kernels for now.
+- `macos-metal-dynamic-walk-local-jump-row` was rejected. Applying local affine
+  row reuse to the DP4 full-output dynamic walk kernel preserved
+  `distance_checksum=0x5c36c706ffa2cbaa`, `dp_count=1017`, and
+  `dp_checksum=0xbfd3b2319760e774`, but paired autoresearch discarded it:
+  candidate median `37,929,646.083412` steps/sec versus paired baseline
+  `49,708,107.924197`, `paired_speedup=0.763047`.
 
 ## Current Correctness Surface
 

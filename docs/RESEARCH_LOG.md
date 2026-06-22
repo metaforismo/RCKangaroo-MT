@@ -1897,6 +1897,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `54,829,695.882427`, `paired_speedup=0.527021`. Keep the row-reuse pattern
   limited to sparse stream kernels unless a compact-output candidate
   independently wins.
+- `macos-metal-dynamic-walk-local-jump-row`: rejected applying the same local
+  affine row-reuse pattern to the DP4 full-output dynamic walk kernel. The
+  point/distance/DP oracle stayed intact (`distance_checksum=
+  0x5c36c706ffa2cbaa`, `dp_count=1017`,
+  `dp_checksum=0xbfd3b2319760e774`), but paired autoresearch discarded it:
+  candidate median `37,929,646.083412` steps/sec (`min=31,352,106.536932`,
+  `max=53,617,873.109935`) versus paired baseline median
+  `49,708,107.924197`, `paired_speedup=0.763047`. Keep explicit local affine
+  row reuse scoped to sparse stream kernels for now.
 - `macos-metal-dynamic-dp8-stream-j16-mask`: rejected hardcoding the DP8 stream
   jump mask to `0xF` behind a `jumps.size()==16` host guard. The prototype
   removed the runtime `jump_mask` constant from the DP8+j16 kernel while
