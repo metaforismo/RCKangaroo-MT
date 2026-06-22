@@ -1888,6 +1888,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `35,537,101.509200` is far below the promoted sparse stream DP8 median
   `56,977,760.954224`, so do not add a dense compact DP8 speed path; on this
   M3 profile, the sparse stream with per-record atomics still wins at DP8.
+- `macos-metal-dynamic-compact-dp-local-jump-row`: rejected applying the local
+  affine row-reuse pattern to the DP4 compact-output kernel. The oracle stayed
+  intact (`distance_checksum=0x5c36c706ffa2cbaa`, `dp_count=1017`,
+  `dp_checksum=0xbfd3b2319760e774`), but paired autoresearch discarded it:
+  candidate median `28,896,380.858909` steps/sec (`min=28,120,992.430797`,
+  `max=38,095,787.769098`) versus paired baseline median
+  `54,829,695.882427`, `paired_speedup=0.527021`. Keep the row-reuse pattern
+  limited to sparse stream kernels unless a compact-output candidate
+  independently wins.
 - `macos-metal-dynamic-dp8-stream-j16-mask`: rejected hardcoding the DP8 stream
   jump mask to `0xF` behind a `jumps.size()==16` host guard. The prototype
   removed the runtime `jump_mask` constant from the DP8+j16 kernel while

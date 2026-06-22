@@ -830,6 +830,13 @@ they are intentionally ignored by git.
   candidate median `34,715,854.003069` steps/sec versus paired baseline
   `50,834,993.140300`, `paired_speedup=0.682913`. Keep the accepted single
   DP8 stream kernel.
+- `macos-metal-dynamic-compact-dp-local-jump-row` was rejected. Applying local
+  affine row reuse to the DP4 compact-output kernel preserved the oracle
+  (`distance_checksum=0x5c36c706ffa2cbaa`, `dp_count=1017`,
+  `dp_checksum=0xbfd3b2319760e774`) but paired autoresearch discarded it:
+  candidate median `28,896,380.858909` steps/sec versus paired baseline
+  `54,829,695.882427`, `paired_speedup=0.527021`. Keep the row-reuse pattern
+  to sparse stream kernels for now.
 
 ## Current Correctness Surface
 
