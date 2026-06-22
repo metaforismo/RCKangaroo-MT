@@ -736,6 +736,14 @@ they are intentionally ignored by git.
   `max=57,571,900.124877`) versus baseline `37,013,170.931979`, with
   `emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`, and
   `dp_distance_checksum=0x822e141de4770a0b`.
+- `macos-metal-dynamic-dp8-stream-const-mask` specializes that DP8 stream path
+  further by hardcoding the DP predicate as `(x0 & 0xFF) == 0` and avoiding the
+  runtime `dp_mask` buffer. Clean autoresearch on commit `f878edc` kept it
+  with median `58,596,783.649305` DP8 steps/sec
+  (`min=41,535,061.854930`, `max=63,616,563.008358`) versus baseline
+  `56,977,760.954224`, with `emitted_records=61`,
+  `dp_checksum=0xab1c2cd29cd70a84`, and
+  `dp_distance_checksum=0x822e141de4770a0b`.
 - `macos-metal-dynamic-dp-count-probe` added a count-only diagnostic kernel for
   the dynamic DP8 path. It uses the same runtime DP mask but only increments
   one atomic `dp_count`, writing no candidate records. Clean autoresearch on

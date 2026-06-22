@@ -205,3 +205,4 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-22T03:33:05Z	4b4014c	metal_jacobian_dynamic_dp_count_dp8	metal	jacobian_affine_walk_dynamic_dp_count	10878976	53546106.476522	true	keep	Metal dynamic Jacobian DP count-only probe with runtime dp_bits=8 mask
 2026-06-22T03:33:39Z	4b4014c-dirty	metal_jacobian_dynamic_dp_stream_dp8	metal	jacobian_affine_walk_dynamic_dp_stream	7864320	39287501.787886	true	keep	Metal dynamic Jacobian DP stream with runtime dp_bits=8 mask
 2026-06-22T03:57:06Z	62c5298	metal_jacobian_dynamic_dp_stream_dp8	metal	jacobian_affine_walk_dynamic_dp_stream	11534336	56977760.954224	true	keep	Metal dynamic Jacobian DP stream with runtime dp_bits=8 mask
+2026-06-22T04:12:59Z	f878edc	metal_jacobian_dynamic_dp_stream_dp8	metal	jacobian_affine_walk_dynamic_dp_stream	11796480	58596783.649305	true	keep	Metal dynamic Jacobian DP stream with runtime dp_bits=8 mask

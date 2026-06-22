@@ -1792,6 +1792,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `emitted_records=61`, `output_bytes_total=1220`, no overflow,
   `dp_checksum=0xab1c2cd29cd70a84`, and
   `dp_distance_checksum=0x822e141de4770a0b`.
+- `macos-metal-dynamic-dp8-stream-const-mask`: added a DP8-specific sparse
+  stream kernel that keeps the accepted 32-bit internal distance accumulator
+  and hardcodes the DP predicate as `(x0 & 0xFF) == 0`, avoiding the runtime
+  `dp_mask` buffer for the common DP8 probe. Clean autoresearch on commit
+  `f878edc` recorded `status=keep`, median `58,596,783.649305` DP8 steps/sec
+  across three stable samples (`min=41,535,061.854930`,
+  `max=63,616,563.008358`) versus the previous DP8 stream baseline median
+  `56,977,760.954224`. The oracle stayed unchanged:
+  `emitted_records=61`, `output_bytes_total=1220`, no overflow,
+  `dp_checksum=0xab1c2cd29cd70a84`, and
+  `dp_distance_checksum=0x822e141de4770a0b`.
 - `macos-metal-dynamic-dp-count-probe`: added a count-only Metal diagnostic for
   the same dynamic `steps=8`, power-of-two jump walk. It runs the runtime
   `ProjectiveDpMask(dp_bits)` predicate and increments only one atomic
