@@ -53,13 +53,19 @@ required_host_markers = (
     "RCKMetalJacobianDynamicDpStreamXyzzSelfTest",
     "RCKMetalJacobianDynamicDpStreamXyzzBenchJson",
     "RCKMetalJacobianDynamicDpStreamXyzzChainBenchJson",
+    "RCKMetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson",
     "RunJacobianDynamicDpStreamXyzzChainKernel",
+    "RunJacobianDynamicDpStreamXyzzPersistentChainKernel",
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp8_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_dp8_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_dp8_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_dp8_pow2_u32_distance\"",
     "\\\"state_layout\\\":\\\"xyzz\\\"",
     "\\\"packet_count\\\":",
+    "\\\"packets_per_round\\\":",
+    "\\\"round_count\\\":",
+    "\\\"setup_mode\\\":\\\"reuse_pipeline_buffers\\\"",
+    "\\\"state_persistence\\\":\\\"round_cumulative_xyzz\\\"",
     "steps_per_sample != 256 && steps_per_sample != 512",
     "CanAccumulateDistanceU32(jump_distances, steps_per_sample)",
     "XYZZ dynamic dp stream packet distance exceeds uint32 accumulator",
@@ -84,6 +90,7 @@ for marker in (
     "RCKMetalJacobianDynamicDpStreamXyzzSelfTest",
     "RCKMetalJacobianDynamicDpStreamXyzzBenchJson",
     "RCKMetalJacobianDynamicDpStreamXyzzChainBenchJson",
+    "RCKMetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson",
 ):
     if marker not in header_source:
         raise SystemExit("missing XYZZ header marker: " + marker)
@@ -92,9 +99,11 @@ for marker in (
     "metal-jacobian-dynamic-dp-stream-xyzz-test",
     "metal-jacobian-dynamic-dp-stream-xyzz-bench",
     "metal-jacobian-dynamic-dp-stream-xyzz-chain-bench",
+    "metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench",
     "RCKMetalJacobianDynamicDpStreamXyzzSelfTest",
     "RCKMetalJacobianDynamicDpStreamXyzzBenchJson",
     "RCKMetalJacobianDynamicDpStreamXyzzChainBenchJson",
+    "RCKMetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson",
 ):
     if marker not in cli_source:
         raise SystemExit("missing XYZZ CLI marker: " + marker)
@@ -109,6 +118,7 @@ for marker in (
     "macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-saturated-bench",
     "macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-large-batch-bench",
     "macos-metal-jacobian-dynamic-dp-stream-xyzz-chain-steps512-bench",
+    "macos-metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-steps512-bench",
 ):
     if marker not in makefile:
         raise SystemExit("missing XYZZ Makefile marker: " + marker)
@@ -255,5 +265,50 @@ if "paired_baseline_command" in chain_payload:
     raise SystemExit("XYZZ chain experiment should be tracked as a separate cumulative-distance operation")
 if int(chain_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("XYZZ chain experiment should keep sample_runs >= 3")
+
+persistent_chain_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_persistent_chain_steps512.json")
+if not persistent_chain_experiment.exists():
+    raise SystemExit("missing XYZZ persistent chain steps512 autoresearch experiment")
+persistent_chain_payload = json.loads(persistent_chain_experiment.read_text(encoding="utf-8"))
+expected_persistent_chain_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench",
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--packets",
+    "2",
+    "--rounds",
+    "2",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+]
+expected_persistent_chain_baseline = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-chain-bench",
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--packets",
+    "4",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--min-ms",
+    "0",
+]
+if persistent_chain_payload.get("build_target") != "macos-build":
+    raise SystemExit("XYZZ persistent chain experiment should use macos-build")
+if persistent_chain_payload.get("bench_command") != expected_persistent_chain_command:
+    raise SystemExit("XYZZ persistent chain experiment should run the persistent cumulative chain CLI")
+if persistent_chain_payload.get("paired_baseline_command") != expected_persistent_chain_baseline:
+    raise SystemExit("XYZZ persistent chain experiment should compare against the exact total-packet chain")
+if int(persistent_chain_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("XYZZ persistent chain experiment should keep sample_runs >= 3")
 
 print("metal dynamic dp stream XYZZ source ok")

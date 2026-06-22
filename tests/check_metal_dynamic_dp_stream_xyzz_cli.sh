@@ -59,6 +59,26 @@ case "$chain_default_output" in
 		;;
 esac
 
+persistent_chain_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench --iterations 64 --steps 256 --packets 2 --rounds 2 --jumps 8 --dp-bits 8 2>&1)"
+persistent_chain_status=$?
+if [ "$persistent_chain_status" -ne 0 ]; then
+	printf 'metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench returned status %s\n' "$persistent_chain_status"
+	printf '%s\n' "$persistent_chain_output"
+	exit 1
+fi
+
+case "$persistent_chain_output" in
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_persistent_chain\""*"\"state_layout\":\"xyzz\""*"\"setup_mode\":\"reuse_pipeline_buffers\""*"\"state_persistence\":\"round_cumulative_xyzz\""*"\"sample_count\":64"*"\"steps_per_sample\":256"*"\"packet_count\":4"*"\"packets_per_round\":2"*"\"round_count\":2"*"\"distance_tracking\":\"dp_stream_cumulative_uint64\""*"\"stream_indexing\":\"round_packet_sample_u32\""*"\"dp_bits\":8"*"\"correctness\":true"*)
+		;;
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_persistent_chain\""*"\"state_layout\":\"xyzz\""*"\"round_count\":2"*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench output"
+		printf '%s\n' "$persistent_chain_output"
+		exit 1
+		;;
+esac
+
 overflow_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations 128 --steps 512 --jumps 32 --dp-bits 8 --min-ms 1 2>&1)"
 overflow_status=$?
 if [ "$overflow_status" -ne 0 ]; then

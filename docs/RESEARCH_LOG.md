@@ -2833,6 +2833,32 @@ These did not pass the performance gate or had a correctness/architecture issue:
   row for this new operation, but the long three-sample runner was thermally
   noisy (`52,054,794.687903` median steps/sec); treat it as a reproducibility
   row for the cumulative-distance operation, not as a peak-throughput record.
+- `macos-metal-dp8-xyzz-persistent-chain-rounds`: accepted as the next
+  solver-facing host architecture after the cumulative chain. It adds
+  `metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench`, where
+  `--packets` is the number of packet kernels encoded per command buffer and
+  `--rounds` is the number of command buffers submitted against the same
+  resident XYZZ state, cumulative-distance buffer, DP stream buffers, Metal
+  library, and pipeline. The JSON reports
+  `setup_mode=reuse_pipeline_buffers`,
+  `state_persistence=round_cumulative_xyzz`,
+  `packets_per_round`, `round_count`, and
+  `stream_indexing=round_packet_sample_u32`. The CPU oracle validates it as a
+  single chain of `packets * rounds` packets, so the DP checksums are directly
+  comparable with an exact total-packet chain. Manual M3 exact comparison:
+  on `131072 x 512 x 4`, the generic one-command-buffer chain measured
+  `119,965,179.870176` steps/sec while persistent `packets=2, rounds=2`
+  measured `122,385,639.887796`, with matching
+  `dp_count=2042`, `dp_distance_checksum=0x2fc17b9313fc0204`, and
+  `dp_checksum=0x2b1728330fd9cdc6`. On the larger
+  `262144 x 512 x 4` comparison, the generic chain measured
+  `122,150,581.472696` steps/sec and persistent `2 x 2` measured
+  `127,964,289.140597`, preserving `dp_count=4037`,
+  `dp_distance_checksum=0x30e91a5edffed133`,
+  `dp_checksum=0x950a1186dae66384`, and `correctness=true`. This promotes
+  command-buffer-level persistence as a real Mac path: it is not a new ECDLP
+  shortcut, but it removes host-side reinitialization pressure while preserving
+  full cumulative-distance correctness.
 - Rejected follow-up `macos-metal-dp8-xyzz-chain2-fused-kernel`: fusing the
   common `steps=512, packets=2` chain into one Metal kernel kept correctness
   and produced the same cumulative-chain oracle values (`dp_count=2016`,

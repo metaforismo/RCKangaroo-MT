@@ -161,6 +161,7 @@ Example threadgroup sweep commands:
 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 12 --min-ms 200
 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 12 --min-ms 200 --tg-limit 256
 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations 262144 --steps 512 --packets 2 --jumps 16 --dp-bits 8 --min-ms 500
+./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench --iterations 262144 --steps 512 --packets 2 --rounds 2 --jumps 16 --dp-bits 8
 ./macos/rck_macos metal-jacobian-dynamic-dp-count-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 8 --min-ms 200 --tg-limit 256
 ```
 

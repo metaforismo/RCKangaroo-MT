@@ -1388,6 +1388,21 @@ they are intentionally ignored by git.
   first chain row, but its long run was thermally noisy (`52,054,794.687903`
   median), so use it as a reproducibility marker for the new operation rather
   than a peak-speed claim.
+- Accepted `macos-metal-dp8-xyzz-persistent-chain-rounds`: a new
+  `metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench` command keeps
+  XYZZ state, cumulative distances, DP buffers, Metal library, and pipeline
+  resident across multiple command-buffer rounds. JSON reports
+  `setup_mode=reuse_pipeline_buffers`,
+  `state_persistence=round_cumulative_xyzz`, `packets_per_round`,
+  `round_count`, and `stream_indexing=round_packet_sample_u32`; the CPU oracle
+  validates it as one chain of `packets * rounds`. Exact M3 comparisons:
+  `131072 x 512 x 4` generic chain `119,965,179.870176` steps/sec versus
+  persistent `2 x 2` `122,385,639.887796`, same `dp_count=2042`,
+  `dp_distance_checksum=0x2fc17b9313fc0204`,
+  `dp_checksum=0x2b1728330fd9cdc6`; `262144 x 512 x 4` generic chain
+  `122,150,581.472696` versus persistent `127,964,289.140597`, same
+  `dp_count=4037`, `dp_distance_checksum=0x30e91a5edffed133`,
+  `dp_checksum=0x950a1186dae66384`.
 - Rejected `macos-metal-dp8-xyzz-chain2-fused-kernel`: a single Metal kernel
   for `steps=512, packets=2` preserved the same cumulative-chain DP count and
   checksums, but lost speed. Candidate: `123,091,730.623771` steps/sec at

@@ -1026,6 +1026,81 @@ static std::string MetalJacobianDynamicDpStreamXyzzChainBenchJson(const char* op
 	return oss.str();
 }
 
+static std::string MetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson(const char* operation,
+	uint64_t iterations,
+	unsigned int sample_count,
+	unsigned int steps_per_sample,
+	unsigned int packet_count,
+	unsigned int packets_per_round,
+	unsigned int round_count,
+	unsigned int jump_count,
+	const char* jump_index_mode,
+	const char* jump_mixer,
+	uint64_t jump_histogram_min_bucket,
+	uint64_t jump_histogram_max_bucket,
+	uint64_t jump_histogram_max_deviation_ppm,
+	unsigned int emitted_records,
+	unsigned int dp_capacity,
+	bool dp_stream_overflow,
+	uint64_t dp_distance_checksum,
+	unsigned int dp_bits,
+	unsigned int dp_count,
+	uint64_t dp_checksum,
+	const MetalDispatchStats& dispatch_stats,
+	double seconds,
+	double validation_seconds,
+	double ops_per_sec,
+	bool correctness,
+	bool skipped,
+	const std::string& reason)
+{
+	std::ostringstream oss;
+	oss << std::fixed << std::setprecision(6);
+	oss << "{\"backend\":\"metal\",\"operation\":\"" << operation << "\",";
+	oss << "\"state_layout\":\"xyzz\",";
+	oss << "\"setup_mode\":\"reuse_pipeline_buffers\",";
+	oss << "\"state_persistence\":\"round_cumulative_xyzz\",";
+	oss << "\"iterations\":" << iterations << ",";
+	oss << "\"sample_count\":" << sample_count << ",";
+	oss << "\"steps_per_sample\":" << steps_per_sample << ",";
+	oss << "\"packet_count\":" << packet_count << ",";
+	oss << "\"packets_per_round\":" << packets_per_round << ",";
+	oss << "\"round_count\":" << round_count << ",";
+	oss << "\"command_buffer_count\":" << round_count << ",";
+	oss << "\"jump_count\":" << jump_count << ",";
+	oss << "\"jump_index\":\"" << jump_index_mode << "\",";
+	oss << "\"jump_mixer\":\"" << jump_mixer << "\",";
+	oss << "\"jump_histogram_min_bucket\":" << jump_histogram_min_bucket << ",";
+	oss << "\"jump_histogram_max_bucket\":" << jump_histogram_max_bucket << ",";
+	oss << "\"jump_histogram_max_deviation_ppm\":" << jump_histogram_max_deviation_ppm << ",";
+	oss << "\"output_layout\":\"dp_stream\",";
+	oss << "\"output_bytes_per_record\":20,";
+	oss << "\"output_bytes_total\":" << (uint64_t)emitted_records * 20ULL << ",";
+	oss << "\"emitted_records\":" << emitted_records << ",";
+	oss << "\"dp_capacity\":" << dp_capacity << ",";
+	oss << "\"dp_stream_overflow\":" << (dp_stream_overflow ? "true" : "false") << ",";
+	oss << "\"distance_tracking\":\"dp_stream_cumulative_uint64\",";
+	oss << "\"stream_indexing\":\"round_packet_sample_u32\",";
+	oss << "\"dp_distance_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << dp_distance_checksum << std::dec << std::setfill(' ') << "\",";
+	oss << "\"dp_tracking\":\"projective_x_limb0\",";
+	oss << "\"dp_bits\":" << dp_bits << ",";
+	oss << "\"dp_count\":" << dp_count << ",";
+	oss << "\"dp_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << dp_checksum << std::dec << std::setfill(' ') << "\",";
+	oss << "\"threadgroup_limit\":" << dispatch_stats.threadgroup_limit << ",";
+	oss << "\"thread_execution_width\":" << dispatch_stats.thread_execution_width << ",";
+	oss << "\"max_threads_per_threadgroup\":" << dispatch_stats.max_threads_per_threadgroup << ",";
+	oss << "\"threads_per_threadgroup\":" << dispatch_stats.threads_per_threadgroup << ",";
+	oss << "\"seconds\":" << seconds << ",";
+	oss << "\"validation_seconds\":" << validation_seconds << ",";
+	oss << "\"ops_per_sec\":" << ops_per_sec << ",";
+	oss << "\"correctness\":" << (correctness ? "true" : "false") << ",";
+	oss << "\"skipped\":" << (skipped ? "true" : "false");
+	if (!reason.empty())
+		oss << ",\"reason\":\"" << JsonEscape(reason) << "\"";
+	oss << "}";
+	return oss.str();
+}
+
 static std::string MetalJacobianDynamicDpCountBenchJson(const char* operation,
 	uint64_t iterations,
 	unsigned int sample_count,
@@ -2495,11 +2570,12 @@ static bool RunJacobianDynamicDpStreamXyzzKernel(const std::vector<CpuJacobianPo
 	}
 }
 
-static bool RunJacobianDynamicDpStreamXyzzChainKernel(const std::vector<CpuJacobianPoint>& p,
+static bool RunJacobianDynamicDpStreamXyzzPersistentChainKernel(const std::vector<CpuJacobianPoint>& p,
 	const std::vector<CpuAffinePoint>& jumps,
 	const std::vector<uint64_t>& jump_distances,
 	unsigned int steps_per_sample,
 	unsigned int packet_count,
+	unsigned int round_count,
 	std::vector<CpuXyzzPoint>& state_out,
 	std::vector<uint32_t>& out_indices,
 	std::vector<uint64_t>& out_distances,
@@ -2516,10 +2592,11 @@ static bool RunJacobianDynamicDpStreamXyzzChainKernel(const std::vector<CpuJacob
 	if (dispatch_stats)
 		dispatch_stats->threadgroup_limit = (unsigned int)effective_threadgroup_limit;
 
-	uint64_t total_record_capacity = (uint64_t)p.size() * packet_count;
-	if (p.empty() || jumps.empty() || jumps.size() != jump_distances.size() || (steps_per_sample != 256 && steps_per_sample != 512) || packet_count == 0 || dp_bits != 8 || !IsMetalPowerOfTwo((unsigned int)jumps.size()) || jumps.size() > 32 || p.size() > 0xFFFFFFFFULL || total_record_capacity > 0xFFFFFFFFULL)
+	uint64_t total_packet_count = (uint64_t)packet_count * round_count;
+	uint64_t total_record_capacity = (uint64_t)p.size() * total_packet_count;
+	if (p.empty() || jumps.empty() || jumps.size() != jump_distances.size() || (steps_per_sample != 256 && steps_per_sample != 512) || packet_count == 0 || round_count == 0 || total_packet_count > 0xFFFFFFFFULL || dp_bits != 8 || !IsMetalPowerOfTwo((unsigned int)jumps.size()) || jumps.size() > 32 || p.size() > 0xFFFFFFFFULL || total_record_capacity > 0xFFFFFFFFULL)
 	{
-		error = "invalid jacobian dynamic dp stream XYZZ chain input";
+		error = "invalid jacobian dynamic dp stream XYZZ persistent chain input";
 		return false;
 	}
 	if (!CanAccumulateDistanceU32(jump_distances, steps_per_sample))
@@ -2622,40 +2699,45 @@ static bool RunJacobianDynamicDpStreamXyzzChainKernel(const std::vector<CpuJacob
 			return false;
 		}
 
-		id<MTLCommandBuffer> command_buffer = [queue commandBuffer];
-		for (uint32_t packet = 0; packet < packet_count; ++packet)
+		double dispatch_seconds = 0.0;
+		for (uint32_t round = 0; round < round_count; ++round)
 		{
-			id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
-			[encoder setComputePipelineState:pipeline];
-			[encoder setBuffer:p_buffer offset:0 atIndex:0];
-			[encoder setBuffer:q_buffer offset:0 atIndex:1];
-			[encoder setBuffer:p_inf_buffer offset:0 atIndex:2];
-			[encoder setBuffer:cumulative_distances_buffer offset:0 atIndex:3];
-			[encoder setBuffer:dp_count_buffer offset:0 atIndex:4];
-			[encoder setBuffer:indices_buffer offset:0 atIndex:5];
-			[encoder setBuffer:count_buffer offset:0 atIndex:6];
-			[encoder setBuffer:jump_distances_buffer offset:0 atIndex:8];
-			[encoder setBuffer:out_distances_buffer offset:0 atIndex:9];
-			[encoder setBuffer:out_dp_terms_buffer offset:0 atIndex:10];
-			[encoder setBuffer:jump_mask_buffer offset:0 atIndex:11];
-			uint32_t packet_index_base = packet * count;
-			[encoder setBytes:&packet_index_base length:sizeof(packet_index_base) atIndex:12];
-			NSUInteger threadgroup_count = (count + threads_per_threadgroup - 1) / threads_per_threadgroup;
-			[encoder dispatchThreadgroups:MTLSizeMake(threadgroup_count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
-			[encoder endEncoding];
-		}
-		auto start = std::chrono::steady_clock::now();
-		[command_buffer commit];
-		[command_buffer waitUntilCompleted];
-		auto end = std::chrono::steady_clock::now();
-		if (seconds)
-			*seconds = std::chrono::duration<double>(end - start).count();
+			id<MTLCommandBuffer> command_buffer = [queue commandBuffer];
+			for (uint32_t packet = 0; packet < packet_count; ++packet)
+			{
+				id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+				[encoder setComputePipelineState:pipeline];
+				[encoder setBuffer:p_buffer offset:0 atIndex:0];
+				[encoder setBuffer:q_buffer offset:0 atIndex:1];
+				[encoder setBuffer:p_inf_buffer offset:0 atIndex:2];
+				[encoder setBuffer:cumulative_distances_buffer offset:0 atIndex:3];
+				[encoder setBuffer:dp_count_buffer offset:0 atIndex:4];
+				[encoder setBuffer:indices_buffer offset:0 atIndex:5];
+				[encoder setBuffer:count_buffer offset:0 atIndex:6];
+				[encoder setBuffer:jump_distances_buffer offset:0 atIndex:8];
+				[encoder setBuffer:out_distances_buffer offset:0 atIndex:9];
+				[encoder setBuffer:out_dp_terms_buffer offset:0 atIndex:10];
+				[encoder setBuffer:jump_mask_buffer offset:0 atIndex:11];
+				uint32_t packet_index_base = (uint32_t)(((uint64_t)round * packet_count + packet) * count);
+				[encoder setBytes:&packet_index_base length:sizeof(packet_index_base) atIndex:12];
+				NSUInteger threadgroup_count = (count + threads_per_threadgroup - 1) / threads_per_threadgroup;
+				[encoder dispatchThreadgroups:MTLSizeMake(threadgroup_count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
+				[encoder endEncoding];
+			}
+			auto start = std::chrono::steady_clock::now();
+			[command_buffer commit];
+			[command_buffer waitUntilCompleted];
+			auto end = std::chrono::steady_clock::now();
+			dispatch_seconds += std::chrono::duration<double>(end - start).count();
 
-		if ([command_buffer status] != MTLCommandBufferStatusCompleted)
-		{
-			error = NSErrorToString([command_buffer error]);
-			return false;
+			if ([command_buffer status] != MTLCommandBufferStatusCompleted)
+			{
+				error = NSErrorToString([command_buffer error]);
+				return false;
+			}
 		}
+		if (seconds)
+			*seconds = dispatch_seconds;
 
 		uint32_t emitted_raw = 0;
 		memcpy(&emitted_raw, [dp_count_buffer contents], sizeof(emitted_raw));
@@ -2691,6 +2773,26 @@ static bool RunJacobianDynamicDpStreamXyzzChainKernel(const std::vector<CpuJacob
 		}
 		return true;
 	}
+}
+
+static bool RunJacobianDynamicDpStreamXyzzChainKernel(const std::vector<CpuJacobianPoint>& p,
+	const std::vector<CpuAffinePoint>& jumps,
+	const std::vector<uint64_t>& jump_distances,
+	unsigned int steps_per_sample,
+	unsigned int packet_count,
+	std::vector<CpuXyzzPoint>& state_out,
+	std::vector<uint32_t>& out_indices,
+	std::vector<uint64_t>& out_distances,
+	std::vector<uint64_t>& out_dp_terms,
+	uint32_t& emitted_records,
+	bool& dp_stream_overflow,
+	unsigned int dp_bits,
+	std::string& error,
+	double* seconds,
+	unsigned int threadgroup_limit,
+	MetalDispatchStats* dispatch_stats)
+{
+	return RunJacobianDynamicDpStreamXyzzPersistentChainKernel(p, jumps, jump_distances, steps_per_sample, packet_count, 1, state_out, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, error, seconds, threadgroup_limit, dispatch_stats);
 }
 
 static bool RunJacobianDynamicDpCountKernel(const std::vector<CpuJacobianPoint>& p,
@@ -5093,6 +5195,82 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzChainBenchJson(unsigned int itera
 	uint64_t jump_histogram_max_bucket = JumpHistogramMaxBucket(jump_histogram);
 	uint64_t jump_histogram_max_deviation_ppm = JumpHistogramMaxDeviationPpm(jump_histogram);
 	return MetalJacobianDynamicDpStreamXyzzChainBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz_chain", operations, sample_count, steps_per_sample, packet_count, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_histogram_min_bucket, jump_histogram_max_bucket, jump_histogram_max_deviation_ppm, emitted_records, dp_capacity, dp_stream_overflow, dp_distance_checksum, dp_bits, dp_count, dp_checksum, min_ms, dispatch_stats, seconds, validation_seconds, ops_per_sec, true, false, "");
+}
+
+std::string RCKMetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int packet_count, unsigned int round_count, unsigned int jump_count, unsigned int threadgroup_limit, unsigned int dp_bits)
+{
+	if (iterations == 0)
+		iterations = 1;
+	if (steps_per_sample == 0)
+		steps_per_sample = 256;
+	if (packet_count == 0)
+		packet_count = 2;
+	if (round_count == 0)
+		round_count = 2;
+	if (dp_bits == 0)
+		dp_bits = 8;
+	jump_count = NormalizeMetalJumpCount(jump_count);
+	dp_bits = NormalizeMetalDpBits(dp_bits);
+	const char* jump_index_mode = MetalJumpIndexMode(jump_count);
+	const unsigned int sample_count = iterations;
+	uint64_t total_packet_count64 = (uint64_t)packet_count * round_count;
+	uint64_t dp_capacity64 = (uint64_t)sample_count * total_packet_count64;
+	unsigned int total_packet_count = total_packet_count64 <= 0xFFFFFFFFULL ? (unsigned int)total_packet_count64 : 0U;
+	unsigned int dp_capacity = dp_capacity64 <= 0xFFFFFFFFULL ? (unsigned int)dp_capacity64 : 0U;
+
+	MetalDispatchStats dispatch_stats;
+	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveDynamicDpStreamInplaceThreadgroupLimit(threadgroup_limit, dp_bits, steps_per_sample);
+	uint64_t requested_operations = (uint64_t)sample_count * steps_per_sample * total_packet_count64;
+	if ((steps_per_sample != 256 && steps_per_sample != 512) || dp_bits != 8 || !IsMetalPowerOfTwo(jump_count) || total_packet_count64 > 0xFFFFFFFFULL || dp_capacity64 > 0xFFFFFFFFULL)
+	{
+		std::string reason = "XYZZ persistent chain supports steps=256 or steps=512, power-of-two jumps, dp_bits=8, packets*rounds <= uint32, and sample_count*packets*rounds <= uint32";
+		return MetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz_persistent_chain", requested_operations, sample_count, steps_per_sample, total_packet_count, packet_count, round_count, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, dispatch_stats, 0.0, 0.0, 0.0, false, false, reason);
+	}
+
+	std::vector<CpuJacobianPoint> p;
+	std::vector<CpuAffinePoint> jumps;
+	std::vector<uint64_t> jump_distances;
+	BuildJacobianJumpWalkSamples(sample_count, jump_count, p, jumps);
+	BuildJacobianJumpDistances(jump_count, jump_distances);
+	if (!CanAccumulateDistanceU32(jump_distances, steps_per_sample))
+	{
+		std::string reason = "XYZZ dynamic dp stream packet distance exceeds uint32 accumulator";
+		return MetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz_persistent_chain", requested_operations, sample_count, steps_per_sample, total_packet_count, packet_count, round_count, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, dispatch_stats, 0.0, 0.0, 0.0, false, false, reason);
+	}
+
+	std::vector<CpuXyzzPoint> state_out;
+	std::vector<uint32_t> out_indices;
+	std::vector<uint64_t> out_distances;
+	std::vector<uint64_t> out_dp_terms;
+	uint32_t emitted_records = 0;
+	bool dp_stream_overflow = false;
+	std::string error;
+	double seconds = 0.0;
+	if (!RunJacobianDynamicDpStreamXyzzPersistentChainKernel(p, jumps, jump_distances, steps_per_sample, packet_count, round_count, state_out, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, error, &seconds, threadgroup_limit, &dispatch_stats))
+	{
+		if (error == "no Metal device available")
+			return MetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz_persistent_chain", 0, sample_count, steps_per_sample, total_packet_count, packet_count, round_count, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, dispatch_stats, 0.0, 0.0, 0.0, false, true, error);
+		return MetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz_persistent_chain", requested_operations, sample_count, steps_per_sample, total_packet_count, packet_count, round_count, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, dispatch_stats, seconds, 0.0, 0.0, false, false, error);
+	}
+
+	std::vector<uint64_t> jump_histogram(jump_count, 0);
+	uint64_t dp_distance_checksum = 0;
+	uint64_t dp_checksum = 0;
+	unsigned int dp_count = 0;
+	std::string reason;
+	auto validation_start = std::chrono::steady_clock::now();
+	if (!ValidateDynamicXyzzChainDpStreamAndStateOutputs(p, jumps, jump_distances, steps_per_sample, total_packet_count, state_out, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, &jump_histogram, &dp_distance_checksum, &dp_checksum, &dp_count, reason))
+	{
+		double validation_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - validation_start).count();
+		return MetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz_persistent_chain", requested_operations, sample_count, steps_per_sample, total_packet_count, packet_count, round_count, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, emitted_records, dp_capacity, dp_stream_overflow, dp_distance_checksum, dp_bits, dp_count, dp_checksum, dispatch_stats, seconds, validation_seconds, 0.0, false, false, reason);
+	}
+	double validation_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - validation_start).count();
+
+	double ops_per_sec = seconds > 0.0 ? (double)requested_operations / seconds : 0.0;
+	uint64_t jump_histogram_min_bucket = JumpHistogramMinBucket(jump_histogram);
+	uint64_t jump_histogram_max_bucket = JumpHistogramMaxBucket(jump_histogram);
+	uint64_t jump_histogram_max_deviation_ppm = JumpHistogramMaxDeviationPpm(jump_histogram);
+	return MetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz_persistent_chain", requested_operations, sample_count, steps_per_sample, total_packet_count, packet_count, round_count, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_histogram_min_bucket, jump_histogram_max_bucket, jump_histogram_max_deviation_ppm, emitted_records, dp_capacity, dp_stream_overflow, dp_distance_checksum, dp_bits, dp_count, dp_checksum, dispatch_stats, seconds, validation_seconds, ops_per_sec, true, false, "");
 }
 
 std::string RCKMetalJacobianDynamicDpCountBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int jump_count, unsigned int min_ms, unsigned int threadgroup_limit, unsigned int dp_bits)

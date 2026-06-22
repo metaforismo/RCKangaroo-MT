@@ -1,0 +1,39 @@
+{
+  "name": "metal_jacobian_dynamic_dp_stream_xyzz_persistent_chain_steps512",
+  "description": "Metal XYZZ 512-step DP stream with persistent chained rounds, reused pipeline/buffers, and cumulative uint64 distances",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench",
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--packets",
+    "2",
+    "--rounds",
+    "2",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8"
+  ],
+  "paired_baseline_command": [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-chain-bench",
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--packets",
+    "4",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--min-ms",
+    "0"
+  ],
+  "min_improvement_ratio": 0.02,
+  "sample_runs": 3
+}
