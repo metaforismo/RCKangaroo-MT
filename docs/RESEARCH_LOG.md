@@ -1608,6 +1608,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   autoresearch confirmation discarded it: `0.548550x`, `0.803677x`,
   `1.115114x`, therefore `confirmation_status=discard`. Keep the power-of-two
   `jump_mask` specialization; do not add the exact j16 kernel.
+- `macos-metal-dynamic-q-row-local`: tried loading `AffineJumpValue q =
+  q_xy[jump_index]` once per step in the dynamic `steps=8`, `dp_bits=4`
+  kernels, then passing `q.x*`/`q.y*` into the mixed-add helper. Correctness
+  stayed intact with `make macos-check`, the dynamic selftest, pow2/modulo
+  smoke runs, and the stable dynamic oracle
+  (`distance_checksum=0x5c36c706ffa2cbaa`, `dp_count=1017`,
+  `dp_checksum=0xbfd3b2319760e774`), but paired autoresearch confirmation
+  discarded it: `1.075168x`, `1.071071x`, `0.991099x`, therefore
+  `confirmation_status=discard`. The first two runs were promising, but the
+  third missed the 1% gate; keep direct `q_xy[jump_index].field` accesses for
+  now.
 - Added `metal_jacobian_dynamic_walk_dp_stable` plus the
   `macos-metal-jacobian-dynamic-walk-stable-bench` target so future dynamic
   Metal candidates can use the same three-sample autoresearch discipline as

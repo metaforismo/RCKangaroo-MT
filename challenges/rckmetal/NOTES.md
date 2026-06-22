@@ -638,6 +638,12 @@ they are intentionally ignored by git.
   `dp_checksum=0xbfd3b2319760e774`), but paired autoresearch confirmation
   discarded it: `0.548550x`, `0.803677x`, `1.115114x`. Keep the dynamic
   `jump_mask` specialization; there is no public score-path impact.
+- `macos-metal-dynamic-q-row-local` tried caching each dynamic DP4
+  `AffineJumpValue` row in a local `q` variable before the mixed-add call.
+  Correctness and `make macos-check` stayed intact, including pow2/modulo smoke
+  runs and the stable dynamic oracle, but paired autoresearch confirmation
+  discarded it: `1.075168x`, `1.071071x`, `0.991099x`. Keep direct
+  `q_xy[jump_index].field` access until a repeatable dynamic gain appears.
 - `metal_jacobian_dynamic_walk_dp_stable` now exists as a stable autoresearch
   gate for the dynamic Metal walk. Use it for future in-kernel jump-selection
   experiments after the target exists on both candidate and baseline refs.
