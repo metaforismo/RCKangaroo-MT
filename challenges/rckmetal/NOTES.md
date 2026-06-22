@@ -1286,6 +1286,13 @@ they are intentionally ignored by git.
   longer alternating same-binary pairs had median `0.992929x` versus 128
   (`min=0.984890x`, `max=1.008734x`). Correctness and the XYZZ `steps512`
   checksums stayed unchanged, so leave the default at 128 threads.
+- `macos-metal-dp8-xyzz-steps1024` was rejected. The experimental 1024-step
+  kernel stayed correct (`emitted_records=58`,
+  `dp_distance_checksum=0xfa394db495b731df`,
+  `dp_checksum=0x1124055174f18a38`, `correctness=true`), but paired
+  autoresearch against accepted XYZZ `steps512` ended with
+  `confirmation_status=discard`; final speedup was only `1.006430x`. Keep
+  `steps512` as the promoted XYZZ packet plateau.
 
 ## Current Correctness Surface
 

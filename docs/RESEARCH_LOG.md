@@ -2628,6 +2628,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   and the XYZZ `steps512` checksums stayed unchanged. Keep the default
   `threadgroup_limit=128` for XYZZ `steps512` until a broader policy beats the
   paired gate.
+- `macos-metal-dp8-xyzz-steps1024`: rejected extending the XYZZ DP8 packet
+  plateau from 512 to 1024 steps. The prototype preserved the CPU XYZZ replay
+  oracle (`emitted_records=58`,
+  `dp_distance_checksum=0xfa394db495b731df`,
+  `dp_checksum=0x1124055174f18a38`, `dp_stream_overflow=false`,
+  `jump_histogram_max_deviation_ppm=1918`, and `correctness=true`), and quick
+  same-binary runs looked promising. Paired autoresearch against accepted XYZZ
+  `steps512` did not satisfy the all-confirmations policy: the final decision
+  was `discard`, with final candidate `109,543,181.205134` versus baseline
+  `108,843,325.105267` steps/sec (`1.006430x`). Keep `steps512` as the current
+  promoted XYZZ packet plateau.
 
 ## Next Research Targets
 
