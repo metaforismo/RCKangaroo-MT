@@ -2765,6 +2765,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `jump_histogram_max_deviation_ppm=553`, and `correctness=true`. XYZZ JSON now
   reports `validation_seconds` separately (`14.248229s` in the measured
   large-batch run) so future speedups cannot hide inside kernel throughput.
+- `macos-metal-dp8-xyzz-fused-oracle`: accepted fusing the XYZZ DP-stream and
+  final-state CPU replay into one per-sample oracle pass. This preserves the
+  same stream index/duplicate/missing-record checks and the same final
+  `X,Y,ZZ,ZZZ` state comparison, but avoids replaying the 512-step walk twice.
+  On the same 524288-state command, wall-clock dropped again from the
+  parallel-only `16.55s` to `9.57s` (`user=50.53s`), for an `8.51x` improvement
+  over the original serial oracle. The fused run reported
+  `validation_seconds=7.298625`, `dp_count=1976`,
+  `dp_distance_checksum=0x7325bd945494b7be`,
+  `dp_checksum=0x390f891179fdcbea`,
+  `jump_histogram_max_deviation_ppm=553`, and `correctness=true`; Metal
+  throughput remained a normal kernel measurement (`seconds=2.157509`,
+  `ops_per_sec=124,419,135.327658`).
 
 ## Next Research Targets
 

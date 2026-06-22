@@ -3419,6 +3419,175 @@ static bool ValidateDynamicXyzzDpStreamOutputs(const std::vector<CpuJacobianPoin
 	return true;
 }
 
+static bool ValidateDynamicXyzzDpStreamAndStateOutputs(const std::vector<CpuJacobianPoint>& p,
+	const std::vector<CpuAffinePoint>& jumps,
+	const std::vector<uint64_t>& jump_distances,
+	unsigned int steps_per_sample,
+	const std::vector<CpuXyzzPoint>& state_out,
+	const std::vector<uint32_t>& out_indices,
+	const std::vector<uint64_t>& out_distances,
+	const std::vector<uint64_t>& out_dp_terms,
+	uint32_t emitted_records,
+	bool dp_stream_overflow,
+	unsigned int dp_bits,
+	std::vector<uint64_t>* jump_histogram,
+	uint64_t* dp_distance_checksum_out,
+	uint64_t* dp_checksum_out,
+	unsigned int* dp_count_out,
+	std::string& reason)
+{
+	if (state_out.size() != p.size())
+	{
+		reason = "dynamic XYZZ state output size mismatch";
+		return false;
+	}
+	if (dp_stream_overflow)
+	{
+		reason = "dynamic XYZZ dp stream overflow";
+		return false;
+	}
+	if (out_indices.size() != emitted_records || out_distances.size() != emitted_records || out_dp_terms.size() != emitted_records)
+	{
+		reason = "dynamic XYZZ dp stream output size mismatch";
+		return false;
+	}
+
+	struct ValidationResult
+	{
+		bool ok = true;
+		std::string reason;
+	};
+
+	std::vector<uint32_t> expected_dp_flags(p.size(), 0);
+	std::vector<uint64_t> expected_distances(p.size(), 0);
+	std::vector<uint64_t> expected_dp_terms(p.size(), 0);
+	unsigned int expected_dp_count = 0;
+	unsigned int worker_count = ValidationWorkerCount(p.size());
+	std::vector<unsigned int> local_dp_counts(worker_count, 0);
+	std::vector<ValidationResult> results(worker_count);
+	std::vector<std::vector<uint64_t> > local_jump_histograms;
+	if (jump_histogram)
+		local_jump_histograms.assign(worker_count, std::vector<uint64_t>(jump_histogram->size(), 0));
+	ParallelForSamples(p.size(), [&](size_t begin, size_t end, unsigned int worker_index) {
+		unsigned int local_dp_count = 0;
+		std::vector<uint64_t>* local_jump_histogram = jump_histogram ? &local_jump_histograms[worker_index] : NULL;
+		for (size_t i = begin; i < end; ++i)
+		{
+			uint64_t expected_distance = 0;
+			CpuXyzzPoint expected = CpuXyzzDynamicJumpWalk(CpuXyzzFromJacobian(p[i]), jumps, jump_distances, steps_per_sample, &expected_distance, local_jump_histogram);
+			if (!CpuXyzzMatches(state_out[i], expected))
+			{
+				results[worker_index].ok = false;
+				results[worker_index].reason = "dynamic XYZZ state mismatch at sample " + std::to_string(i) +
+					": got x=" + FieldToHex(state_out[i].x) +
+					" y=" + FieldToHex(state_out[i].y) +
+					" zz=" + FieldToHex(state_out[i].zz) +
+					" zzz=" + FieldToHex(state_out[i].zzz) +
+					" inf=" + (state_out[i].infinity ? "1" : "0") +
+					" expected x=" + FieldToHex(expected.x) +
+					" expected y=" + FieldToHex(expected.y) +
+					" expected zz=" + FieldToHex(expected.zz) +
+					" expected zzz=" + FieldToHex(expected.zzz) +
+					" expected inf=" + (expected.infinity ? "1" : "0");
+				break;
+			}
+			uint32_t expected_dp_flag = ProjectiveXyzzDpFlag(expected, dp_bits);
+			expected_dp_flags[i] = expected_dp_flag;
+			expected_distances[i] = expected_distance;
+			expected_dp_terms[i] = CompactXyzzDpTerm(expected, expected_dp_flag);
+			local_dp_count += expected_dp_flag ? 1U : 0U;
+		}
+		local_dp_counts[worker_index] = local_dp_count;
+	});
+	for (const ValidationResult& result : results)
+	{
+		if (!result.ok)
+		{
+			reason = result.reason;
+			return false;
+		}
+	}
+	for (unsigned int count : local_dp_counts)
+		expected_dp_count += count;
+	if (jump_histogram)
+	{
+		for (const std::vector<uint64_t>& local : local_jump_histograms)
+			for (size_t bucket = 0; bucket < local.size(); ++bucket)
+				(*jump_histogram)[bucket] += local[bucket];
+	}
+	if (emitted_records != expected_dp_count)
+	{
+		reason = "dynamic XYZZ dp stream count mismatch: got " + std::to_string(emitted_records) +
+			" expected " + std::to_string(expected_dp_count);
+		return false;
+	}
+
+	std::vector<uint8_t> seen(p.size(), 0);
+	std::vector<uint64_t> stream_distances(p.size(), 0);
+	std::vector<uint64_t> stream_dp_terms(p.size(), 0);
+	for (size_t slot = 0; slot < out_indices.size(); ++slot)
+	{
+		uint32_t sample_index = out_indices[slot];
+		if (sample_index >= p.size())
+		{
+			reason = "dynamic XYZZ dp stream index out of range at slot " + std::to_string(slot);
+			return false;
+		}
+		if (seen[sample_index])
+		{
+			reason = "dynamic XYZZ dp stream duplicate index " + std::to_string(sample_index);
+			return false;
+		}
+		if (!expected_dp_flags[sample_index])
+		{
+			reason = "dynamic XYZZ dp stream emitted non-DP sample " + std::to_string(sample_index);
+			return false;
+		}
+		if (out_distances[slot] != expected_distances[sample_index] || out_dp_terms[slot] != expected_dp_terms[sample_index])
+		{
+			reason = "dynamic XYZZ dp stream mismatch at sample " + std::to_string(sample_index) +
+				": distance=" + std::to_string(out_distances[slot]) +
+				" dp_term=0x" + FieldToHex(FieldElement{out_dp_terms[slot], 0, 0, 0}) +
+				" expected distance=" + std::to_string(expected_distances[sample_index]) +
+				" expected dp_term=0x" + FieldToHex(FieldElement{expected_dp_terms[sample_index], 0, 0, 0});
+			return false;
+		}
+		seen[sample_index] = 1;
+		stream_distances[sample_index] = out_distances[slot];
+		stream_dp_terms[sample_index] = out_dp_terms[slot];
+	}
+	for (size_t i = 0; i < p.size(); ++i)
+	{
+		if (expected_dp_flags[i] && !seen[i])
+		{
+			reason = "dynamic XYZZ dp stream missing DP sample " + std::to_string(i);
+			return false;
+		}
+	}
+
+	uint64_t dp_distance_checksum = 0;
+	uint64_t dp_checksum = 0;
+	unsigned int dp_count = 0;
+	for (size_t i = 0; i < p.size(); ++i)
+	{
+		uint32_t stream_dp_flag = seen[i] ? 1U : 0U;
+		if (stream_dp_flag)
+		{
+			dp_distance_checksum = MixDistanceChecksum(dp_distance_checksum, stream_distances[i], i);
+			dp_count++;
+		}
+		dp_checksum = MixCompactDpChecksum(dp_checksum, stream_dp_terms[i], stream_dp_flag, i);
+	}
+
+	if (dp_distance_checksum_out)
+		*dp_distance_checksum_out = dp_distance_checksum;
+	if (dp_checksum_out)
+		*dp_checksum_out = dp_checksum;
+	if (dp_count_out)
+		*dp_count_out = dp_count;
+	return true;
+}
+
 static bool ValidateDynamicStateOutputs(const std::vector<CpuJacobianPoint>& p,
 	const std::vector<CpuAffinePoint>& jumps,
 	const std::vector<uint64_t>& jump_distances,
@@ -4361,12 +4530,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzBenchJson(unsigned int iterations
 	unsigned int dp_count = 0;
 	std::string reason;
 	auto validation_start = std::chrono::steady_clock::now();
-	if (!ValidateDynamicXyzzDpStreamOutputs(p, jumps, jump_distances, steps_per_sample, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, &jump_histogram, &dp_distance_checksum, &dp_checksum, &dp_count, reason))
-	{
-		double validation_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - validation_start).count();
-		return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, emitted_records, dp_capacity, dp_stream_overflow, 0, dp_bits, 0, 0, min_ms, dispatch_stats, seconds, validation_seconds, 0.0, false, false, reason);
-	}
-	if (!ValidateDynamicXyzzStateOutputs(p, jumps, jump_distances, steps_per_sample, state_out, reason))
+	if (!ValidateDynamicXyzzDpStreamAndStateOutputs(p, jumps, jump_distances, steps_per_sample, state_out, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, &jump_histogram, &dp_distance_checksum, &dp_checksum, &dp_count, reason))
 	{
 		double validation_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - validation_start).count();
 		return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, emitted_records, dp_capacity, dp_stream_overflow, dp_distance_checksum, dp_bits, dp_count, dp_checksum, min_ms, dispatch_stats, seconds, validation_seconds, 0.0, false, false, reason);

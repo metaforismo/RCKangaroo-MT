@@ -1350,6 +1350,11 @@ they are intentionally ignored by git.
   changing Metal timing. The 524288-state XYZZ large-batch command dropped from
   `81.46s` to `16.55s` wall-clock with identical DP count/checksums and
   `correctness=true`; XYZZ JSON now reports `validation_seconds` separately.
+- `macos-metal-dp8-xyzz-fused-oracle` was accepted on top of that: the XYZZ
+  bench now validates DP stream records and final `X,Y,ZZ,ZZZ` state in one
+  replay pass. The same large-batch command dropped to `9.57s` wall-clock with
+  `validation_seconds=7.298625` and identical DP count/checksums, an `8.51x`
+  improvement over the original serial oracle.
 
 ## Current Correctness Surface
 

@@ -48,6 +48,7 @@ required_host_markers = (
     "RunJacobianDynamicDpStreamXyzzKernel",
     "PackJacobianXyzzStateInputs",
     "ValidateDynamicXyzzStateOutputs",
+    "ValidateDynamicXyzzDpStreamAndStateOutputs",
     "RCKMetalJacobianDynamicDpStreamXyzzSelfTest",
     "RCKMetalJacobianDynamicDpStreamXyzzBenchJson",
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp8_pow2_u32_distance\"",
@@ -63,6 +64,14 @@ required_host_markers = (
 for marker in required_host_markers:
     if marker not in host_source:
         raise SystemExit("missing XYZZ host marker: " + marker)
+
+xyzz_bench_start = host_source.index("std::string RCKMetalJacobianDynamicDpStreamXyzzBenchJson")
+xyzz_bench_end = host_source.index("std::string RCKMetalJacobianDynamicDpCountBenchJson", xyzz_bench_start)
+xyzz_bench_body = host_source[xyzz_bench_start:xyzz_bench_end]
+if "ValidateDynamicXyzzDpStreamAndStateOutputs" not in xyzz_bench_body:
+    raise SystemExit("XYZZ bench should validate DP stream and final state in one replay")
+if "ValidateDynamicXyzzDpStreamOutputs(" in xyzz_bench_body or "ValidateDynamicXyzzStateOutputs(" in xyzz_bench_body:
+    raise SystemExit("XYZZ bench should not replay DP stream and final state separately")
 
 for marker in (
     "RCKMetalJacobianDynamicDpStreamXyzzSelfTest",
