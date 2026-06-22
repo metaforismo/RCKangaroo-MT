@@ -931,6 +931,14 @@ they are intentionally ignored by git.
   candidate median `49,544,294.377036` steps/sec versus paired baseline
   `50,583,214.355980`, `paired_speedup=0.979461`. Keep the DP4 signature
   unchanged; the no-steps-arg win is DP8-specific for now.
+- `macos-metal-dynamic-dp8-stream-u32-jump-distances` was rejected. Packing
+  the DP8 stream jump-distance table as `uint32_t` and reading it as
+  `constant uint*` preserved `emitted_records=61`,
+  `dp_distance_checksum=0x822e141de4770a0b`, and
+  `dp_checksum=0xab1c2cd29cd70a84`, but paired autoresearch discarded it:
+  candidate median `40,455,982.284936` steps/sec versus paired baseline
+  `54,871,015.351268`, `paired_speedup=0.737292`. Keep the DP8 stream
+  distance table as `ulong*` with an explicit cast to `uint`.
 - A manual post-DP8-no-overflow `--tg-limit` sweep kept the existing 256
   default. With the accepted DP8 no-overflow kernel and unchanged oracle
   (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,

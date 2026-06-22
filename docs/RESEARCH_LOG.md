@@ -2131,6 +2131,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   median `50,583,214.355980`, `paired_speedup=0.979461`. Keep the DP4 stream
   kernel signature unchanged; the removed unused `steps` argument remains a
   DP8-specific codegen win.
+- `macos-metal-dynamic-dp8-stream-u32-jump-distances`: rejected packing the
+  DP8 sparse stream jump-distance table as `uint32_t` and switching the DP8
+  kernel argument from `constant ulong* jump_distances` to
+  `constant uint* jump_distances`. Correctness stayed intact:
+  `emitted_records=61`, `output_bytes_total=1220`,
+  `dp_distance_checksum=0x822e141de4770a0b`, and
+  `dp_checksum=0xab1c2cd29cd70a84`. Paired autoresearch discarded the
+  candidate with median `40,455,982.284936` DP8 steps/sec
+  (`min=34,922,296.143458`, `max=59,280,850.861247`) versus paired baseline
+  median `54,871,015.351268`, `paired_speedup=0.737292`. Keep the DP8 stream
+  distance table as 64-bit host data with the explicit in-kernel cast to
+  `uint`; the narrower table changes the compiled/buffer shape unfavorably on
+  this M3 profile.
 - `macos-metal-dynamic-dp8-stream-tg-sweep-after-no-overflow`: recorded a
   manual explicit `--tg-limit` sweep after accepting the DP8 no-overflow
   branch. No production code changed. The DP8 stream oracle stayed unchanged
