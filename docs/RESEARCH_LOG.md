@@ -1561,6 +1561,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `1.216758x`, and `0.729656x`, therefore `confirmation_status=discard`.
   Keep shared input buffers for this benchmark; private storage plus blit
   staging produced too much variance and no durable M3 target win.
+- `macos-fused-dp-record`: fusing kangaroo DP collision check and record into
+  one `FindOrInsert` probe preserved `make macos-check`, the multi16 oracle
+  (`found_private_key=0x7`, `found_target_index=15`, `last_dp_count=288`), and
+  the exact collision-verification semantics, but failed paired confirmation.
+  `jacobian_kangaroo_multi16_small --confirm-runs 3` recorded raw speedups of
+  `0.978479x`, `0.999931x`, and `1.057456x`, therefore
+  `confirmation_status=discard`. Keep the existing separate lookup/record path
+  unless a larger DP-table rewrite proves a durable gain.
 
 ## Next Research Targets
 

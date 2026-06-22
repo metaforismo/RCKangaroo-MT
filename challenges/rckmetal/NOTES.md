@@ -606,6 +606,12 @@ they are intentionally ignored by git.
   intact, but stable paired confirmation discarded it: `0.532957x`,
   `1.216758x`, `0.729656x`. Keep shared inputs for the score path; private
   storage did not produce a repeatable M3 win.
+- `715f4b7` fused CPU kangaroo DP collision check and DP recording into one
+  open-addressed table probe. `make macos-check` and the multi16 oracle stayed
+  intact (`found_private_key=0x7`, `found_target_index=15`,
+  `last_dp_count=288`), but paired confirmation discarded it: `0.978479x`,
+  `0.999931x`, `1.057456x`. Treat it as neutral noise; keep the existing
+  separate lookup/record path.
 
 ## Current Correctness Surface
 
