@@ -314,6 +314,17 @@ larger packet amortizes state traffic without losing too much occupancy. As
 with the other packet gates, DP candidates are sampled only at the packet
 boundary.
 
+Run the 128-step in-place DP8 sparse stream packet experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_inplace_steps128 --budget-sec 10
+```
+
+This records the same in-place DP8 stream architecture with `--steps 128`.
+Use it as a plateau probe for the packet-size ladder. It preserves the CPU
+oracle for the 128-step sparse DP stream and final state, but it samples DP
+candidates only at the packet boundary.
+
 Run the command-backed DP6 sparse stream experiment:
 
 ```sh

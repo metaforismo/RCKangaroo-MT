@@ -119,6 +119,7 @@ make macos-metal-jacobian-dynamic-dp-stream-inplace-stable-bench
 make macos-metal-jacobian-dynamic-dp-stream-inplace-steps16-stable-bench
 make macos-metal-jacobian-dynamic-dp-stream-inplace-steps32-stable-bench
 make macos-metal-jacobian-dynamic-dp-stream-inplace-steps64-stable-bench
+make macos-metal-jacobian-dynamic-dp-stream-inplace-steps128-stable-bench
 make macos-metal-jacobian-dynamic-dp-count-dp8-stable-bench
 make macos-metal-kernels-check
 ```
@@ -127,7 +128,7 @@ The field kernels use four little-endian 64-bit limbs modulo the secp256k1 prime
 
 `jacobian_affine_walk_dynamic_jump_table` is a separate Metal walk architecture that computes the kangaroo jump index inside the kernel from the current Jacobian state, using the same `x/y/z` mixer as the CPU kangaroo path. It supports both power-of-two mask and modulo jump counts, tracks 64-bit distance and projective DP candidates, and has a `steps=8`, `dp_bits=4` specialization with packed infinity flags plus struct-row jump table access. This path is closer to a real GPU kangaroo walk than the synthetic precomputed-index benchmark, but it is reported separately and is not used for the public precomputed DP score path.
 For power-of-two jump counts, the dynamic `steps=8`, `dp_bits=4` path uses a branchless `jump_mask` specialization. Non-power-of-two jump counts stay on the generic dynamic kernel so modulo behavior remains covered by the same CPU replay oracle.
-The in-place DP8 stream path also has `steps=16`, `steps=32`, and `steps=64` packet specializations. They perform more dynamic jumps per thread, store the updated Jacobian state back to the input buffer, and validate the sparse DP stream plus final state against CPU replay. These modes are useful for persistent GPU-walk packet tuning because they amortize state load/store traffic over more group operations; they check the DP predicate only at the packet boundary.
+The in-place DP8 stream path also has `steps=16`, `steps=32`, `steps=64`, and `steps=128` packet specializations. They perform more dynamic jumps per thread, store the updated Jacobian state back to the input buffer, and validate the sparse DP stream plus final state against CPU replay. These modes are useful for persistent GPU-walk packet tuning because they amortize state load/store traffic over more group operations; they check the DP predicate only at the packet boundary.
 
 `jacobian_affine_walk_dynamic_dp_compact` is a dynamic-only `steps=8`, `dp_bits=4`, power-of-two jump-count benchmark for future GPU-side distinguished-point emission. It uses the same in-kernel jump mixer and CPU replay oracle as the full dynamic walk, but emits only packed flags, 64-bit scalar distance, and a compact DP checksum term instead of copying the final 96-byte Jacobian state. Runtime JSON marks this as `output_layout=dp_compact` and `output_bytes_per_sample=17`; the full dynamic walk remains the exact final-state oracle and collision-verification reference.
 

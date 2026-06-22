@@ -1150,6 +1150,14 @@ they are intentionally ignored by git.
   and `1.094047x` median over three `--min-ms 500` pairs. It is the fastest
   local in-place DP8 packet so far, with DP sampling only at the packet
   boundary.
+- `macos-metal-dp8-inplace-steps128` was accepted as a plateau probe. It keeps
+  the same sparse-stream/final-state oracle and recorded
+  `emitted_records=68`, `dp_distance_checksum=0x2b611389e103e188`,
+  `dp_checksum=0xc9e5a3440ffdb698`, `correctness=true`. Autoresearch ended at
+  `90,611,211.497293` steps/sec, and same-binary comparison against `steps64`
+  measured `1.013988x` median over five `--min-ms 200` pairs plus `1.022074x`
+  median over five `--min-ms 500` pairs. Treat it as a valid packet-size
+  option but recognize that the packet-size ladder is close to a local plateau.
 
 ## Current Correctness Surface
 

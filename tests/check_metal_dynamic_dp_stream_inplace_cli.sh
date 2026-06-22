@@ -98,3 +98,23 @@ case "$steps64_output" in
 		exit 1
 		;;
 esac
+
+steps128_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-inplace-bench --iterations 128 --steps 128 --jumps 8 --dp-bits 8 --min-ms 1 2>&1)"
+steps128_status=$?
+if [ "$steps128_status" -ne 0 ]; then
+	printf 'metal-jacobian-dynamic-dp-stream-inplace-bench steps128 returned status %s\n' "$steps128_status"
+	printf '%s\n' "$steps128_output"
+	exit 1
+fi
+
+case "$steps128_output" in
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_inplace\""*"\"sample_count\":128"*"\"steps_per_sample\":128"*"\"jump_count\":8"*"\"jump_index\":\"power2_mask\""*"\"jump_mixer\":\"avalanche64\""*"\"output_layout\":\"dp_stream\""*"\"output_bytes_per_record\":20"*"\"emitted_records\":"*"\"dp_stream_overflow\":false"*"\"distance_tracking\":\"dp_stream_uint64\""*"\"dp_tracking\":\"projective_x_limb0\""*"\"dp_bits\":8"*"\"dp_count\":"*"\"dp_checksum\":\"0x"*"\"correctness\":true"*)
+		;;
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_inplace\""*"\"sample_count\":128"*"\"steps_per_sample\":128"*"\"jump_count\":8"*"\"jump_index\":\"power2_mask\""*"\"output_layout\":\"dp_stream\""*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected metal-jacobian-dynamic-dp-stream-inplace-bench steps128 output"
+		printf '%s\n' "$steps128_output"
+		exit 1
+		;;
+esac

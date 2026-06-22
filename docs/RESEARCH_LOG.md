@@ -126,6 +126,16 @@ GPU work should use Metal.
   `1.094047x` median over three `--min-ms 500` pairs. `steps64` is the fastest
   local in-place DP8 packet so far, still with DP predicate checks only at
   packet boundaries.
+- Added `metal_jacobian_dynamic_dp_stream_inplace_steps128`, a larger packet
+  probe that is now close to the local plateau. Autoresearch kept it with
+  `correctness=true`, `emitted_records=68`,
+  `dp_distance_checksum=0x2b611389e103e188`,
+  `dp_checksum=0xc9e5a3440ffdb698`, and final median
+  `90,611,211.497293` steps/sec. Paired comparison against `steps64` measured
+  `1.013988x` median over five `--min-ms 200` pairs and `1.022074x` median
+  over five `--min-ms 500` pairs. This is a valid packet-size option, but the
+  gain over `steps64` is modest; further packet increases should be treated as
+  plateau probes, not assumed wins.
 
 ### Metal Dispatch Size Tuning
 
