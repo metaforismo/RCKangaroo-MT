@@ -76,7 +76,14 @@ def git_commit(cwd: Path = ROOT) -> str:
     proc = run_command(["git", "rev-parse", "--short", "HEAD"], timeout=10, cwd=cwd)
     if proc.returncode != 0:
         return "unknown"
-    return proc.stdout.strip()
+    commit = proc.stdout.strip()
+    if not commit:
+        return "unknown"
+
+    status = run_command(["git", "status", "--porcelain"], timeout=10, cwd=cwd)
+    if status.returncode != 0 or status.stdout.strip():
+        return f"{commit}-dirty"
+    return commit
 
 
 def best_previous(experiment_name: str, backend: str, operation: str) -> float | None:

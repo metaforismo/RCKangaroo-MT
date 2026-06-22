@@ -10,6 +10,8 @@ python3 autoresearch/runner.py --experiment baseline --budget-sec 5
 
 The runner executes correctness checks before benchmarks. Experiments may set `sample_runs`; when present, the runner executes the benchmark target repeatedly and records median `ops_per_sec` plus `ops_per_sec_min`, `ops_per_sec_max`, and `runner_sample_count` in `autoresearch/benchmarks.jsonl`.
 
+Benchmark rows append `-dirty` to the short commit label whenever `git status --porcelain` is non-empty, so uncommitted candidates cannot be confused with reproducible clean commits.
+
 Use a paired baseline when local CPU load is noisy and a candidate should be compared against a fresh build of another ref in the same run:
 
 ```sh

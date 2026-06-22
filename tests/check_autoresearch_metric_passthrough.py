@@ -55,6 +55,30 @@ assert row["target_throughput_vs_single"] == 16.0
 assert row["commit"] == "abc123"
 assert row["machine"] == "test-machine"
 
+git_call_args: list[list[str]] = []
+
+
+def fake_dirty_git_command(args: list[str], timeout: int, cwd: Path = runner.ROOT) -> subprocess.CompletedProcess[str]:
+    git_call_args.append(args)
+    if args == ["git", "rev-parse", "--short", "HEAD"]:
+        return subprocess.CompletedProcess(args, 0, stdout="abc123\n")
+    if args == ["git", "status", "--porcelain"]:
+        return subprocess.CompletedProcess(args, 0, stdout=" M autoresearch/runner.py\n")
+    raise AssertionError(f"unexpected git command: {args!r}")
+
+
+original_run_command = runner.run_command
+runner.run_command = fake_dirty_git_command
+try:
+    assert runner.git_commit(Path("/tmp/rck-dirty")) == "abc123-dirty"
+finally:
+    runner.run_command = original_run_command
+
+assert git_call_args == [
+    ["git", "rev-parse", "--short", "HEAD"],
+    ["git", "status", "--porcelain"],
+]
+
 paired_row = runner.build_benchmark_row(
     experiment=experiment,
     metrics=dict(metrics, ops_per_sec=84.0),
@@ -105,7 +129,6 @@ def fake_run_command(args: list[str], timeout: int, cwd: Path = runner.ROOT) -> 
     return subprocess.CompletedProcess(args, 0, stdout=f"{runner.json.dumps(payload)}\n")
 
 
-original_run_command = runner.run_command
 runner.run_command = fake_run_command
 try:
     with contextlib.redirect_stdout(io.StringIO()):
