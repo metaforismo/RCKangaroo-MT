@@ -72,6 +72,21 @@ for marker in required_host_markers:
         raise SystemExit("missing in-place DP8 stream host marker: " + marker)
 
 for marker in (
+    "EffectiveDynamicDpStreamInplaceThreadgroupLimit",
+    "EffectiveDynamicDpStreamInplaceThreadgroupLimit(threadgroup_limit, dp_bits, steps_per_sample)",
+    "steps_per_sample >= 16",
+    "return (NSUInteger)128;",
+):
+    if marker not in host_source:
+        raise SystemExit("missing in-place DP8 stream threadgroup policy marker: " + marker)
+
+inplace_host_start = host_source.index("static bool RunJacobianDynamicDpStreamInplaceKernel")
+inplace_host_end = host_source.index("static bool RunJacobianDynamicDpCountKernel", inplace_host_start)
+inplace_host_body = host_source[inplace_host_start:inplace_host_end]
+if "EffectiveDynamicDpStreamInplaceThreadgroupLimit(threadgroup_limit, dp_bits, steps_per_sample)" not in inplace_host_body:
+    raise SystemExit("in-place DP8 stream runner must use in-place threadgroup policy")
+
+for marker in (
     "RCKMetalJacobianDynamicDpStreamInplaceSelfTest",
     "RCKMetalJacobianDynamicDpStreamInplaceBenchJson",
 ):

@@ -1191,6 +1191,18 @@ they are intentionally ignored by git.
   `89,514,131.722479` versus baseline `91,969,442.817225` steps/sec
   (`paired_speedup=0.973303`). The tiny distance table is not the limiting
   memory path for this kernel family on the M3 Air.
+- `macos-metal-dp8-inplace-tg128` was accepted. It keeps `steps8` on the
+  shared 256-thread default, but defaults in-place DP8 packet sizes
+  `steps16+` to `threadgroup_limit=128` unless `--tg-limit` is explicit. Quick
+  direct sweeps showed 128 beating 256 for `steps16` (`1.082003x`), `steps32`
+  (`1.048231x`), `steps64` (`1.083769x`), `steps128` (`1.089415x`), and
+  `steps256` (`1.095482x`), while `steps8` stayed noisy/regressive. Paired
+  autoresearch against `main` kept the `steps256` gate with the unchanged
+  oracle (`emitted_records=57`,
+  `dp_distance_checksum=0x0ab81bcdffe988ca`,
+  `dp_checksum=0xbb961e8e4fffeeb0`, `correctness=true`): final candidate
+  `98,057,706.925364` versus baseline `91,099,934.341126` steps/sec
+  (`paired_speedup=1.076375`, `threadgroup_limit=128`).
 
 ## Current Correctness Surface
 

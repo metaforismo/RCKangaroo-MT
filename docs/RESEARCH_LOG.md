@@ -148,6 +148,17 @@ GPU work should use Metal.
   sits slightly below the noisy `steps128` median, treat `steps256` as an
   accepted packet-size option and evidence of the plateau, not as an
   unconditional new fastest default.
+- Tuned the in-place DP8 packet dispatch default: `steps=16` and larger now
+  use `threadgroup_limit=128` unless `--tg-limit` is provided. Direct sweeps on
+  the accepted code showed 128 beating 256 for `steps16` (`1.082003x`),
+  `steps32` (`1.048231x`), `steps64` (`1.083769x`), `steps128`
+  (`1.089415x`), and `steps256` (`1.095482x`), while `steps8` stayed too noisy
+  and remains on the 256 default. Paired autoresearch against `main` kept the
+  `steps256` candidate with the same oracle (`emitted_records=57`,
+  `dp_distance_checksum=0x0ab81bcdffe988ca`,
+  `dp_checksum=0xbb961e8e4fffeeb0`, `correctness=true`) and final median
+  `98,057,706.925364` candidate versus `91,099,934.341126` baseline steps/sec
+  (`paired_speedup=1.076375`, `threadgroup_limit=128`).
 
 ### Metal Dispatch Size Tuning
 

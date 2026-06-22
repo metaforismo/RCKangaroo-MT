@@ -337,7 +337,9 @@ CPU oracle for the 256-step sparse DP stream and final state, but it samples
 DP candidates only at the packet boundary. Same-binary local comparisons beat
 the 128-step packet, while raw autoresearch medians are close enough that this
 should be treated as packet tuning evidence rather than a guaranteed fastest
-default.
+default. The accepted macOS default uses a 128-thread cap for in-place DP8
+packet sizes `steps=16` and larger; pass `--tg-limit N` through the direct CLI
+when retesting dispatch size.
 
 Run the command-backed DP6 sparse stream experiment:
 

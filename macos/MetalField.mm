@@ -803,6 +803,15 @@ static NSUInteger EffectiveDynamicDpStreamThreadgroupLimit(unsigned int threadgr
 	return dp_bits == 12 ? (NSUInteger)kDefaultMetalDp12StreamThreadgroupLimit : (NSUInteger)kDefaultMetalFieldThreadgroupLimit;
 }
 
+static NSUInteger EffectiveDynamicDpStreamInplaceThreadgroupLimit(unsigned int threadgroup_limit, unsigned int dp_bits, unsigned int steps_per_sample)
+{
+	if (threadgroup_limit)
+		return (NSUInteger)threadgroup_limit;
+	if (dp_bits == 8 && steps_per_sample >= 16)
+		return (NSUInteger)128;
+	return EffectiveDynamicDpStreamThreadgroupLimit(threadgroup_limit, dp_bits);
+}
+
 static NSUInteger PreferredThreadgroupWidth(id<MTLComputePipelineState> pipeline, unsigned int threadgroup_limit)
 {
 	NSUInteger execution_width = [pipeline threadExecutionWidth] ? [pipeline threadExecutionWidth] : 1;
@@ -1806,7 +1815,7 @@ static bool RunJacobianDynamicDpStreamInplaceKernel(const std::vector<CpuJacobia
 	unsigned int threadgroup_limit,
 	MetalDispatchStats* dispatch_stats)
 {
-	NSUInteger effective_threadgroup_limit = EffectiveDynamicDpStreamThreadgroupLimit(threadgroup_limit, dp_bits);
+	NSUInteger effective_threadgroup_limit = EffectiveDynamicDpStreamInplaceThreadgroupLimit(threadgroup_limit, dp_bits, steps_per_sample);
 	if (dispatch_stats)
 		dispatch_stats->threadgroup_limit = (unsigned int)effective_threadgroup_limit;
 
@@ -3485,7 +3494,7 @@ std::string RCKMetalJacobianDynamicDpStreamInplaceBenchJson(unsigned int iterati
 	const unsigned int dp_capacity = sample_count;
 
 	MetalDispatchStats dispatch_stats;
-	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveDynamicDpStreamThreadgroupLimit(threadgroup_limit, dp_bits);
+	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveDynamicDpStreamInplaceThreadgroupLimit(threadgroup_limit, dp_bits, steps_per_sample);
 	if ((steps_per_sample != 8 && steps_per_sample != 16 && steps_per_sample != 32 && steps_per_sample != 64 && steps_per_sample != 128 && steps_per_sample != 256) || dp_bits != 8 || !IsMetalPowerOfTwo(jump_count))
 	{
 		std::string reason = "in-place stream dynamic dp supports steps=8, steps=16, steps=32, steps=64, steps=128, or steps=256, power-of-two jumps, dp_bits=8";
