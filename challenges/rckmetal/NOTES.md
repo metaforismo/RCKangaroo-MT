@@ -781,6 +781,13 @@ they are intentionally ignored by git.
   but three direct stable samples had median `35,537,101.509200` steps/sec
   (`min=35,048,956.794514`, `max=37,826,360.142984`) versus promoted sparse
   stream DP8 median `56,977,760.954224`. Keep sparse stream for DP8.
+- `macos-metal-dynamic-dp8-stream-j16-mask` was rejected. It hardcoded the
+  DP8 stream jump mask to `0xF` for `jumps.size()==16`, preserving the stream
+  oracle (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,
+  `dp_distance_checksum=0x822e141de4770a0b`), but clean autoresearch discarded
+  it: median `48,463,423.411911` steps/sec (`min=29,267,546.773174`,
+  `max=56,335,643.461168`) versus promoted DP8 const-mask stream median
+  `58,596,783.649305`. Keep the accepted runtime `jump_mask` DP8 path.
 
 ## Current Correctness Surface
 

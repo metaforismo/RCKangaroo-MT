@@ -1865,6 +1865,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `35,537,101.509200` is far below the promoted sparse stream DP8 median
   `56,977,760.954224`, so do not add a dense compact DP8 speed path; on this
   M3 profile, the sparse stream with per-record atomics still wins at DP8.
+- `macos-metal-dynamic-dp8-stream-j16-mask`: rejected hardcoding the DP8 stream
+  jump mask to `0xF` behind a `jumps.size()==16` host guard. The prototype
+  removed the runtime `jump_mask` constant from the DP8+j16 kernel while
+  keeping the same u32 internal distance accumulator and DP8 predicate.
+  Correctness stayed intact (`emitted_records=61`,
+  `dp_checksum=0xab1c2cd29cd70a84`,
+  `dp_distance_checksum=0x822e141de4770a0b`, no overflow), and an initial
+  direct sample reached `59,100,828.090287` steps/sec. Clean autoresearch
+  discarded the candidate, however: median `48,463,423.411911` steps/sec
+  (`min=29,267,546.773174`, `max=56,335,643.461168`) versus the promoted DP8
+  const-mask stream median `58,596,783.649305`. Keep the runtime `jump_mask`
+  buffer in the accepted DP8 stream path; the hardcoded j16 variant worsened
+  the low tail on this M3 profile.
 
 ## Next Research Targets
 
