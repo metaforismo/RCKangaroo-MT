@@ -1293,6 +1293,12 @@ they are intentionally ignored by git.
   autoresearch against accepted XYZZ `steps512` ended with
   `confirmation_status=discard`; final speedup was only `1.006430x`. Keep
   `steps512` as the promoted XYZZ packet plateau.
+- `macos-metal-dp8-xyzz-steps768` was rejected. It stayed correct
+  (`emitted_records=66`,
+  `dp_distance_checksum=0xf9f6596d8b5e37da`,
+  `dp_checksum=0xb0b7efeef3f178a8`, `correctness=true`), but five alternating
+  `--min-ms 500` pairs versus accepted `steps512` had median `0.996255x` and
+  mean `1.002052x`. Keep `steps512`.
 
 ## Current Correctness Surface
 

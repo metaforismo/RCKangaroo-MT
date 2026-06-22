@@ -2639,6 +2639,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   was `discard`, with final candidate `109,543,181.205134` versus baseline
   `108,843,325.105267` steps/sec (`1.006430x`). Keep `steps512` as the current
   promoted XYZZ packet plateau.
+- `macos-metal-dp8-xyzz-steps768`: rejected the midpoint packet between
+  accepted `steps512` and rejected `steps1024`. The prototype stayed correct
+  (`emitted_records=66`,
+  `dp_distance_checksum=0xf9f6596d8b5e37da`,
+  `dp_checksum=0xb0b7efeef3f178a8`, `dp_stream_overflow=false`,
+  `jump_histogram_max_deviation_ppm=1461`, and `correctness=true`), but five
+  alternating same-binary `--min-ms 500` pairs against `steps512` gave ratios
+  `0.994181x`, `1.013145x`, `1.010970x`, `0.996255x`, and `0.995709x`
+  (median `0.996255x`, mean `1.002052x`). Do not promote a non-power-of-two
+  XYZZ packet unless it clears paired autoresearch, not just a quick run.
 
 ## Next Research Targets
 
