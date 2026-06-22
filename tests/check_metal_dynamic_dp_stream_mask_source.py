@@ -79,7 +79,9 @@ for marker in required_dp8_markers:
 for forbidden in (
     "constant ulong& dp_mask",
     "constant uint& dp_capacity",
+    "constant uint& steps",
     "device atomic_uint* out_overflow",
+    "(void)steps;",
     "x0 & dp_mask",
     "ulong distance = 0;",
     "q_xy[jump_index].",

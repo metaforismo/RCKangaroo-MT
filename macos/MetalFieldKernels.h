@@ -1111,13 +1111,11 @@ kernel void jacobian_affine_walk_dynamic_dp_stream_steps8_dp8_pow2_u32_distance(
                                                                                 device atomic_uint* out_dp_count [[buffer(4)]],
                                                                                 device uint* out_indices [[buffer(5)]],
                                                                                 constant uint& count [[buffer(6)]],
-                                                                                constant uint& steps [[buffer(7)]],
                                                                                 constant ulong* jump_distances [[buffer(8)]],
                                                                                 device ulong* out_distances [[buffer(9)]],
                                                                                 device ulong* out_dp_terms [[buffer(10)]],
                                                                                 constant uint& jump_mask [[buffer(11)]],
                                                                                 uint id [[thread_position_in_grid]]) {
-  (void)steps;
   if (id >= count) return;
   uint p_base = (id << 3) + (id << 2);
   ulong x0 = p_xyz[p_base + 0], x1 = p_xyz[p_base + 1], x2 = p_xyz[p_base + 2], x3 = p_xyz[p_base + 3];

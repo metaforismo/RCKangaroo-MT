@@ -1829,6 +1829,22 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_distance_checksum=0x822e141de4770a0b`. Treat this as a DP8-specific
   control-flow reduction guarded by the stream-capacity invariant; keep the
   generic and DP4 stream overflow branches for now.
+- `macos-metal-dynamic-dp8-stream-no-steps-arg`: removed the unused
+  `steps [[buffer(7)]]` argument and `(void)steps` marker from the fixed
+  `steps=8` DP8 sparse stream specialization. This leaves host buffer binding
+  shared with the other stream kernels, while the DP8 function signature no
+  longer exposes an unused constant argument to the Metal compiler. A direct
+  paired run kept the candidate, and a stricter two-run confirmation also
+  kept it. Confirmation run 1 recorded candidate median `45,448,401.334809`
+  DP8 steps/sec (`min=20,729,618.822593`, `max=49,388,484.655344`) versus
+  paired baseline `39,873,314.502482`, `paired_speedup=1.139820`.
+  Confirmation run 2 recorded candidate median `42,203,534.028814`
+  (`min=39,831,980.594591`, `max=55,623,670.472829`) versus paired baseline
+  `37,060,740.353657`, `paired_speedup=1.138767`,
+  `confirmation_status=keep`. The oracle stayed unchanged:
+  `emitted_records=61`, `output_bytes_total=1220`, no overflow,
+  `dp_checksum=0xab1c2cd29cd70a84`, and
+  `dp_distance_checksum=0x822e141de4770a0b`.
 - `macos-metal-dynamic-dp4-stream-local-jump-row`: applied the same local
   `AffineJumpValue jump = q_xy[jump_index]` row reuse to the accepted DP4
   sparse stream kernel. Paired autoresearch against `main` kept the candidate

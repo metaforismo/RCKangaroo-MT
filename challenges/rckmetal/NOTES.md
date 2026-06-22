@@ -159,6 +159,15 @@ they are intentionally ignored by git.
   baseline median `35,628,876.688184 ops/sec`; `paired_speedup=1.553235`,
   `emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`, and
   `dp_distance_checksum=0x822e141de4770a0b` were unchanged.
+- `macos-metal-dynamic-dp8-stream-no-steps-arg` removes the unused
+  `steps [[buffer(7)]]` argument and `(void)steps` marker from the fixed
+  `steps=8` DP8 sparse stream specialization. The host still binds the shared
+  steps buffer for the other stream kernels; the DP8 function simply no longer
+  consumes it. A two-run paired confirmation kept the candidate:
+  `45,448,401.334809` versus `39,873,314.502482` steps/sec
+  (`paired_speedup=1.139820`) and `42,203,534.028814` versus
+  `37,060,740.353657` (`paired_speedup=1.138767`). The DP8 oracle stayed
+  unchanged.
 - `macos-metal-dynamic-dp4-stream-local-jump-row` applies the same explicit
   affine row reuse to the DP4 sparse stream kernel. Paired autoresearch kept it
   with candidate median `65,061,282.305496 ops/sec` versus paired baseline
