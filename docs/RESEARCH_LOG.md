@@ -2217,6 +2217,22 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `max=43,014,286.776302`) versus paired baseline median
   `39,646,497.326093`, `paired_speedup=0.890564`. Keep DP12 on the generic
   runtime-mask u32-distance stream kernel.
+- `macos-metal-dynamic-dp12-stream-tg128-default`: accepted changing only the
+  default threadgroup cap for the sparse DP12 stream shape from 256 to 128 when
+  `--tg-limit` is omitted. Explicit `--tg-limit` overrides remain preserved.
+  A sequential manual sweep first suggested the shape: tg64
+  `39,758,545.634387`, tg128 `43,101,368.645947`, tg256
+  `38,769,840.616246`, tg512 `38,922,032.447806`, and tg1024
+  `33,594,476.616126` DP12 steps/sec. The accepted candidate kept the DP12
+  stream oracle unchanged (`emitted_records=3`, `output_bytes_total=60`,
+  `dp_distance_checksum=0xfb58c602127bde02`,
+  `dp_checksum=0xccdf6d15eaf2c6b0`, `correctness=true`). Paired autoresearch
+  against `main` first kept candidate median `22,566,572.599272` versus
+  baseline `21,412,443.160846` (`paired_speedup=1.053900`), then a two-run
+  confirmation kept candidate median `21,793,968.794878` versus baseline
+  `19,686,379.815135` (`paired_speedup=1.107058`,
+  `confirmation_status=keep`). This is a narrow host scheduling default, not a
+  math/kernel rewrite.
 - `macos-metal-dynamic-dp8-stream-tg-sweep-after-no-overflow`: recorded a
   manual explicit `--tg-limit` sweep after accepting the DP8 no-overflow
   branch. No production code changed. The DP8 stream oracle stayed unchanged

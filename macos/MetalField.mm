@@ -17,6 +17,7 @@
 typedef std::array<uint64_t, 4> FieldElement;
 
 static constexpr unsigned int kDefaultMetalFieldThreadgroupLimit = 256;
+static constexpr unsigned int kDefaultMetalDp12StreamThreadgroupLimit = 128;
 
 struct MetalDispatchStats
 {
@@ -793,6 +794,13 @@ static NSString* FieldSource()
 static NSUInteger EffectiveThreadgroupLimit(unsigned int threadgroup_limit)
 {
 	return threadgroup_limit ? (NSUInteger)threadgroup_limit : (NSUInteger)kDefaultMetalFieldThreadgroupLimit;
+}
+
+static NSUInteger EffectiveDynamicDpStreamThreadgroupLimit(unsigned int threadgroup_limit, unsigned int dp_bits)
+{
+	if (threadgroup_limit)
+		return (NSUInteger)threadgroup_limit;
+	return dp_bits == 12 ? (NSUInteger)kDefaultMetalDp12StreamThreadgroupLimit : (NSUInteger)kDefaultMetalFieldThreadgroupLimit;
 }
 
 static NSUInteger PreferredThreadgroupWidth(id<MTLComputePipelineState> pipeline, unsigned int threadgroup_limit)
@@ -1615,8 +1623,9 @@ static bool RunJacobianDynamicDpStreamKernel(const std::vector<CpuJacobianPoint>
 	unsigned int threadgroup_limit,
 	MetalDispatchStats* dispatch_stats)
 {
+	NSUInteger effective_threadgroup_limit = EffectiveDynamicDpStreamThreadgroupLimit(threadgroup_limit, dp_bits);
 	if (dispatch_stats)
-		dispatch_stats->threadgroup_limit = (unsigned int)EffectiveThreadgroupLimit(threadgroup_limit);
+		dispatch_stats->threadgroup_limit = (unsigned int)effective_threadgroup_limit;
 
 	if (p.empty() || jumps.empty() || jumps.size() != jump_distances.size() || steps_per_sample != 8 || dp_bits > 32 || !IsMetalPowerOfTwo((unsigned int)jumps.size()) || jumps.size() > 32)
 	{
@@ -1677,7 +1686,7 @@ static bool RunJacobianDynamicDpStreamKernel(const std::vector<CpuJacobianPoint>
 		}
 		NSUInteger execution_width = [pipeline threadExecutionWidth] ? [pipeline threadExecutionWidth] : 1;
 		NSUInteger max_threads = [pipeline maxTotalThreadsPerThreadgroup] ? [pipeline maxTotalThreadsPerThreadgroup] : execution_width;
-		NSUInteger threads_per_threadgroup = PreferredThreadgroupWidth(pipeline, threadgroup_limit);
+		NSUInteger threads_per_threadgroup = PreferredThreadgroupWidth(pipeline, (unsigned int)effective_threadgroup_limit);
 		if (dispatch_stats)
 		{
 			dispatch_stats->thread_execution_width = (unsigned int)execution_width;

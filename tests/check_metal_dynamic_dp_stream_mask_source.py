@@ -102,6 +102,8 @@ for forbidden in (
         raise SystemExit("dynamic dp stream mask kernel must not keep marker: " + forbidden)
 
 required_host_markers = (
+    "kDefaultMetalDp12StreamThreadgroupLimit = 128",
+    "EffectiveDynamicDpStreamThreadgroupLimit",
     "\"jacobian_affine_walk_dynamic_dp_stream_steps8_pow2_mask\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_steps8_pow2_mask_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_steps8_dp8_pow2_u32_distance\"",
@@ -116,6 +118,17 @@ required_host_markers = (
 for marker in required_host_markers:
     if marker not in host_source:
         raise SystemExit("missing dynamic dp stream mask host marker: " + marker)
+
+stream_host_start = host_source.index("static bool RunJacobianDynamicDpStreamKernel")
+stream_host_end = host_source.index("\nstatic bool RunJacobianDynamicDpCountKernel", stream_host_start)
+stream_host_body = host_source[stream_host_start:stream_host_end]
+for marker in (
+    "EffectiveDynamicDpStreamThreadgroupLimit(threadgroup_limit, dp_bits)",
+    "dispatch_stats->threadgroup_limit = (unsigned int)effective_threadgroup_limit",
+    "PreferredThreadgroupWidth(pipeline, (unsigned int)effective_threadgroup_limit)",
+):
+    if marker not in stream_host_body:
+        raise SystemExit("missing dynamic dp stream threadgroup host marker: " + marker)
 
 for marker in (
     "macos-metal-dynamic-dp-stream-mask-source-check",

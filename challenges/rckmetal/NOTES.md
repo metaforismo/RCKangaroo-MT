@@ -978,6 +978,16 @@ they are intentionally ignored by git.
   candidate median `35,307,732.434448` steps/sec versus paired baseline
   `39,646,497.326093`, `paired_speedup=0.890564`. Keep DP12 on the generic
   runtime-mask u32-distance stream kernel.
+- `macos-metal-dynamic-dp12-stream-tg128-default` was accepted. For the sparse
+  DP12 stream path only, the default threadgroup cap is now 128 when no
+  explicit `--tg-limit` is provided; explicit overrides still win. A sequential
+  sweep measured tg64 `39,758,545.634387`, tg128 `43,101,368.645947`, tg256
+  `38,769,840.616246`, tg512 `38,922,032.447806`, and tg1024
+  `33,594,476.616126` DP12 steps/sec. The paired gate kept the candidate first
+  at `paired_speedup=1.053900`, then kept a two-run confirmation at
+  `paired_speedup=1.107058`. The DP12 oracle stayed unchanged:
+  `emitted_records=3`, `dp_distance_checksum=0xfb58c602127bde02`,
+  `dp_checksum=0xccdf6d15eaf2c6b0`, and `correctness=true`.
 - A manual post-DP8-no-overflow `--tg-limit` sweep kept the existing 256
   default. With the accepted DP8 no-overflow kernel and unchanged oracle
   (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,
