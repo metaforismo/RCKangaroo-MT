@@ -923,6 +923,14 @@ they are intentionally ignored by git.
   `50,590,171.559774` versus `57,834,567.954473` steps/sec
   (`paired_speedup=0.874739`) and `36,257,628.573029` versus
   `56,053,192.101321` (`paired_speedup=0.646843`).
+- `macos-metal-dynamic-dp4-stream-no-steps-arg` was rejected. Removing the
+  unused `steps [[buffer(7)]]` argument from the fixed `steps=8` DP4 sparse
+  stream specialization preserved `emitted_records=1017`,
+  `dp_distance_checksum=0x19e43ca50eec2a74`, and
+  `dp_checksum=0xbfd3b2319760e774`, but paired autoresearch discarded it:
+  candidate median `49,544,294.377036` steps/sec versus paired baseline
+  `50,583,214.355980`, `paired_speedup=0.979461`. Keep the DP4 signature
+  unchanged; the no-steps-arg win is DP8-specific for now.
 - A manual post-DP8-no-overflow `--tg-limit` sweep kept the existing 256
   default. With the accepted DP8 no-overflow kernel and unchanged oracle
   (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,

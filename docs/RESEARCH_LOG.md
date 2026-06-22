@@ -2120,6 +2120,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `max=54,091,492.986425`) versus paired baseline `56,053,192.101321`,
   `paired_speedup=0.646843`, `confirmation_status=discard`. Do not promote a
   DP10 no-overflow specialization from the earlier single-run keep signal.
+- `macos-metal-dynamic-dp4-stream-no-steps-arg`: rejected applying the
+  accepted DP8 no-steps-argument cleanup to the fixed `steps=8` DP4 sparse
+  stream specialization. Correctness stayed intact:
+  `emitted_records=1017`, `output_bytes_total=20340`,
+  `dp_distance_checksum=0x19e43ca50eec2a74`, and
+  `dp_checksum=0xbfd3b2319760e774`. Paired autoresearch discarded it with
+  candidate median `49,544,294.377036` DP4 steps/sec
+  (`min=41,430,851.669889`, `max=57,349,092.786802`) versus paired baseline
+  median `50,583,214.355980`, `paired_speedup=0.979461`. Keep the DP4 stream
+  kernel signature unchanged; the removed unused `steps` argument remains a
+  DP8-specific codegen win.
 - `macos-metal-dynamic-dp8-stream-tg-sweep-after-no-overflow`: recorded a
   manual explicit `--tg-limit` sweep after accepting the DP8 no-overflow
   branch. No production code changed. The DP8 stream oracle stayed unchanged
