@@ -2074,6 +2074,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   median `41,006,978.823522`, `paired_speedup=0.765861`. Keep the overflow
   branch in the DP4 sparse stream kernel; branch removal is currently a
   DP8-specific win, not a general stream rule.
+- `macos-metal-dynamic-u32-stream-no-overflow-branch`: rejected removing the
+  `slot < dp_capacity` / `out_overflow` branch from the shared runtime-mask
+  u32-distance stream kernel. Correctness stayed intact for DP10
+  (`emitted_records=15`, `dp_distance_checksum=0xb6973c2035ff6351`,
+  `dp_checksum=0xcbfdc2badaf0e57a`) and DP6 (`emitted_records=248`,
+  `dp_distance_checksum=0xcd602d19c5edfa05`,
+  `dp_checksum=0xb302d085b993018a`). Performance split by density: DP10 kept
+  with candidate median `42,278,414.551117` steps/sec
+  (`min=26,790,936.748830`, `max=57,431,328.740594`) versus paired baseline
+  median `29,964,798.774474`, `paired_speedup=1.410936`, while DP6 discarded
+  with candidate median `50,415,308.939320` steps/sec
+  (`min=33,340,118.517518`, `max=56,064,889.448233`) versus paired baseline
+  median `59,073,704.479935`, `paired_speedup=0.853431`. Keep the generic
+  u32 stream overflow branch; test any sparse DP10 no-overflow idea as a
+  dedicated specialization rather than a shared-path change.
 
 ## Next Research Targets
 

@@ -899,6 +899,13 @@ they are intentionally ignored by git.
   candidate median `31,405,650.680564` steps/sec versus paired baseline
   `41,006,978.823522`, `paired_speedup=0.765861`. Keep the DP4 overflow
   branch even though the DP8 variant benefits from removing it.
+- `macos-metal-dynamic-u32-stream-no-overflow-branch` was rejected as a shared
+  generic path change. Removing the overflow branch from the runtime-mask
+  u32-distance stream kernel preserved both DP10 and DP6 oracles; DP10 showed
+  a keep signal (`42,278,414.551117` versus `29,964,798.774474` steps/sec,
+  `paired_speedup=1.410936`), but DP6 regressed (`50,415,308.939320` versus
+  `59,073,704.479935`, `paired_speedup=0.853431`). Keep the generic u32
+  overflow branch; a DP10-only specialization can be tested separately.
 
 ## Current Correctness Surface
 
