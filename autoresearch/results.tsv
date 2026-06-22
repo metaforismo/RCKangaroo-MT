@@ -282,3 +282,4 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-22T14:48:58Z	8f6b8e1-dirty	metal_field_add	metal	field_add_mod_p	8388608	125737724.391583	true	discard	Metal secp256k1 field_add_mod_p correctness and throughput gate
 2026-06-22T14:56:59Z	ce388fa-dirty	metal_field_add	metal	field_add_mod_p	11534336	225377938.159104	true	keep	Metal secp256k1 field_add_mod_p correctness and throughput gate
 2026-06-22T15:02:53Z	641227b-dirty	metal_jacobian_dynamic_dp_stream_dp8	metal	jacobian_affine_walk_dynamic_dp_stream	13500416	67169019.394725	true	keep	Metal dynamic Jacobian DP stream with runtime dp_bits=8 mask
+2026-06-22T15:12:32Z	a5ed767-dirty	metal_jacobian_dynamic_dp_stream_inplace	metal	jacobian_affine_walk_dynamic_dp_stream_inplace	13500416	67315699.992225	true	keep	Metal in-place dynamic Jacobian DP8 stream state-update gate

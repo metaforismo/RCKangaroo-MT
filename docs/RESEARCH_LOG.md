@@ -75,6 +75,20 @@ GPU work should use Metal.
   `dp_checksum=0xab1c2cd29cd70a84`) and recorded median
   `67,169,019.394725` steps/sec with one build followed by three direct
   samples.
+- Added `metal_jacobian_dynamic_dp_stream_inplace`, a DP8 Metal stream kernel
+  that updates each Jacobian state in-place on the GPU while emitting only
+  sparse DP records. The oracle verifies both the DP stream and the final raw
+  Jacobian `x/y/z/inf` state against CPU replay. Autoresearch recorded median
+  `67,315,699.992225` steps/sec with `correctness=true`,
+  `emitted_records=61`,
+  `dp_distance_checksum=0x822e141de4770a0b`, and
+  `dp_checksum=0xab1c2cd29cd70a84`. Manual alternating probes versus DP8
+  `dynamic-walk` full-output measured `1.125972x` paired median over three
+  pairs, `1.099271x` paired median over five noisier pairs, and `1.866489x`
+  paired median over three `--min-ms 500` pairs. Against pure DP8 stream,
+  absolute median was near parity (`0.986428x`) and paired median was noisy, so
+  treat this as a state-preserving primitive for persistent GPU walks, not a
+  replacement for pure sparse-stream scoring.
 
 ### Metal Dispatch Size Tuning
 

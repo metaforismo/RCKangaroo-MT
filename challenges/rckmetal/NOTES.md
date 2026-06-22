@@ -889,6 +889,18 @@ they are intentionally ignored by git.
   `dp_checksum=0xab1c2cd29cd70a84`) and recorded median
   `67,169,019.394725` steps/sec. Use this cleaner DP8 baseline for future
   point-level experiments.
+- `macos-metal-dp8-inplace-stream` was accepted as a state-preserving GPU walk
+  primitive. It updates the Jacobian state buffer in place and emits sparse
+  DP8 records; the oracle checks both the stream and final raw Jacobian state.
+  Autoresearch recorded median `67,315,699.992225` steps/sec with
+  `emitted_records=61`,
+  `dp_distance_checksum=0x822e141de4770a0b`, and
+  `dp_checksum=0xab1c2cd29cd70a84`. Alternating probes versus DP8
+  full-output `dynamic-walk` kept a positive median signal (`1.125972x` over
+  three pairs, `1.099271x` over five noisier pairs, `1.866489x` over three
+  `--min-ms 500` pairs). A pure-stream comparison was near parity on absolute
+  median (`0.986428x`) and noisy pairwise, so use this when persistent GPU
+  state is required, not as a pure sparse-stream replacement.
 - `macos-metal-dynamic-dp10-stream-specialization` was rejected. A dedicated
   DP10 const-mask sparse stream kernel preserved the oracle, but paired
   autoresearch discarded it: candidate median `54,324,631.189670` steps/sec
