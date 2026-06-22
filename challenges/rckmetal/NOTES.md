@@ -182,6 +182,12 @@ they are intentionally ignored by git.
   the long XYZZ persistent-chain gate. The normal-first XYZZ experiment showed
   how quickly immediate repeats can throttle the M3 Air; this knob keeps future
   paired runs more honest without changing solver code or benchmark JSON.
+- Cooled persistent-chain control at `ebd6cb6` discarded:
+  `56.70M` persistent versus `63.93M` generic-chain paired baseline,
+  `paired_speedup=0.886885`, checksums unchanged. The run validates cooldown
+  logging but also shows the long `262144 x 512 x 4` gate is still sensitive to
+  validation/thermal load. Do not use a single long cooled discard to remove the
+  persistent-chain command.
 - `macos-metal-dynamic-dp4-stream-local-jump-row` applies the same explicit
   affine row reuse to the DP4 sparse stream kernel. Paired autoresearch kept it
   with candidate median `65,061,282.305496 ops/sec` versus paired baseline

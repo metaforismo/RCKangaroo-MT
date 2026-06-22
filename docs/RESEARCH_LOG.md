@@ -66,6 +66,16 @@ GPU work should use Metal.
   throttling on immediate repeats. This improves reproducibility of future
   paired decisions and does not affect benchmark commands, JSON oracles, or
   solver code.
+- First cooled control run for
+  `metal_jacobian_dynamic_dp_stream_xyzz_persistent_chain_steps512` at
+  `ebd6cb6` recorded `status=discard`: persistent-chain median
+  `56,698,747.713128` steps/sec versus paired generic-chain baseline
+  `63,930,187.480298`, with `cooldown_sec=10` and unchanged
+  `dp_distance_checksum=0x30e91a5edffed133` /
+  `dp_checksum=0x950a1186dae66384`. Treat this as a reproducibility warning for
+  the long validation-heavy gate, not as an automatic rollback of the accepted
+  persistent-chain command; use shorter paired probes or repeated cooled
+  confirmations before changing defaults.
 - Converted the public stable DP gate to `build_target=macos-build` plus an
   explicit `bench_command`, so future stable paired runs use the build-once
   path without adding one-off Make targets.
