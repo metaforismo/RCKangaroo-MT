@@ -972,6 +972,12 @@ they are intentionally ignored by git.
   the sparse DP12 stream shape. Baseline median was `39,603,303.230057`
   steps/sec with `emitted_records=3`, `dp_distance_checksum=0xfb58c602127bde02`,
   and `dp_checksum=0xccdf6d15eaf2c6b0`.
+- `macos-metal-dynamic-dp12-stream-no-overflow` was rejected. A dedicated DP12
+  stream kernel hardcoded `x0 & 0xFFF` and removed the overflow/capacity branch
+  while preserving the DP12 oracle, but paired autoresearch discarded it:
+  candidate median `35,307,732.434448` steps/sec versus paired baseline
+  `39,646,497.326093`, `paired_speedup=0.890564`. Keep DP12 on the generic
+  runtime-mask u32-distance stream kernel.
 - A manual post-DP8-no-overflow `--tg-limit` sweep kept the existing 256
   default. With the accepted DP8 no-overflow kernel and unchanged oracle
   (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,

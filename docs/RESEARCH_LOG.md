@@ -2205,6 +2205,18 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0xccdf6d15eaf2c6b0`; median was `39,603,303.230057` steps/sec
   (`min=32,723,053.250208`, `max=39,707,503.885942`). Use this gate for DP12
   sparse-stream experiments instead of ad hoc CLI runs.
+- `macos-metal-dynamic-dp12-stream-no-overflow`: rejected a dedicated DP12
+  sparse stream kernel that hardcoded the DP predicate to `x0 & 0xFFF`,
+  removed the runtime `dp_mask`, and removed the in-kernel
+  `slot < dp_capacity` / overflow branch while keeping direct
+  `q_xy[jump_index]` row loads. Correctness stayed intact:
+  `emitted_records=3`, `output_bytes_total=60`,
+  `dp_distance_checksum=0xfb58c602127bde02`, and
+  `dp_checksum=0xccdf6d15eaf2c6b0`. Paired autoresearch discarded it with
+  candidate median `35,307,732.434448` steps/sec (`min=33,279,343.640396`,
+  `max=43,014,286.776302`) versus paired baseline median
+  `39,646,497.326093`, `paired_speedup=0.890564`. Keep DP12 on the generic
+  runtime-mask u32-distance stream kernel.
 - `macos-metal-dynamic-dp8-stream-tg-sweep-after-no-overflow`: recorded a
   manual explicit `--tg-limit` sweep after accepting the DP8 no-overflow
   branch. No production code changed. The DP8 stream oracle stayed unchanged
