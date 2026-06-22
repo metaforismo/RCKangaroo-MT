@@ -958,15 +958,16 @@ kernel void jacobian_affine_walk_dynamic_dp_stream_steps8_dp4_pow2(constant ulon
     mixed ^= mixed >> 33;
     uint jump_index = (uint)(mixed & (ulong)jump_mask);
     distance += jump_distances[jump_index];
+    AffineJumpValue jump = q_xy[jump_index];
     JacobianValue out;
     if (inf) {
       out = jacobian_add_affine_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3, inf,
-                                       q_xy[jump_index].x0, q_xy[jump_index].x1, q_xy[jump_index].x2, q_xy[jump_index].x3,
-                                       q_xy[jump_index].y0, q_xy[jump_index].y1, q_xy[jump_index].y2, q_xy[jump_index].y3);
+                                       jump.x0, jump.x1, jump.x2, jump.x3,
+                                       jump.y0, jump.y1, jump.y2, jump.y3);
     } else {
       out = jacobian_add_affine_finite_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3,
-                                              q_xy[jump_index].x0, q_xy[jump_index].x1, q_xy[jump_index].x2, q_xy[jump_index].x3,
-                                              q_xy[jump_index].y0, q_xy[jump_index].y1, q_xy[jump_index].y2, q_xy[jump_index].y3);
+                                              jump.x0, jump.x1, jump.x2, jump.x3,
+                                              jump.y0, jump.y1, jump.y2, jump.y3);
     }
     x0 = out.x0; x1 = out.x1; x2 = out.x2; x3 = out.x3;
     y0 = out.y0; y1 = out.y1; y2 = out.y2; y3 = out.y3;

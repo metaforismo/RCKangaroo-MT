@@ -26,6 +26,8 @@ required_kernel_markers = (
     "device ulong* out_dp_terms [[buffer(10)]]",
     "constant uint& jump_mask [[buffer(11)]]",
     "constant uint& dp_capacity [[buffer(12)]]",
+    "AffineJumpValue jump = q_xy[jump_index];",
+    "jump.x0, jump.x1, jump.x2, jump.x3,",
     "atomic_fetch_add_explicit(out_dp_count, 1U, memory_order_relaxed)",
     "out_indices[slot] = id;",
     "out_dp_terms[slot] = x0 ^ (y0 << 1) ^ (z0 << 7);",
@@ -39,6 +41,7 @@ for forbidden in (
     "store_jacobian_xyz_only",
     "constant uchar* jump_indices",
     "jump_indices[",
+    "q_xy[jump_index].",
     "out_flags",
 ):
     if forbidden in body:

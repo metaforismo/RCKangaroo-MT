@@ -150,6 +150,12 @@ they are intentionally ignored by git.
   baseline median `56,207,874.481378 ops/sec`; `emitted_records=61`,
   `dp_checksum=0xab1c2cd29cd70a84`, and
   `dp_distance_checksum=0x822e141de4770a0b` were unchanged.
+- `macos-metal-dynamic-dp4-stream-local-jump-row` applies the same explicit
+  affine row reuse to the DP4 sparse stream kernel. Paired autoresearch kept it
+  with candidate median `65,061,282.305496 ops/sec` versus paired baseline
+  median `52,181,168.524837 ops/sec`; `emitted_records=1017`,
+  `dp_checksum=0xbfd3b2319760e774`, and
+  `dp_distance_checksum=0x19e43ca50eec2a74` were unchanged.
 - `d8f0c79` precomputes the Metal jump-index base once per GPU thread. Paired
   autoresearch kept it with candidate median `36,123,063.713799 ops/sec`
   versus paired baseline median `29,592,623.352879 ops/sec`; distance and DP
