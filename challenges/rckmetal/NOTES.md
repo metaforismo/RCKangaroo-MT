@@ -1053,6 +1053,14 @@ they are intentionally ignored by git.
   operands in the public precomputed-index DP4 kernel; the local row spelling
   appears to worsen the M3 compiler/register shape here, despite helping some
   sparse stream kernels.
+- `macos-metal-dynamic-dp14-stream-no-overflow-specialization` was rejected.
+  A DP14-only const-mask/no-overflow stream kernel kept correctness
+  (`emitted_records=1`, `output_bytes_total=20`,
+  `dp_distance_checksum=0x9e3779b97f4b39c1`,
+  `dp_checksum=0x252996ea8a0dca38`) but did not survive two-run paired
+  confirmation: run 1 was `0.801763x`, run 2 was a noisy `1.098475x`, and the
+  overall gate stayed `discard`. Keep DP14 on the generic runtime-mask
+  u32-distance stream kernel.
 
 ## Current Correctness Surface
 

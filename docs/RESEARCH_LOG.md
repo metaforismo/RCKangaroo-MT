@@ -2351,6 +2351,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   was `21,962,885.587314` versus baseline `30,672,067.959967` ops/sec. Keep
   the current direct `q_xy[jump_index].x*/y*` spelling for the public DP4
   precomputed-index kernel.
+- `macos-metal-dynamic-dp14-stream-no-overflow-specialization`: rejected a
+  DP14-only const-mask/no-overflow stream kernel. The candidate preserved the
+  DP14 stream oracle (`emitted_records=1`, `output_bytes_total=20`,
+  `dp_distance_checksum=0x9e3779b97f4b39c1`,
+  `dp_checksum=0x252996ea8a0dca38`, `correctness=true`), but two-run paired
+  confirmation discarded it. Run 1 regressed at candidate median
+  `54,206,138.221190` versus baseline `67,608,653.796270` DP14 steps/sec
+  (`paired_speedup=0.801763`); run 2 was a noisy raw keep at
+  `44,341,838.079041` versus `40,366,739.951844` steps/sec
+  (`paired_speedup=1.098475`) but did not rescue the confirmation. Keep DP14
+  on the generic runtime-mask u32-distance stream kernel.
 
 ## Next Research Targets
 
