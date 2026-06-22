@@ -906,6 +906,14 @@ they are intentionally ignored by git.
   `paired_speedup=1.410936`), but DP6 regressed (`50,415,308.939320` versus
   `59,073,704.479935`, `paired_speedup=0.853431`). Keep the generic u32
   overflow branch; a DP10-only specialization can be tested separately.
+- `macos-metal-dynamic-dp10-stream-no-overflow-specialization` was tested
+  separately and rejected. A dedicated DP10 const-mask/no-overflow kernel
+  preserved `emitted_records=15`,
+  `dp_distance_checksum=0xb6973c2035ff6351`, and
+  `dp_checksum=0xcbfdc2badaf0e57a`, but two confirmation runs both discarded:
+  `50,590,171.559774` versus `57,834,567.954473` steps/sec
+  (`paired_speedup=0.874739`) and `36,257,628.573029` versus
+  `56,053,192.101321` (`paired_speedup=0.646843`).
 
 ## Current Correctness Surface
 

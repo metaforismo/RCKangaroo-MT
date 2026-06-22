@@ -2089,6 +2089,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   median `59,073,704.479935`, `paired_speedup=0.853431`. Keep the generic
   u32 stream overflow branch; test any sparse DP10 no-overflow idea as a
   dedicated specialization rather than a shared-path change.
+- `macos-metal-dynamic-dp10-stream-no-overflow-specialization`: rejected the
+  follow-up dedicated DP10 const-mask/no-overflow kernel. It avoided the
+  runtime DP-mask buffer and the stream overflow branch while keeping direct
+  `q_xy[jump_index]` row access, so it did not repeat the previously rejected
+  DP10 local-row specialization. Correctness stayed intact:
+  `emitted_records=15`, `output_bytes_total=300`,
+  `dp_distance_checksum=0xb6973c2035ff6351`, and
+  `dp_checksum=0xcbfdc2badaf0e57a`. Two paired confirmation runs both
+  discarded the candidate: run 1 median `50,590,171.559774` steps/sec
+  (`min=38,859,111.868345`, `max=54,102,926.810683`) versus paired baseline
+  `57,834,567.954473`, `paired_speedup=0.874739`; run 2 median
+  `36,257,628.573029` steps/sec (`min=34,276,813.257650`,
+  `max=54,091,492.986425`) versus paired baseline `56,053,192.101321`,
+  `paired_speedup=0.646843`, `confirmation_status=discard`. Do not promote a
+  DP10 no-overflow specialization from the earlier single-run keep signal.
 
 ## Next Research Targets
 
