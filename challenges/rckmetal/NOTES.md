@@ -1004,6 +1004,12 @@ they are intentionally ignored by git.
   `dp_distance_checksum=0xcd602d19c5edfa05`,
   `dp_checksum=0xb302d085b993018a`, `correctness=true`). Keep DP6 on the
   shared 256 default.
+- Public dp4 stable baseline refresh after the stream experiments preserved the
+  score-path oracle (`distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`) with median
+  `27,922,343.656972` ops/sec over three 200 ms samples. A same-turn local
+  Benchforge run measured `18,036,840.326574` ops/sec, confirming that single
+  local score runs are too noisy for promotion decisions.
 - A manual post-DP8-no-overflow `--tg-limit` sweep kept the existing 256
   default. With the accepted DP8 no-overflow kernel and unchanged oracle
   (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,

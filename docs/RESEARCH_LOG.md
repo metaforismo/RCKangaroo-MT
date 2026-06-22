@@ -2267,6 +2267,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `28,144,092.643342`, while the next kept candidate median
   `41,127,821.914115` versus baseline `37,804,523.817718`; overall
   `confirmation_status=discard`. Keep DP6 on the shared 256 default.
+- `macos-metal-public-dp4-stable-baseline-refresh`: recorded a same-code
+  stable public score-path baseline after the DP stream experiments. No code
+  changed. The gate preserved the public oracle
+  (`distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`, `correctness=true`) with median
+  `27,922,343.656972` mixed-add steps/sec (`min=20,150,535.194783`,
+  `max=34,517,404.415027`). A same-turn Benchforge local run at
+  `18,036,840.326574` ops/sec was lower, so treat single local Benchforge runs
+  as noisy and keep using paired/stable gates for promotion decisions.
 - `macos-metal-dynamic-dp8-stream-tg-sweep-after-no-overflow`: recorded a
   manual explicit `--tg-limit` sweep after accepting the DP8 no-overflow
   branch. No production code changed. The DP8 stream oracle stayed unchanged
