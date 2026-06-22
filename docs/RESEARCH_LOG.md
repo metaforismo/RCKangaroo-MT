@@ -116,6 +116,16 @@ GPU work should use Metal.
   200` pairs and `1.475099x` median over three `--min-ms 500` pairs. Treat
   `steps32` as the faster local packet-size option so far, with the same
   packet-boundary DP sampling semantics as `steps16`.
+- Added `metal_jacobian_dynamic_dp_stream_inplace_steps64`, extending the
+  packet-size ladder to 64 dynamic jumps per Metal thread. Three autoresearch
+  confirmation groups kept it at median `90,119,567.579470` steps/sec,
+  `correctness=true`, `emitted_records=54`,
+  `dp_distance_checksum=0x132b1b39482c3732`, and
+  `dp_checksum=0xc4c55fe6a6308d32`. Alternating comparison against `steps32`
+  measured `1.085726x` median speedup over five `--min-ms 200` pairs and
+  `1.094047x` median over three `--min-ms 500` pairs. `steps64` is the fastest
+  local in-place DP8 packet so far, still with DP predicate checks only at
+  packet boundaries.
 
 ### Metal Dispatch Size Tuning
 

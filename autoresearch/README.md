@@ -301,6 +301,19 @@ the DP predicate. The CPU oracle validates the 32-step DP stream and final
 state. Use it when comparing packet sizes; it does not observe intermediate DP
 states inside the packet.
 
+Run the 64-step in-place DP8 sparse stream packet experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_inplace_steps64 --budget-sec 10
+```
+
+This records the same in-place DP8 stream architecture with `--steps 64`.
+It is currently the largest built-in packet-size gate. The CPU oracle validates
+the 64-step DP stream and final state, while the benchmark measures whether the
+larger packet amortizes state traffic without losing too much occupancy. As
+with the other packet gates, DP candidates are sampled only at the packet
+boundary.
+
 Run the command-backed DP6 sparse stream experiment:
 
 ```sh

@@ -1140,6 +1140,16 @@ they are intentionally ignored by git.
   `--min-ms 200` pairs and `1.475099x` median over three `--min-ms 500` pairs.
   It is the fastest local in-place DP8 packet so far, with DP sampling only at
   the packet boundary.
+- `macos-metal-dp8-inplace-steps64` was accepted. It extends the packet ladder
+  to 64 dynamic Jacobian jumps per thread before state store and DP emission.
+  Three autoresearch confirmation groups kept it at median
+  `90,119,567.579470` steps/sec with `emitted_records=54`,
+  `dp_distance_checksum=0x132b1b39482c3732`,
+  `dp_checksum=0xc4c55fe6a6308d32`, `correctness=true`. Same-binary comparison
+  against `steps32` measured `1.085726x` median over five `--min-ms 200` pairs
+  and `1.094047x` median over three `--min-ms 500` pairs. It is the fastest
+  local in-place DP8 packet so far, with DP sampling only at the packet
+  boundary.
 
 ## Current Correctness Surface
 
