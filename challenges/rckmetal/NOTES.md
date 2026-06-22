@@ -1075,6 +1075,12 @@ they are intentionally ignored by git.
   with `confirmation_status=discard`. Keep the existing inline
   `JacobianFromAffine` initialization; this precompute/copy split is too close
   to noise on the M3 Air.
+- `macos-kangaroo-dp0-fast-path` was rejected. A dedicated CPU multi-target
+  `dp_bits=0` solver path skipped `IsDistinguished(...)` and marked JSON with
+  `dp_predicate=all_points_fast_path`; correctness and `make macos-check`
+  passed for 4-target and 16-target shapes. Paired confirmation discarded it:
+  4-target ended at `1.001281x` and 16-target ended at `0.997717x`. Keep the
+  unified DP predicate path; the branch is not the current bottleneck.
 
 ## Current Correctness Surface
 

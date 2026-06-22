@@ -2379,6 +2379,18 @@ These did not pass the performance gate or had a correctness/architecture issue:
   (`paired_speedup=1.003387`, below gate). Keep the current inline
   `clear/reserve/push_back(JacobianFromAffine(...))` initialization; the
   precompute path changes memory/copy shape more than it removes useful work.
+- `macos-kangaroo-dp0-fast-path`: rejected a dedicated CPU multi-target
+  `dp_bits=0` path that skipped `IsDistinguished(...)` checks and labeled the
+  benchmark `dp_predicate=all_points_fast_path`. The candidate preserved the
+  full-point collision oracle (`found_private_key=0x7`; 4-target
+  `found_target_index=3`, `last_dp_count=84`; 16-target
+  `found_target_index=15`, `last_dp_count=288`) and `make macos-check`
+  passed. Paired confirmation still discarded both gates: 4-target ended at
+  candidate `33,463.770072` versus baseline `33,420.950058` ops/sec
+  (`paired_speedup=1.001281`, below gate), and 16-target ended at candidate
+  `15,674.827307` versus baseline `15,710.691415` ops/sec
+  (`paired_speedup=0.997717`). Keep the unified predicate path; the DP0 branch
+  specialization adds code shape without moving the bottleneck.
 
 ## Next Research Targets
 
