@@ -1656,6 +1656,18 @@ These did not pass the performance gate or had a correctness/architecture issue:
   autoresearch confirmation discarded it: `0.684326x`, `1.196446x`,
   `1.062018x`, therefore `confirmation_status=discard`. Keep the current
   64-bit mask spelling until a broader compiler-shape change makes this stable.
+- `macos-metal-dynamic-tg512-default`: tried changing only the dynamic Metal
+  walk default threadgroup limit from 256 to 512 while preserving explicit
+  `--tg-limit` overrides. A short 4096-sample, 100 ms sweep made 512 look
+  promising (`36.837M ops/sec` at 512 versus `14.946M ops/sec` at 256), but the
+  stable paired gate rejected it. Correctness stayed intact with
+  `make macos-check`, the dynamic CLI test, explicit-override smoke testing,
+  and the stable dynamic oracle (`distance_checksum=0x5c36c706ffa2cbaa`,
+  `dp_count=1017`, `dp_checksum=0xbfd3b2319760e774`), but confirmation
+  recorded raw speedups of `0.453954x`, `0.945385x`, and `0.938971x`, therefore
+  `confirmation_status=discard`. Keep the default 256-thread limit for dynamic
+  runs; 512 can be explored manually with `--tg-limit` but is not a durable
+  default on this M3 gate.
 - Added `metal_jacobian_dynamic_walk_dp_stable` plus the
   `macos-metal-jacobian-dynamic-walk-stable-bench` target so future dynamic
   Metal candidates can use the same three-sample autoresearch discipline as

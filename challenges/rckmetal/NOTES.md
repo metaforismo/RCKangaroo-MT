@@ -663,6 +663,11 @@ they are intentionally ignored by git.
   including pow2/modulo smoke runs and the stable dynamic oracle, but paired
   autoresearch confirmation discarded it: `0.684326x`, `1.196446x`,
   `1.062018x`. Keep the current 64-bit mask spelling for now.
+- `macos-metal-dynamic-tg512-default` tried making the dynamic Metal walk use
+  512 threads per threadgroup by default while preserving explicit
+  `--tg-limit` overrides. Correctness and the stable dynamic oracle stayed
+  intact, but paired confirmation discarded it: `0.453954x`, `0.945385x`,
+  `0.938971x`. Keep the 256 default; a short 512 sweep was not reproducible.
 - `metal_jacobian_dynamic_walk_dp_stable` now exists as a stable autoresearch
   gate for the dynamic Metal walk. Use it for future in-kernel jump-selection
   experiments after the target exists on both candidate and baseline refs.
