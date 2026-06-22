@@ -108,6 +108,9 @@ make macos-metal-jacobian-jump-walk-dp-bench
 ./macos/rck_macos metal-jacobian-dynamic-walk-test
 make macos-metal-jacobian-dynamic-walk-bench
 make macos-metal-jacobian-dynamic-walk-stable-bench
+./macos/rck_macos metal-jacobian-dynamic-compact-dp-test
+make macos-metal-jacobian-dynamic-compact-dp-bench
+make macos-metal-jacobian-dynamic-compact-dp-stable-bench
 make macos-metal-kernels-check
 ```
 
@@ -115,6 +118,8 @@ I kernel field usano quattro limb little-endian da 64 bit modulo il primo secp25
 
 `jacobian_affine_walk_dynamic_jump_table` e' un'architettura Metal separata che calcola l'indice di salto kangaroo dentro il kernel dallo stato Jacobian corrente, usando lo stesso mixer `x/y/z` del percorso kangaroo CPU. Supporta sia mask power-of-two sia modulo, traccia distanza a 64 bit e candidati DP projective, e ha una specializzazione `steps=8`, `dp_bits=4` con flag infinito packed e accesso struct-row alla tabella dei jump. Questo percorso e' piu' vicino a un vero walk kangaroo GPU rispetto al benchmark sintetico con indici precomputati, ma viene riportato separatamente e non e' usato per il public score path DP precomputato.
 Per jump count power-of-two, il percorso dinamico `steps=8`, `dp_bits=4` usa una specializzazione branchless con `jump_mask`. I jump count non power-of-two restano sul kernel dinamico generico, così il comportamento modulo resta coperto dallo stesso oracle CPU.
+
+`jacobian_affine_walk_dynamic_dp_compact` e' un benchmark solo dinamico per `steps=8`, `dp_bits=4` e jump count power-of-two, pensato per la futura emissione GPU dei distinguished point. Usa lo stesso mixer di salto dentro il kernel e lo stesso oracle CPU replay del walk dinamico completo, ma emette solo flag packed, distanza scalare a 64 bit e un termine checksum DP compatto invece di copiare lo stato Jacobian finale da 96 byte. Il JSON runtime lo marca come `output_layout=dp_compact` e `output_bytes_per_sample=17`; il walk dinamico completo resta l'oracle esatto dello stato finale e il riferimento per la verifica delle collisioni.
 
 Comandi esempio per sweep threadgroup:
 
@@ -127,6 +132,7 @@ Comandi esempio per sweep threadgroup:
 ./macos/rck_macos metal-jacobian-jump-walk-bench --iterations 16384 --steps 8 --jumps 16 --min-ms 50 --tg-limit 256
 ./macos/rck_macos metal-jacobian-jump-walk-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 50 --tg-limit 256
 ./macos/rck_macos metal-jacobian-dynamic-walk-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 50 --tg-limit 256
+./macos/rck_macos metal-jacobian-dynamic-compact-dp-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 4 --min-ms 200 --tg-limit 256
 ```
 
 ## Preparare una lista target

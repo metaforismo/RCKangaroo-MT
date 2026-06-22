@@ -42,6 +42,19 @@ def main() -> int:
     if "macos-metal-jacobian-dynamic-walk-stable-bench:" not in makefile:
         failures.append("Makefile missing macos-metal-jacobian-dynamic-walk-stable-bench target")
 
+    compact_dynamic_path = EXPERIMENTS / "metal_jacobian_dynamic_compact_dp.json"
+    if not compact_dynamic_path.exists():
+        failures.append(f"{compact_dynamic_path.relative_to(ROOT)} missing compact dynamic DP gate")
+    else:
+        compact_dynamic = json.loads(compact_dynamic_path.read_text(encoding="utf-8"))
+        if compact_dynamic.get("bench_target") != "macos-metal-jacobian-dynamic-compact-dp-stable-bench":
+            failures.append(f"{compact_dynamic_path.relative_to(ROOT)} bench_target should use the stable compact dynamic DP make target")
+        if int(compact_dynamic.get("sample_runs", 0)) < 3:
+            failures.append(f"{compact_dynamic_path.relative_to(ROOT)} sample_runs={compact_dynamic.get('sample_runs')}, expected >= 3")
+
+    if "macos-metal-jacobian-dynamic-compact-dp-stable-bench:" not in makefile:
+        failures.append("Makefile missing macos-metal-jacobian-dynamic-compact-dp-stable-bench target")
+
     if failures:
         sys.stdout.write("\n".join(failures) + "\n")
         return 1

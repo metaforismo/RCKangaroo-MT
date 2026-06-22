@@ -1707,6 +1707,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0xbfd3b2319760e774`) while reporting histogram quality
   (`min=8082`, `max=8336`, `max_deviation_ppm=17578`). Future lightweight
   mixers now have to expose partition quality as well as speed.
+- `macos-metal-dynamic-compact-dp-emission`: added a separate dynamic Metal
+  `steps=8`, `dp_bits=4`, power-of-two jump-count kernel for compact
+  distinguished-point emission. The new kernel keeps the same in-kernel
+  `avalanche64` jump mixer and CPU replay oracle as the full dynamic walk, but
+  emits only packed flags, 64-bit scalar distance, and a compact DP checksum
+  term instead of copying the final 96-byte Jacobian state. The benchmark JSON
+  reports `output_layout=dp_compact` and `output_bytes_per_sample=17` while
+  preserving the dynamic oracle (`distance_checksum=0x5c36c706ffa2cbaa`,
+  `dp_count=1017`, `dp_checksum=0xbfd3b2319760e774`) plus histogram quality
+  (`min=8082`, `max=8336`, `max_deviation_ppm=17578`). Correctness stayed
+  intact with `make macos-check`. Initial M3 direct timing was noisy: one
+  50 ms paired shape favored compact (`23.032M` versus `15.323M` steps/sec),
+  one 200 ms alternating check was neutral/slightly slower (`32.470M` versus
+  `32.655M`), and a later warmed stable compact run reached `51.621M`. Treat
+  this as promoted layout/correctness infrastructure for future GPU-side DP
+  candidate emission, not yet proof that compact emission is always faster than
+  the full dynamic final-state oracle.
 
 ## Next Research Targets
 

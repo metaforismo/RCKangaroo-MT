@@ -1,0 +1,7 @@
+{
+  "name": "metal_jacobian_dynamic_compact_dp",
+  "description": "Metal dynamic Jacobian jump walk with compact distinguished-point candidate emission",
+  "bench_target": "macos-metal-jacobian-dynamic-compact-dp-stable-bench",
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3
+}

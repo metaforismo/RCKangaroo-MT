@@ -209,6 +209,21 @@ The JSON reports `jump_mixer`, `jump_histogram_min_bucket`,
 the distance and projective-DP checksums, so future partition-function changes
 must preserve correctness and expose distribution quality before promotion.
 
+Run the compact dynamic DP-emission Metal experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_compact_dp --budget-sec 10
+```
+
+This records `metal` `jacobian_affine_walk_dynamic_dp_compact` throughput with
+the same dynamic jump mixer and CPU replay oracle as the full dynamic walk, but
+the Metal kernel emits only packed flags, scalar distance, and a compact DP
+checksum term. The JSON reports `output_layout=dp_compact` and
+`output_bytes_per_sample=17` while preserving `distance_checksum`, `dp_count`,
+`dp_checksum`, and jump-histogram quality fields. Treat it as a future
+GPU-side DP-emission layout gate; the full dynamic walk remains the final-state
+correctness oracle.
+
 Run the CPU field multiplication experiment:
 
 ```sh

@@ -52,6 +52,8 @@ static void PrintUsage()
 	printf("  rck_macos metal-jacobian-jump-walk-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-jacobian-dynamic-walk-test\n");
 	printf("  rck_macos metal-jacobian-dynamic-walk-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N]\n");
+	printf("  rck_macos metal-jacobian-dynamic-compact-dp-test\n");
+	printf("  rck_macos metal-jacobian-dynamic-compact-dp-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N]\n");
 }
 
 static bool ReadOption(int argc, char* argv[], const char* name, const char** value)
@@ -930,6 +932,37 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 		printf("%s\n", RCKMetalJacobianDynamicWalkBenchJson(iterations, steps, jumps, min_ms, threadgroup_limit, dp_bits).c_str());
+	}
+	else if (strcmp(argv[1], "metal-jacobian-dynamic-compact-dp-test") == 0)
+	{
+		if (RCKMetalJacobianDynamicCompactDpSelfTest(error))
+			printf("metal jacobian dynamic compact dp ok\n");
+		else
+		{
+			if (error == "no Metal device available")
+				printf("metal jacobian dynamic compact dp skipped: %s\n", error.c_str());
+			else
+			{
+				printf("metal jacobian dynamic compact dp failed: %s\n", error.c_str());
+				rc = 1;
+			}
+		}
+	}
+	else if (strcmp(argv[1], "metal-jacobian-dynamic-compact-dp-bench") == 0)
+	{
+		unsigned int iterations = 1024;
+		unsigned int steps = 8;
+		unsigned int jumps = 16;
+		unsigned int dp_bits = 0;
+		unsigned int min_ms = 0;
+		unsigned int threadgroup_limit = 0;
+		if (!ReadMetalJumpWalkBenchOptions(argc, argv, &iterations, &steps, &jumps, &dp_bits, &min_ms, &threadgroup_limit))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		printf("%s\n", RCKMetalJacobianDynamicCompactDpBenchJson(iterations, steps, jumps, min_ms, threadgroup_limit, dp_bits).c_str());
 	}
 	else
 	{

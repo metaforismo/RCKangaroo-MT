@@ -691,6 +691,15 @@ they are intentionally ignored by git.
   `dp_checksum=0xbfd3b2319760e774`) and reported `min=8082`, `max=8336`,
   `max_deviation_ppm=17578`, so future mixer attempts have a distribution
   quality surface in addition to speed and checksum correctness.
+- `macos-metal-dynamic-compact-dp-emission` added a separate dynamic
+  `steps=8`, `dp_bits=4`, power-of-two jump-count kernel that emits packed
+  flags, scalar distance, and one compact DP checksum term instead of copying
+  the final full Jacobian state. It reports `output_layout=dp_compact` and
+  `output_bytes_per_sample=17`, preserves the same dynamic oracle
+  (`distance_checksum=0x5c36c706ffa2cbaa`, `dp_count=1017`,
+  `dp_checksum=0xbfd3b2319760e774`), and passed `make macos-check`. Treat this
+  as DP-emission layout infrastructure; the full dynamic walk remains the
+  final-state correctness reference.
 
 ## Current Correctness Surface
 
