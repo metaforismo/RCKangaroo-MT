@@ -788,6 +788,13 @@ they are intentionally ignored by git.
   it: median `48,463,423.411911` steps/sec (`min=29,267,546.773174`,
   `max=56,335,643.461168`) versus promoted DP8 const-mask stream median
   `58,596,783.649305`. Keep the accepted runtime `jump_mask` DP8 path.
+- `macos-metal-dynamic-dp8-stream-tg64-default` was rejected. It changed only
+  the DP8 stream default threadgroup size from 256 to 64 and preserved explicit
+  `--tg-limit` overrides. The DP8 stream oracle stayed unchanged, but paired
+  autoresearch against `main` discarded it: candidate median
+  `32,422,230.207947` steps/sec (`min=28,376,163.880242`,
+  `max=65,260,356.568942`) versus paired baseline median
+  `60,342,525.488163`, `paired_speedup=0.537303`. Keep default 256.
 
 ## Current Correctness Surface
 

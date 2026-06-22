@@ -1878,6 +1878,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   const-mask stream median `58,596,783.649305`. Keep the runtime `jump_mask`
   buffer in the accepted DP8 stream path; the hardcoded j16 variant worsened
   the low tail on this M3 profile.
+- `macos-metal-dynamic-dp8-stream-tg64-default`: rejected changing only the
+  DP8 sparse stream default threadgroup size from 256 to 64 while preserving
+  explicit `--tg-limit` overrides and leaving DP4 defaults unchanged. The
+  direct smoke sample looked promising at `60,580,026.523581` steps/sec with
+  the same DP8 stream oracle (`emitted_records=61`,
+  `dp_checksum=0xab1c2cd29cd70a84`,
+  `dp_distance_checksum=0x822e141de4770a0b`), but paired autoresearch against
+  `main` discarded it. The paired candidate median was
+  `32,422,230.207947` steps/sec (`min=28,376,163.880242`,
+  `max=65,260,356.568942`) versus paired baseline median
+  `60,342,525.488163`, for `paired_speedup=0.537303`. Keep the accepted 256
+  default for DP8 stream; a smaller threadgroup worsens low-tail stability even
+  when it occasionally spikes higher.
 
 ## Next Research Targets
 
