@@ -1600,6 +1600,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   paired runs were noisy (`0.544x`, `1.646x`, `1.605x` at 1s; `0.878x` and
   `1.487x` with reversed 3s ordering), so treat this as a low-risk dynamic
   architecture specialization, not a public score claim.
+- `macos-metal-dynamic-j16-dp4`: tried an exact dynamic `steps=8`,
+  `dp_bits=4`, `jumps=16` kernel using `jump_index = mixed & 0xf` instead of
+  the runtime `jump_mask`. Correctness stayed intact with `make macos-check`
+  and the dynamic 16384-sample oracle (`distance_checksum=0x5c36c706ffa2cbaa`,
+  `dp_count=1017`, `dp_checksum=0xbfd3b2319760e774`), but paired
+  autoresearch confirmation discarded it: `0.548550x`, `0.803677x`,
+  `1.115114x`, therefore `confirmation_status=discard`. Keep the power-of-two
+  `jump_mask` specialization; do not add the exact j16 kernel.
 - Added `metal_jacobian_dynamic_walk_dp_stable` plus the
   `macos-metal-jacobian-dynamic-walk-stable-bench` target so future dynamic
   Metal candidates can use the same three-sample autoresearch discipline as

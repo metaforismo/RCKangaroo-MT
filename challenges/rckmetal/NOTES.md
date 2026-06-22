@@ -631,6 +631,13 @@ they are intentionally ignored by git.
   manual local timing remained noisy, with both wins and losses against the
   previous dynamic kernel. Treat it as dynamic-walk infrastructure; it does not
   change the public precomputed-index score path.
+- `macos-metal-dynamic-j16-dp4` tried an exact dynamic `steps=8`, `dp_bits=4`,
+  `jumps=16` kernel with `mixed & 0xf`. Correctness and `make macos-check`
+  stayed intact, including the dynamic 16384-sample oracle
+  (`distance_checksum=0x5c36c706ffa2cbaa`, `dp_count=1017`,
+  `dp_checksum=0xbfd3b2319760e774`), but paired autoresearch confirmation
+  discarded it: `0.548550x`, `0.803677x`, `1.115114x`. Keep the dynamic
+  `jump_mask` specialization; there is no public score-path impact.
 - `metal_jacobian_dynamic_walk_dp_stable` now exists as a stable autoresearch
   gate for the dynamic Metal walk. Use it for future in-kernel jump-selection
   experiments after the target exists on both candidate and baseline refs.
