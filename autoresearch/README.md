@@ -25,10 +25,10 @@ probes that should not grow the Makefile, an experiment may instead set
 `build_target` plus `bench_command`; the runner builds once per sample set with
 `make <build_target>`, then runs the explicit command for each sample and parses
 its final JSON line. Paired runs build each side once, then alternate the same
-benchmark command in the baseline and candidate worktrees. The core Metal field
-add, multiply, square, fused square-mul, and stable DP8 stream gates use this
-form so arithmetic and stream experiments do not pay a phony Make rebuild
-before every timing sample.
+benchmark command in the baseline and candidate worktrees. The core CPU
+kangaroo walk gates and the Metal field add, multiply, square, fused
+square-mul, and stable DP8 stream gates use this form so experiments do not
+pay a phony Make rebuild before every timing sample.
 
 Architecture probes that introduce a new command may also set
 `paired_baseline_command`. Paired runs then build both worktrees once, run the

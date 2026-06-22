@@ -1,7 +1,25 @@
 {
   "name": "jacobian_kangaroo_multi_small",
   "description": "Apple Silicon CPU shared-tame tiny multi-target kangaroo benchmark",
-  "bench_target": "macos-jacobian-kangaroo-multi-small-bench-run",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "jacobian-kangaroo-multi-small-bench",
+    "--target-count",
+    "4",
+    "--iterations",
+    "1",
+    "--min-ms",
+    "50",
+    "--range",
+    "8",
+    "--jumps",
+    "8",
+    "--dp-bits",
+    "0",
+    "--max-steps",
+    "4096"
+  ],
   "sample_runs": 3,
   "min_improvement_ratio": 0.01
 }

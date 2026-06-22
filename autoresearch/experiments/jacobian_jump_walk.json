@@ -1,7 +1,17 @@
 {
   "name": "jacobian_jump_walk",
   "description": "Apple Silicon CPU deterministic Jacobian jump-table walk benchmark with scalar-distance oracle",
-  "bench_target": "macos-jacobian-walk-bench",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "jacobian-walk-bench",
+    "--iterations",
+    "256",
+    "--min-ms",
+    "50",
+    "--jumps",
+    "16"
+  ],
   "sample_runs": 3,
   "min_improvement_ratio": 0.01
 }

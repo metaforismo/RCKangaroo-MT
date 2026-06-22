@@ -112,6 +112,76 @@ assert aggregated["correctness"] is True
 
 jump_walk_experiment = runner.load_experiment("jacobian_jump_walk")
 assert int(jump_walk_experiment.get("sample_runs", 1)) >= 3
+assert jump_walk_experiment.get("build_target") == "macos-build"
+assert runner.experiment_bench_command(jump_walk_experiment) == [
+    "./macos/rck_macos",
+    "jacobian-walk-bench",
+    "--iterations",
+    "256",
+    "--min-ms",
+    "50",
+    "--jumps",
+    "16",
+]
+
+kangaroo_experiment_commands = {
+    "jacobian_kangaroo_small": [
+        "./macos/rck_macos",
+        "jacobian-kangaroo-small-bench",
+        "--iterations",
+        "1",
+        "--min-ms",
+        "50",
+        "--range",
+        "8",
+        "--jumps",
+        "8",
+        "--dp-bits",
+        "0",
+        "--max-steps",
+        "4096",
+    ],
+    "jacobian_kangaroo_multi_small": [
+        "./macos/rck_macos",
+        "jacobian-kangaroo-multi-small-bench",
+        "--target-count",
+        "4",
+        "--iterations",
+        "1",
+        "--min-ms",
+        "50",
+        "--range",
+        "8",
+        "--jumps",
+        "8",
+        "--dp-bits",
+        "0",
+        "--max-steps",
+        "4096",
+    ],
+    "jacobian_kangaroo_multi16_small": [
+        "./macos/rck_macos",
+        "jacobian-kangaroo-multi-small-bench",
+        "--target-count",
+        "16",
+        "--iterations",
+        "1",
+        "--min-ms",
+        "50",
+        "--range",
+        "8",
+        "--jumps",
+        "8",
+        "--dp-bits",
+        "0",
+        "--max-steps",
+        "4096",
+    ],
+}
+for experiment_name, expected_command in kangaroo_experiment_commands.items():
+    loaded = runner.load_experiment(experiment_name)
+    assert loaded.get("build_target") == "macos-build"
+    assert runner.experiment_bench_command(loaded) == expected_command
 
 call_order: list[str] = []
 baseline_cwd = Path("/tmp/rck-baseline")
