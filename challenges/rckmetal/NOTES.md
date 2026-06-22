@@ -860,6 +860,11 @@ they are intentionally ignored by git.
   `dp_checksum=0xcbfdc2badaf0e57a`) and recorded `paired_speedup=0.894409`
   for same-code candidate/baseline, so it is a DP10 baseline record, not a
   solver-code promotion.
+- `macos-metal-dynamic-dp10-stream-specialization` was rejected. A dedicated
+  DP10 const-mask sparse stream kernel preserved the oracle, but paired
+  autoresearch discarded it: candidate median `54,324,631.189670` steps/sec
+  versus paired baseline `57,359,097.012105`, `paired_speedup=0.947097`.
+  Keep DP10 on the generic runtime-mask u32-distance stream path.
 
 ## Current Correctness Surface
 

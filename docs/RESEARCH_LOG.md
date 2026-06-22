@@ -2006,6 +2006,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_distance_checksum=0xb6973c2035ff6351`,
   `dp_checksum=0xcbfdc2badaf0e57a`); treat this as harness coverage and a DP10
   baseline record, not a solver-code promotion.
+- `macos-metal-dynamic-dp10-stream-specialization`: rejected adding a dedicated
+  DP10 sparse stream kernel with hardcoded `0x3FF` predicate, u32 internal
+  distance, and local affine row reuse. The prototype preserved the DP10 stream
+  oracle (`emitted_records=15`,
+  `dp_distance_checksum=0xb6973c2035ff6351`,
+  `dp_checksum=0xcbfdc2badaf0e57a`), but command-backed paired autoresearch
+  discarded it: candidate median `54,324,631.189670` steps/sec
+  (`min=31,337,310.278256`, `max=59,913,902.741406`) versus paired baseline
+  median `57,359,097.012105`, `paired_speedup=0.947097`. Keep DP10 on the
+  generic runtime-mask u32-distance stream path; DP4/DP8 remain the only
+  accepted const-mask stream specializations.
 
 ## Next Research Targets
 
