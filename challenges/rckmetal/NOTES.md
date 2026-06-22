@@ -621,6 +621,11 @@ they are intentionally ignored by git.
   CPU kangaroo collision-found branches. Correctness and the multi16 oracle
   stayed intact, but paired confirmation discarded it: `0.984887x`,
   `0.997734x`, `1.008084x`. Keep the unhinted collision branches.
+- `macos-split-tame-wild-dp-tables` split CPU multi-target DP storage into
+  separate tame and wild open-addressed tables. Correctness, `make macos-check`,
+  and the multi16 oracle stayed intact, but paired confirmation discarded it:
+  `1.025170x`, `0.985937x`, `1.005892x`. Keep the single shared DP table; the
+  split lookup shape was too noisy to promote.
 - `macos-metal-dynamic-jump-walk` added a separate Metal benchmark that derives
   the jump index inside the kernel from the current Jacobian state using the
   same CPU `x/y/z` mixer. It preserves `make macos-check` and has its own

@@ -1584,6 +1584,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `0.997734x`, and `1.008084x`, therefore `confirmation_status=discard`. Keep
   the unhinted collision branches; the hint is neutral-to-slightly negative on
   this M3 Air gate.
+- `macos-split-tame-wild-dp-tables`: split CPU multi-target DP storage into
+  separate tame and wild open-addressed tables, so each distinguished point
+  looked up only the opposite side before recording itself. Correctness and
+  `make macos-check` stayed intact; the multi16 oracle was preserved
+  (`found_private_key=0x7`, `found_target_index=15`, `last_dp_count=288`).
+  Paired confirmation discarded it with raw speedups of `1.025170x`,
+  `0.985937x`, and `1.005892x`, therefore `confirmation_status=discard`. Keep
+  the single shared DP table; split storage helped one run but did not survive
+  confirmation.
 - `macos-metal-dynamic-jump-walk`: added a separate Metal walk architecture
   that computes the kangaroo jump index inside the kernel from the current
   Jacobian state, matching the CPU `x/y/z` mixer and supporting both
