@@ -1066,6 +1066,15 @@ they are intentionally ignored by git.
   two-run paired probe looked positive (`1.244234x`, `1.109164x`), but the
   stricter three-run confirmation discarded it (`0.721059x`, `0.656319x`,
   `0.979125x`). Keep the compiler-shaped public DP4 loop.
+- `macos-precomputed-wild-starts-retest` was rejected. Precomputing CPU
+  multi-target wild starts once per benchmark run and copying them into solve
+  scratch kept correctness for 4-target and 16-target kangaroo
+  (`found_private_key=0x7`, target indexes `3`/`15`, DP counts `84`/`288`) and
+  passed `make macos-check`, but paired confirmation discarded both gates. The
+  4-target gate ended at `0.960383x`; the 16-target gate ended at `1.003387x`
+  with `confirmation_status=discard`. Keep the existing inline
+  `JacobianFromAffine` initialization; this precompute/copy split is too close
+  to noise on the M3 Air.
 
 ## Current Correctness Surface
 

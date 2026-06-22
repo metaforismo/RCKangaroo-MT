@@ -2365,6 +2365,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `44,341,838.079041` versus `40,366,739.951844` steps/sec
   (`paired_speedup=1.098475`) but did not rescue the confirmation. Keep DP14
   on the generic runtime-mask u32-distance stream kernel.
+- `macos-precomputed-wild-starts-retest`: rejected precomputing CPU
+  multi-target wild starts once per benchmark run and copying them into solve
+  scratch. The candidate preserved the full-point collision oracle for both
+  4-target (`found_private_key=0x7`, `found_target_index=3`,
+  `last_dp_count=84`) and 16-target (`found_private_key=0x7`,
+  `found_target_index=15`, `last_dp_count=288`) shapes, and `make
+  macos-check` passed before the performance gate. Paired confirmation against
+  `main` discarded both gates: 4-target ended at candidate
+  `31,808.178173` versus baseline `33,120.321230` ops/sec
+  (`paired_speedup=0.960383`), while 16-target ended at candidate
+  `15,252.475344` versus baseline `15,200.985999` ops/sec
+  (`paired_speedup=1.003387`, below gate). Keep the current inline
+  `clear/reserve/push_back(JacobianFromAffine(...))` initialization; the
+  precompute path changes memory/copy shape more than it removes useful work.
 
 ## Next Research Targets
 
