@@ -865,6 +865,11 @@ they are intentionally ignored by git.
   autoresearch discarded it: candidate median `54,324,631.189670` steps/sec
   versus paired baseline `57,359,097.012105`, `paired_speedup=0.947097`.
   Keep DP10 on the generic runtime-mask u32-distance stream path.
+- `macos-metal-dynamic-dp10-stream-tg64-default` was rejected. Changing only
+  the DP10 sparse stream default threadgroup size to 64 preserved the oracle,
+  but paired autoresearch discarded it: candidate median
+  `55,120,744.100756` steps/sec versus paired baseline `57,341,488.499819`,
+  `paired_speedup=0.961272`. Keep the shared 256 default.
 
 ## Current Correctness Surface
 

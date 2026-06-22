@@ -2017,6 +2017,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   median `57,359,097.012105`, `paired_speedup=0.947097`. Keep DP10 on the
   generic runtime-mask u32-distance stream path; DP4/DP8 remain the only
   accepted const-mask stream specializations.
+- `macos-metal-dynamic-dp10-stream-tg64-default`: rejected changing only the
+  DP10 sparse stream default threadgroup size from 256 to 64 while preserving
+  explicit `--tg-limit` overrides. A direct sweep showed a promising tg64
+  sample, and the oracle stayed intact (`emitted_records=15`,
+  `dp_distance_checksum=0xb6973c2035ff6351`,
+  `dp_checksum=0xcbfdc2badaf0e57a`), but command-backed paired autoresearch
+  discarded it: candidate median `55,120,744.100756` steps/sec
+  (`min=44,358,197.083863`, `max=61,234,592.955097`) versus paired baseline
+  median `57,341,488.499819`, `paired_speedup=0.961272`. Keep the DP10 stream
+  default at the shared 256 threadgroup limit.
 
 ## Next Research Targets
 
