@@ -1170,6 +1170,17 @@ they are intentionally ignored by git.
   `--min-ms 500` pairs. The raw final median is slightly below the previous
   `steps128` autoresearch row, so treat `steps256` as a valid packet-size
   option and plateau datapoint, with DP sampling only at the packet boundary.
+- `macos-metal-dp8-inplace-steps512` was rejected as a packet-size extension.
+  The prototype preserved the 512-step sparse-stream/final-state oracle
+  (`emitted_records=64`, `output_bytes_total=1280`,
+  `dp_distance_checksum=0x9edbacbfba811d14`,
+  `dp_checksum=0x1d74ff586fee3e54`, `correctness=true`) and raw autoresearch
+  confirmation reached `90,061,456.584152` steps/sec. Same-binary paired
+  checks against accepted `steps256` were too close to promote: five
+  `--min-ms 200` pairs had median `1.010153x` with one negative pair, and five
+  `--min-ms 500` pairs fell below the gate at median `1.009593x` with speedups
+  from `0.975577x` to `1.025456x`. Keep the accepted ladder at 256 steps until
+  a later change produces a clearer paired win.
 
 ## Current Correctness Surface
 

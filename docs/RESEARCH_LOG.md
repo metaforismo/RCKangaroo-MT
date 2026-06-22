@@ -2496,6 +2496,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   speedups were `0.907874x`, `0.955029x`, and `0.807249x`; final median was
   candidate `54,676,152.869964` versus baseline `67,731,465.636918`
   steps/sec. Keep the accepted state-store-before-DP-emit order.
+- `macos-metal-dp8-inplace-steps512`: rejected a 512-step packet variant for
+  `jacobian_affine_walk_dynamic_dp_stream_inplace`. The candidate preserved the
+  512-step CPU replay oracle (`emitted_records=64`,
+  `output_bytes_total=1280`,
+  `dp_distance_checksum=0x9edbacbfba811d14`,
+  `dp_checksum=0x1d74ff586fee3e54`, `correctness=true`) and raw autoresearch
+  confirmation ended at `90,061,456.584152` steps/sec, but paired comparison
+  against the accepted `steps256` packet was not strong enough. Five
+  `--min-ms 200` same-binary pairs had median `1.010153x` with one negative
+  pair; five `--min-ms 500` pairs fell below the promotion gate at median
+  `1.009593x` with range `0.975577x..1.025456x`. The packet ladder appears to
+  be at a local plateau on this M3 Air; keep `steps256` as the largest accepted
+  packet for now.
 
 ## Next Research Targets
 
