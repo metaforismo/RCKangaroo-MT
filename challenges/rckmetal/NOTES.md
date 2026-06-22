@@ -1318,6 +1318,11 @@ they are intentionally ignored by git.
   sizes (`in-place steps256`, `XYZZ steps512`). The bench wrappers now reject
   those shapes before Metal dispatch with `correctness=false` and explicit
   reasons instead of relying on emitted DP records to expose the mismatch.
+- `macos-metal-dp8-xyzz-j16-mask` was rejected. Hardcoding the promoted
+  `jumps=16` mask in separate XYZZ packet kernels preserved the accepted
+  `steps512` oracle, but five same-command pairs against `main` had only
+  `1.002726x` median speedup with a `0.988901x` regression. Keep the runtime
+  `jump_mask` buffer.
 
 ## Current Correctness Surface
 

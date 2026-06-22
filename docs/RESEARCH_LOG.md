@@ -2693,6 +2693,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   the in-place shape `--iterations 128 --steps 256 --jumps 32 --dp-bits 8`
   reports the analogous in-place reason. This is a correctness-surface
   promotion, not a speed claim.
+- `macos-metal-dp8-xyzz-j16-mask`: rejected adding separate XYZZ
+  `steps256/steps512` kernels that hardcode the promoted `jumps=16` mask as
+  `mixed & 15UL` and skip the runtime `jump_mask` buffer. Correctness and the
+  accepted `steps512` oracle stayed unchanged (`emitted_records=76`,
+  `dp_distance_checksum=0x59171fb04821054e`,
+  `dp_checksum=0x979de1728771393c`, `dp_stream_overflow=false`, and
+  `correctness=true`), but five same-command `--min-ms 500` pairs against
+  `main` did not clear the promotion gate. Ratios were `1.006607x`,
+  `0.988901x`, `0.994980x`, `1.031375x`, and `1.002726x` (median
+  `1.002726x`, mean `1.004918x`). Keep the runtime mask buffer in the
+  promoted XYZZ packet path; it is not a replicated bottleneck on this M3 Air.
 
 ## Next Research Targets
 
