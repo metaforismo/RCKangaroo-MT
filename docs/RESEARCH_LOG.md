@@ -1749,6 +1749,10 @@ These did not pass the performance gate or had a correctness/architecture issue:
   than compact/full dynamic in one 200 ms comparison (`35.652M` stream versus
   `43.512M` compact and `54.579M` full dynamic steps/sec), so keep this as a
   sparse-emission architecture probe for higher `dp_bits`, not a DP4 speed win.
+  Clean autoresearch on commit `f3599da` recorded `status=keep`, median
+  `41,222,124.404033` steps/sec across three stable samples
+  (`min=32,638,499.393993`, `max=56,276,112.414753`), with
+  `output_bytes_total=20340`, `emitted_records=1017`, and no stream overflow.
 
 ## Next Research Targets
 

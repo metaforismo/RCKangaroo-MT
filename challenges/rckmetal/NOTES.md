@@ -713,7 +713,9 @@ they are intentionally ignored by git.
   `dp_stream_overflow`. The DP4 smoke run emitted `1017` records
   (`20,340` logical output bytes), preserved `dp_checksum=0xbfd3b2319760e774`,
   and passed `make macos-check`; direct DP4 timing was slower than compact/full
-  dynamic, so treat it as a high-`dp_bits` sparse-emission probe.
+  dynamic, so treat it as a high-`dp_bits` sparse-emission probe. Clean
+  autoresearch on commit `f3599da` recorded `status=keep`, median
+  `41,222,124.404033` steps/sec, `output_bytes_total=20340`, and no overflow.
 
 ## Current Correctness Surface
 
