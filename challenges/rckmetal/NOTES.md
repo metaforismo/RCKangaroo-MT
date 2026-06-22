@@ -1323,6 +1323,11 @@ they are intentionally ignored by git.
   `steps512` oracle, but five same-command pairs against `main` had only
   `1.002726x` median speedup with a `0.988901x` regression. Keep the runtime
   `jump_mask` buffer.
+- `macos-metal-dp8-xyzz-xlow-mixer` was rejected. A separate `xlow64` command
+  using `jump_index = X0 & jump_mask` had a healthy histogram
+  (`max_deviation_ppm=2279`) and was oracle-correct, but five pairs versus
+  accepted avalanche XYZZ `steps512` had median `0.999157x`. Keep
+  `avalanche64`.
 
 ## Current Correctness Surface
 

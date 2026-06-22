@@ -2704,6 +2704,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `0.988901x`, `0.994980x`, `1.031375x`, and `1.002726x` (median
   `1.002726x`, mean `1.004918x`). Keep the runtime mask buffer in the
   promoted XYZZ packet path; it is not a replicated bottleneck on this M3 Air.
+- `macos-metal-dp8-xyzz-xlow-mixer`: rejected replacing the XYZZ avalanche
+  partition mixer with `jump_index = X0 & jump_mask` in a separate
+  `xlow64` command. This was mathematically plausible because secp256k1
+  `X` low bits should be close to uniform; the prototype confirmed a healthy
+  jump histogram (`jump_histogram_max_deviation_ppm=2279` versus the accepted
+  avalanche `2724`) and preserved Metal/CPU oracle agreement with
+  `correctness=true`. The walk changed, as expected
+  (`emitted_records=67`, `dp_distance_checksum=0xdcf4f89bc6d258f7`,
+  `dp_checksum=0xc431afb25d71088e`), but five `--min-ms 500` pairs against
+  accepted XYZZ `steps512` did not replicate a speedup: ratios were
+  `1.026622x`, `1.019740x`, `0.994033x`, `0.999157x`, and `0.996267x`
+  (median `0.999157x`, mean `1.007164x`). Keep `avalanche64`; the partition
+  mixer is not the next limiting cost for the XYZZ packet kernel.
 
 ## Next Research Targets
 
