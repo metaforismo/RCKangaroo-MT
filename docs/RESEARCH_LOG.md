@@ -2669,6 +2669,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   a speedup. Paired autoresearch discarded the candidate with final
   `106,925,077.911796` versus baseline `107,860,427.099762` steps/sec
   (`0.991328x`). Keep the raw contiguous limb buffer for XYZZ state.
+- `macos-metal-dp8-xyzz-implicit-distance`: rejected replacing the per-step
+  `jump_distances[jump_index]` load with `1U << jump_index` inside the XYZZ
+  `steps256/steps512` kernels. The benchmark jump-distance table is
+  `distance[i] = 2^i`, so the candidate preserved the accepted `steps512`
+  oracle (`emitted_records=76`,
+  `dp_distance_checksum=0x59171fb04821054e`,
+  `dp_checksum=0x979de1728771393c`, `dp_stream_overflow=false`,
+  `jump_histogram_max_deviation_ppm=2724`, and `correctness=true`). Paired
+  autoresearch still discarded it: final candidate `105,641,474.264747`
+  versus baseline `107,077,069.857827` steps/sec (`0.986593x`). Keep the
+  distance-table load in the promoted XYZZ packet path.
 
 ## Next Research Targets
 

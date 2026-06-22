@@ -1308,6 +1308,10 @@ they are intentionally ignored by git.
   buffer from raw `ulong*` indexing to a binary-compatible struct-row view.
   Correctness/checksums matched accepted `steps512`, but paired autoresearch
   discarded it at `0.991328x`. Keep the raw contiguous limb buffer.
+- `macos-metal-dp8-xyzz-implicit-distance` was rejected. It replaced the XYZZ
+  packet `jump_distances[jump_index]` load with `1U << jump_index`, preserving
+  the accepted `steps512` oracle, but paired autoresearch discarded it at
+  `0.986593x`. Keep the table load.
 
 ## Current Correctness Surface
 
