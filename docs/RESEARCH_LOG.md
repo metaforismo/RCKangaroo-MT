@@ -1576,6 +1576,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `0.975124x`, `0.902597x`, and `1.004439x`, therefore
   `confirmation_status=discard`. Keep the embedded overflow vector; reducing
   slot footprint did not offset pointer indirection/allocation noise.
+- `macos-metal-dynamic-jump-walk`: added a separate Metal walk architecture
+  that computes the kangaroo jump index inside the kernel from the current
+  Jacobian state, matching the CPU `x/y/z` mixer and supporting both
+  `power2_mask` and `modulo` jump counts. The path has its own CLI
+  (`metal-jacobian-dynamic-walk-test` and
+  `metal-jacobian-dynamic-walk-bench`), CPU replay oracle, distance checksum,
+  DP checksum, source gate, and `steps=8`, `dp_bits=4` specialization with
+  packed infinity flags plus struct-row jump-table access. `make macos-check`
+  passes. This is a correctness-preserving architecture step toward a real
+  GPU kangaroo walk, not a public score-path replacement: a 1-second M3 Air
+  check measured dynamic `steps=8`, `jumps=16`, `dp_bits=4` at
+  `44,774,506.250851 ops/sec` versus the precomputed-index public path at
+  `63,690,640.815902 ops/sec`.
 
 ## Next Research Targets
 

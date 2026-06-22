@@ -617,6 +617,14 @@ they are intentionally ignored by git.
   confirmation discarded it: `0.975124x`, `0.902597x`, `1.004439x`. Keep the
   embedded overflow vector; the smaller slot did not repay pointer/allocation
   cost in the tiny multi-target gate.
+- `macos-metal-dynamic-jump-walk` added a separate Metal benchmark that derives
+  the jump index inside the kernel from the current Jacobian state using the
+  same CPU `x/y/z` mixer. It preserves `make macos-check` and has its own
+  oracle/checksum surface, including a `steps=8`, `dp_bits=4` dynamic
+  specialization. Do not submit it as a replacement for the public
+  precomputed-index DP score path: a 1-second local M3 Air check measured
+  dynamic `jumps=16` at `44,774,506.250851 ops/sec` versus the public
+  precomputed path at `63,690,640.815902 ops/sec`.
 
 ## Current Correctness Surface
 

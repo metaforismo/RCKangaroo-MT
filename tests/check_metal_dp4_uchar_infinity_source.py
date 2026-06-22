@@ -4,7 +4,9 @@ from pathlib import Path
 
 kernel_source = Path("macos/MetalFieldKernels.h").read_text()
 start = kernel_source.index("kernel void jacobian_affine_walk_jump_table_steps8_dp4")
-end = kernel_source.index("}\n)RCK_METAL", start)
+next_kernel = kernel_source.find("\nkernel void ", start + 1)
+end_marker = kernel_source.index("\n)RCK_METAL", start)
+end = next_kernel if next_kernel != -1 and next_kernel < end_marker else end_marker
 dp4_body = kernel_source[start:end]
 
 if "constant uchar* p_infinity [[buffer(2)]]" not in dp4_body:

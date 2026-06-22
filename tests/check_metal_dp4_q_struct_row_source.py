@@ -7,7 +7,9 @@ if "struct AffineJumpValue" not in source:
     raise SystemExit("missing affine jump struct row type")
 
 start = source.index("kernel void jacobian_affine_walk_jump_table_steps8_dp4")
-end = source.index("}\n)RCK_METAL", start)
+next_kernel = source.find("\nkernel void ", start + 1)
+end_marker = source.index("\n)RCK_METAL", start)
+end = next_kernel if next_kernel != -1 and next_kernel < end_marker else end_marker
 dp4_body = source[start:end]
 
 if "constant AffineJumpValue* q_xy [[buffer(1)]]" not in dp4_body:

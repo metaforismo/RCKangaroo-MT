@@ -24,3 +24,5 @@ bool RCKMetalJacobianWalkSelfTest(std::string& error);
 std::string RCKMetalJacobianWalkBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int min_ms, unsigned int threadgroup_limit = 0);
 bool RCKMetalJacobianJumpWalkSelfTest(std::string& error);
 std::string RCKMetalJacobianJumpWalkBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int jump_count, unsigned int min_ms, unsigned int threadgroup_limit = 0, unsigned int dp_bits = 0);
+bool RCKMetalJacobianDynamicWalkSelfTest(std::string& error);
+std::string RCKMetalJacobianDynamicWalkBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int jump_count, unsigned int min_ms, unsigned int threadgroup_limit = 0, unsigned int dp_bits = 0);
