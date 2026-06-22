@@ -767,6 +767,12 @@ they are intentionally ignored by git.
   `40,186,882.764342` DP8 steps/sec (`min=32,100,455.469615`,
   `max=58,747,215.509733`) versus promoted u32-distance baseline
   `56,977,760.954224`. Keep the table-load u32-distance kernel.
+- `macos-metal-dynamic-compact-dp8-u32` was rejected. A dense compact-output
+  runtime-mask DP8 prototype preserved correctness (`dp_count=61`,
+  `dp_checksum=0xab1c2cd29cd70a84`, `distance_checksum=0x5c36c706ffa2cbaa`),
+  but three direct stable samples had median `35,537,101.509200` steps/sec
+  (`min=35,048,956.794514`, `max=37,826,360.142984`) versus promoted sparse
+  stream DP8 median `56,977,760.954224`. Keep sparse stream for DP8.
 
 ## Current Correctness Surface
 

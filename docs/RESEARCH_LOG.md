@@ -1845,6 +1845,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `max=58,747,215.509733`) versus the promoted u32-distance baseline median
   `56,977,760.954224`. Keep the table-load u32-distance kernel; the shift form
   is too low-tail-heavy on this M3 profile.
+- `macos-metal-dynamic-compact-dp8-u32`: rejected adding a dense compact-output
+  runtime-mask DP8 kernel with guarded 32-bit internal distance accumulation.
+  The oracle stayed intact (`dp_count=61`,
+  `dp_checksum=0xab1c2cd29cd70a84`, `distance_checksum=0x5c36c706ffa2cbaa`),
+  but three direct stable samples measured `35,048,956.794514`,
+  `35,537,101.509200`, and `37,826,360.142984` steps/sec. Median
+  `35,537,101.509200` is far below the promoted sparse stream DP8 median
+  `56,977,760.954224`, so do not add a dense compact DP8 speed path; on this
+  M3 profile, the sparse stream with per-record atomics still wins at DP8.
 
 ## Next Research Targets
 
