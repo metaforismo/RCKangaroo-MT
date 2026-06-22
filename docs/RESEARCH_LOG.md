@@ -2520,6 +2520,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `1.009593x` with range `0.975577x..1.025456x`. The packet ladder appears to
   be at a local plateau on this M3 Air; keep `steps256` as the largest accepted
   packet for now.
+  A later retest after the accepted `steps16+ -> threadgroup_limit=128` policy
+  tried `steps512` again and found `--tg-limit 64` as the best 512-step cap in
+  a short sweep. The oracle stayed unchanged (`emitted_records=64`,
+  `dp_distance_checksum=0x9edbacbfba811d14`,
+  `dp_checksum=0x1d74ff586fee3e54`, `correctness=true`), and one 7-pair
+  `--min-ms 1000` confirmation reached median `1.010289x` versus
+  `steps256/tg128`, but a second independent 7-pair run fell to median
+  `1.003748x` with a `0.915072x` outlier. Keep `steps512` rejected until a
+  broader kernel-shape change moves it clearly past the gate.
 - `macos-metal-dp8-inplace-u32-distances`: rejected changing the in-place
   packet kernels' jump-distance buffer from `constant ulong*` to
   `constant uint*`. The candidate preserved the accepted `steps256` oracle
