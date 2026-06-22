@@ -145,6 +145,40 @@ assert call_order == ["baseline", "candidate", "baseline", "candidate", "baselin
 assert paired_baseline_metrics["ops_per_sec"] == 100.0
 assert paired_candidate_metrics["ops_per_sec"] == 105.0
 
+command_calls: list[tuple[Path, list[str]]] = []
+
+
+def fake_command_experiment_runner(args: list[str], timeout: int, cwd: Path = runner.ROOT) -> subprocess.CompletedProcess[str]:
+    command_calls.append((cwd, args))
+    if args == ["make", "macos-build"]:
+        return subprocess.CompletedProcess(args, 0, stdout="built\n")
+    if args == ["./macos/rck_macos", "fake-bench", "--dp-bits", "10"]:
+        payload = dict(metrics, ops_per_sec=123.0, iterations=123)
+        return subprocess.CompletedProcess(args, 0, stdout=f"noise\n{runner.json.dumps(payload)}\n")
+    raise AssertionError(f"unexpected command-backed experiment command: {args!r}")
+
+
+runner.run_command = fake_command_experiment_runner
+try:
+    with contextlib.redirect_stdout(io.StringIO()):
+        command_metrics = runner.run_experiment_sample(
+            dict(
+                experiment,
+                build_target="macos-build",
+                bench_command=["./macos/rck_macos", "fake-bench", "--dp-bits", "10"],
+            ),
+            timeout=10,
+            cwd=candidate_cwd,
+        )
+finally:
+    runner.run_command = original_run_command
+
+assert command_calls == [
+    (candidate_cwd, ["make", "macos-build"]),
+    (candidate_cwd, ["./macos/rck_macos", "fake-bench", "--dp-bits", "10"]),
+]
+assert command_metrics["ops_per_sec"] == 123.0
+
 confirmation_rows = [
     runner.build_benchmark_row(
         experiment=experiment,

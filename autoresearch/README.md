@@ -20,6 +20,13 @@ python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budg
 
 With `--paired-baseline-ref`, the runner creates a temporary detached worktree for that ref, runs the same correctness checks, then alternates each baseline benchmark sample with the matching candidate sample. The JSON row records `paired_baseline_ref`, `paired_baseline_ops_per_sec`, and `paired_speedup`; keep/discard uses the paired baseline when it is correct and not skipped, otherwise it falls back to previous kept rows.
 
+Experiments usually name a Make target with `bench_target`. For parameterized
+probes that should not grow the Makefile, an experiment may instead set
+`build_target` plus `bench_command`; the runner builds once per sample with
+`make <build_target>`, then runs the explicit command and parses its final JSON
+line. Paired runs execute the same command in both the baseline and candidate
+worktrees.
+
 For especially noisy Metal candidates, require repeated full decisions before a keep can enter the ledger:
 
 ```sh
@@ -250,6 +257,17 @@ shape keeps its hardcoded kernel, while DP8 and other non-DP4 shapes use a
 runtime `ProjectiveDpMask(dp_bits)` Metal kernel. Use this gate to test whether
 rarer distinguished-point emission reduces atomic pressure and output traffic
 without changing the CPU replay oracle.
+
+Run the command-backed DP10 sparse stream experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_dp10 --budget-sec 10 --paired-baseline-ref main
+```
+
+This records the same sparse stream path with `dp_bits=10` through
+`bench_command` instead of a dedicated Make target. It keeps generic
+runtime-mask DP behavior measurable for experiments that should not touch the
+promoted DP4 and DP8 specializations.
 
 Run the runtime-mask DP8 count-only diagnostic:
 

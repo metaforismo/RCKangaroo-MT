@@ -226,12 +226,30 @@ def build_benchmark_row(
     return row
 
 
+def experiment_bench_command(experiment: dict) -> list[str]:
+    if "bench_command" not in experiment:
+        return ["make", str(experiment.get("bench_target", "macos-bench"))]
+
+    command = experiment["bench_command"]
+    if not isinstance(command, list) or not command:
+        raise ValueError("bench_command must be a non-empty list of strings")
+    if not all(isinstance(part, str) and part for part in command):
+        raise ValueError("bench_command must contain only non-empty strings")
+    return command
+
+
 def run_experiment_sample(experiment: dict, timeout: int, cwd: Path) -> dict:
-    bench_target = experiment.get("bench_target", "macos-bench")
-    bench = run_command(["make", bench_target], timeout=timeout, cwd=cwd)
+    build_target = experiment.get("build_target", "")
+    if build_target:
+        build = run_command(["make", str(build_target)], timeout=timeout, cwd=cwd)
+        print(build.stdout, end="")
+        if build.returncode != 0:
+            raise RuntimeError(f"build target failed with status {build.returncode}")
+
+    bench = run_command(experiment_bench_command(experiment), timeout=timeout, cwd=cwd)
     print(bench.stdout, end="")
     if bench.returncode != 0:
-        raise RuntimeError(f"benchmark target failed with status {bench.returncode}")
+        raise RuntimeError(f"benchmark command failed with status {bench.returncode}")
 
     return parse_last_json(bench.stdout)
 
