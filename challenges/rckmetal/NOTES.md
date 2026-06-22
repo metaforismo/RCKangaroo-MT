@@ -795,6 +795,12 @@ they are intentionally ignored by git.
   `32,422,230.207947` steps/sec (`min=28,376,163.880242`,
   `max=65,260,356.568942`) versus paired baseline median
   `60,342,525.488163`, `paired_speedup=0.537303`. Keep default 256.
+- `macos-metal-dynamic-x0-mixer` was rejected. It replaced the dynamic
+  avalanche jump mixer with direct projective `x0` low bits. The DP8 stream
+  replay oracle stayed self-consistent and histogram quality was close
+  (`min=8039`, `max=8347`, `max_deviation_ppm=18921`), but paired autoresearch
+  discarded it: candidate median `29,799,267.712366` steps/sec versus paired
+  baseline `31,783,403.981837`, `paired_speedup=0.937573`. Keep `avalanche64`.
 
 ## Current Correctness Surface
 

@@ -1891,6 +1891,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `60,342,525.488163`, for `paired_speedup=0.537303`. Keep the accepted 256
   default for DP8 stream; a smaller threadgroup worsens low-tail stability even
   when it occasionally spikes higher.
+- `macos-metal-dynamic-x0-mixer`: rejected replacing the dynamic Metal and CPU
+  replay jump mixer with direct low bits of projective `x0`. This is a
+  mathematically natural partition function and removes the 64-bit avalanche
+  multiply from every dynamic step, but the paired gate did not support it.
+  The DP8 stream oracle stayed self-consistent with CPU replay and the
+  histogram remained reasonable (`min=8039`, `max=8347`,
+  `max_deviation_ppm=18921`), but it changed the walk shape
+  (`emitted_records=66`, `dp_checksum=0x641ef713d473d79e`,
+  `dp_distance_checksum=0x7157e1d08c6afc2b`) and paired autoresearch
+  discarded it: candidate median `29,799,267.712366` steps/sec
+  (`min=27,603,086.503402`, `max=33,348,152.912071`) versus paired baseline
+  median `31,783,403.981837`, `paired_speedup=0.937573`. Keep the current
+  `avalanche64` mixer until a cheaper partition function wins paired
+  confirmation and preserves distribution quality.
 
 ## Next Research Targets
 
