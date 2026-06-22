@@ -81,6 +81,19 @@ def main() -> int:
     if "macos-metal-jacobian-dynamic-dp-stream-dp8-stable-bench:" not in makefile:
         failures.append("Makefile missing macos-metal-jacobian-dynamic-dp-stream-dp8-stable-bench target")
 
+    count_dynamic_dp8_path = EXPERIMENTS / "metal_jacobian_dynamic_dp_count_dp8.json"
+    if not count_dynamic_dp8_path.exists():
+        failures.append(f"{count_dynamic_dp8_path.relative_to(ROOT)} missing dynamic DP count dp8 gate")
+    else:
+        count_dynamic_dp8 = json.loads(count_dynamic_dp8_path.read_text(encoding="utf-8"))
+        if count_dynamic_dp8.get("bench_target") != "macos-metal-jacobian-dynamic-dp-count-dp8-stable-bench":
+            failures.append(f"{count_dynamic_dp8_path.relative_to(ROOT)} bench_target should use the stable dynamic DP count dp8 make target")
+        if int(count_dynamic_dp8.get("sample_runs", 0)) < 3:
+            failures.append(f"{count_dynamic_dp8_path.relative_to(ROOT)} sample_runs={count_dynamic_dp8.get('sample_runs')}, expected >= 3")
+
+    if "macos-metal-jacobian-dynamic-dp-count-dp8-stable-bench:" not in makefile:
+        failures.append("Makefile missing macos-metal-jacobian-dynamic-dp-count-dp8-stable-bench target")
+
     if failures:
         sys.stdout.write("\n".join(failures) + "\n")
         return 1

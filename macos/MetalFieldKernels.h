@@ -1044,4 +1044,48 @@ kernel void jacobian_affine_walk_dynamic_dp_stream_steps8_pow2_mask(constant ulo
     }
   }
 }
+
+kernel void jacobian_affine_walk_dynamic_dp_count_steps8_pow2_mask(constant ulong* p_xyz [[buffer(0)]],
+                                                                   constant AffineJumpValue* q_xy [[buffer(1)]],
+                                                                   constant uchar* p_infinity [[buffer(2)]],
+                                                                   device atomic_uint* out_dp_count [[buffer(4)]],
+                                                                   constant uint& count [[buffer(5)]],
+                                                                   constant uint& steps [[buffer(6)]],
+                                                                   constant uint& jump_mask [[buffer(7)]],
+                                                                   constant ulong& dp_mask [[buffer(10)]],
+                                                                   uint id [[thread_position_in_grid]]) {
+  (void)steps;
+  if (id >= count) return;
+  uint p_base = (id << 3) + (id << 2);
+  ulong x0 = p_xyz[p_base + 0], x1 = p_xyz[p_base + 1], x2 = p_xyz[p_base + 2], x3 = p_xyz[p_base + 3];
+  ulong y0 = p_xyz[p_base + 4], y1 = p_xyz[p_base + 5], y2 = p_xyz[p_base + 6], y3 = p_xyz[p_base + 7];
+  ulong z0 = p_xyz[p_base + 8], z1 = p_xyz[p_base + 9], z2 = p_xyz[p_base + 10], z3 = p_xyz[p_base + 11];
+  bool inf = p_infinity[id];
+
+  for (uint step = 0; step < 8; step++) {
+    ulong mixed = x0 ^ (x1 << 7) ^ (y0 >> 3) ^ z0;
+    mixed ^= mixed >> 33;
+    mixed *= 0xff51afd7ed558ccdUL;
+    mixed ^= mixed >> 33;
+    uint jump_index = (uint)(mixed & (ulong)jump_mask);
+    JacobianValue out;
+    if (inf) {
+      out = jacobian_add_affine_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3, inf,
+                                       q_xy[jump_index].x0, q_xy[jump_index].x1, q_xy[jump_index].x2, q_xy[jump_index].x3,
+                                       q_xy[jump_index].y0, q_xy[jump_index].y1, q_xy[jump_index].y2, q_xy[jump_index].y3);
+    } else {
+      out = jacobian_add_affine_finite_values(x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3,
+                                              q_xy[jump_index].x0, q_xy[jump_index].x1, q_xy[jump_index].x2, q_xy[jump_index].x3,
+                                              q_xy[jump_index].y0, q_xy[jump_index].y1, q_xy[jump_index].y2, q_xy[jump_index].y3);
+    }
+    x0 = out.x0; x1 = out.x1; x2 = out.x2; x3 = out.x3;
+    y0 = out.y0; y1 = out.y1; y2 = out.y2; y3 = out.y3;
+    z0 = out.z0; z1 = out.z1; z2 = out.z2; z3 = out.z3;
+    inf = out.inf;
+  }
+
+  if (!inf && ((x0 & dp_mask) == 0)) {
+    atomic_fetch_add_explicit(out_dp_count, 1U, memory_order_relaxed);
+  }
+}
 )RCK_METAL";

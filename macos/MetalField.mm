@@ -732,6 +732,59 @@ static std::string MetalJacobianDynamicDpStreamBenchJson(const char* operation,
 	return oss.str();
 }
 
+static std::string MetalJacobianDynamicDpCountBenchJson(const char* operation,
+	uint64_t iterations,
+	unsigned int sample_count,
+	unsigned int steps_per_sample,
+	unsigned int jump_count,
+	const char* jump_index_mode,
+	const char* jump_mixer,
+	uint64_t jump_histogram_min_bucket,
+	uint64_t jump_histogram_max_bucket,
+	uint64_t jump_histogram_max_deviation_ppm,
+	unsigned int dp_bits,
+	unsigned int dp_count,
+	unsigned int min_ms,
+	const MetalDispatchStats& dispatch_stats,
+	double seconds,
+	double ops_per_sec,
+	bool correctness,
+	bool skipped,
+	const std::string& reason)
+{
+	std::ostringstream oss;
+	oss << std::fixed << std::setprecision(6);
+	oss << "{\"backend\":\"metal\",\"operation\":\"" << operation << "\",";
+	oss << "\"iterations\":" << iterations << ",";
+	oss << "\"sample_count\":" << sample_count << ",";
+	oss << "\"steps_per_sample\":" << steps_per_sample << ",";
+	oss << "\"jump_count\":" << jump_count << ",";
+	oss << "\"jump_index\":\"" << jump_index_mode << "\",";
+	oss << "\"jump_mixer\":\"" << jump_mixer << "\",";
+	oss << "\"jump_histogram_min_bucket\":" << jump_histogram_min_bucket << ",";
+	oss << "\"jump_histogram_max_bucket\":" << jump_histogram_max_bucket << ",";
+	oss << "\"jump_histogram_max_deviation_ppm\":" << jump_histogram_max_deviation_ppm << ",";
+	oss << "\"output_layout\":\"dp_count\",";
+	oss << "\"output_bytes_total\":4,";
+	oss << "\"distance_tracking\":\"none\",";
+	oss << "\"dp_tracking\":\"projective_x_limb0\",";
+	oss << "\"dp_bits\":" << dp_bits << ",";
+	oss << "\"dp_count\":" << dp_count << ",";
+	oss << "\"min_ms\":" << min_ms << ",";
+	oss << "\"threadgroup_limit\":" << dispatch_stats.threadgroup_limit << ",";
+	oss << "\"thread_execution_width\":" << dispatch_stats.thread_execution_width << ",";
+	oss << "\"max_threads_per_threadgroup\":" << dispatch_stats.max_threads_per_threadgroup << ",";
+	oss << "\"threads_per_threadgroup\":" << dispatch_stats.threads_per_threadgroup << ",";
+	oss << "\"seconds\":" << seconds << ",";
+	oss << "\"ops_per_sec\":" << ops_per_sec << ",";
+	oss << "\"correctness\":" << (correctness ? "true" : "false") << ",";
+	oss << "\"skipped\":" << (skipped ? "true" : "false");
+	if (!reason.empty())
+		oss << ",\"reason\":\"" << JsonEscape(reason) << "\"";
+	oss << "}";
+	return oss.str();
+}
+
 static NSString* FieldSource()
 {
 	return [NSString stringWithUTF8String:RCKMetalFieldKernelsSource];
@@ -1709,6 +1762,140 @@ static bool RunJacobianDynamicDpStreamKernel(const std::vector<CpuJacobianPoint>
 		out_indices = indices_out;
 		out_distances = distances_out;
 		out_dp_terms = dp_terms_out;
+		return true;
+	}
+}
+
+static bool RunJacobianDynamicDpCountKernel(const std::vector<CpuJacobianPoint>& p,
+	const std::vector<CpuAffinePoint>& jumps,
+	unsigned int steps_per_sample,
+	uint32_t& dp_count,
+	unsigned int dp_bits,
+	std::string& error,
+	double* seconds,
+	unsigned int threadgroup_limit,
+	MetalDispatchStats* dispatch_stats)
+{
+	if (dispatch_stats)
+		dispatch_stats->threadgroup_limit = (unsigned int)EffectiveThreadgroupLimit(threadgroup_limit);
+
+	if (p.empty() || jumps.empty() || steps_per_sample != 8 || dp_bits > 32 || !IsMetalPowerOfTwo((unsigned int)jumps.size()) || jumps.size() > 32)
+	{
+		error = "invalid jacobian dynamic dp count input";
+		return false;
+	}
+
+	std::vector<uint64_t> p_xyz;
+	std::vector<uint64_t> q_xy;
+	std::vector<uint32_t> p_infinity;
+	PackJacobianStateInputs(p, p_xyz, p_infinity);
+	PackAffineTable(jumps, q_xy);
+
+	std::vector<uint8_t> dynamic_p_infinity;
+	dynamic_p_infinity.reserve(p_infinity.size());
+	for (uint32_t p_infinity_value : p_infinity)
+		dynamic_p_infinity.push_back(p_infinity_value ? 1U : 0U);
+
+	@autoreleasepool
+	{
+		id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+		if (!device)
+		{
+			error = "no Metal device available";
+			return false;
+		}
+
+		NSError* ns_error = nil;
+		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		if (!library)
+		{
+			error = NSErrorToString(ns_error);
+			return false;
+		}
+
+		const char* function_name = "jacobian_affine_walk_dynamic_dp_count_steps8_pow2_mask";
+		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
+		if (!function)
+		{
+			error = std::string("failed to load ") + function_name + " function";
+			return false;
+		}
+
+		id<MTLComputePipelineState> pipeline = [device newComputePipelineStateWithFunction:function error:&ns_error];
+		if (!pipeline)
+		{
+			error = NSErrorToString(ns_error);
+			return false;
+		}
+		NSUInteger execution_width = [pipeline threadExecutionWidth] ? [pipeline threadExecutionWidth] : 1;
+		NSUInteger max_threads = [pipeline maxTotalThreadsPerThreadgroup] ? [pipeline maxTotalThreadsPerThreadgroup] : execution_width;
+		NSUInteger threads_per_threadgroup = PreferredThreadgroupWidth(pipeline, threadgroup_limit);
+		if (dispatch_stats)
+		{
+			dispatch_stats->thread_execution_width = (unsigned int)execution_width;
+			dispatch_stats->max_threads_per_threadgroup = (unsigned int)max_threads;
+			dispatch_stats->threads_per_threadgroup = (unsigned int)threads_per_threadgroup;
+		}
+
+		size_t p_bytes = p_xyz.size() * sizeof(uint64_t);
+		size_t q_bytes = q_xy.size() * sizeof(uint64_t);
+		size_t p_inf_bytes = dynamic_p_infinity.size() * sizeof(uint8_t);
+		uint32_t count = (uint32_t)p.size();
+		uint32_t step_count = steps_per_sample;
+		uint32_t jump_mask = (uint32_t)jumps.size() - 1U;
+		uint64_t dp_mask = ProjectiveDpMask(dp_bits);
+		uint32_t zero = 0;
+		id<MTLBuffer> p_buffer = [device newBufferWithBytes:p_xyz.data() length:p_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> q_buffer = [device newBufferWithBytes:q_xy.data() length:q_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> p_inf_buffer = [device newBufferWithBytes:dynamic_p_infinity.data() length:p_inf_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> dp_count_buffer = [device newBufferWithBytes:&zero length:sizeof(zero) options:MTLResourceStorageModeShared];
+		id<MTLBuffer> count_buffer = [device newBufferWithBytes:&count length:sizeof(count) options:MTLResourceStorageModeShared];
+		id<MTLBuffer> steps_buffer = [device newBufferWithBytes:&step_count length:sizeof(step_count) options:MTLResourceStorageModeShared];
+		id<MTLBuffer> jump_mask_buffer = [device newBufferWithBytes:&jump_mask length:sizeof(jump_mask) options:MTLResourceStorageModeShared];
+		id<MTLBuffer> dp_mask_buffer = [device newBufferWithBytes:&dp_mask length:sizeof(dp_mask) options:MTLResourceStorageModeShared];
+		if (!p_buffer || !q_buffer || !p_inf_buffer || !dp_count_buffer || !count_buffer || !steps_buffer || !jump_mask_buffer || !dp_mask_buffer)
+		{
+			error = "failed to allocate Metal jacobian dynamic dp count buffers";
+			return false;
+		}
+
+		id<MTLCommandQueue> queue = [device newCommandQueue];
+		if (!queue)
+		{
+			error = "failed to create Metal command queue";
+			return false;
+		}
+
+		id<MTLCommandBuffer> command_buffer = [queue commandBuffer];
+		id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:p_buffer offset:0 atIndex:0];
+		[encoder setBuffer:q_buffer offset:0 atIndex:1];
+		[encoder setBuffer:p_inf_buffer offset:0 atIndex:2];
+		[encoder setBuffer:dp_count_buffer offset:0 atIndex:4];
+		[encoder setBuffer:count_buffer offset:0 atIndex:5];
+		[encoder setBuffer:steps_buffer offset:0 atIndex:6];
+		[encoder setBuffer:jump_mask_buffer offset:0 atIndex:7];
+		[encoder setBuffer:dp_mask_buffer offset:0 atIndex:10];
+		NSUInteger threadgroup_count = (count + threads_per_threadgroup - 1) / threads_per_threadgroup;
+		[encoder dispatchThreadgroups:MTLSizeMake(threadgroup_count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
+		[encoder endEncoding];
+		auto start = std::chrono::steady_clock::now();
+		[command_buffer commit];
+		[command_buffer waitUntilCompleted];
+		auto end = std::chrono::steady_clock::now();
+		if (seconds)
+			*seconds = std::chrono::duration<double>(end - start).count();
+
+		if ([command_buffer status] != MTLCommandBufferStatusCompleted)
+		{
+			error = NSErrorToString([command_buffer error]);
+			return false;
+		}
+
+		uint32_t count_raw = 0;
+		memcpy(&count_raw, [dp_count_buffer contents], sizeof(count_raw));
+		dp_count = count_raw;
 		return true;
 	}
 }
@@ -3006,6 +3193,75 @@ std::string RCKMetalJacobianDynamicDpStreamBenchJson(unsigned int iterations, un
 	uint64_t jump_histogram_max_bucket = JumpHistogramMaxBucket(jump_histogram);
 	uint64_t jump_histogram_max_deviation_ppm = JumpHistogramMaxDeviationPpm(jump_histogram);
 	return MetalJacobianDynamicDpStreamBenchJson("jacobian_affine_walk_dynamic_dp_stream", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_histogram_min_bucket, jump_histogram_max_bucket, jump_histogram_max_deviation_ppm, emitted_records, dp_capacity, dp_stream_overflow, dp_distance_checksum, dp_bits, dp_count, dp_checksum, min_ms, dispatch_stats, seconds, ops_per_sec, true, false, "");
+}
+
+std::string RCKMetalJacobianDynamicDpCountBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int jump_count, unsigned int min_ms, unsigned int threadgroup_limit, unsigned int dp_bits)
+{
+	if (iterations == 0)
+		iterations = 1;
+	if (steps_per_sample == 0)
+		steps_per_sample = 8;
+	if (dp_bits == 0)
+		dp_bits = 4;
+	jump_count = NormalizeMetalJumpCount(jump_count);
+	dp_bits = NormalizeMetalDpBits(dp_bits);
+	const char* jump_index_mode = MetalJumpIndexMode(jump_count);
+	const unsigned int sample_count = iterations;
+
+	MetalDispatchStats dispatch_stats;
+	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveThreadgroupLimit(threadgroup_limit);
+	if (steps_per_sample != 8 || dp_bits > 32 || !IsMetalPowerOfTwo(jump_count))
+	{
+		std::string reason = "count dynamic dp supports steps=8, power-of-two jumps, dp_bits=0..32";
+		return MetalJacobianDynamicDpCountBenchJson("jacobian_affine_walk_dynamic_dp_count", (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, dp_bits, 0, min_ms, dispatch_stats, 0.0, 0.0, false, false, reason);
+	}
+
+	std::vector<CpuJacobianPoint> p;
+	std::vector<CpuAffinePoint> jumps;
+	std::vector<uint64_t> jump_distances;
+	BuildJacobianJumpWalkSamples(sample_count, jump_count, p, jumps);
+	BuildJacobianJumpDistances(jump_count, jump_distances);
+
+	uint32_t dp_count = 0;
+	std::string error;
+	double seconds = 0.0;
+	uint64_t operations = 0;
+	unsigned int dispatch_count = 0;
+	do
+	{
+		double dispatch_seconds = 0.0;
+		if (!RunJacobianDynamicDpCountKernel(p, jumps, steps_per_sample, dp_count, dp_bits, error, &dispatch_seconds, threadgroup_limit, &dispatch_stats))
+		{
+			if (error == "no Metal device available")
+				return MetalJacobianDynamicDpCountBenchJson("jacobian_affine_walk_dynamic_dp_count", 0, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, dp_bits, 0, min_ms, dispatch_stats, 0.0, 0.0, false, true, error);
+			return MetalJacobianDynamicDpCountBenchJson("jacobian_affine_walk_dynamic_dp_count", operations ? operations : (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, dp_bits, 0, min_ms, dispatch_stats, seconds, 0.0, false, false, error);
+		}
+		seconds += dispatch_seconds;
+		operations += (uint64_t)sample_count * steps_per_sample;
+		dispatch_count++;
+		if (min_ms && dispatch_seconds == 0.0)
+			break;
+	} while (min_ms && (seconds * 1000.0 < (double)min_ms) && (dispatch_count < 100000));
+
+	std::vector<uint64_t> jump_histogram(jump_count, 0);
+	unsigned int expected_dp_count = 0;
+	for (unsigned int i = 0; i < sample_count; ++i)
+	{
+		CpuJacobianPoint expected = CpuJacobianDynamicJumpWalk(p[i], jumps, jump_distances, steps_per_sample, NULL, &jump_histogram);
+		expected_dp_count += ProjectiveDpFlag(expected, dp_bits) ? 1U : 0U;
+	}
+	if (dp_count != expected_dp_count)
+	{
+		std::string reason = "count dp mismatch: got " + std::to_string(dp_count) +
+			" expected " + std::to_string(expected_dp_count);
+		return MetalJacobianDynamicDpCountBenchJson("jacobian_affine_walk_dynamic_dp_count", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, dp_bits, dp_count, min_ms, dispatch_stats, seconds, 0.0, false, false, reason);
+	}
+
+	double ops_per_sec = seconds > 0.0 ? (double)operations / seconds : 0.0;
+	uint64_t jump_histogram_min_bucket = JumpHistogramMinBucket(jump_histogram);
+	uint64_t jump_histogram_max_bucket = JumpHistogramMaxBucket(jump_histogram);
+	uint64_t jump_histogram_max_deviation_ppm = JumpHistogramMaxDeviationPpm(jump_histogram);
+	return MetalJacobianDynamicDpCountBenchJson("jacobian_affine_walk_dynamic_dp_count", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_histogram_min_bucket, jump_histogram_max_bucket, jump_histogram_max_deviation_ppm, dp_bits, dp_count, min_ms, dispatch_stats, seconds, ops_per_sec, true, false, "");
 }
 
 static std::string RunMetalFieldBenchJson(const char* operation,

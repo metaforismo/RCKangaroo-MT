@@ -251,6 +251,18 @@ runtime `ProjectiveDpMask(dp_bits)` Metal kernel. Use this gate to test whether
 rarer distinguished-point emission reduces atomic pressure and output traffic
 without changing the CPU replay oracle.
 
+Run the runtime-mask DP8 count-only diagnostic:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_count_dp8 --budget-sec 10
+```
+
+This records `metal` `jacobian_affine_walk_dynamic_dp_count` throughput. The
+kernel runs the same dynamic walk and DP predicate as the sparse stream path,
+but only increments a DP counter and writes no record payloads. Use it to
+separate record-write overhead from the arithmetic walk cost; it is a
+diagnostic benchmark, not a replacement for `dp_stream` candidate emission.
+
 Run the CPU field multiplication experiment:
 
 ```sh
