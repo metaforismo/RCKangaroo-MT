@@ -810,6 +810,13 @@ they are intentionally ignored by git.
   discarded it: candidate median `910,556.434373` steps/sec versus paired
   baseline `1,799,640.261424`, `paired_speedup=0.505966`. Keep the current
   explicit infinity buffer in the DP8 stream path.
+- `macos-metal-dp8-stream-finite-tail` was rejected. It split the DP8 sparse
+  stream benchmark shape into a branch-free finite-tail kernel for `p[1..]`
+  and a CPU append for `p[0]`, with a CPU precheck that the tail never reaches
+  infinity. The oracle stayed unchanged, but paired autoresearch discarded it:
+  candidate median `34,715,854.003069` steps/sec versus paired baseline
+  `50,834,993.140300`, `paired_speedup=0.682913`. Keep the accepted single
+  DP8 stream kernel.
 
 ## Current Correctness Surface
 

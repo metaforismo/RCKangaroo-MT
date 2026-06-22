@@ -1919,6 +1919,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `1,799,640.261424`, `paired_speedup=0.505966`. Do not remove the tiny
   `p_infinity` load in this path; the first-lane special case appears to hurt
   generated code or lane behavior far more than it saves on this M3 profile.
+- `macos-metal-dp8-stream-finite-tail`: rejected splitting the DP8 sparse
+  stream path into a branch-free finite-tail kernel for samples `p[1..]` plus a
+  CPU append for `p[0]`. The prototype was guarded by “only first infinity” and
+  a CPU precheck that no tail sample reaches infinity during the eight-step
+  walk, so correctness stayed intact (`emitted_records=61`,
+  `dp_checksum=0xab1c2cd29cd70a84`,
+  `dp_distance_checksum=0x822e141de4770a0b`, no overflow). Direct samples were
+  `32,662,656.237789` and `33,962,257.983414` steps/sec. Paired autoresearch
+  discarded the candidate with median `34,715,854.003069` steps/sec
+  (`min=34,590,529.131153`, `max=34,834,754.705358`) versus paired baseline
+  median `50,834,993.140300`, `paired_speedup=0.682913`. Keep the accepted
+  single-kernel DP8 stream path; removing the infinity branch makes the kernel
+  shape worse on this M3 profile.
 
 ## Next Research Targets
 
