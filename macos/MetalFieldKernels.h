@@ -1116,8 +1116,6 @@ kernel void jacobian_affine_walk_dynamic_dp_stream_steps8_dp8_pow2_u32_distance(
                                                                                 device ulong* out_distances [[buffer(9)]],
                                                                                 device ulong* out_dp_terms [[buffer(10)]],
                                                                                 constant uint& jump_mask [[buffer(11)]],
-                                                                                constant uint& dp_capacity [[buffer(12)]],
-                                                                                device atomic_uint* out_overflow [[buffer(13)]],
                                                                                 uint id [[thread_position_in_grid]]) {
   (void)steps;
   if (id >= count) return;
@@ -1154,13 +1152,9 @@ kernel void jacobian_affine_walk_dynamic_dp_stream_steps8_dp8_pow2_u32_distance(
 
   if (!inf && ((x0 & 0xFFUL) == 0)) {
     uint slot = atomic_fetch_add_explicit(out_dp_count, 1U, memory_order_relaxed);
-    if (slot < dp_capacity) {
-      out_indices[slot] = id;
-      out_distances[slot] = (ulong)distance;
-      out_dp_terms[slot] = x0 ^ (y0 << 1) ^ (z0 << 7);
-    } else {
-      atomic_store_explicit(out_overflow, 1U, memory_order_relaxed);
-    }
+    out_indices[slot] = id;
+    out_distances[slot] = (ulong)distance;
+    out_dp_terms[slot] = x0 ^ (y0 << 1) ^ (z0 << 7);
   }
 }
 

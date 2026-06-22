@@ -150,6 +150,15 @@ they are intentionally ignored by git.
   baseline median `56,207,874.481378 ops/sec`; `emitted_records=61`,
   `dp_checksum=0xab1c2cd29cd70a84`, and
   `dp_distance_checksum=0x822e141de4770a0b` were unchanged.
+- `macos-metal-dynamic-dp8-stream-no-overflow-branch` removes the in-kernel
+  `slot < dp_capacity` / `out_overflow` branch from the accepted DP8 sparse
+  stream specialization. The host still allocates capacity equal to sample
+  count and still rejects impossible `emitted_raw > dp_capacity`, while the
+  kernel relies on the one-record-per-sample invariant. Paired autoresearch
+  kept it with candidate median `55,340,023.527875 ops/sec` versus paired
+  baseline median `35,628,876.688184 ops/sec`; `paired_speedup=1.553235`,
+  `emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`, and
+  `dp_distance_checksum=0x822e141de4770a0b` were unchanged.
 - `macos-metal-dynamic-dp4-stream-local-jump-row` applies the same explicit
   affine row reuse to the DP4 sparse stream kernel. Paired autoresearch kept it
   with candidate median `65,061,282.305496 ops/sec` versus paired baseline

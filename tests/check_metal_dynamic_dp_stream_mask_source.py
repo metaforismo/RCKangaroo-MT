@@ -78,9 +78,13 @@ for marker in required_dp8_markers:
 
 for forbidden in (
     "constant ulong& dp_mask",
+    "constant uint& dp_capacity",
+    "device atomic_uint* out_overflow",
     "x0 & dp_mask",
     "ulong distance = 0;",
     "q_xy[jump_index].",
+    "slot < dp_capacity",
+    "atomic_store_explicit(out_overflow",
 ):
     if forbidden in dp8_body:
         raise SystemExit("dynamic dp8 stream const-mask kernel must not keep marker: " + forbidden)

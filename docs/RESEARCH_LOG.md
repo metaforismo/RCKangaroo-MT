@@ -1815,6 +1815,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   overflow, `dp_checksum=0xab1c2cd29cd70a84`, and
   `dp_distance_checksum=0x822e141de4770a0b`. Treat this as a local DP8 stream
   code-generation win, not a new mathematical walk.
+- `macos-metal-dynamic-dp8-stream-no-overflow-branch`: removed the DP8 sparse
+  stream specialization's in-kernel `slot < dp_capacity` branch and
+  `out_overflow` write. This keeps the output layout and host-visible
+  `dp_stream_overflow` field unchanged: the host allocates capacity equal to
+  sample count, each sample can emit at most one record, and validation still
+  rejects impossible `emitted_raw > dp_capacity`. Paired autoresearch against
+  `main` kept the candidate with median `55,340,023.527875` DP8 steps/sec
+  (`min=40,201,575.992859`, `max=55,936,507.627110`) versus paired baseline
+  median `35,628,876.688184`, `paired_speedup=1.553235`. The oracle stayed
+  unchanged: `emitted_records=61`, `output_bytes_total=1220`, no overflow,
+  `dp_checksum=0xab1c2cd29cd70a84`, and
+  `dp_distance_checksum=0x822e141de4770a0b`. Treat this as a DP8-specific
+  control-flow reduction guarded by the stream-capacity invariant; keep the
+  generic and DP4 stream overflow branches for now.
 - `macos-metal-dynamic-dp4-stream-local-jump-row`: applied the same local
   `AffineJumpValue jump = q_xy[jump_index]` row reuse to the accepted DP4
   sparse stream kernel. Paired autoresearch against `main` kept the candidate
