@@ -2157,6 +2157,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `52,397,986.361443`, `paired_speedup=0.386127`. Keep the shared DP8
   `jump_mask` specialization for `jumps=16`; the extra entry point/codegen
   shape is not favorable on this M3 profile.
+- `macos-metal-dynamic-dp8-count-specialization`: rejected a dedicated DP8
+  count-only kernel that hardcoded the DP mask to `0xFF` and removed the
+  unused `steps` plus runtime `dp_mask` arguments from the dispatch. Correctness
+  stayed intact for both variants (`output_layout=dp_count`, `dp_count=61`,
+  `distance_tracking=none`, `correctness=true`). The first variant used a local
+  `AffineJumpValue` row and was borderline but still below baseline: candidate
+  median `43,773,240.202096` steps/sec (`min=37,157,424.295935`,
+  `max=48,847,567.549002`) versus paired baseline median
+  `44,442,548.274759`, `paired_speedup=0.984940`. The follow-up variant kept
+  direct `q_xy[jump_index]` loads like the generic count kernel and regressed
+  more: candidate median `50,394,707.554658` steps/sec
+  (`min=42,322,353.086826`, `max=69,338,828.177601`) versus paired baseline
+  median `68,896,134.342987`, `paired_speedup=0.731459`. Keep the generic
+  runtime-mask count kernel for DP8; the DP8 stream-specific signature cleanup
+  does not transfer to the count-only diagnostic path.
 - `macos-metal-dynamic-dp8-stream-tg-sweep-after-no-overflow`: recorded a
   manual explicit `--tg-limit` sweep after accepting the DP8 no-overflow
   branch. No production code changed. The DP8 stream oracle stayed unchanged

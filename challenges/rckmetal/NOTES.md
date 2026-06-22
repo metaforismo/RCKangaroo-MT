@@ -947,6 +947,14 @@ they are intentionally ignored by git.
   candidate median `20,232,288.968150` steps/sec versus paired baseline
   `52,397,986.361443`, `paired_speedup=0.386127`. Keep the existing shared
   DP8 mask kernel for `jumps=16`.
+- `macos-metal-dynamic-dp8-count-specialization` was rejected. A DP8 count-only
+  kernel with hardcoded `x0 & 0xFF`, no `steps`, and no runtime `dp_mask`
+  preserved `dp_count=61` and `correctness=true`, but did not beat the generic
+  count kernel. The local-row variant measured `43,773,240.202096` steps/sec
+  versus paired baseline `44,442,548.274759`, `paired_speedup=0.984940`; the
+  direct-`q_xy` variant measured `50,394,707.554658` versus
+  `68,896,134.342987`, `paired_speedup=0.731459`. Keep DP8 count-only on the
+  shared runtime-mask kernel.
 - A manual post-DP8-no-overflow `--tg-limit` sweep kept the existing 256
   default. With the accepted DP8 no-overflow kernel and unchanged oracle
   (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,
