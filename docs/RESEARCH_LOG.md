@@ -2859,6 +2859,36 @@ These did not pass the performance gate or had a correctness/architecture issue:
   command-buffer-level persistence as a real Mac path: it is not a new ECDLP
   shortcut, but it removes host-side reinitialization pressure while preserving
   full cumulative-distance correctness.
+- Follow-up schedule sweep for `macos-metal-dp8-xyzz-persistent-chain-rounds`
+  kept the accepted `packets=2, rounds=2` experiment as the best reproducible
+  default, but recorded useful boundaries. With total packets fixed at four,
+  `131072 x 512 x 4` measured `125,342,185.195233` steps/sec for
+  `packets=4, rounds=1`, `126,121,211.306114` for `2 x 2`, and
+  `125,943,165.019040` for `1 x 4`, all preserving
+  `dp_distance_checksum=0x2fc17b9313fc0204` and
+  `dp_checksum=0x2b1728330fd9cdc6`. The larger `262144 x 512 x 4` sweep
+  measured `127,101,881.500963` for `4 x 1`,
+  `127,628,765.359548` for `2 x 2`, and `128,037,092.166447` for `1 x 4`;
+  a repeat of `1 x 4` measured `127,507,413.942529`, while a later `2 x 2`
+  repeat fell to `101,328,031.629917` under clear thermal/noise conditions.
+  All large runs preserved `dp_distance_checksum=0x30e91a5edffed133` and
+  `dp_checksum=0x950a1186dae66384`. Conclusion: total-packet scheduling is a
+  local tuning knob, but the current `2 x 2` autoresearch gate remains the
+  most balanced default.
+- Rejected follow-up `macos-metal-dp8-xyzz-queued-rounds`: queuing all
+  persistent command-buffer rounds before waiting was correct, but did not
+  produce a robust speedup. On `131072 x 512 x 4`, serial `1 x 4` measured
+  `123,817,482.493016` steps/sec and queued `1 x 4` measured
+  `124,551,373.729465`, with the same `dp_count=2042`,
+  `dp_distance_checksum=0x2fc17b9313fc0204`, and
+  `dp_checksum=0x2b1728330fd9cdc6`. On `262144 x 512 x 4`, serial `1 x 4`
+  measured `126,415,616.859633` and queued `1 x 4` measured
+  `126,594,415.394061`, with the same `dp_count=4037`,
+  `dp_distance_checksum=0x30e91a5edffed133`, and
+  `dp_checksum=0x950a1186dae66384`. The `2 x 2` shape regressed on the small
+  paired check (`124,467,804.420946` serial versus `120,508,486.723988`
+  queued). The marginal `1 x 4` gain is below the promotion threshold and the
+  mixed result adds API surface, so keep serial per-round waits.
 - Rejected follow-up `macos-metal-dp8-xyzz-chain2-fused-kernel`: fusing the
   common `steps=512, packets=2` chain into one Metal kernel kept correctness
   and produced the same cumulative-chain oracle values (`dp_count=2016`,

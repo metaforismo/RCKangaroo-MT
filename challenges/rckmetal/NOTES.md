@@ -1403,6 +1403,14 @@ they are intentionally ignored by git.
   `122,150,581.472696` versus persistent `127,964,289.140597`, same
   `dp_count=4037`, `dp_distance_checksum=0x30e91a5edffed133`,
   `dp_checksum=0x950a1186dae66384`.
+- Persistent schedule sweep: with total packets fixed at four, `131072 x 512`
+  measured `125.3M` steps/sec for `4 x 1`, `126.1M` for `2 x 2`, and
+  `125.9M` for `1 x 4`; `262144 x 512` measured `127.1M`, `127.6M`, and
+  `128.0M` respectively, with repeats/noise keeping `2 x 2` as the balanced
+  autoresearch default. Rejected queued command-buffer submission: it kept the
+  same DP checksums, but only moved `1 x 4` from `126.4M` to `126.6M` on the
+  large check and regressed `2 x 2` from `124.5M` to `120.5M` on the small
+  paired check. Keep serial per-round waits and treat schedule as a local knob.
 - Rejected `macos-metal-dp8-xyzz-chain2-fused-kernel`: a single Metal kernel
   for `steps=512, packets=2` preserved the same cumulative-chain DP count and
   checksums, but lost speed. Candidate: `123,091,730.623771` steps/sec at
