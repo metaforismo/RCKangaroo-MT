@@ -1081,6 +1081,11 @@ they are intentionally ignored by git.
   passed for 4-target and 16-target shapes. Paired confirmation discarded it:
   4-target ended at `1.001281x` and 16-target ended at `0.997717x`. Keep the
   unified DP predicate path; the branch is not the current bottleneck.
+- `macos-metal-field-add-x4` was rejected. A Metal field-add kernel that did
+  four additions per thread preserved correctness, including a non-multiple-of
+  four smoke case, but paired confirmation discarded it at `0.562870x`
+  (`125,737,724.391583` versus `223,386,636.821191` ops/sec). Keep one field
+  element per thread for add; x4 underutilizes the M3 GPU for this kernel.
 
 ## Current Correctness Surface
 

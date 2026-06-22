@@ -2391,6 +2391,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `15,674.827307` versus baseline `15,710.691415` ops/sec
   (`paired_speedup=0.997717`). Keep the unified predicate path; the DP0 branch
   specialization adds code shape without moving the bottleneck.
+- `macos-metal-field-add-x4`: rejected a separate Metal `field_add_mod_p_x4`
+  kernel that processed four field additions per Metal thread and dispatched
+  `ceil(count / 4)` threads. The candidate preserved the CPU field-add oracle,
+  including a non-multiple-of-four smoke shape, but paired autoresearch
+  discarded it decisively. The final confirmation measured candidate
+  `125,737,724.391583` versus baseline `223,386,636.821191` ops/sec
+  (`paired_speedup=0.562870`, `confirmation_status=discard`). Keep one field
+  element per Metal thread for add; reducing thread-level parallelism costs
+  more than it saves on this M3 Air memory/ALU mix.
 
 ## Next Research Targets
 

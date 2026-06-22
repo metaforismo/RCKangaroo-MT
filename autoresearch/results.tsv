@@ -277,3 +277,6 @@ timestamp	commit	experiment	backend	operation	iterations	ops_per_sec	correctness
 2026-06-22T14:39:59Z	41a2702-dirty	jacobian_kangaroo_multi16_small	macos_cpu	jacobian_kangaroo_multi_small	784	15668.979380	true	discard	Apple Silicon CPU shared-tame tiny 16-target kangaroo benchmark
 2026-06-22T14:39:59Z	41a2702-dirty	jacobian_kangaroo_multi16_small	macos_cpu	jacobian_kangaroo_multi_small	785	15687.920301	true	discard	Apple Silicon CPU shared-tame tiny 16-target kangaroo benchmark
 2026-06-22T14:39:59Z	41a2702-dirty	jacobian_kangaroo_multi16_small	macos_cpu	jacobian_kangaroo_multi_small	784	15674.827307	true	discard	Apple Silicon CPU shared-tame tiny 16-target kangaroo benchmark
+2026-06-22T14:48:58Z	8f6b8e1-dirty	metal_field_add	metal	field_add_mod_p	5242880	95639396.744757	true	discard	Metal secp256k1 field_add_mod_p correctness and throughput gate
+2026-06-22T14:48:58Z	8f6b8e1-dirty	metal_field_add	metal	field_add_mod_p	6291456	103542677.030168	true	discard	Metal secp256k1 field_add_mod_p correctness and throughput gate
+2026-06-22T14:48:58Z	8f6b8e1-dirty	metal_field_add	metal	field_add_mod_p	8388608	125737724.391583	true	discard	Metal secp256k1 field_add_mod_p correctness and throughput gate
