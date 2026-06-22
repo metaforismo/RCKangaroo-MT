@@ -612,6 +612,11 @@ they are intentionally ignored by git.
   `last_dp_count=288`), but paired confirmation discarded it: `0.978479x`,
   `0.999931x`, `1.057456x`. Treat it as neutral noise; keep the existing
   separate lookup/record path.
+- `0c3e25a` replaced each CPU DP bucket's embedded overflow vector with a lazy
+  `unique_ptr`. Correctness and the multi16 oracle stayed intact, but paired
+  confirmation discarded it: `0.975124x`, `0.902597x`, `1.004439x`. Keep the
+  embedded overflow vector; the smaller slot did not repay pointer/allocation
+  cost in the tiny multi-target gate.
 
 ## Current Correctness Surface
 

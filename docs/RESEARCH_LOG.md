@@ -1569,6 +1569,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `0.978479x`, `0.999931x`, and `1.057456x`, therefore
   `confirmation_status=discard`. Keep the existing separate lookup/record path
   unless a larger DP-table rewrite proves a durable gain.
+- `macos-lazy-dp-overflow`: replacing each DP bucket's embedded overflow
+  vector with a lazy `unique_ptr` preserved `make macos-check` and the multi16
+  oracle (`found_private_key=0x7`, `found_target_index=15`,
+  `last_dp_count=288`), but failed paired confirmation. Raw speedups were
+  `0.975124x`, `0.902597x`, and `1.004439x`, therefore
+  `confirmation_status=discard`. Keep the embedded overflow vector; reducing
+  slot footprint did not offset pointer indirection/allocation noise.
 
 ## Next Research Targets
 
