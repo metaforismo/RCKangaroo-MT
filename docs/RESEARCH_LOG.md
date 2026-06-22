@@ -1593,6 +1593,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `0.985937x`, and `1.005892x`, therefore `confirmation_status=discard`. Keep
   the single shared DP table; split storage helped one run but did not survive
   confirmation.
+- `macos-small-affine-scratch`: tried persistent 65-entry scratch arrays for
+  the CPU multi-target batch-affine outputs, prefixes, and active flags, using
+  them whenever `tame + targets <= 65` while keeping the vector fallback for
+  larger API calls. Correctness and `make macos-check` stayed intact; the
+  multi16 oracle was preserved (`found_private_key=0x7`,
+  `found_target_index=15`, `last_dp_count=288`). Paired confirmation discarded
+  it with raw speedups of `0.975740x`, `0.992597x`, and `0.871779x`, therefore
+  `confirmation_status=discard`. Keep the current reused vectors; the fixed
+  scratch arrays add object footprint and did not produce a durable tiny-gate
+  win.
 - `macos-metal-dynamic-jump-walk`: added a separate Metal walk architecture
   that computes the kangaroo jump index inside the kernel from the current
   Jacobian state, matching the CPU `x/y/z` mixer and supporting both

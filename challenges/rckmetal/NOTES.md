@@ -626,6 +626,11 @@ they are intentionally ignored by git.
   and the multi16 oracle stayed intact, but paired confirmation discarded it:
   `1.025170x`, `0.985937x`, `1.005892x`. Keep the single shared DP table; the
   split lookup shape was too noisy to promote.
+- `macos-small-affine-scratch` tried persistent 65-entry CPU multi-target
+  batch-affine scratch arrays for outputs, prefixes, and active flags.
+  Correctness, `make macos-check`, and the multi16 oracle stayed intact, but
+  paired confirmation discarded it: `0.975740x`, `0.992597x`, `0.871779x`.
+  Keep reused vectors for this path.
 - `macos-metal-dynamic-jump-walk` added a separate Metal benchmark that derives
   the jump index inside the kernel from the current Jacobian state using the
   same CPU `x/y/z` mixer. It preserves `make macos-check` and has its own
