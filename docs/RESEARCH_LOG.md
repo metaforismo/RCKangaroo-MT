@@ -1446,7 +1446,10 @@ These did not pass the performance gate or had a correctness/architecture issue:
   raw discard at `41,325,489.856177 ops/sec` versus baseline
   `46,336,900.254131` (`0.891848x`), while runs 2 and 3 were raw keeps at
   `1.151186x` and `1.046198x`. Keep the compiler-shaped dp4 loop; a pragma
-  hint is too noisy to promote on this M3 Air.
+  hint is too noisy to promote on this M3 Air. A 2026-06-22 retest after
+  build-once paired probes first looked promising with two raw keeps
+  (`1.244234x`, `1.109164x`), but the stricter three-run confirmation again
+  discarded it (`0.721059x`, `0.656319x`, `0.979125x`). Keep the rejection.
 - `macos-metal-dp4-q-vec4-loads`: changing only the public dp4 kernel's affine
   jump-table argument from scalar `ulong*` indexing to two `ulong4` loads per
   jump preserved the full public oracle, including `distance_checksum`,

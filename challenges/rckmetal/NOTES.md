@@ -1061,6 +1061,11 @@ they are intentionally ignored by git.
   confirmation: run 1 was `0.801763x`, run 2 was a noisy `1.098475x`, and the
   overall gate stayed `discard`. Keep DP14 on the generic runtime-mask
   u32-distance stream kernel.
+- `macos-metal-dp4-pragma-unroll-retest` was rejected. Re-adding
+  `#pragma unroll` to the public DP4 loop preserved the public oracle and a
+  two-run paired probe looked positive (`1.244234x`, `1.109164x`), but the
+  stricter three-run confirmation discarded it (`0.721059x`, `0.656319x`,
+  `0.979125x`). Keep the compiler-shaped public DP4 loop.
 
 ## Current Correctness Surface
 
