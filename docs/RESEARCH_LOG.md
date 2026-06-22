@@ -2846,6 +2846,18 @@ These did not pass the performance gate or had a correctness/architecture issue:
   pressure from serializing 1024 dynamic jumps in one thread; keep the generic
   packet chain as the base and pursue persistent-state improvements without
   doubling the per-thread packet body.
+- Rejected follow-up `macos-metal-dp8-xyzz-chain-u32-cumulative`: storing the
+  chain's per-sample cumulative distance state as `uint32_t` while preserving
+  `uint64_t` DP stream distances was correct but much slower. The same
+  `262144 x 512 x 2` command preserved `dp_count=2016`,
+  `dp_distance_checksum=0x7a221c62b92a5ed3`,
+  `dp_checksum=0x23509000c8141686`, and `correctness=true`, but measured only
+  `106,452,461.969635` steps/sec at the default 128-thread cap and
+  `112,562,977.345142` at `--tg-limit 256`, versus the generic `ulong`
+  cumulative baseline at `127,967,260.451385`. As with the rejected u32 jump
+  distance table, the narrower device type appears to worsen the M3 Metal
+  kernel shape more than it saves memory bandwidth; keep the cumulative state
+  as `ulong`.
 
 ## Next Research Targets
 

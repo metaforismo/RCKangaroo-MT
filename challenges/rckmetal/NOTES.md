@@ -1396,6 +1396,13 @@ they are intentionally ignored by git.
   `262144 x 512 x 2` command. Keep the generic two-dispatch chain; the fused
   1024-step thread body appears to cost more occupancy/register pressure than
   it saves in state traffic.
+- Rejected `macos-metal-dp8-xyzz-chain-u32-cumulative`: narrowing only the
+  per-sample cumulative chain distance buffer to `uint32_t` kept the same
+  `dp_count=2016`, `dp_distance_checksum=0x7a221c62b92a5ed3`,
+  `dp_checksum=0x23509000c8141686`, but regressed to
+  `106,452,461.969635` steps/sec at 128 threads and `112,562,977.345142` at
+  `--tg-limit 256`. Keep the cumulative state as `ulong`; the narrower type
+  worsens the M3 kernel shape.
 
 ## Current Correctness Surface
 
