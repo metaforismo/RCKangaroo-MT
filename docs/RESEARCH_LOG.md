@@ -2250,6 +2250,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   confirmation discarded it with candidate median `19,095,076.656232` versus
   baseline `20,268,925.094271` (`paired_speedup=0.942086`,
   `confirmation_status=discard`). Keep DP10 on the shared 256 default.
+- `macos-metal-dynamic-dp6-stream-tg128-default`: rejected changing only the
+  sparse DP6 stream default threadgroup cap from 256 to 128. Manual sweeps
+  made 128 look plausible despite order sensitivity: forward tg64
+  `34,107,852.997397`, tg128 `36,102,616.034815`, tg256
+  `19,761,247.664927`, tg512 `5,075,094.262499`, tg1024
+  `10,690,580.915218`; reverse tg1024 `32,946,087.816687`, tg512
+  `25,425,808.259383`, tg256 `27,995,725.568597`, tg128
+  `36,303,745.785860`, tg64 `22,677,577.871633`. The candidate preserved the
+  DP6 stream oracle (`emitted_records=248`, `output_bytes_total=4960`,
+  `dp_distance_checksum=0xcd602d19c5edfa05`,
+  `dp_checksum=0xb302d085b993018a`, `correctness=true`) and the first paired
+  run kept it at candidate median `23,221,999.015625` versus baseline
+  `20,744,125.284209` (`paired_speedup=1.119449`). Confirmation was unstable:
+  one run discarded candidate median `22,611,569.767587` versus baseline
+  `28,144,092.643342`, while the next kept candidate median
+  `41,127,821.914115` versus baseline `37,804,523.817718`; overall
+  `confirmation_status=discard`. Keep DP6 on the shared 256 default.
 - `macos-metal-dynamic-dp8-stream-tg-sweep-after-no-overflow`: recorded a
   manual explicit `--tg-limit` sweep after accepting the DP8 no-overflow
   branch. No production code changed. The DP8 stream oracle stayed unchanged

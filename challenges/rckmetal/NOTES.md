@@ -996,6 +996,14 @@ they are intentionally ignored by git.
   `dp_distance_checksum=0xb6973c2035ff6351`,
   `dp_checksum=0xcbfdc2badaf0e57a`, `correctness=true`). Keep DP10 on the
   shared 256 default.
+- `macos-metal-dynamic-dp6-stream-tg128-default` was rejected. Explicit sweeps
+  made 128 look plausible for the denser DP6 stream, but paired confirmation
+  was unstable: first run kept at `paired_speedup=1.119449`, confirmation run 1
+  discarded, confirmation run 2 kept, and overall `confirmation_status=discard`.
+  The DP6 oracle stayed unchanged (`emitted_records=248`,
+  `dp_distance_checksum=0xcd602d19c5edfa05`,
+  `dp_checksum=0xb302d085b993018a`, `correctness=true`). Keep DP6 on the
+  shared 256 default.
 - A manual post-DP8-no-overflow `--tg-limit` sweep kept the existing 256
   default. With the accepted DP8 no-overflow kernel and unchanged oracle
   (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,
