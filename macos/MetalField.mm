@@ -1076,6 +1076,15 @@ static void PackAffineTable(const std::vector<CpuAffinePoint>& q,
 static uint64_t ProjectiveDpMask(unsigned int dp_bits);
 static bool IsMetalPowerOfTwo(unsigned int value);
 
+static bool CanAccumulateDistanceU32(const std::vector<uint64_t>& jump_distances, unsigned int steps_per_sample)
+{
+	uint64_t max_jump_distance = 0;
+	for (uint64_t distance : jump_distances)
+		if (distance > max_jump_distance)
+			max_jump_distance = distance;
+	return steps_per_sample == 0 || max_jump_distance <= 0xFFFFFFFFULL / steps_per_sample;
+}
+
 static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 	const std::vector<CpuAffinePoint>& jumps,
 	const std::vector<uint64_t>& jump_distances,
@@ -1644,9 +1653,12 @@ static bool RunJacobianDynamicDpStreamKernel(const std::vector<CpuJacobianPoint>
 		}
 
 		const bool use_stream_dp4_specialization = dp_bits == 4;
+		const bool use_stream_u32_distance = !use_stream_dp4_specialization && CanAccumulateDistanceU32(jump_distances, steps_per_sample);
 		const char* function_name = use_stream_dp4_specialization
 			? "jacobian_affine_walk_dynamic_dp_stream_steps8_dp4_pow2"
-			: "jacobian_affine_walk_dynamic_dp_stream_steps8_pow2_mask";
+			: (use_stream_u32_distance
+				? "jacobian_affine_walk_dynamic_dp_stream_steps8_pow2_mask_u32_distance"
+				: "jacobian_affine_walk_dynamic_dp_stream_steps8_pow2_mask");
 		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{
