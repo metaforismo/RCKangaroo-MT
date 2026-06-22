@@ -2619,6 +2619,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `metal-jacobian-dynamic-dp-stream-xyzz-bench --steps 512 --jumps 16
   --dp-bits 8 --min-ms 200` as the current XYZZ packet plateau while keeping
   `--steps 256` available for direct architecture regression checks.
+- `macos-metal-dp8-xyzz-steps512-tg32`: rejected a runtime-only threadgroup
+  cap change for the accepted XYZZ `steps512` packet. A first sweep made
+  `--tg-limit 32` look promising (`1.037175x` over the inherited 128-thread
+  default), but seven alternating `--min-ms 500` same-binary pairs did not
+  replicate: ratios were `1.002442x`, `0.987582x`, `0.987945x`, `0.992929x`,
+  `1.004826x`, `0.984890x`, and `1.008734x` (median `0.992929x`). Correctness
+  and the XYZZ `steps512` checksums stayed unchanged. Keep the default
+  `threadgroup_limit=128` for XYZZ `steps512` until a broader policy beats the
+  paired gate.
 
 ## Next Research Targets
 

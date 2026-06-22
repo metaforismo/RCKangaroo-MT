@@ -1281,6 +1281,11 @@ they are intentionally ignored by git.
   kept all three confirmations: `1.029474x`, `1.030740x`, and `1.033059x`.
   Command: `./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-bench
   --iterations 16384 --steps 512 --jumps 16 --dp-bits 8 --min-ms 200`.
+- `macos-metal-dp8-xyzz-steps512-tg32` was rejected. A quick cap sweep made
+  `--tg-limit 32` look faster than the accepted 128-thread default, but seven
+  longer alternating same-binary pairs had median `0.992929x` versus 128
+  (`min=0.984890x`, `max=1.008734x`). Correctness and the XYZZ `steps512`
+  checksums stayed unchanged, so leave the default at 128 threads.
 
 ## Current Correctness Surface
 
