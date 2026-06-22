@@ -2182,6 +2182,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   median `40,073,503.015154`, `paired_speedup=0.917252`. Keep the count-only
   `steps` argument even though the DP8 sparse stream kernel benefits from
   removing its unused `steps` argument.
+- `macos-metal-dynamic-dp-count-tg128-default`: rejected changing the default
+  threadgroup cap for the DP8 count-only diagnostic path from 256 to 128. A
+  manual one-pass sweep was suggestive but not decisive: tg64
+  `37,886,894.946852`, tg128 `47,358,509.954244`, tg256
+  `45,933,576.464768`, tg512 `39,650,554.258312`, and tg1024
+  `37,105,598.948840` steps/sec, all with `dp_count=61` and
+  `correctness=true`. The default-128 candidate preserved correctness and the
+  JSON reported `threadgroup_limit=128`, but confirmation was contradictory:
+  initial paired run kept with `42,541,651.351471` versus baseline
+  `41,943,177.109020` (`paired_speedup=1.014269`); confirmation run 1
+  discarded with `36,984,641.449378` versus `41,255,140.214432`
+  (`paired_speedup=0.896486`); confirmation run 2 kept with
+  `56,888,060.463320` versus `42,842,463.991402`
+  (`paired_speedup=1.327843`), but overall `confirmation_status=discard`.
+  Keep the shared default threadgroup cap at 256 for count-only.
 - `macos-metal-dynamic-dp8-stream-tg-sweep-after-no-overflow`: recorded a
   manual explicit `--tg-limit` sweep after accepting the DP8 no-overflow
   branch. No production code changed. The DP8 stream oracle stayed unchanged

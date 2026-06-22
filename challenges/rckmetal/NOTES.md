@@ -961,6 +961,13 @@ they are intentionally ignored by git.
   candidate median `36,757,514.206820` steps/sec versus paired baseline
   `40,073,503.015154`, `paired_speedup=0.917252`. Keep the count-only
   signature unchanged.
+- `macos-metal-dynamic-dp-count-tg128-default` was rejected. A one-pass
+  `--tg-limit` sweep for DP8 count hinted that 128 might beat 256
+  (`47,358,509.954244` versus `45,933,576.464768` steps/sec), but paired
+  confirmation was unstable: initial `paired_speedup=1.014269`, confirmation
+  run 1 `0.896486`, confirmation run 2 `1.327843`, with overall
+  `confirmation_status=discard`. Keep count-only default threadgroup cap at
+  256.
 - A manual post-DP8-no-overflow `--tg-limit` sweep kept the existing 256
   default. With the accepted DP8 no-overflow kernel and unchanged oracle
   (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`,
