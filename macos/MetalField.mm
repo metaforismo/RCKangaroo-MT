@@ -562,6 +562,10 @@ static std::string MetalJacobianDynamicJumpWalkBenchJson(const char* operation,
 	unsigned int steps_per_sample,
 	unsigned int jump_count,
 	const char* jump_index_mode,
+	const char* jump_mixer,
+	uint64_t jump_histogram_min_bucket,
+	uint64_t jump_histogram_max_bucket,
+	uint64_t jump_histogram_max_deviation_ppm,
 	uint64_t distance_checksum,
 	unsigned int dp_bits,
 	unsigned int dp_count,
@@ -582,6 +586,10 @@ static std::string MetalJacobianDynamicJumpWalkBenchJson(const char* operation,
 	oss << "\"steps_per_sample\":" << steps_per_sample << ",";
 	oss << "\"jump_count\":" << jump_count << ",";
 	oss << "\"jump_index\":\"" << jump_index_mode << "\",";
+	oss << "\"jump_mixer\":\"" << jump_mixer << "\",";
+	oss << "\"jump_histogram_min_bucket\":" << jump_histogram_min_bucket << ",";
+	oss << "\"jump_histogram_max_bucket\":" << jump_histogram_max_bucket << ",";
+	oss << "\"jump_histogram_max_deviation_ppm\":" << jump_histogram_max_deviation_ppm << ",";
 	oss << "\"distance_tracking\":\"uint64\",";
 	oss << "\"distance_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << distance_checksum << std::dec << std::setfill(' ') << "\",";
 	oss << "\"dp_tracking\":\"projective_x_limb0\",";
@@ -1644,6 +1652,8 @@ static const char* MetalJumpIndexMode(unsigned int jump_count)
 	return IsMetalPowerOfTwo(jump_count) ? "power2_mask" : "modulo";
 }
 
+static constexpr const char* kDynamicJumpMixerName = "avalanche64";
+
 static unsigned int NormalizeMetalDpBits(unsigned int dp_bits)
 {
 	return dp_bits > 32 ? 32 : dp_bits;
@@ -1706,16 +1716,64 @@ static uint32_t CpuJacobianJumpIndex(const CpuJacobianPoint& p, unsigned int jum
 	return (uint32_t)(mixed % jump_count);
 }
 
+static uint64_t JumpHistogramTotal(const std::vector<uint64_t>& jump_histogram)
+{
+	uint64_t total = 0;
+	for (uint64_t bucket : jump_histogram)
+		total += bucket;
+	return total;
+}
+
+static uint64_t JumpHistogramMinBucket(const std::vector<uint64_t>& jump_histogram)
+{
+	if (jump_histogram.empty())
+		return 0;
+	uint64_t min_bucket = jump_histogram[0];
+	for (uint64_t bucket : jump_histogram)
+		if (bucket < min_bucket)
+			min_bucket = bucket;
+	return min_bucket;
+}
+
+static uint64_t JumpHistogramMaxBucket(const std::vector<uint64_t>& jump_histogram)
+{
+	uint64_t max_bucket = 0;
+	for (uint64_t bucket : jump_histogram)
+		if (bucket > max_bucket)
+			max_bucket = bucket;
+	return max_bucket;
+}
+
+static uint64_t JumpHistogramMaxDeviationPpm(const std::vector<uint64_t>& jump_histogram)
+{
+	uint64_t total = JumpHistogramTotal(jump_histogram);
+	if (jump_histogram.empty() || total == 0)
+		return 0;
+	uint64_t bucket_count = (uint64_t)jump_histogram.size();
+	uint64_t max_scaled_delta = 0;
+	for (uint64_t bucket : jump_histogram)
+	{
+		uint64_t scaled = bucket * bucket_count;
+		uint64_t delta = scaled > total ? scaled - total : total - scaled;
+		if (delta > max_scaled_delta)
+			max_scaled_delta = delta;
+	}
+	return (max_scaled_delta * 1000000ULL + (total / 2ULL)) / total;
+}
+
 static CpuJacobianPoint CpuJacobianDynamicJumpWalk(CpuJacobianPoint p,
 	const std::vector<CpuAffinePoint>& jumps,
 	const std::vector<uint64_t>& jump_distances,
 	unsigned int steps_per_sample,
-	uint64_t* distance_out)
+	uint64_t* distance_out,
+	std::vector<uint64_t>* jump_histogram = NULL)
 {
 	uint64_t distance = 0;
 	for (unsigned int step = 0; step < steps_per_sample; ++step)
 	{
 		uint32_t jump_index = CpuJacobianJumpIndex(p, (unsigned int)jumps.size());
+		if (jump_histogram && jump_index < jump_histogram->size())
+			(*jump_histogram)[jump_index]++;
 		distance += jump_distances[jump_index];
 		p = CpuJacobianAddAffine(p, jumps[jump_index]);
 	}
@@ -2108,8 +2166,8 @@ std::string RCKMetalJacobianDynamicWalkBenchJson(unsigned int iterations, unsign
 		if (!RunJacobianDynamicJumpWalkKernel(p, jumps, jump_distances, steps_per_sample, out, out_distances, out_dp_flags, dp_bits, error, &dispatch_seconds, threadgroup_limit, &dispatch_stats))
 		{
 			if (error == "no Metal device available")
-				return MetalJacobianDynamicJumpWalkBenchJson("jacobian_affine_walk_dynamic_jump_table", 0, sample_count, steps_per_sample, jump_count, jump_index_mode, 0, dp_bits, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, false, true, error);
-			return MetalJacobianDynamicJumpWalkBenchJson("jacobian_affine_walk_dynamic_jump_table", operations ? operations : (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, jump_index_mode, 0, dp_bits, 0, 0, min_ms, dispatch_stats, seconds, 0.0, false, false, error);
+				return MetalJacobianDynamicJumpWalkBenchJson("jacobian_affine_walk_dynamic_jump_table", 0, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, 0, dp_bits, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, false, true, error);
+			return MetalJacobianDynamicJumpWalkBenchJson("jacobian_affine_walk_dynamic_jump_table", operations ? operations : (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, 0, dp_bits, 0, 0, min_ms, dispatch_stats, seconds, 0.0, false, false, error);
 		}
 		seconds += dispatch_seconds;
 		operations += (uint64_t)sample_count * steps_per_sample;
@@ -2118,10 +2176,11 @@ std::string RCKMetalJacobianDynamicWalkBenchJson(unsigned int iterations, unsign
 			break;
 	} while (min_ms && (seconds * 1000.0 < (double)min_ms) && (dispatch_count < 100000));
 
+	std::vector<uint64_t> jump_histogram(jump_count, 0);
 	for (unsigned int i = 0; i < sample_count; ++i)
 	{
 		uint64_t expected_distance = 0;
-		CpuJacobianPoint expected = CpuJacobianDynamicJumpWalk(p[i], jumps, jump_distances, steps_per_sample, &expected_distance);
+		CpuJacobianPoint expected = CpuJacobianDynamicJumpWalk(p[i], jumps, jump_distances, steps_per_sample, &expected_distance, &jump_histogram);
 		uint32_t expected_dp_flag = ProjectiveDpFlag(expected, dp_bits);
 		if (!CpuJacobianMatches(out[i], expected) || out_distances[i] != expected_distance || out_dp_flags[i] != expected_dp_flag)
 		{
@@ -2132,7 +2191,7 @@ std::string RCKMetalJacobianDynamicWalkBenchJson(unsigned int iterations, unsign
 				" dp=" + std::to_string(out_dp_flags[i]) +
 				" expected x=" + FieldToHex(expected.x) + " y=" + FieldToHex(expected.y) +
 				" z=" + FieldToHex(expected.z) + " inf=" + (expected.infinity ? "1" : "0");
-			return MetalJacobianDynamicJumpWalkBenchJson("jacobian_affine_walk_dynamic_jump_table", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, 0, dp_bits, 0, 0, min_ms, dispatch_stats, seconds, 0.0, false, false, reason);
+			return MetalJacobianDynamicJumpWalkBenchJson("jacobian_affine_walk_dynamic_jump_table", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, 0, dp_bits, 0, 0, min_ms, dispatch_stats, seconds, 0.0, false, false, reason);
 		}
 		distance_checksum = MixDistanceChecksum(distance_checksum, out_distances[i], i);
 		dp_count += out_dp_flags[i] ? 1U : 0U;
@@ -2140,7 +2199,10 @@ std::string RCKMetalJacobianDynamicWalkBenchJson(unsigned int iterations, unsign
 	}
 
 	double ops_per_sec = seconds > 0.0 ? (double)operations / seconds : 0.0;
-	return MetalJacobianDynamicJumpWalkBenchJson("jacobian_affine_walk_dynamic_jump_table", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, distance_checksum, dp_bits, dp_count, dp_checksum, min_ms, dispatch_stats, seconds, ops_per_sec, true, false, "");
+	uint64_t jump_histogram_min_bucket = JumpHistogramMinBucket(jump_histogram);
+	uint64_t jump_histogram_max_bucket = JumpHistogramMaxBucket(jump_histogram);
+	uint64_t jump_histogram_max_deviation_ppm = JumpHistogramMaxDeviationPpm(jump_histogram);
+	return MetalJacobianDynamicJumpWalkBenchJson("jacobian_affine_walk_dynamic_jump_table", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_histogram_min_bucket, jump_histogram_max_bucket, jump_histogram_max_deviation_ppm, distance_checksum, dp_bits, dp_count, dp_checksum, min_ms, dispatch_stats, seconds, ops_per_sec, true, false, "");
 }
 
 static std::string RunMetalFieldBenchJson(const char* operation,

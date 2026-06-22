@@ -22,9 +22,9 @@ if [ "$status" -ne 0 ]; then
 fi
 
 case "$output" in
-	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_jump_table\""*"\"sample_count\":8"*"\"steps_per_sample\":4"*"\"jump_count\":8"*"\"jump_index\":\"power2_mask\""*"\"distance_tracking\":\"uint64\""*"\"dp_tracking\":\"projective_x_limb0\""*"\"dp_bits\":4"*"\"dp_count\":"*"\"dp_checksum\":\"0x"*"\"correctness\":true"*)
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_jump_table\""*"\"sample_count\":8"*"\"steps_per_sample\":4"*"\"jump_count\":8"*"\"jump_index\":\"power2_mask\""*"\"jump_mixer\":\"avalanche64\""*"\"jump_histogram_max_deviation_ppm\":"*"\"distance_tracking\":\"uint64\""*"\"dp_tracking\":\"projective_x_limb0\""*"\"dp_bits\":4"*"\"dp_count\":"*"\"dp_checksum\":\"0x"*"\"correctness\":true"*)
 		;;
-	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_jump_table\""*"\"sample_count\":8"*"\"steps_per_sample\":4"*"\"jump_count\":8"*"\"jump_index\":\"power2_mask\""*"\"distance_tracking\":\"uint64\""*"\"dp_tracking\":\"projective_x_limb0\""*"\"dp_bits\":4"*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_jump_table\""*"\"sample_count\":8"*"\"steps_per_sample\":4"*"\"jump_count\":8"*"\"jump_index\":\"power2_mask\""*"\"jump_mixer\":\"avalanche64\""*"\"jump_histogram_max_deviation_ppm\":"*"\"distance_tracking\":\"uint64\""*"\"dp_tracking\":\"projective_x_limb0\""*"\"dp_bits\":4"*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
 		;;
 	*)
 		printf '%s\n' "unexpected metal-jacobian-dynamic-walk-bench power2 output"
@@ -42,7 +42,7 @@ if [ "$status" -ne 0 ]; then
 fi
 
 case "$output" in
-	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_jump_table\""*"\"sample_count\":8"*"\"steps_per_sample\":4"*"\"jump_count\":5"*"\"jump_index\":\"modulo\""*"\"distance_tracking\":\"uint64\""*"\"correctness\":"*"\"skipped\":"*)
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_jump_table\""*"\"sample_count\":8"*"\"steps_per_sample\":4"*"\"jump_count\":5"*"\"jump_index\":\"modulo\""*"\"jump_mixer\":\"avalanche64\""*"\"jump_histogram_max_deviation_ppm\":"*"\"distance_tracking\":\"uint64\""*"\"correctness\":"*"\"skipped\":"*)
 		;;
 	*)
 		printf '%s\n' "unexpected metal-jacobian-dynamic-walk-bench modulo output"

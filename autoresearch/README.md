@@ -196,6 +196,19 @@ python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk_dp_steps4 -
 
 This uses the same oracle surface as `metal_jacobian_jump_walk_dp`, but changes the benchmark shape to `--steps 4`. Use it for candidates that specialize shorter walk batches without changing the primary Benchforge `steps=8` score path.
 
+Run the dynamic in-kernel jump-selection Metal experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_walk_dp_stable --budget-sec 10 --paired-baseline-ref main --confirm-runs 3
+```
+
+This records `metal` `jacobian_affine_walk_dynamic_jump_table` throughput with
+the jump index derived inside the Metal kernel from the current Jacobian state.
+The JSON reports `jump_mixer`, `jump_histogram_min_bucket`,
+`jump_histogram_max_bucket`, and `jump_histogram_max_deviation_ppm` alongside
+the distance and projective-DP checksums, so future partition-function changes
+must preserve correctness and expose distribution quality before promotion.
+
 Run the CPU field multiplication experiment:
 
 ```sh

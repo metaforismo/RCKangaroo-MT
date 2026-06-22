@@ -683,6 +683,14 @@ they are intentionally ignored by git.
 - `metal_jacobian_dynamic_walk_dp_stable` now exists as a stable autoresearch
   gate for the dynamic Metal walk. Use it for future in-kernel jump-selection
   experiments after the target exists on both candidate and baseline refs.
+- `macos-metal-dynamic-jump-quality-metrics` kept the current dynamic
+  `avalanche64` mixer and added permanent benchmark JSON fields for
+  `jump_mixer`, `jump_histogram_min_bucket`, `jump_histogram_max_bucket`, and
+  `jump_histogram_max_deviation_ppm`. The stable-shape smoke run preserved the
+  dynamic oracle (`distance_checksum=0x5c36c706ffa2cbaa`, `dp_count=1017`,
+  `dp_checksum=0xbfd3b2319760e774`) and reported `min=8082`, `max=8336`,
+  `max_deviation_ppm=17578`, so future mixer attempts have a distribution
+  quality surface in addition to speed and checksum correctness.
 
 ## Current Correctness Surface
 

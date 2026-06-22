@@ -1696,6 +1696,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `macos-metal-jacobian-dynamic-walk-stable-bench` target so future dynamic
   Metal candidates can use the same three-sample autoresearch discipline as
   the public precomputed DP gate.
+- `macos-metal-dynamic-jump-quality-metrics`: promoted the useful oracle
+  surface from the rejected limbfold experiment without changing the dynamic
+  jump algorithm or measured Metal kernel. Dynamic benchmark JSON now reports
+  `jump_mixer=avalanche64`, `jump_histogram_min_bucket`,
+  `jump_histogram_max_bucket`, and `jump_histogram_max_deviation_ppm` from the
+  CPU replay oracle. `make macos-check` stayed intact and the stable-shape
+  smoke run preserved the existing dynamic oracle
+  (`distance_checksum=0x5c36c706ffa2cbaa`, `dp_count=1017`,
+  `dp_checksum=0xbfd3b2319760e774`) while reporting histogram quality
+  (`min=8082`, `max=8336`, `max_deviation_ppm=17578`). Future lightweight
+  mixers now have to expose partition quality as well as speed.
 
 ## Next Research Targets
 

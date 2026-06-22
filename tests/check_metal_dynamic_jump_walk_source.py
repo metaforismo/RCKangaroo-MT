@@ -138,9 +138,14 @@ required_host_markers = (
     "dynamic_p_infinity.push_back(p_infinity_value ? 1U : 0U);",
     "CpuJacobianDynamicJumpWalk",
     "CpuJacobianJumpIndex",
+    "kDynamicJumpMixerName",
+    "JumpHistogramMaxDeviationPpm",
+    "jump_histogram",
     "RCKMetalJacobianDynamicWalkSelfTest",
     "RCKMetalJacobianDynamicWalkBenchJson",
     "\\\"jump_index\\\":\\\"",
+    "\\\"jump_mixer\\\":\\\"",
+    "\\\"jump_histogram_max_deviation_ppm\\\":",
 )
 for marker in required_host_markers:
     if marker not in host_source:
