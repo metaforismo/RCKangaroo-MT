@@ -179,6 +179,94 @@ assert command_calls == [
 ]
 assert command_metrics["ops_per_sec"] == 123.0
 
+build_once_calls: list[tuple[Path, list[str]]] = []
+build_once_ops = [101.0, 103.0, 105.0]
+
+
+def fake_build_once_runner(args: list[str], timeout: int, cwd: Path = runner.ROOT) -> subprocess.CompletedProcess[str]:
+    build_once_calls.append((cwd, args))
+    if args == ["make", "macos-build"]:
+        return subprocess.CompletedProcess(args, 0, stdout="built once\n")
+    if args == ["./macos/rck_macos", "fake-bench"]:
+        ops = build_once_ops.pop(0)
+        payload = dict(metrics, ops_per_sec=ops, iterations=int(ops))
+        return subprocess.CompletedProcess(args, 0, stdout=f"{runner.json.dumps(payload)}\n")
+    raise AssertionError(f"unexpected build-once command: {args!r}")
+
+
+runner.run_command = fake_build_once_runner
+try:
+    with contextlib.redirect_stdout(io.StringIO()):
+        build_once_metrics = runner.run_experiment_samples(
+            dict(
+                experiment,
+                build_target="macos-build",
+                bench_command=["./macos/rck_macos", "fake-bench"],
+                sample_runs=3,
+            ),
+            timeout=10,
+            cwd=candidate_cwd,
+        )
+finally:
+    runner.run_command = original_run_command
+
+assert build_once_calls == [
+    (candidate_cwd, ["make", "macos-build"]),
+    (candidate_cwd, ["./macos/rck_macos", "fake-bench"]),
+    (candidate_cwd, ["./macos/rck_macos", "fake-bench"]),
+    (candidate_cwd, ["./macos/rck_macos", "fake-bench"]),
+]
+assert build_once_metrics["ops_per_sec"] == 103.0
+
+paired_build_once_calls: list[tuple[Path, list[str]]] = []
+paired_build_once_ops = {
+    "baseline": [90.0, 100.0, 110.0],
+    "candidate": [95.0, 105.0, 115.0],
+}
+
+
+def fake_paired_build_once_runner(args: list[str], timeout: int, cwd: Path = runner.ROOT) -> subprocess.CompletedProcess[str]:
+    paired_build_once_calls.append((cwd, args))
+    if args == ["make", "macos-build"]:
+        return subprocess.CompletedProcess(args, 0, stdout="paired built once\n")
+    if args == ["./macos/rck_macos", "fake-bench"]:
+        label = "baseline" if cwd == baseline_cwd else "candidate"
+        ops = paired_build_once_ops[label].pop(0)
+        payload = dict(metrics, ops_per_sec=ops, iterations=int(ops))
+        return subprocess.CompletedProcess(args, 0, stdout=f"{runner.json.dumps(payload)}\n")
+    raise AssertionError(f"unexpected paired build-once command: {args!r}")
+
+
+runner.run_command = fake_paired_build_once_runner
+try:
+    with contextlib.redirect_stdout(io.StringIO()):
+        paired_build_baseline_metrics, paired_build_candidate_metrics = runner.run_paired_experiment_samples(
+            dict(
+                experiment,
+                build_target="macos-build",
+                bench_command=["./macos/rck_macos", "fake-bench"],
+                sample_runs=3,
+            ),
+            timeout=10,
+            baseline_cwd=baseline_cwd,
+            candidate_cwd=candidate_cwd,
+        )
+finally:
+    runner.run_command = original_run_command
+
+assert paired_build_once_calls == [
+    (baseline_cwd, ["make", "macos-build"]),
+    (candidate_cwd, ["make", "macos-build"]),
+    (baseline_cwd, ["./macos/rck_macos", "fake-bench"]),
+    (candidate_cwd, ["./macos/rck_macos", "fake-bench"]),
+    (baseline_cwd, ["./macos/rck_macos", "fake-bench"]),
+    (candidate_cwd, ["./macos/rck_macos", "fake-bench"]),
+    (baseline_cwd, ["./macos/rck_macos", "fake-bench"]),
+    (candidate_cwd, ["./macos/rck_macos", "fake-bench"]),
+]
+assert paired_build_baseline_metrics["ops_per_sec"] == 100.0
+assert paired_build_candidate_metrics["ops_per_sec"] == 105.0
+
 confirmation_rows = [
     runner.build_benchmark_row(
         experiment=experiment,

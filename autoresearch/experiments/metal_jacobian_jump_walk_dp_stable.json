@@ -1,7 +1,21 @@
 {
   "name": "metal_jacobian_jump_walk_dp_stable",
   "description": "Stable Metal Jacobian jump-table walk with projective distinguished-point candidate flags",
-  "bench_target": "macos-metal-jacobian-jump-walk-dp-stable-bench",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "metal-jacobian-jump-walk-bench",
+    "--iterations",
+    "16384",
+    "--steps",
+    "8",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "4",
+    "--min-ms",
+    "200"
+  ],
   "min_improvement_ratio": 0.01,
   "sample_runs": 3
 }

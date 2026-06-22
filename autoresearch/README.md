@@ -22,10 +22,10 @@ With `--paired-baseline-ref`, the runner creates a temporary detached worktree f
 
 Experiments usually name a Make target with `bench_target`. For parameterized
 probes that should not grow the Makefile, an experiment may instead set
-`build_target` plus `bench_command`; the runner builds once per sample with
-`make <build_target>`, then runs the explicit command and parses its final JSON
-line. Paired runs execute the same command in both the baseline and candidate
-worktrees.
+`build_target` plus `bench_command`; the runner builds once per sample set with
+`make <build_target>`, then runs the explicit command for each sample and parses
+its final JSON line. Paired runs build each side once, then alternate the same
+benchmark command in the baseline and candidate worktrees.
 
 For especially noisy Metal candidates, require repeated full decisions before a keep can enter the ledger:
 

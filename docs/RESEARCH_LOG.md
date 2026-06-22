@@ -55,6 +55,14 @@ GPU work should use Metal.
   candidates.
 - Seeded stable baseline at `90697f5`: median `40,350,062.636594 ops/sec`,
   `status=keep`, `runner_sample_count=3`, public checksum/DP oracle preserved.
+- Command-backed autoresearch probes now build once per sample set. Paired
+  runs build the baseline and candidate worktrees once each, then alternate
+  benchmark commands. This does not change any solver math or oracle; it reduces
+  phony Make rebuild time, heat, and scheduling noise before the measured Metal
+  dispatches.
+- Converted the public stable DP gate to `build_target=macos-build` plus an
+  explicit `bench_command`, so future stable paired runs use the build-once
+  path without adding one-off Make targets.
 
 ### Metal Dispatch Size Tuning
 

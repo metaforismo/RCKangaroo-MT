@@ -23,8 +23,24 @@ def main() -> int:
         failures.append(f"{stable_path.relative_to(ROOT)} missing stable Metal DP gate")
     else:
         stable = json.loads(stable_path.read_text(encoding="utf-8"))
-        if stable.get("bench_target") != "macos-metal-jacobian-jump-walk-dp-stable-bench":
-            failures.append(f"{stable_path.relative_to(ROOT)} bench_target should use the stable Metal DP make target")
+        expected_command = [
+            "./macos/rck_macos",
+            "metal-jacobian-jump-walk-bench",
+            "--iterations",
+            "16384",
+            "--steps",
+            "8",
+            "--jumps",
+            "16",
+            "--dp-bits",
+            "4",
+            "--min-ms",
+            "200",
+        ]
+        if stable.get("build_target") != "macos-build":
+            failures.append(f"{stable_path.relative_to(ROOT)} build_target should use macos-build")
+        if stable.get("bench_command") != expected_command:
+            failures.append(f"{stable_path.relative_to(ROOT)} bench_command should run the stable Metal DP CLI")
         if int(stable.get("sample_runs", 0)) < 3:
             failures.append(f"{stable_path.relative_to(ROOT)} sample_runs={stable.get('sample_runs')}, expected >= 3")
 

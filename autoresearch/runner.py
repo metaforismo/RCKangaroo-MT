@@ -238,13 +238,18 @@ def experiment_bench_command(experiment: dict) -> list[str]:
     return command
 
 
-def run_experiment_sample(experiment: dict, timeout: int, cwd: Path) -> dict:
+def build_experiment(experiment: dict, timeout: int, cwd: Path) -> None:
     build_target = experiment.get("build_target", "")
     if build_target:
         build = run_command(["make", str(build_target)], timeout=timeout, cwd=cwd)
         print(build.stdout, end="")
         if build.returncode != 0:
             raise RuntimeError(f"build target failed with status {build.returncode}")
+
+
+def run_experiment_sample(experiment: dict, timeout: int, cwd: Path, *, build: bool = True) -> dict:
+    if build:
+        build_experiment(experiment, timeout, cwd)
 
     bench = run_command(experiment_bench_command(experiment), timeout=timeout, cwd=cwd)
     print(bench.stdout, end="")
@@ -257,10 +262,11 @@ def run_experiment_sample(experiment: dict, timeout: int, cwd: Path) -> dict:
 def run_experiment_samples(experiment: dict, timeout: int, cwd: Path) -> dict:
     sample_runs = max(1, int(experiment.get("sample_runs", 1)))
     metric_samples: list[dict] = []
+    build_experiment(experiment, timeout, cwd)
     for sample_index in range(sample_runs):
         if sample_runs > 1:
             print(f"sample {sample_index + 1}/{sample_runs}:")
-        metric_samples.append(run_experiment_sample(experiment, timeout, cwd))
+        metric_samples.append(run_experiment_sample(experiment, timeout, cwd, build=False))
 
     return aggregate_metric_samples(metric_samples)
 
@@ -269,13 +275,15 @@ def run_paired_experiment_samples(experiment: dict, timeout: int, baseline_cwd: 
     sample_runs = max(1, int(experiment.get("sample_runs", 1)))
     baseline_samples: list[dict] = []
     candidate_samples: list[dict] = []
+    build_experiment(experiment, timeout, baseline_cwd)
+    build_experiment(experiment, timeout, candidate_cwd)
     for sample_index in range(sample_runs):
         if sample_runs > 1:
             print(f"paired sample {sample_index + 1}/{sample_runs} baseline:")
-        baseline_samples.append(run_experiment_sample(experiment, timeout, baseline_cwd))
+        baseline_samples.append(run_experiment_sample(experiment, timeout, baseline_cwd, build=False))
         if sample_runs > 1:
             print(f"paired sample {sample_index + 1}/{sample_runs} candidate:")
-        candidate_samples.append(run_experiment_sample(experiment, timeout, candidate_cwd))
+        candidate_samples.append(run_experiment_sample(experiment, timeout, candidate_cwd, build=False))
 
     return aggregate_metric_samples(baseline_samples), aggregate_metric_samples(candidate_samples)
 
