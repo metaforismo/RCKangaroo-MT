@@ -1158,6 +1158,18 @@ they are intentionally ignored by git.
   measured `1.013988x` median over five `--min-ms 200` pairs plus `1.022074x`
   median over five `--min-ms 500` pairs. Treat it as a valid packet-size
   option but recognize that the packet-size ladder is close to a local plateau.
+- `macos-metal-dp8-inplace-steps256` was accepted as the next plateau probe. It
+  preserves the sparse-stream/final-state CPU oracle and recorded
+  `emitted_records=57`, `dp_distance_checksum=0x0ab81bcdffe988ca`,
+  `dp_checksum=0xbb961e8e4fffeeb0`, `correctness=true`,
+  `output_bytes_total=1140`, and a jump histogram range of `261599..262582`
+  with `jump_histogram_max_deviation_ppm=2079`. Autoresearch kept three
+  confirmation groups and ended at `89,960,529.450509` steps/sec. Alternating
+  same-binary comparison against `steps128` stayed positive at `1.054086x`
+  median over five `--min-ms 200` pairs and `1.058103x` median over three
+  `--min-ms 500` pairs. The raw final median is slightly below the previous
+  `steps128` autoresearch row, so treat `steps256` as a valid packet-size
+  option and plateau datapoint, with DP sampling only at the packet boundary.
 
 ## Current Correctness Surface
 

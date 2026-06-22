@@ -325,6 +325,20 @@ Use it as a plateau probe for the packet-size ladder. It preserves the CPU
 oracle for the 128-step sparse DP stream and final state, but it samples DP
 candidates only at the packet boundary.
 
+Run the 256-step in-place DP8 sparse stream packet experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_inplace_steps256 --budget-sec 10
+```
+
+This records the same in-place DP8 stream architecture with `--steps 256`.
+Use it as a plateau probe and persistent-walk packet option. It preserves the
+CPU oracle for the 256-step sparse DP stream and final state, but it samples
+DP candidates only at the packet boundary. Same-binary local comparisons beat
+the 128-step packet, while raw autoresearch medians are close enough that this
+should be treated as packet tuning evidence rather than a guaranteed fastest
+default.
+
 Run the command-backed DP6 sparse stream experiment:
 
 ```sh

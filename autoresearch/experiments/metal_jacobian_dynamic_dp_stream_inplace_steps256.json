@@ -1,0 +1,21 @@
+{
+  "name": "metal_jacobian_dynamic_dp_stream_inplace_steps256",
+  "description": "Metal in-place dynamic Jacobian DP8 stream with 256-step state packets",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-inplace-bench",
+    "--iterations",
+    "16384",
+    "--steps",
+    "256",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--min-ms",
+    "200"
+  ],
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3
+}

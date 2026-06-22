@@ -136,6 +136,18 @@ GPU work should use Metal.
   over five `--min-ms 500` pairs. This is a valid packet-size option, but the
   gain over `steps64` is modest; further packet increases should be treated as
   plateau probes, not assumed wins.
+- Added `metal_jacobian_dynamic_dp_stream_inplace_steps256`, continuing the
+  packet-size ladder as a plateau probe with the same packet-boundary DP
+  semantics. Autoresearch kept three confirmation groups with
+  `correctness=true`, `emitted_records=57`,
+  `dp_distance_checksum=0x0ab81bcdffe988ca`,
+  `dp_checksum=0xbb961e8e4fffeeb0`, and final median
+  `89,960,529.450509` steps/sec. Same-binary comparison against `steps128`
+  measured `1.054086x` median over five `--min-ms 200` pairs and `1.058103x`
+  median over three `--min-ms 500` pairs. Because the raw autoresearch median
+  sits slightly below the noisy `steps128` median, treat `steps256` as an
+  accepted packet-size option and evidence of the plateau, not as an
+  unconditional new fastest default.
 
 ### Metal Dispatch Size Tuning
 

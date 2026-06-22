@@ -8,7 +8,7 @@ header_source = Path("macos/MetalField.h").read_text()
 cli_source = Path("macos/rck_macos.cpp").read_text()
 makefile = Path("Makefile").read_text()
 
-packet_steps = (8, 16, 32, 64, 128)
+packet_steps = (8, 16, 32, 64, 128, 256)
 kernel_bodies = {}
 for steps in packet_steps:
     kernel_name = f"jacobian_affine_walk_dynamic_dp_stream_inplace_steps{steps}_dp8_pow2_u32_distance"
@@ -63,6 +63,7 @@ required_host_markers = (
     "\"jacobian_affine_walk_dynamic_dp_stream_inplace_steps32_dp8_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_inplace_steps64_dp8_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_inplace_steps128_dp8_pow2_u32_distance\"",
+    "\"jacobian_affine_walk_dynamic_dp_stream_inplace_steps256_dp8_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_inplace\"",
     "ValidateDynamicStateOutputs",
 )
@@ -99,6 +100,8 @@ for marker in (
     "macos-metal-jacobian-dynamic-dp-stream-inplace-steps64-stable-bench",
     "macos-metal-jacobian-dynamic-dp-stream-inplace-steps128-bench",
     "macos-metal-jacobian-dynamic-dp-stream-inplace-steps128-stable-bench",
+    "macos-metal-jacobian-dynamic-dp-stream-inplace-steps256-bench",
+    "macos-metal-jacobian-dynamic-dp-stream-inplace-steps256-stable-bench",
 ):
     if marker not in makefile:
         raise SystemExit("missing in-place DP8 stream Makefile marker: " + marker)
@@ -122,5 +125,9 @@ if not steps64_experiment.exists():
 steps128_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_inplace_steps128.json")
 if not steps128_experiment.exists():
     raise SystemExit("missing in-place DP8 stream steps128 autoresearch experiment")
+
+steps256_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_inplace_steps256.json")
+if not steps256_experiment.exists():
+    raise SystemExit("missing in-place DP8 stream steps256 autoresearch experiment")
 
 print("metal dynamic dp stream in-place source ok")
