@@ -1129,6 +1129,17 @@ they are intentionally ignored by git.
   `--min-ms 500` run stayed positive at `1.087669x` median but included one
   negative pair. Use it as a packet-size/throughput option, not as an
   every-intermediate-step DP checker.
+- `macos-metal-dp8-inplace-steps32` was accepted as the next packet-size probe.
+  It runs 32 dynamic Jacobian jumps per thread before state store and DP
+  emission, preserving the sparse-stream and final-state CPU oracle. Three
+  autoresearch confirmation groups kept it at median `78,549,463.782889`
+  steps/sec with `emitted_records=61`,
+  `dp_distance_checksum=0xa31eaba41f549318`,
+  `dp_checksum=0x751402be27e58082`, `correctness=true`. Same-binary
+  comparison against `steps16` measured `1.080838x` median over five
+  `--min-ms 200` pairs and `1.475099x` median over three `--min-ms 500` pairs.
+  It is the fastest local in-place DP8 packet so far, with DP sampling only at
+  the packet boundary.
 
 ## Current Correctness Surface
 

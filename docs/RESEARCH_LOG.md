@@ -105,6 +105,17 @@ GPU work should use Metal.
   pair. Treat `steps16` as a longer packet-size option for persistent walks; it
   checks the DP predicate at the packet boundary, not at every intermediate
   step.
+- Added `metal_jacobian_dynamic_dp_stream_inplace_steps32`, extending the same
+  state-preserving packet idea to 32 dynamic jumps per Metal thread. The CPU
+  oracle verifies the 32-step DP stream and final state. Three autoresearch
+  confirmation groups kept the candidate at median `78,549,463.782889`
+  steps/sec, `correctness=true`, `emitted_records=61`,
+  `dp_distance_checksum=0xa31eaba41f549318`, and
+  `dp_checksum=0x751402be27e58082`. Alternating comparison against the accepted
+  `steps16` packet measured `1.080838x` median speedup over five `--min-ms
+  200` pairs and `1.475099x` median over three `--min-ms 500` pairs. Treat
+  `steps32` as the faster local packet-size option so far, with the same
+  packet-boundary DP sampling semantics as `steps16`.
 
 ### Metal Dispatch Size Tuning
 

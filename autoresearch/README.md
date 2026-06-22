@@ -288,6 +288,19 @@ final state. Use this gate when testing persistent walks or packet-size tuning;
 it samples the DP predicate at the 16-step packet boundary, not at each
 intermediate step.
 
+Run the 32-step in-place DP8 sparse stream packet experiment:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_inplace_steps32 --budget-sec 10
+```
+
+This records the same in-place DP8 stream architecture with `--steps 32`.
+It is the larger packet-size gate for persistent-walk tuning: the kernel
+performs 32 dynamic Jacobian jumps per thread before storing state and checking
+the DP predicate. The CPU oracle validates the 32-step DP stream and final
+state. Use it when comparing packet sizes; it does not observe intermediate DP
+states inside the packet.
+
 Run the command-backed DP6 sparse stream experiment:
 
 ```sh
