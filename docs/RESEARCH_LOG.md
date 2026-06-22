@@ -1797,6 +1797,18 @@ These did not pass the performance gate or had a correctness/architecture issue:
   are visible at DP8, but the wide spread still says the arithmetic walk and
   local Metal scheduling dominate; do not treat count-only as a replacement for
   stream emission.
+- `macos-metal-dynamic-dp-count-first-inf`: rejected a count-only specialization
+  for the benchmark sample shape where only `p[0]` starts at infinity. The
+  prototype guarded the specialized kernel behind a host-side
+  `HasOnlyFirstInfinity(p)` check and used finite mixed-add for all other lanes,
+  while keeping the generic count kernel as fallback. Source and CLI smoke
+  checks passed, and direct DP8 probing preserved `correctness=true` with
+  `dp_count=61`, but clean autoresearch discarded the candidate: median
+  `41,917,696.770121` steps/sec across three samples
+  (`min=39,051,687.094501`, `max=59,087,644.282271`) versus the existing
+  count-only DP8 baseline median `53,546,106.476522`. Do not promote this
+  specialization; the first-infinity branch is not the next useful bottleneck
+  on the local M3 profile.
 
 ## Next Research Targets
 

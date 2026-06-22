@@ -735,6 +735,13 @@ they are intentionally ignored by git.
   median `39,287,501.787886` steps/sec with the full stream oracle
   (`emitted_records=61`, `dp_checksum=0xab1c2cd29cd70a84`). Treat this as a
   diagnostic for record-write overhead, not as a candidate-emission path.
+- `macos-metal-dynamic-dp-count-first-inf` was rejected. It specialized the
+  count-only DP8 kernel for the benchmark shape where only `p[0]` starts at
+  infinity and used finite mixed-add for all other lanes. Source and CLI smoke
+  checks passed, but clean autoresearch discarded it: median
+  `41,917,696.770121` steps/sec (`min=39,051,687.094501`,
+  `max=59,087,644.282271`) versus the count-only DP8 baseline median
+  `53,546,106.476522`, with `dp_count=61`. Do not promote this specialization.
 
 ## Current Correctness Surface
 
