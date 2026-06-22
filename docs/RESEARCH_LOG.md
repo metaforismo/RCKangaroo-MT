@@ -2778,6 +2778,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `jump_histogram_max_deviation_ppm=553`, and `correctness=true`; Metal
   throughput remained a normal kernel measurement (`seconds=2.157509`,
   `ops_per_sec=124,419,135.327658`).
+- Rejected follow-up `macos-metal-dp8-xyzz-sparse-oracle`: replacing the fused
+  oracle's dense per-sample DP arrays with sparse expected/output DP records
+  preserved correctness (`dp_count=1976`,
+  `dp_distance_checksum=0x7325bd945494b7be`,
+  `dp_checksum=0x390f891179fdcbea`, `correctness=true`), but regressed the
+  same large-batch command from `9.57s` wall-clock and
+  `validation_seconds=7.298625` to `11.89s` wall-clock and
+  `validation_seconds=9.597125`. The sort/vector overhead outweighed the lower
+  dense-array memory footprint for DP8, so keep the fused dense validation
+  layout as the base.
 
 ## Next Research Targets
 

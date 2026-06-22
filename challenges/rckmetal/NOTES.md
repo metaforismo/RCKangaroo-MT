@@ -1355,6 +1355,12 @@ they are intentionally ignored by git.
   replay pass. The same large-batch command dropped to `9.57s` wall-clock with
   `validation_seconds=7.298625` and identical DP count/checksums, an `8.51x`
   improvement over the original serial oracle.
+- Rejected `macos-metal-dp8-xyzz-sparse-oracle`: sparse expected/output DP
+  records kept the same large-batch correctness values (`dp_count=1976`,
+  `dp_distance_checksum=0x7325bd945494b7be`,
+  `dp_checksum=0x390f891179fdcbea`), but regressed wall-clock to `11.89s` and
+  `validation_seconds` to `9.597125`. Keep the fused dense per-sample oracle
+  layout; its linear arrays beat sparse vectors plus sorting for DP8.
 
 ## Current Correctness Surface
 
