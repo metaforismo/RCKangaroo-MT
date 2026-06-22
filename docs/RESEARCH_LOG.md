@@ -1774,6 +1774,12 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `37,013,170.931979` steps/sec across three stable samples
   (`min=36,486,346.807153`, `max=61,356,369.208598`), with
   `output_bytes_total=1220`, `emitted_records=61`, and no stream overflow.
+  Post-merge direct probes on the same shape showed why higher `dp_bits` needs
+  repeated sampling before optimization claims: DP12 emitted only `3` records
+  (`60` logical output bytes) but measured `30.911M` steps/sec, while DP16
+  emitted `0` records and measured `60.199M` steps/sec. The oracle stayed
+  correct in both cases, but the spread points to dispatch/scheduler noise and
+  arithmetic-walk cost once atomic pressure is mostly gone.
 
 ## Next Research Targets
 
