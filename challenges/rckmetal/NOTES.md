@@ -1203,6 +1203,17 @@ they are intentionally ignored by git.
   `dp_checksum=0xbb961e8e4fffeeb0`, `correctness=true`): final candidate
   `98,057,706.925364` versus baseline `91,099,934.341126` steps/sec
   (`paired_speedup=1.076375`, `threadgroup_limit=128`).
+- `macos-metal-dp8-inplace-steps16-tg160` was rejected. It tried a narrower
+  policy change that defaulted only the `steps16` in-place DP8 packet to
+  `threadgroup_limit=160`, keeping all other packet sizes unchanged. The
+  oracle stayed intact (`emitted_records=67`,
+  `dp_distance_checksum=0x68fbd251ce4fd08e`,
+  `dp_checksum=0xdd7021cb96f924c0`, `correctness=true`), but paired
+  autoresearch confirmation discarded it. The first two confirmation medians
+  regressed at about `0.820x` and `0.734x`; only the final group kept the
+  candidate at `67,980,915.994864` versus baseline `62,417,739.448993`
+  steps/sec (`paired_speedup=1.089128`). Keep the accepted `steps16+` default
+  at 128 threads.
 
 ## Current Correctness Surface
 

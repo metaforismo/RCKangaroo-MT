@@ -2530,6 +2530,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `91,969,442.817225` steps/sec (`paired_speedup=0.973303`). Keep the 64-bit
   distance table; this buffer is too small/cached to justify the changed
   kernel shape.
+- `macos-metal-dp8-inplace-steps16-tg160`: rejected defaulting only the
+  `steps16` in-place DP8 packet to `threadgroup_limit=160`. The candidate
+  preserved the `steps16` sparse-stream oracle (`emitted_records=67`,
+  `dp_distance_checksum=0x68fbd251ce4fd08e`,
+  `dp_checksum=0xdd7021cb96f924c0`, `correctness=true`), but paired
+  autoresearch confirmation discarded it. The first two confirmation groups
+  regressed at roughly `0.820x` and `0.734x`; the third group was positive at
+  candidate `67,980,915.994864` versus baseline `62,417,739.448993` steps/sec
+  (`paired_speedup=1.089128`) but did not satisfy the all-confirmations keep
+  policy. Keep the accepted in-place DP8 packet default at 128 threads for
+  `steps16+`.
 
 ## Next Research Targets
 
