@@ -2809,13 +2809,38 @@ These did not pass the performance gate or had a correctness/architecture issue:
   fused-oracle reference of `validation_seconds=7.298625` and `9.57s`
   wall-clock. Keep the current straight-line dense writes; the branch does not
   pay for itself at DP8.
+- `macos-metal-dp8-xyzz-chain-cumulative`: accepted as a solver-facing
+  architecture probe, not as a replacement for the single-packet throughput
+  baseline. It adds a separate
+  `metal-jacobian-dynamic-dp-stream-xyzz-chain-bench` command and separate
+  Metal kernels that keep `X,Y,ZZ,ZZZ`, infinity flags, and a per-sample
+  cumulative distance buffer resident across multiple packet dispatches inside
+  one command buffer. DP records use `packet_sample_u32` stream indexing and
+  report `distance_tracking=dp_stream_cumulative_uint64`, so repeated DPs from
+  the same walker at different packet boundaries remain distinguishable and
+  carry the total scalar distance. The CPU oracle replays every packet boundary,
+  validates the final XYZZ state, checks duplicate/missing/non-DP stream
+  records, and mixes checksums over the packet/sample key space. Manual
+  sequential large-batch comparison on M3: the accepted single-packet
+  `524288 x 512` command measured `128,772,847.144853` steps/sec with
+  `validation_seconds=9.005047`; the chain `262144 x 512 x 2` command measured
+  `127,143,171.998521` steps/sec with `validation_seconds=8.819867`,
+  `dp_count=2016`, `dp_distance_checksum=0x7a221c62b92a5ed3`,
+  `dp_checksum=0x23509000c8141686`, and `correctness=true`. A larger
+  `524288 x 512 x 2` chain run measured `128,817,519.152652` steps/sec with
+  `dp_count=4033`. The autoresearch gate
+  `metal_jacobian_dynamic_dp_stream_xyzz_chain_steps512` was kept as the first
+  row for this new operation, but the long three-sample runner was thermally
+  noisy (`52,054,794.687903` median steps/sec); treat it as a reproducibility
+  row for the cumulative-distance operation, not as a peak-throughput record.
 
 ## Next Research Targets
 
 - Move from isolated field kernels toward Jacobian point kernels on Metal.
-- Explore chaining XYZZ packets into solver-facing GPU walks, including affine
-  recovery/collision verification from `X,Y,ZZ,ZZZ` without reintroducing a
-  per-step `Z` dependency.
+- Build on the accepted XYZZ chain probe: reduce cumulative-distance overhead,
+  tune packet count versus walker count, and explore affine recovery/collision
+  verification from `X,Y,ZZ,ZZZ` without reintroducing a per-step `Z`
+  dependency.
 - Keep CPU tiny-range kangaroo as the correctness oracle while GPU kernels are
   introduced one layer at a time.
 - Prefer fused kernels only when paired benchmarks show a real win. The fused

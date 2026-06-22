@@ -121,6 +121,9 @@ make macos-metal-jacobian-dynamic-dp-stream-inplace-steps32-stable-bench
 make macos-metal-jacobian-dynamic-dp-stream-inplace-steps64-stable-bench
 make macos-metal-jacobian-dynamic-dp-stream-inplace-steps128-stable-bench
 make macos-metal-jacobian-dynamic-dp-stream-inplace-steps256-stable-bench
+make macos-metal-jacobian-dynamic-dp-stream-xyzz-steps256-stable-bench
+make macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-stable-bench
+make macos-metal-jacobian-dynamic-dp-stream-xyzz-chain-steps512-bench
 make macos-metal-jacobian-dynamic-dp-count-dp8-stable-bench
 make macos-metal-kernels-check
 ```
@@ -130,6 +133,10 @@ I kernel field usano quattro limb little-endian da 64 bit modulo il primo secp25
 `jacobian_affine_walk_dynamic_jump_table` e' un'architettura Metal separata che calcola l'indice di salto kangaroo dentro il kernel dallo stato Jacobian corrente, usando lo stesso mixer `x/y/z` del percorso kangaroo CPU. Supporta sia mask power-of-two sia modulo, traccia distanza a 64 bit e candidati DP projective, e ha una specializzazione `steps=8`, `dp_bits=4` con flag infinito packed e accesso struct-row alla tabella dei jump. Questo percorso e' piu' vicino a un vero walk kangaroo GPU rispetto al benchmark sintetico con indici precomputati, ma viene riportato separatamente e non e' usato per il public score path DP precomputato.
 Per jump count power-of-two, il percorso dinamico `steps=8`, `dp_bits=4` usa una specializzazione branchless con `jump_mask`. I jump count non power-of-two restano sul kernel dinamico generico, così il comportamento modulo resta coperto dallo stesso oracle CPU.
 Il percorso DP8 stream in-place ha anche specializzazioni packet `steps=16`, `steps=32`, `steps=64`, `steps=128` e `steps=256`. Eseguono piu' salti dinamici per thread, salvano lo stato Jacobian aggiornato nel buffer di input, e validano sia lo stream DP sparso sia lo stato finale contro replay CPU. Queste modalita' sono utili per tuning di packet in walk GPU persistenti perche' ammortizzano load/store dello stato su piu' operazioni di gruppo; controllano il predicato DP solo al confine del packet. Il packet a 256 step e' un probe del plateau: i confronti paired locali battono 128 step, ma le mediane autoresearch grezze restano abbastanza vicine da richiedere una scelta deliberata della dimensione packet invece di assumere che il packet piu' grande sia sempre il piu' veloce. I packet DP8 in-place con `steps=16` o superiore usano di default un cap a 128 thread su M3 perche' i test paired hanno battuto il cap condiviso a 256 thread; `steps=8` mantiene il default condiviso, e un `--tg-limit N` esplicito continua a prevalere su entrambi.
+
+`jacobian_affine_walk_dynamic_dp_stream_xyzz` e' un'architettura DP8 packet separata che conserva lo stato come `X,Y,ZZ,ZZZ` invece di `X,Y,Z`. Aggiorna `ZZ` e `ZZZ` direttamente nella formula mixed-add, evitando di ricomputare `Z^2` e `Z^3` a ogni passo, e valida sia lo stream DP sparso sia lo stato finale XYZZ contro un oracle CPU XYZZ. Poiche' lo stato non conserva piu' `Z`, il mixer di salto usa la stessa struttura avalanche con `ZZ0` al posto di `Z0`; l'operazione e' riportata separatamente dal packet Jacobian in-place. Il kernel a 256 step e' la baseline del sistema di coordinate, mentre autoresearch paired su M3 ha mantenuto la specializzazione a 512 step come plateau XYZZ corrente.
+
+`jacobian_affine_walk_dynamic_dp_stream_xyzz_chain` estende il packet XYZZ in un probe piu' vicino a un solver con distanza cumulativa. Mantiene `X,Y,ZZ,ZZZ`, flag infinity e un buffer distanza per campione residenti attraverso piu' dispatch packet nello stesso command buffer Metal. Il JSON runtime riporta `packet_count`, `distance_tracking=dp_stream_cumulative_uint64` e `stream_indexing=packet_sample_u32`; cosi' uno stesso walker puo' emettere piu' DP ai confini packet senza confondere record di packet diversi. L'oracle host riproduce ogni confine packet, valida lo stato finale XYZZ, e controlla conteggio stream sparso, duplicati, DP mancanti, distanze e termini DP. E' un probe architetturale per walk GPU persistenti, non un sostituto della baseline throughput XYZZ single-packet.
 
 `jacobian_affine_walk_dynamic_dp_compact` e' un benchmark solo dinamico per `steps=8`, `dp_bits=4` e jump count power-of-two, pensato per la futura emissione GPU dei distinguished point. Usa lo stesso mixer di salto dentro il kernel e lo stesso oracle CPU replay del walk dinamico completo, ma emette solo flag packed, distanza scalare a 64 bit e un termine checksum DP compatto invece di copiare lo stato Jacobian finale da 96 byte. Il JSON runtime lo marca come `output_layout=dp_compact` e `output_bytes_per_sample=17`; il walk dinamico completo resta l'oracle esatto dello stato finale e il riferimento per la verifica delle collisioni.
 
@@ -153,6 +160,7 @@ Comandi esempio per sweep threadgroup:
 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 8 --min-ms 200 --tg-limit 256
 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 12 --min-ms 200
 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 12 --min-ms 200 --tg-limit 256
+./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations 262144 --steps 512 --packets 2 --jumps 16 --dp-bits 8 --min-ms 500
 ./macos/rck_macos metal-jacobian-dynamic-dp-count-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 8 --min-ms 200 --tg-limit 256
 ```
 

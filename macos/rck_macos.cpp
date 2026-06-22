@@ -60,6 +60,7 @@ static void PrintUsage()
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-inplace-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-test\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N]\n");
+	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations N [--steps N] [--packets N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-count-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N]\n");
 }
 
@@ -142,6 +143,17 @@ static bool ReadMetalJumpWalkBenchOptions(int argc, char* argv[], unsigned int* 
 	if (ReadOption(argc, argv, "--jumps", &jumps_s) && !ParseU32(jumps_s, jumps))
 		return false;
 	if (ReadOption(argc, argv, "--dp-bits", &dp_bits_s) && !ParseU32(dp_bits_s, dp_bits))
+		return false;
+	return true;
+}
+
+static bool ReadMetalJumpWalkChainBenchOptions(int argc, char* argv[], unsigned int* iterations, unsigned int* steps, unsigned int* packets, unsigned int* jumps, unsigned int* dp_bits, unsigned int* min_ms, unsigned int* threadgroup_limit)
+{
+	const char* packets_s = NULL;
+	*packets = 2;
+	if (!ReadMetalJumpWalkBenchOptions(argc, argv, iterations, steps, jumps, dp_bits, min_ms, threadgroup_limit))
+		return false;
+	if (ReadOption(argc, argv, "--packets", &packets_s) && !ParseU32(packets_s, packets))
 		return false;
 	return true;
 }
@@ -1050,6 +1062,7 @@ int main(int argc, char* argv[])
 	}
 	else if (strcmp(argv[1], "metal-jacobian-dynamic-dp-stream-xyzz-bench") == 0)
 	{
+		const char* steps_s = NULL;
 		unsigned int iterations = 1024;
 		unsigned int steps = 256;
 		unsigned int jumps = 16;
@@ -1062,7 +1075,29 @@ int main(int argc, char* argv[])
 			DeInitEc();
 			return 1;
 		}
+		if (!ReadOption(argc, argv, "--steps", &steps_s))
+			steps = 256;
 		printf("%s\n", RCKMetalJacobianDynamicDpStreamXyzzBenchJson(iterations, steps, jumps, min_ms, threadgroup_limit, dp_bits).c_str());
+	}
+	else if (strcmp(argv[1], "metal-jacobian-dynamic-dp-stream-xyzz-chain-bench") == 0)
+	{
+		const char* steps_s = NULL;
+		unsigned int iterations = 1024;
+		unsigned int steps = 256;
+		unsigned int packets = 2;
+		unsigned int jumps = 16;
+		unsigned int dp_bits = 8;
+		unsigned int min_ms = 0;
+		unsigned int threadgroup_limit = 0;
+		if (!ReadMetalJumpWalkChainBenchOptions(argc, argv, &iterations, &steps, &packets, &jumps, &dp_bits, &min_ms, &threadgroup_limit))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (!ReadOption(argc, argv, "--steps", &steps_s))
+			steps = 256;
+		printf("%s\n", RCKMetalJacobianDynamicDpStreamXyzzChainBenchJson(iterations, steps, packets, jumps, min_ms, threadgroup_limit, dp_bits).c_str());
 	}
 	else if (strcmp(argv[1], "metal-jacobian-dynamic-dp-count-bench") == 0)
 	{

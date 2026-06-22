@@ -19,6 +19,7 @@ Questo fork mantiene single-target, benchmark e tames del progetto originale, e 
 - Metadati target per ogni distinguished point, cosi' la collisione risolta viene verificata contro il target corretto.
 - Oracle CPU macOS per tiny-range, test di correttezza e benchmark locali.
 - Backend Metal smoke e microkernel field-add/field-sub/field-double/field-mul4/field-neg/field-mul/field-square per verificare il runtime Apple Silicon.
+- Probe sperimentali Metal su Apple Silicon per walk Jacobian/XYZZ, inclusi stream DP sparsi e benchmark chain XYZZ multi-packet con distanza cumulativa.
 - Runner autoresearch per esperimenti con gate fissi e risultati misurabili.
 - Benchforge Metal Lab per note locali, submission riproducibili, verifier JSON e leaderboard statiche del track macOS/Metal.
 
@@ -34,7 +35,7 @@ Apple Silicon/macOS non puo eseguire kernel CUDA sulla GPU Apple. Questa repo or
 |---|---|---|
 | CUDA | Solver completo | Motore kangaroo CUDA originale con aggiunte multi-target. |
 | macOS CPU | Funzionante | Oracle tiny-range, test secp256k1, benchmark baseline e microbenchmark `field_mul_mod_p`. |
-| macOS Metal | Backend walk sperimentale | Compila ed esegue smoke Metal, microkernel field, kernel Jacobian walk, probe dynamic DP stream e benchmark DP8 sparse-emission quando un device Metal e' visibile. |
+| macOS Metal | Backend walk sperimentale | Compila ed esegue smoke Metal, microkernel field, kernel Jacobian walk, probe dynamic DP stream, walk packet XYZZ e benchmark chain multi-packet cumulativi quando un device Metal e' visibile. |
 | Autoresearch | Funzionante | Esegue check e benchmark con gate fissi e registra righe keep/discard. |
 | Benchforge | Funzionante | Loop challenge locale per benchmark Metal, note, submission, verifier JSON e export leaderboard statico. |
 
@@ -144,6 +145,8 @@ python3 autoresearch/runner.py --experiment metal_field_double --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_mul4 --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_neg --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_square --budget-sec 5
+./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations 262144 --steps 512 --packets 2 --jumps 16 --dp-bits 8 --min-ms 500
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_chain_steps512 --budget-sec 120
 ```
 
 Dettagli:

@@ -123,6 +123,7 @@ make macos-metal-jacobian-dynamic-dp-stream-inplace-steps128-stable-bench
 make macos-metal-jacobian-dynamic-dp-stream-inplace-steps256-stable-bench
 make macos-metal-jacobian-dynamic-dp-stream-xyzz-steps256-stable-bench
 make macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-stable-bench
+make macos-metal-jacobian-dynamic-dp-stream-xyzz-chain-steps512-bench
 make macos-metal-jacobian-dynamic-dp-count-dp8-stable-bench
 make macos-metal-kernels-check
 ```
@@ -134,6 +135,8 @@ For power-of-two jump counts, the dynamic `steps=8`, `dp_bits=4` path uses a bra
 The in-place DP8 stream path also has `steps=16`, `steps=32`, `steps=64`, `steps=128`, and `steps=256` packet specializations. They perform more dynamic jumps per thread, store the updated Jacobian state back to the input buffer, and validate the sparse DP stream plus final state against CPU replay. These modes are useful for persistent GPU-walk packet tuning because they amortize state load/store traffic over more group operations; they check the DP predicate only at the packet boundary. The 256-step packet is a plateau probe: local paired comparisons beat 128 steps, but raw autoresearch medians remain close enough that callers should choose the packet size deliberately instead of assuming the largest packet is always fastest. In-place DP8 packet sizes `steps=16` and larger default to a 128-thread cap on M3 because paired testing beat the shared 256-thread cap; `steps=8` keeps the shared default, and explicit `--tg-limit N` still overrides both.
 
 `jacobian_affine_walk_dynamic_dp_stream_xyzz` is a separate DP8 packet architecture that stores state as `X,Y,ZZ,ZZZ` instead of `X,Y,Z`. It updates `ZZ` and `ZZZ` directly in the mixed-add formula, avoiding a per-step recomputation of `Z^2` and `Z^3`, and validates both the sparse DP stream and final XYZZ state against a CPU XYZZ replay oracle. Because the state no longer stores `Z`, the jump mixer uses the same avalanche structure with `ZZ0` in place of `Z0`; the operation is reported separately from the Jacobian in-place packet. The 256-step kernel is the coordinate-system baseline, and paired autoresearch on M3 kept the 512-step specialization as the current XYZZ packet plateau. Run it with `metal-jacobian-dynamic-dp-stream-xyzz-bench --steps 512 --jumps 16 --dp-bits 8` for the promoted plateau, or `--steps 256` for direct comparison with the original XYZZ packet.
+
+`jacobian_affine_walk_dynamic_dp_stream_xyzz_chain` extends the XYZZ packet path into a solver-facing cumulative-distance probe. It keeps `X,Y,ZZ,ZZZ`, infinity flags, and a per-sample distance buffer resident across multiple packet dispatches in one Metal command buffer. Runtime JSON reports `packet_count`, `distance_tracking=dp_stream_cumulative_uint64`, and `stream_indexing=packet_sample_u32`; this lets one walker emit multiple boundary DPs without confusing records from different packets. The host oracle replays every packet boundary, validates final XYZZ state, and checks sparse stream count, duplicates, missing DPs, distances, and DP terms. This is an architecture probe for persistent GPU walks, not a replacement for the single-packet XYZZ throughput baseline.
 
 `jacobian_affine_walk_dynamic_dp_compact` is a dynamic-only `steps=8`, `dp_bits=4`, power-of-two jump-count benchmark for future GPU-side distinguished-point emission. It uses the same in-kernel jump mixer and CPU replay oracle as the full dynamic walk, but emits only packed flags, 64-bit scalar distance, and a compact DP checksum term instead of copying the final 96-byte Jacobian state. Runtime JSON marks this as `output_layout=dp_compact` and `output_bytes_per_sample=17`; the full dynamic walk remains the exact final-state oracle and collision-verification reference.
 
@@ -157,6 +160,7 @@ Example threadgroup sweep commands:
 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 8 --min-ms 200 --tg-limit 256
 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 12 --min-ms 200
 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 12 --min-ms 200 --tg-limit 256
+./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations 262144 --steps 512 --packets 2 --jumps 16 --dp-bits 8 --min-ms 500
 ./macos/rck_macos metal-jacobian-dynamic-dp-count-bench --iterations 16384 --steps 8 --jumps 16 --dp-bits 8 --min-ms 200 --tg-limit 256
 ```
 

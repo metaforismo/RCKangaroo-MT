@@ -49,14 +49,21 @@ required_host_markers = (
     "PackJacobianXyzzStateInputs",
     "ValidateDynamicXyzzStateOutputs",
     "ValidateDynamicXyzzDpStreamAndStateOutputs",
+    "ValidateDynamicXyzzChainDpStreamAndStateOutputs",
     "RCKMetalJacobianDynamicDpStreamXyzzSelfTest",
     "RCKMetalJacobianDynamicDpStreamXyzzBenchJson",
+    "RCKMetalJacobianDynamicDpStreamXyzzChainBenchJson",
+    "RunJacobianDynamicDpStreamXyzzChainKernel",
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp8_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_dp8_pow2_u32_distance\"",
+    "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_dp8_pow2_u32_distance\"",
+    "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_dp8_pow2_u32_distance\"",
     "\\\"state_layout\\\":\\\"xyzz\\\"",
+    "\\\"packet_count\\\":",
     "steps_per_sample != 256 && steps_per_sample != 512",
     "CanAccumulateDistanceU32(jump_distances, steps_per_sample)",
     "XYZZ dynamic dp stream packet distance exceeds uint32 accumulator",
+    "dp_stream_cumulative_uint64",
     "ParallelForSamples(p.size()",
     "std::thread::hardware_concurrency()",
     "\\\"validation_seconds\\\"",
@@ -76,6 +83,7 @@ if "ValidateDynamicXyzzDpStreamOutputs(" in xyzz_bench_body or "ValidateDynamicX
 for marker in (
     "RCKMetalJacobianDynamicDpStreamXyzzSelfTest",
     "RCKMetalJacobianDynamicDpStreamXyzzBenchJson",
+    "RCKMetalJacobianDynamicDpStreamXyzzChainBenchJson",
 ):
     if marker not in header_source:
         raise SystemExit("missing XYZZ header marker: " + marker)
@@ -83,8 +91,10 @@ for marker in (
 for marker in (
     "metal-jacobian-dynamic-dp-stream-xyzz-test",
     "metal-jacobian-dynamic-dp-stream-xyzz-bench",
+    "metal-jacobian-dynamic-dp-stream-xyzz-chain-bench",
     "RCKMetalJacobianDynamicDpStreamXyzzSelfTest",
     "RCKMetalJacobianDynamicDpStreamXyzzBenchJson",
+    "RCKMetalJacobianDynamicDpStreamXyzzChainBenchJson",
 ):
     if marker not in cli_source:
         raise SystemExit("missing XYZZ CLI marker: " + marker)
@@ -98,6 +108,7 @@ for marker in (
     "macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-stable-bench",
     "macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-saturated-bench",
     "macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-large-batch-bench",
+    "macos-metal-jacobian-dynamic-dp-stream-xyzz-chain-steps512-bench",
 ):
     if marker not in makefile:
         raise SystemExit("missing XYZZ Makefile marker: " + marker)
@@ -215,5 +226,34 @@ if "paired_baseline_command" in large_batch_payload:
     raise SystemExit("XYZZ steps512 large-batch experiment should not mix packet and batch-size baselines")
 if int(large_batch_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("XYZZ steps512 large-batch experiment should keep sample_runs >= 3")
+
+chain_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_chain_steps512.json")
+if not chain_experiment.exists():
+    raise SystemExit("missing XYZZ chain steps512 autoresearch experiment")
+chain_payload = json.loads(chain_experiment.read_text(encoding="utf-8"))
+expected_chain_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-chain-bench",
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--packets",
+    "2",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--min-ms",
+    "500",
+]
+if chain_payload.get("build_target") != "macos-build":
+    raise SystemExit("XYZZ chain experiment should use macos-build")
+if chain_payload.get("bench_command") != expected_chain_command:
+    raise SystemExit("XYZZ chain experiment should run the cumulative chain CLI")
+if "paired_baseline_command" in chain_payload:
+    raise SystemExit("XYZZ chain experiment should be tracked as a separate cumulative-distance operation")
+if int(chain_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("XYZZ chain experiment should keep sample_runs >= 3")
 
 print("metal dynamic dp stream XYZZ source ok")

@@ -1373,6 +1373,21 @@ they are intentionally ignored by git.
   intact, but validation regressed to `7.984267s` and wall-clock to `10.18s`
   versus the accepted fused reference (`7.298625s`, `9.57s`). Keep the
   straight-line dense expected writes.
+- Accepted `macos-metal-dp8-xyzz-chain-cumulative` as a separate
+  solver-facing probe, not a throughput replacement. The new
+  `metal-jacobian-dynamic-dp-stream-xyzz-chain-bench` keeps XYZZ state and a
+  per-sample cumulative distance buffer resident across multiple packet
+  dispatches in one Metal command buffer, reports
+  `distance_tracking=dp_stream_cumulative_uint64`, and indexes DP records by
+  `packet_sample_u32`. The CPU oracle replays every packet boundary and checks
+  final state plus sparse stream. Manual sequential M3 comparison: single
+  `524288 x 512` measured `128,772,847.144853` steps/sec; chain
+  `262144 x 512 x 2` measured `127,143,171.998521` steps/sec with
+  `dp_count=2016`, `dp_distance_checksum=0x7a221c62b92a5ed3`,
+  `dp_checksum=0x23509000c8141686`, `correctness=true`. Autoresearch kept the
+  first chain row, but its long run was thermally noisy (`52,054,794.687903`
+  median), so use it as a reproducibility marker for the new operation rather
+  than a peak-speed claim.
 
 ## Current Correctness Surface
 

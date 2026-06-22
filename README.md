@@ -19,6 +19,7 @@ This fork keeps the original single-target, benchmark, and tames workflows, and 
 - Per-DP target metadata so solved collisions can be verified against the matching target.
 - macOS CPU oracle for tiny-range correctness checks, local benchmarks, and limb-level field arithmetic.
 - Metal smoke plus secp256k1 field-add, field-sub, field-double, field-mul4, field-neg, field-mul, and field-square microkernel checks for Apple Silicon runtime verification.
+- Experimental Apple Silicon Metal Jacobian/XYZZ walk probes, including sparse DP streams and cumulative multi-packet XYZZ chain benchmarks.
 - Autoresearch runner for fixed-gate optimization experiments.
 - Benchforge Metal Lab for local notes, replayable submissions, verifier JSON, and static leaderboards for the macOS/Metal track.
 
@@ -34,7 +35,7 @@ Apple Silicon/macOS cannot run CUDA kernels on the Apple GPU. This repo now incl
 |---|---|---|
 | CUDA | Full solver | Original RCKangaroo CUDA kangaroo engine with multi-target additions. |
 | macOS CPU | Working | Tiny-range oracle, secp256k1 correctness tests, baseline benchmarks, and `field_mul_mod_p` microbenchmarks. |
-| macOS Metal | Experimental walk backend | Builds and runs Metal smoke, field microkernels, Jacobian walk kernels, dynamic DP stream probes, and DP8 sparse-emission benchmarks when a Metal device is visible. |
+| macOS Metal | Experimental walk backend | Builds and runs Metal smoke, field microkernels, Jacobian walk kernels, dynamic DP stream probes, XYZZ packet walks, and cumulative multi-packet chain benchmarks when a Metal device is visible. |
 | Autoresearch | Working | Runs fixed-gate checks and benchmarks, then logs keep/discard/skip experiment rows. |
 | Benchforge | Working | Local-first challenge loop for Metal benchmarks, notes, submissions, verifier JSON, and static leaderboard export. |
 
@@ -181,6 +182,8 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_compact_dp --
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_dp8 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_count_dp8 --budget-sec 10
+./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations 262144 --steps 512 --packets 2 --jumps 16 --dp-bits 8 --min-ms 500
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_chain_steps512 --budget-sec 120
 ```
 
 The default macOS build enables ThinLTO (`MACOS_LTO_FLAGS=-flto=thin`) so clang can optimize the small Jacobian and field-arithmetic call graph across translation units on Apple Silicon. Disable it for toolchain debugging or generic compile checks with `make macos-check MACOS_LTO_FLAGS=`.
