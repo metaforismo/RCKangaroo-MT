@@ -2734,6 +2734,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   peak-throughput Mac benchmarking. A broader runtime-only threadgroup sweep
   also failed to beat the default 128-thread cap (`tg64` median `0.995565x`,
   `tg96` median `0.982280x`), so leave the cap unchanged.
+- `macos-metal-dp8-xyzz-large-batch`: accepted an optional large-batch
+  throughput probe for the same promoted XYZZ `steps512` kernel at
+  `iterations=524288`. Three alternating pairs against the 262144-state
+  saturated target were all correct and non-regressing: `1.017095x`,
+  `1.005806x`, and `1.011536x` (median `1.011536x`, mean `1.011479x`).
+  Candidate median throughput was `124,792,320.056530` steps/sec with
+  `dp_count=1976`, `output_bytes_total=39520`,
+  `jump_histogram_max_deviation_ppm=553`, and `correctness=true`. A single
+  1048576-state scout also stayed correct and reached
+  `125,056,788.093871` steps/sec with `dp_count=3998` and histogram deviation
+  `408 ppm`, but it is not promoted yet because the extra wall-clock validation
+  cost is large and the measured gain over 524288 was marginal. Use
+  `macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-large-batch-bench` for
+  peak-throughput exploration, while keeping the 262144-state saturated target
+  as the standard repeatable Mac gate.
 
 ## Next Research Targets
 

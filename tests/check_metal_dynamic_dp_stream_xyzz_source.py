@@ -85,6 +85,7 @@ for marker in (
     "macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-bench",
     "macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-stable-bench",
     "macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-saturated-bench",
+    "macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-large-batch-bench",
 ):
     if marker not in makefile:
         raise SystemExit("missing XYZZ Makefile marker: " + marker)
@@ -177,5 +178,30 @@ if "paired_baseline_command" in saturated_payload:
     raise SystemExit("XYZZ steps512 saturated experiment should not mix packet and batch-size baselines")
 if int(saturated_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("XYZZ steps512 saturated experiment should keep sample_runs >= 3")
+
+large_batch_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_steps512_large_batch.json")
+if not large_batch_experiment.exists():
+    raise SystemExit("missing XYZZ steps512 large-batch autoresearch experiment")
+large_batch_payload = json.loads(large_batch_experiment.read_text(encoding="utf-8"))
+expected_large_batch_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-bench",
+    "--iterations",
+    "524288",
+    "--steps",
+    "512",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--min-ms",
+    "500",
+]
+if large_batch_payload.get("bench_command") != expected_large_batch_command:
+    raise SystemExit("XYZZ steps512 large-batch experiment should run the 524288-state CLI")
+if "paired_baseline_command" in large_batch_payload:
+    raise SystemExit("XYZZ steps512 large-batch experiment should not mix packet and batch-size baselines")
+if int(large_batch_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("XYZZ steps512 large-batch experiment should keep sample_runs >= 3")
 
 print("metal dynamic dp stream XYZZ source ok")

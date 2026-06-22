@@ -1337,6 +1337,13 @@ they are intentionally ignored by git.
   `steps512@16384` gate for fair packet-size comparisons; at saturated batch
   size, `steps512` versus `steps256` was near parity (median `1.001235x`).
   Extra threadgroup cap sweeps did not beat the default 128-thread cap.
+- `macos-metal-dp8-xyzz-large-batch` was accepted as an optional
+  peak-throughput probe. The 524288-state batch beat the 262144-state saturated
+  gate in three alternating pairs with median `1.011536x` and stayed
+  oracle-clean (`dp_count=1976`, `output_bytes_total=39520`,
+  `max_deviation_ppm=553`, `correctness=true`). A 1048576-state scout reached
+  `125,056,788.093871` steps/sec and stayed correct, but is not promoted yet
+  because the gain over 524288 was small for much slower validation.
 
 ## Current Correctness Surface
 
