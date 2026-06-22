@@ -242,6 +242,18 @@ def experiment_bench_command(experiment: dict, key: str = "bench_command") -> li
     return command
 
 
+def cooldown_seconds(experiment: dict) -> float:
+    return max(0.0, float(experiment.get("cooldown_sec", 0.0) or 0.0))
+
+
+def cooldown_between_samples(experiment: dict, sample_index: int, sample_runs: int) -> None:
+    cooldown = cooldown_seconds(experiment)
+    if cooldown <= 0.0 or sample_index + 1 >= sample_runs:
+        return
+    print(f"cooldown {cooldown:g}s")
+    time.sleep(cooldown)
+
+
 def build_experiment(experiment: dict, timeout: int, cwd: Path) -> None:
     build_target = experiment.get("build_target", "")
     if build_target:
@@ -271,6 +283,7 @@ def run_experiment_samples(experiment: dict, timeout: int, cwd: Path) -> dict:
         if sample_runs > 1:
             print(f"sample {sample_index + 1}/{sample_runs}:")
         metric_samples.append(run_experiment_sample(experiment, timeout, cwd, build=False))
+        cooldown_between_samples(experiment, sample_index, sample_runs)
 
     return aggregate_metric_samples(metric_samples)
 
@@ -289,6 +302,7 @@ def run_paired_experiment_samples(experiment: dict, timeout: int, baseline_cwd: 
         if sample_runs > 1:
             print(f"paired sample {sample_index + 1}/{sample_runs} candidate:")
         candidate_samples.append(run_experiment_sample(experiment, timeout, candidate_cwd, build=False))
+        cooldown_between_samples(experiment, sample_index, sample_runs)
 
     return aggregate_metric_samples(baseline_samples), aggregate_metric_samples(candidate_samples)
 

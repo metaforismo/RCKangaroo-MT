@@ -313,5 +313,7 @@ if persistent_chain_payload.get("paired_baseline_command") != expected_persisten
     raise SystemExit("XYZZ persistent chain experiment should compare against the exact total-packet chain")
 if int(persistent_chain_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("XYZZ persistent chain experiment should keep sample_runs >= 3")
+if float(persistent_chain_payload.get("cooldown_sec", 0.0)) < 10.0:
+    raise SystemExit("XYZZ persistent chain experiment should cool down between paired samples")
 
 print("metal dynamic dp stream XYZZ source ok")

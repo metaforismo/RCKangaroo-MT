@@ -35,5 +35,6 @@
     "0"
   ],
   "min_improvement_ratio": 0.02,
-  "sample_runs": 3
+  "sample_runs": 3,
+  "cooldown_sec": 10
 }

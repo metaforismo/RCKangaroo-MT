@@ -218,6 +218,47 @@ assert build_once_calls == [
 ]
 assert build_once_metrics["ops_per_sec"] == 103.0
 
+cooldown_calls: list[float] = []
+cooldown_command_calls: list[tuple[Path, list[str]]] = []
+cooldown_ops = [101.0, 103.0, 105.0]
+
+
+def fake_cooldown_runner(args: list[str], timeout: int, cwd: Path = runner.ROOT) -> subprocess.CompletedProcess[str]:
+    cooldown_command_calls.append((cwd, args))
+    if args == ["./macos/rck_macos", "fake-bench"]:
+        ops = cooldown_ops.pop(0)
+        payload = dict(metrics, ops_per_sec=ops, iterations=int(ops))
+        return subprocess.CompletedProcess(args, 0, stdout=f"{runner.json.dumps(payload)}\n")
+    raise AssertionError(f"unexpected cooldown command: {args!r}")
+
+
+original_sleep = runner.time.sleep
+runner.run_command = fake_cooldown_runner
+runner.time.sleep = lambda seconds: cooldown_calls.append(seconds)
+try:
+    with contextlib.redirect_stdout(io.StringIO()):
+        cooldown_metrics = runner.run_experiment_samples(
+            dict(
+                experiment,
+                bench_command=["./macos/rck_macos", "fake-bench"],
+                sample_runs=3,
+                cooldown_sec=2.5,
+            ),
+            timeout=10,
+            cwd=candidate_cwd,
+        )
+finally:
+    runner.run_command = original_run_command
+    runner.time.sleep = original_sleep
+
+assert cooldown_command_calls == [
+    (candidate_cwd, ["./macos/rck_macos", "fake-bench"]),
+    (candidate_cwd, ["./macos/rck_macos", "fake-bench"]),
+    (candidate_cwd, ["./macos/rck_macos", "fake-bench"]),
+]
+assert cooldown_calls == [2.5, 2.5]
+assert cooldown_metrics["ops_per_sec"] == 103.0
+
 paired_build_once_calls: list[tuple[Path, list[str]]] = []
 paired_build_once_ops = {
     "baseline": [90.0, 100.0, 110.0],
@@ -266,6 +307,55 @@ assert paired_build_once_calls == [
 ]
 assert paired_build_baseline_metrics["ops_per_sec"] == 100.0
 assert paired_build_candidate_metrics["ops_per_sec"] == 105.0
+
+paired_cooldown_calls: list[float] = []
+paired_cooldown_command_calls: list[tuple[Path, list[str]]] = []
+paired_cooldown_ops = {
+    "baseline": [90.0, 100.0, 110.0],
+    "candidate": [95.0, 105.0, 115.0],
+}
+
+
+def fake_paired_cooldown_runner(args: list[str], timeout: int, cwd: Path = runner.ROOT) -> subprocess.CompletedProcess[str]:
+    paired_cooldown_command_calls.append((cwd, args))
+    if args == ["./macos/rck_macos", "fake-bench"]:
+        label = "baseline" if cwd == baseline_cwd else "candidate"
+        ops = paired_cooldown_ops[label].pop(0)
+        payload = dict(metrics, ops_per_sec=ops, iterations=int(ops))
+        return subprocess.CompletedProcess(args, 0, stdout=f"{runner.json.dumps(payload)}\n")
+    raise AssertionError(f"unexpected paired cooldown command: {args!r}")
+
+
+runner.run_command = fake_paired_cooldown_runner
+runner.time.sleep = lambda seconds: paired_cooldown_calls.append(seconds)
+try:
+    with contextlib.redirect_stdout(io.StringIO()):
+        paired_cooldown_baseline_metrics, paired_cooldown_candidate_metrics = runner.run_paired_experiment_samples(
+            dict(
+                experiment,
+                bench_command=["./macos/rck_macos", "fake-bench"],
+                sample_runs=3,
+                cooldown_sec=7,
+            ),
+            timeout=10,
+            baseline_cwd=baseline_cwd,
+            candidate_cwd=candidate_cwd,
+        )
+finally:
+    runner.run_command = original_run_command
+    runner.time.sleep = original_sleep
+
+assert paired_cooldown_command_calls == [
+    (baseline_cwd, ["./macos/rck_macos", "fake-bench"]),
+    (candidate_cwd, ["./macos/rck_macos", "fake-bench"]),
+    (baseline_cwd, ["./macos/rck_macos", "fake-bench"]),
+    (candidate_cwd, ["./macos/rck_macos", "fake-bench"]),
+    (baseline_cwd, ["./macos/rck_macos", "fake-bench"]),
+    (candidate_cwd, ["./macos/rck_macos", "fake-bench"]),
+]
+assert paired_cooldown_calls == [7.0, 7.0]
+assert paired_cooldown_baseline_metrics["ops_per_sec"] == 100.0
+assert paired_cooldown_candidate_metrics["ops_per_sec"] == 105.0
 
 paired_baseline_command_calls: list[tuple[Path, list[str]]] = []
 paired_baseline_command_ops = {

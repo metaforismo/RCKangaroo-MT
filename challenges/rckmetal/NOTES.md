@@ -178,6 +178,10 @@ they are intentionally ignored by git.
   `dp_checksum=0xb2b3088fcf6ad384`; baseline/candidate real times were
   `0.67s/0.52s` and `0.54s/0.51s`. Persistent XYZZ checksums also stayed fixed,
   but that shape remains CPU-oracle dominated.
+- Autoresearch `cooldown_sec` sleeps between samples and is enabled at 10s for
+  the long XYZZ persistent-chain gate. The normal-first XYZZ experiment showed
+  how quickly immediate repeats can throttle the M3 Air; this knob keeps future
+  paired runs more honest without changing solver code or benchmark JSON.
 - `macos-metal-dynamic-dp4-stream-local-jump-row` applies the same explicit
   affine row reuse to the DP4 sparse stream kernel. Paired autoresearch kept it
   with candidate median `65,061,282.305496 ops/sec` versus paired baseline

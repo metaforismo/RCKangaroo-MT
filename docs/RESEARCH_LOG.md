@@ -60,6 +60,12 @@ GPU work should use Metal.
   whole confirmation series, then alternate benchmark commands. This does not
   change any solver math or oracle; it reduces phony Make rebuild time, heat,
   and scheduling noise before the measured Metal dispatches.
+- Autoresearch experiments now support `cooldown_sec`, sleeping between
+  samples without sleeping after the last sample. The long XYZZ persistent-chain
+  gate sets `cooldown_sec=10` after M3 Air runs showed severe thermal
+  throttling on immediate repeats. This improves reproducibility of future
+  paired decisions and does not affect benchmark commands, JSON oracles, or
+  solver code.
 - Converted the public stable DP gate to `build_target=macos-build` plus an
   explicit `bench_command`, so future stable paired runs use the build-once
   path without adding one-off Make targets.
