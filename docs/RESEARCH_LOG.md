@@ -54,6 +54,40 @@ GPU work should use Metal.
   scout reached `126.2M` steps/sec, but alternating checks against the
   documented `524288` large batch were not robust; a repeat fell to
   `105.8M`. Keep `524288` as the large-batch probe.
+- Rejected promoting a `1048576`-state XYZZ `steps512` peak batch after a fresh
+  direct M3 check. It preserved correctness
+  (`dp_count=3998`, `dp_distance_checksum=0x5e1ab2b8182ac280`,
+  `dp_checksum=0xdc0c6a9f6ce14e9e`, histogram `408 ppm`) and measured
+  `122.1M` steps/sec, but the same build's `524288` large batch measured
+  `121.6M` with roughly half the validation wall time. The `1.0045x` kernel
+  gain is below the promotion threshold; keep `524288`.
+- Rejected a fresh XYZZ `steps512` large-batch threadgroup retune. At
+  `524288` samples, default `threadgroup_limit=128` measured `121.6M`
+  steps/sec with `dp_distance_checksum=0x7325bd945494b7be` and
+  `dp_checksum=0x390f891179fdcbea`; `--tg-limit 256` measured `121.2M`, and
+  `--tg-limit 64` measured `120.8M` with the same oracle. Keep `128`.
+- Rejected a full-threadgroup-only XYZZ `steps512` kernel variant that removed
+  the `id >= count` guard and was selected only when the sample count was an
+  exact multiple of the chosen threadgroup width. Correctness held for both the
+  full batch and a non-multiple fallback (`524288` and `524287` samples), but
+  fullgroups measured `120.6M` and `120.5M` steps/sec while the near-identical
+  fallback measured `121.0M`. The guard is not the bottleneck; keep the single
+  guarded kernel.
+- Rejected promoting intermediate XYZZ `steps512` batch sizes. `655360`
+  samples preserved correctness
+  (`dp_distance_checksum=0x43d27ba89808145e`,
+  `dp_checksum=0x4d4affa22a48e388`) and initially measured `122.3M` steps/sec
+  versus a same-binary `524288` check at `121.9M`, but a repeat fell to
+  `121.3M`; `786432` measured `121.9M`. Keep the established `524288`
+  large-batch gate.
+- Rejected treating smaller jump tables as a solver improvement from raw Metal
+  throughput alone. On the synthetic XYZZ kernel benchmark, `jumps=4` measured
+  `125.4M` steps/sec versus `jumps=16` around `121.9M`, with correctness
+  intact. However the current distances are `1 << i`, so `jumps=4` has a much
+  smaller average scalar advance than `jumps=16`; this is not a fair
+  time-to-solution improvement. The promising follow-up is a small table with a
+  scaled distance/point schedule, validated by a solver oracle, not a raw
+  `steps/sec` promotion.
 - Retested persistent XYZZ schedule `packets x rounds` at total four packets.
   `1 x 4` and `2 x 2` preserved identical DP count/checksums, but timings
   flipped by run order (`2 x 2` then `1 x 4`: `123.6M` vs `125.1M`; reverse:
