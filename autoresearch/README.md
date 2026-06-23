@@ -52,11 +52,12 @@ experiments; it never changes the Metal dispatch timing window or the
 correctness oracle.
 
 Sparse-DP XYZZ probes keep the promoted DP8 packet specialization intact,
-specialize DP12 with a hardcoded mask, and leave DP16 on the runtime
-`ProjectiveDpMask(dp_bits)` path on the same replay oracle:
+specialize DP12/DP16 with hardcoded masks, and leave other DP densities on the
+runtime `ProjectiveDpMask(dp_bits)` path on the same replay oracle:
 
 ```sh
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_dp12_steps512 --budget-sec 10
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_dp16_steps512 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_persistent_chain_dp12_steps512 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_persistent_chain_dp16_steps512 --budget-sec 10
 ```

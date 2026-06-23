@@ -2479,7 +2479,8 @@ static bool RunJacobianDynamicDpStreamXyzzKernel(const std::vector<CpuJacobianPo
 
 		const bool use_xyzz_dp8_specialization = dp_bits == 8;
 		const bool use_xyzz_dp12_specialization = dp_bits == 12;
-		const bool use_xyzz_hardcoded_dp_specialization = use_xyzz_dp8_specialization || use_xyzz_dp12_specialization;
+		const bool use_xyzz_dp16_specialization = dp_bits == 16;
+		const bool use_xyzz_hardcoded_dp_specialization = use_xyzz_dp8_specialization || use_xyzz_dp12_specialization || use_xyzz_dp16_specialization;
 		const char* function_name = use_xyzz_dp8_specialization
 			? (steps_per_sample == 512
 				? "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_dp8_pow2_u32_distance"
@@ -2488,9 +2489,13 @@ static bool RunJacobianDynamicDpStreamXyzzKernel(const std::vector<CpuJacobianPo
 				? (steps_per_sample == 512
 					? "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_dp12_pow2_u32_distance"
 					: "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp12_pow2_u32_distance")
-				: (steps_per_sample == 512
-					? "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_pow2_u32_distance"
-					: "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_pow2_u32_distance"));
+				: (use_xyzz_dp16_specialization
+					? (steps_per_sample == 512
+						? "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_dp16_pow2_u32_distance"
+						: "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp16_pow2_u32_distance")
+					: (steps_per_sample == 512
+						? "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_pow2_u32_distance"
+						: "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_pow2_u32_distance")));
 		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{
@@ -2689,7 +2694,8 @@ static bool RunJacobianDynamicDpStreamXyzzPersistentChainKernel(const std::vecto
 
 		const bool use_xyzz_dp8_specialization = dp_bits == 8;
 		const bool use_xyzz_dp12_specialization = dp_bits == 12;
-		const bool use_xyzz_hardcoded_dp_specialization = use_xyzz_dp8_specialization || use_xyzz_dp12_specialization;
+		const bool use_xyzz_dp16_specialization = dp_bits == 16;
+		const bool use_xyzz_hardcoded_dp_specialization = use_xyzz_dp8_specialization || use_xyzz_dp12_specialization || use_xyzz_dp16_specialization;
 		const char* function_name = use_xyzz_dp8_specialization
 			? (steps_per_sample == 512
 				? "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_dp8_pow2_u32_distance"
@@ -2698,9 +2704,13 @@ static bool RunJacobianDynamicDpStreamXyzzPersistentChainKernel(const std::vecto
 				? (steps_per_sample == 512
 					? "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_dp12_pow2_u32_distance"
 					: "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_dp12_pow2_u32_distance")
-				: (steps_per_sample == 512
-					? "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_pow2_u32_distance"
-					: "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_pow2_u32_distance"));
+				: (use_xyzz_dp16_specialization
+					? (steps_per_sample == 512
+						? "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_dp16_pow2_u32_distance"
+						: "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_dp16_pow2_u32_distance")
+					: (steps_per_sample == 512
+						? "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_pow2_u32_distance"
+						: "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_pow2_u32_distance")));
 		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{

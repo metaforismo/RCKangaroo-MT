@@ -3227,6 +3227,28 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `121,209,250.733544` for `8x1`, both correct and within noise. Keep the
   existing total-packet-four persistent experiments as the base until a paired
   run shows a real advantage.
+- Accepted follow-up `macos-metal-xyzz-dp16-hardcoded-mask`: DP16 now has
+  hardcoded `0xFFFF` XYZZ packet and chain kernels, matching the DP8/DP12
+  specialization pattern while leaving DP10 and other densities on the runtime
+  `ProjectiveDpMask(dp_bits)` path. The change removes the runtime DP-mask
+  buffer from very sparse DP16 table-pressure probes without changing the walk
+  mixer, distance accounting, DP term, or replay oracle. A fresh detached
+  worktree at `df4bc51` measured the runtime-mask persistent-chain baseline
+  with three correct samples and median `122,318,871.862145` steps/sec
+  (`min=122,231,092.631304`, `max=122,955,909.345437`), preserving
+  `dp_count=10`, `dp_distance_checksum=0xb1c940ae7864db0e`, and
+  `dp_checksum=0xeb0822497a41aca2`. The hardcoded DP16 candidate measured
+  `123,705,825.479850` steps/sec with the same checksums
+  (`min=123,113,230.120760`, `max=123,863,512.501802`), a local paired lift of
+  about `1.13%` on the solver-facing `131072 x 512 x 4` persistent-chain gate.
+  A same-shape packet smoke preserved `dp_count=3`,
+  `dp_distance_checksum=0xfb58c604140b6d33`, and
+  `dp_checksum=0x7a3ee32278528fba`; treat the packet result as coverage, not a
+  separate speed claim until the new DP16 packet autoresearch experiment is run
+  on a clean commit. A small DP16 threadgroup sweep was deliberately not
+  promoted: `tg=256` helped a single packet in one run, while `tg=64` helped
+  persistent-chain and `tg=256` hurt it, so the shared 128-thread long-step
+  default remains the safer base.
 
 ## Next Research Targets
 
