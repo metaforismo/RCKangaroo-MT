@@ -3198,6 +3198,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   kept `metal_jacobian_dynamic_dp_stream_xyzz_persistent_chain_dp12_steps512`
   with three correct samples and median `123,851,132.746183` steps/sec
   (`min=123,076,360.919518`, `max=124,366,353.036694`).
+- Accepted follow-up `macos-metal-xyzz-dp12-hardcoded-mask`: DP12 now has
+  hardcoded `0xFFF` XYZZ packet and chain kernels, while DP10/DP16 and other
+  non-DP8/DP12 shapes stay on the runtime `ProjectiveDpMask(dp_bits)` path.
+  This preserves the DP8 fast path and the generic sparse-mask capability, but
+  removes the runtime DP-mask buffer from the solver-useful DP12 shape. The
+  single-packet `262144 x 512` DP12 probe preserved
+  `dp_count=69`, `dp_distance_checksum=0x7d3a2fdc136996be`, and
+  `dp_checksum=0x86abc2c890e57c88`, improving from the previous runtime-mask
+  measurement of `113,783,621.442092` steps/sec to
+  `122,945,894.692246` steps/sec. The persistent-chain `131072 x 512 x 4`
+  DP12 probe remained in the same plateau, measuring
+  `123,570,962.092489` steps/sec with `dp_count=132`,
+  `dp_distance_checksum=0xe885b9216531a8b2`, and
+  `dp_checksum=0x62d6817b35ede52a`; treat this as neutral for the chain
+  throughput gate, not a new chain speed claim.
 - Rejected follow-up `macos-metal-xyzz-total-packet8-geometry`: increasing
   persistent-chain total packet count from four to eight did not show a stable
   geometry win. A first parallel scout was contaminated and used only for

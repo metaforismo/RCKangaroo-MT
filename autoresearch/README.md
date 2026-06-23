@@ -51,8 +51,9 @@ count used by the replay oracle. By default this follows
 experiments; it never changes the Metal dispatch timing window or the
 correctness oracle.
 
-Runtime-DP XYZZ probes keep the promoted DP8 packet specialization intact while
-measuring sparse `ProjectiveDpMask(dp_bits)` shapes on the same replay oracle:
+Sparse-DP XYZZ probes keep the promoted DP8 packet specialization intact,
+specialize DP12 with a hardcoded mask, and leave DP16 on the runtime
+`ProjectiveDpMask(dp_bits)` path on the same replay oracle:
 
 ```sh
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_dp12_steps512 --budget-sec 10

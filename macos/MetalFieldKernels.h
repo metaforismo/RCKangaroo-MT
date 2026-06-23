@@ -2043,6 +2043,130 @@ kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_pow2_u32_
   }
 }
 
+kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp12_pow2_u32_distance(device ulong* p_xyzz [[buffer(0)]],
+                                                                                        constant AffineJumpValue* q_xy [[buffer(1)]],
+                                                                                        device uchar* p_infinity [[buffer(2)]],
+                                                                                        device atomic_uint* out_dp_count [[buffer(4)]],
+                                                                                        device uint* out_indices [[buffer(5)]],
+                                                                                        constant uint& count [[buffer(6)]],
+                                                                                        constant ulong* jump_distances [[buffer(8)]],
+                                                                                        device ulong* out_distances [[buffer(9)]],
+                                                                                        device ulong* out_dp_terms [[buffer(10)]],
+                                                                                        constant uint& jump_mask [[buffer(11)]],
+                                                                                        uint id [[thread_position_in_grid]]) {
+  if (id >= count) return;
+  uint p_base = id << 4;
+  XyzzDistanceValue out = xyzz_walk_pow2_u32_distance(p_xyzz[p_base + 0], p_xyzz[p_base + 1], p_xyzz[p_base + 2], p_xyzz[p_base + 3],
+                                                     p_xyzz[p_base + 4], p_xyzz[p_base + 5], p_xyzz[p_base + 6], p_xyzz[p_base + 7],
+                                                     p_xyzz[p_base + 8], p_xyzz[p_base + 9], p_xyzz[p_base + 10], p_xyzz[p_base + 11],
+                                                     p_xyzz[p_base + 12], p_xyzz[p_base + 13], p_xyzz[p_base + 14], p_xyzz[p_base + 15],
+                                                     p_infinity[id], q_xy, jump_distances, jump_mask, 256);
+  store_xyzz_distance_value(p_xyzz, p_base, out);
+  p_infinity[id] = out.inf ? 1 : 0;
+
+  if (!out.inf && ((out.x0 & 0xFFFUL) == 0)) {
+    uint slot = atomic_fetch_add_explicit(out_dp_count, 1U, memory_order_relaxed);
+    out_indices[slot] = id;
+    out_distances[slot] = (ulong)out.distance;
+    out_dp_terms[slot] = out.x0 ^ (out.y0 << 1) ^ (out.zz0 << 7) ^ (out.zzz0 << 13);
+  }
+}
+
+kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_dp12_pow2_u32_distance(device ulong* p_xyzz [[buffer(0)]],
+                                                                                        constant AffineJumpValue* q_xy [[buffer(1)]],
+                                                                                        device uchar* p_infinity [[buffer(2)]],
+                                                                                        device atomic_uint* out_dp_count [[buffer(4)]],
+                                                                                        device uint* out_indices [[buffer(5)]],
+                                                                                        constant uint& count [[buffer(6)]],
+                                                                                        constant ulong* jump_distances [[buffer(8)]],
+                                                                                        device ulong* out_distances [[buffer(9)]],
+                                                                                        device ulong* out_dp_terms [[buffer(10)]],
+                                                                                        constant uint& jump_mask [[buffer(11)]],
+                                                                                        uint id [[thread_position_in_grid]]) {
+  if (id >= count) return;
+  uint p_base = id << 4;
+  XyzzDistanceValue out = xyzz_walk_pow2_u32_distance(p_xyzz[p_base + 0], p_xyzz[p_base + 1], p_xyzz[p_base + 2], p_xyzz[p_base + 3],
+                                                     p_xyzz[p_base + 4], p_xyzz[p_base + 5], p_xyzz[p_base + 6], p_xyzz[p_base + 7],
+                                                     p_xyzz[p_base + 8], p_xyzz[p_base + 9], p_xyzz[p_base + 10], p_xyzz[p_base + 11],
+                                                     p_xyzz[p_base + 12], p_xyzz[p_base + 13], p_xyzz[p_base + 14], p_xyzz[p_base + 15],
+                                                     p_infinity[id], q_xy, jump_distances, jump_mask, 512);
+  store_xyzz_distance_value(p_xyzz, p_base, out);
+  p_infinity[id] = out.inf ? 1 : 0;
+
+  if (!out.inf && ((out.x0 & 0xFFFUL) == 0)) {
+    uint slot = atomic_fetch_add_explicit(out_dp_count, 1U, memory_order_relaxed);
+    out_indices[slot] = id;
+    out_distances[slot] = (ulong)out.distance;
+    out_dp_terms[slot] = out.x0 ^ (out.y0 << 1) ^ (out.zz0 << 7) ^ (out.zzz0 << 13);
+  }
+}
+
+kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_dp12_pow2_u32_distance(device ulong* p_xyzz [[buffer(0)]],
+                                                                                              constant AffineJumpValue* q_xy [[buffer(1)]],
+                                                                                              device uchar* p_infinity [[buffer(2)]],
+                                                                                              device ulong* cumulative_distances [[buffer(3)]],
+                                                                                              device atomic_uint* out_dp_count [[buffer(4)]],
+                                                                                              device uint* out_indices [[buffer(5)]],
+                                                                                              constant uint& count [[buffer(6)]],
+                                                                                              constant ulong* jump_distances [[buffer(8)]],
+                                                                                              device ulong* out_distances [[buffer(9)]],
+                                                                                              device ulong* out_dp_terms [[buffer(10)]],
+                                                                                              constant uint& jump_mask [[buffer(11)]],
+                                                                                              constant uint& packet_index_base [[buffer(12)]],
+                                                                                              uint id [[thread_position_in_grid]]) {
+  if (id >= count) return;
+  uint p_base = id << 4;
+  XyzzDistanceValue out = xyzz_walk_pow2_u32_distance(p_xyzz[p_base + 0], p_xyzz[p_base + 1], p_xyzz[p_base + 2], p_xyzz[p_base + 3],
+                                                     p_xyzz[p_base + 4], p_xyzz[p_base + 5], p_xyzz[p_base + 6], p_xyzz[p_base + 7],
+                                                     p_xyzz[p_base + 8], p_xyzz[p_base + 9], p_xyzz[p_base + 10], p_xyzz[p_base + 11],
+                                                     p_xyzz[p_base + 12], p_xyzz[p_base + 13], p_xyzz[p_base + 14], p_xyzz[p_base + 15],
+                                                     p_infinity[id], q_xy, jump_distances, jump_mask, 256);
+  store_xyzz_distance_value(p_xyzz, p_base, out);
+  p_infinity[id] = out.inf ? 1 : 0;
+
+  ulong cumulative_distance = cumulative_distances[id] + (ulong)out.distance;
+  cumulative_distances[id] = cumulative_distance;
+  if (!out.inf && ((out.x0 & 0xFFFUL) == 0)) {
+    uint slot = atomic_fetch_add_explicit(out_dp_count, 1U, memory_order_relaxed);
+    out_indices[slot] = packet_index_base + id;
+    out_distances[slot] = cumulative_distance;
+    out_dp_terms[slot] = out.x0 ^ (out.y0 << 1) ^ (out.zz0 << 7) ^ (out.zzz0 << 13);
+  }
+}
+
+kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_dp12_pow2_u32_distance(device ulong* p_xyzz [[buffer(0)]],
+                                                                                              constant AffineJumpValue* q_xy [[buffer(1)]],
+                                                                                              device uchar* p_infinity [[buffer(2)]],
+                                                                                              device ulong* cumulative_distances [[buffer(3)]],
+                                                                                              device atomic_uint* out_dp_count [[buffer(4)]],
+                                                                                              device uint* out_indices [[buffer(5)]],
+                                                                                              constant uint& count [[buffer(6)]],
+                                                                                              constant ulong* jump_distances [[buffer(8)]],
+                                                                                              device ulong* out_distances [[buffer(9)]],
+                                                                                              device ulong* out_dp_terms [[buffer(10)]],
+                                                                                              constant uint& jump_mask [[buffer(11)]],
+                                                                                              constant uint& packet_index_base [[buffer(12)]],
+                                                                                              uint id [[thread_position_in_grid]]) {
+  if (id >= count) return;
+  uint p_base = id << 4;
+  XyzzDistanceValue out = xyzz_walk_pow2_u32_distance(p_xyzz[p_base + 0], p_xyzz[p_base + 1], p_xyzz[p_base + 2], p_xyzz[p_base + 3],
+                                                     p_xyzz[p_base + 4], p_xyzz[p_base + 5], p_xyzz[p_base + 6], p_xyzz[p_base + 7],
+                                                     p_xyzz[p_base + 8], p_xyzz[p_base + 9], p_xyzz[p_base + 10], p_xyzz[p_base + 11],
+                                                     p_xyzz[p_base + 12], p_xyzz[p_base + 13], p_xyzz[p_base + 14], p_xyzz[p_base + 15],
+                                                     p_infinity[id], q_xy, jump_distances, jump_mask, 512);
+  store_xyzz_distance_value(p_xyzz, p_base, out);
+  p_infinity[id] = out.inf ? 1 : 0;
+
+  ulong cumulative_distance = cumulative_distances[id] + (ulong)out.distance;
+  cumulative_distances[id] = cumulative_distance;
+  if (!out.inf && ((out.x0 & 0xFFFUL) == 0)) {
+    uint slot = atomic_fetch_add_explicit(out_dp_count, 1U, memory_order_relaxed);
+    out_indices[slot] = packet_index_base + id;
+    out_distances[slot] = cumulative_distance;
+    out_dp_terms[slot] = out.x0 ^ (out.y0 << 1) ^ (out.zz0 << 7) ^ (out.zzz0 << 13);
+  }
+}
+
 kernel void jacobian_affine_walk_dynamic_dp_count_steps8_pow2_mask(constant ulong* p_xyz [[buffer(0)]],
                                                                    constant AffineJumpValue* q_xy [[buffer(1)]],
                                                                    constant uchar* p_infinity [[buffer(2)]],

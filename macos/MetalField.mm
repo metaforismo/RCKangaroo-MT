@@ -2478,13 +2478,19 @@ static bool RunJacobianDynamicDpStreamXyzzKernel(const std::vector<CpuJacobianPo
 		}
 
 		const bool use_xyzz_dp8_specialization = dp_bits == 8;
+		const bool use_xyzz_dp12_specialization = dp_bits == 12;
+		const bool use_xyzz_hardcoded_dp_specialization = use_xyzz_dp8_specialization || use_xyzz_dp12_specialization;
 		const char* function_name = use_xyzz_dp8_specialization
 			? (steps_per_sample == 512
 				? "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_dp8_pow2_u32_distance"
 				: "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp8_pow2_u32_distance")
-			: (steps_per_sample == 512
-				? "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_pow2_u32_distance"
-				: "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_pow2_u32_distance");
+			: (use_xyzz_dp12_specialization
+				? (steps_per_sample == 512
+					? "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_dp12_pow2_u32_distance"
+					: "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp12_pow2_u32_distance")
+				: (steps_per_sample == 512
+					? "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_pow2_u32_distance"
+					: "jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_pow2_u32_distance"));
 		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{
@@ -2533,8 +2539,8 @@ static bool RunJacobianDynamicDpStreamXyzzKernel(const std::vector<CpuJacobianPo
 		id<MTLBuffer> out_distances_buffer = [device newBufferWithLength:distances_out_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> out_dp_terms_buffer = [device newBufferWithLength:dp_terms_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> jump_mask_buffer = [device newBufferWithBytes:&jump_mask length:sizeof(jump_mask) options:MTLResourceStorageModeShared];
-		id<MTLBuffer> dp_mask_buffer = use_xyzz_dp8_specialization ? nil : [device newBufferWithBytes:&dp_mask length:sizeof(dp_mask) options:MTLResourceStorageModeShared];
-		if (!p_buffer || !q_buffer || !p_inf_buffer || !dp_count_buffer || !indices_buffer || !count_buffer || !jump_distances_buffer || !out_distances_buffer || !out_dp_terms_buffer || !jump_mask_buffer || (!use_xyzz_dp8_specialization && !dp_mask_buffer))
+		id<MTLBuffer> dp_mask_buffer = use_xyzz_hardcoded_dp_specialization ? nil : [device newBufferWithBytes:&dp_mask length:sizeof(dp_mask) options:MTLResourceStorageModeShared];
+		if (!p_buffer || !q_buffer || !p_inf_buffer || !dp_count_buffer || !indices_buffer || !count_buffer || !jump_distances_buffer || !out_distances_buffer || !out_dp_terms_buffer || !jump_mask_buffer || (!use_xyzz_hardcoded_dp_specialization && !dp_mask_buffer))
 		{
 			error = "failed to allocate Metal jacobian dynamic dp stream XYZZ buffers";
 			return false;
@@ -2560,7 +2566,7 @@ static bool RunJacobianDynamicDpStreamXyzzKernel(const std::vector<CpuJacobianPo
 		[encoder setBuffer:out_distances_buffer offset:0 atIndex:9];
 		[encoder setBuffer:out_dp_terms_buffer offset:0 atIndex:10];
 		[encoder setBuffer:jump_mask_buffer offset:0 atIndex:11];
-		if (!use_xyzz_dp8_specialization)
+		if (!use_xyzz_hardcoded_dp_specialization)
 			[encoder setBuffer:dp_mask_buffer offset:0 atIndex:14];
 		NSUInteger threadgroup_count = (count + threads_per_threadgroup - 1) / threads_per_threadgroup;
 		[encoder dispatchThreadgroups:MTLSizeMake(threadgroup_count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
@@ -2682,13 +2688,19 @@ static bool RunJacobianDynamicDpStreamXyzzPersistentChainKernel(const std::vecto
 		}
 
 		const bool use_xyzz_dp8_specialization = dp_bits == 8;
+		const bool use_xyzz_dp12_specialization = dp_bits == 12;
+		const bool use_xyzz_hardcoded_dp_specialization = use_xyzz_dp8_specialization || use_xyzz_dp12_specialization;
 		const char* function_name = use_xyzz_dp8_specialization
 			? (steps_per_sample == 512
 				? "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_dp8_pow2_u32_distance"
 				: "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_dp8_pow2_u32_distance")
-			: (steps_per_sample == 512
-				? "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_pow2_u32_distance"
-				: "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_pow2_u32_distance");
+			: (use_xyzz_dp12_specialization
+				? (steps_per_sample == 512
+					? "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_dp12_pow2_u32_distance"
+					: "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_dp12_pow2_u32_distance")
+				: (steps_per_sample == 512
+					? "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_pow2_u32_distance"
+					: "jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_pow2_u32_distance"));
 		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{
@@ -2739,8 +2751,8 @@ static bool RunJacobianDynamicDpStreamXyzzPersistentChainKernel(const std::vecto
 		id<MTLBuffer> out_distances_buffer = [device newBufferWithLength:distances_out_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> out_dp_terms_buffer = [device newBufferWithLength:dp_terms_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> jump_mask_buffer = [device newBufferWithBytes:&jump_mask length:sizeof(jump_mask) options:MTLResourceStorageModeShared];
-		id<MTLBuffer> dp_mask_buffer = use_xyzz_dp8_specialization ? nil : [device newBufferWithBytes:&dp_mask length:sizeof(dp_mask) options:MTLResourceStorageModeShared];
-		if (!p_buffer || !q_buffer || !p_inf_buffer || !cumulative_distances_buffer || !dp_count_buffer || !indices_buffer || !count_buffer || !jump_distances_buffer || !out_distances_buffer || !out_dp_terms_buffer || !jump_mask_buffer || (!use_xyzz_dp8_specialization && !dp_mask_buffer))
+		id<MTLBuffer> dp_mask_buffer = use_xyzz_hardcoded_dp_specialization ? nil : [device newBufferWithBytes:&dp_mask length:sizeof(dp_mask) options:MTLResourceStorageModeShared];
+		if (!p_buffer || !q_buffer || !p_inf_buffer || !cumulative_distances_buffer || !dp_count_buffer || !indices_buffer || !count_buffer || !jump_distances_buffer || !out_distances_buffer || !out_dp_terms_buffer || !jump_mask_buffer || (!use_xyzz_hardcoded_dp_specialization && !dp_mask_buffer))
 		{
 			error = "failed to allocate Metal jacobian dynamic dp stream XYZZ chain buffers";
 			return false;
@@ -2774,7 +2786,7 @@ static bool RunJacobianDynamicDpStreamXyzzPersistentChainKernel(const std::vecto
 				[encoder setBuffer:jump_mask_buffer offset:0 atIndex:11];
 				uint32_t packet_index_base = (uint32_t)(((uint64_t)round * packet_count + packet) * count);
 				[encoder setBytes:&packet_index_base length:sizeof(packet_index_base) atIndex:12];
-				if (!use_xyzz_dp8_specialization)
+				if (!use_xyzz_hardcoded_dp_specialization)
 					[encoder setBuffer:dp_mask_buffer offset:0 atIndex:14];
 				NSUInteger threadgroup_count = (count + threads_per_threadgroup - 1) / threads_per_threadgroup;
 				[encoder dispatchThreadgroups:MTLSizeMake(threadgroup_count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
