@@ -3261,6 +3261,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `123,257,579.364915` median and an explicit `--tg-limit 256` scout measured
   `122,606,149.149497`. Keep the default at 128 threads for DP16
   persistent-chain until a paired autoresearch gate separates cleanly.
+- Rejected follow-up `macos-metal-xyzz-dp10-hardcoded-mask`: adding DP10
+  hardcoded `0x3FF` XYZZ packet and chain kernels preserved correctness and
+  checksums, but regressed the measured shapes. The runtime-mask packet
+  baseline measured `122,301,207.928573` steps/sec with `dp_count=266`,
+  `dp_distance_checksum=0x1c7a1858b9c7c122`, and
+  `dp_checksum=0xfac35953988d0260`; the hardcoded DP10 packet measured only
+  `117,134,900.908589` with the same checksums. The runtime-mask
+  persistent-chain baseline measured `124,488,630.318995` steps/sec with
+  `dp_count=490`, `dp_distance_checksum=0xe68a4fceb16626c9`, and
+  `dp_checksum=0x6782b304a4b7c1d0`; the hardcoded DP10 persistent-chain
+  measured `121,248,208.745216` with the same checksums. Keep DP10 on the
+  runtime `ProjectiveDpMask(dp_bits)` path unless a different specialization
+  changes register pressure or instruction scheduling enough to beat this
+  negative gate.
 
 ## Next Research Targets
 
