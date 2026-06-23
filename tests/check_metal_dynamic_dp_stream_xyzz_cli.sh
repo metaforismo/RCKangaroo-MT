@@ -68,13 +68,44 @@ if [ "$chain_status" -ne 0 ]; then
 fi
 
 case "$chain_output" in
-	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain\""*"\"state_layout\":\"xyzz\""*"\"sample_count\":128"*"\"steps_per_sample\":256"*"\"packet_count\":2"*"\"jump_count\":8"*"\"jump_index\":\"power2_mask\""*"\"jump_mixer\":\"avalanche64\""*"\"output_layout\":\"dp_stream\""*"\"emitted_records\":"*"\"dp_stream_overflow\":false"*"\"distance_tracking\":\"dp_stream_cumulative_uint64\""*"\"dp_bits\":8"*"\"dp_count\":"*"\"dp_checksum\":\"0x"*"\"correctness\":true"*)
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain\""*"\"state_layout\":\"xyzz\""*"\"sample_count\":128"*"\"steps_per_sample\":256"*"\"packet_count\":2"*"\"jump_count\":8"*"\"jump_index\":\"power2_mask\""*"\"jump_mixer\":\"avalanche64\""*"\"jump_schedule\":\"power2\""*"\"output_layout\":\"dp_stream\""*"\"emitted_records\":"*"\"dp_stream_overflow\":false"*"\"distance_tracking\":\"dp_stream_cumulative_uint64\""*"\"dp_bits\":8"*"\"dp_count\":"*"\"dp_checksum\":\"0x"*"\"correctness\":true"*)
 		;;
 	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain\""*"\"state_layout\":\"xyzz\""*"\"packet_count\":2"*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
 		;;
 	*)
 		printf '%s\n' "unexpected metal-jacobian-dynamic-dp-stream-xyzz-chain-bench output"
 		printf '%s\n' "$chain_output"
+		exit 1
+		;;
+esac
+
+chain_scaled_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations 128 --steps 256 --packets 2 --jumps 4 --dp-bits 8 --min-ms 1 --jump-schedule scaled4-balanced 2>&1)"
+chain_scaled_status=$?
+if [ "$chain_scaled_status" -ne 0 ]; then
+	printf 'metal-jacobian-dynamic-dp-stream-xyzz-chain-bench scaled4 returned status %s\n' "$chain_scaled_status"
+	printf '%s\n' "$chain_scaled_output"
+	exit 1
+fi
+
+case "$chain_scaled_output" in
+	*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain\""*"\"packet_count\":2"*"\"jump_count\":4"*"\"jump_schedule\":\"scaled4_balanced\""*"\"distance_tracking\":\"dp_stream_cumulative_uint64\""*"\"correctness\":true"*)
+		;;
+	*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain\""*"\"packet_count\":2"*"\"jump_schedule\":\"scaled4_balanced\""*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected scaled4 metal-jacobian-dynamic-dp-stream-xyzz-chain-bench output"
+		printf '%s\n' "$chain_scaled_output"
+		exit 1
+		;;
+esac
+
+chain_invalid_schedule_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations 128 --steps 256 --packets 2 --jumps 16 --dp-bits 8 --min-ms 1 --jump-schedule scaled4-balanced 2>&1)"
+case "$chain_invalid_schedule_output" in
+	*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain\""*"\"jump_schedule\":\"scaled4_balanced\""*"\"correctness\":false"*"\"reason\":\"scaled4-balanced jump schedule requires --jumps 4\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected invalid chain jump schedule output"
+		printf '%s\n' "$chain_invalid_schedule_output"
 		exit 1
 		;;
 esac
@@ -124,13 +155,44 @@ if [ "$persistent_chain_status" -ne 0 ]; then
 fi
 
 case "$persistent_chain_output" in
-	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_persistent_chain\""*"\"state_layout\":\"xyzz\""*"\"setup_mode\":\"reuse_pipeline_buffers\""*"\"state_persistence\":\"round_cumulative_xyzz\""*"\"sample_count\":64"*"\"steps_per_sample\":256"*"\"packet_count\":4"*"\"packets_per_round\":2"*"\"round_count\":2"*"\"distance_tracking\":\"dp_stream_cumulative_uint64\""*"\"stream_indexing\":\"round_packet_sample_u32\""*"\"dp_bits\":8"*"\"correctness\":true"*)
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_persistent_chain\""*"\"state_layout\":\"xyzz\""*"\"setup_mode\":\"reuse_pipeline_buffers\""*"\"state_persistence\":\"round_cumulative_xyzz\""*"\"sample_count\":64"*"\"steps_per_sample\":256"*"\"packet_count\":4"*"\"packets_per_round\":2"*"\"round_count\":2"*"\"jump_schedule\":\"power2\""*"\"distance_tracking\":\"dp_stream_cumulative_uint64\""*"\"stream_indexing\":\"round_packet_sample_u32\""*"\"dp_bits\":8"*"\"correctness\":true"*)
 		;;
 	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_persistent_chain\""*"\"state_layout\":\"xyzz\""*"\"round_count\":2"*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
 		;;
 	*)
 		printf '%s\n' "unexpected metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench output"
 		printf '%s\n' "$persistent_chain_output"
+		exit 1
+		;;
+esac
+
+persistent_chain_scaled_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench --iterations 64 --steps 256 --packets 2 --rounds 2 --jumps 4 --dp-bits 8 --jump-schedule scaled4-balanced 2>&1)"
+persistent_chain_scaled_status=$?
+if [ "$persistent_chain_scaled_status" -ne 0 ]; then
+	printf 'metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench scaled4 returned status %s\n' "$persistent_chain_scaled_status"
+	printf '%s\n' "$persistent_chain_scaled_output"
+	exit 1
+fi
+
+case "$persistent_chain_scaled_output" in
+	*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_persistent_chain\""*"\"packet_count\":4"*"\"jump_count\":4"*"\"jump_schedule\":\"scaled4_balanced\""*"\"distance_tracking\":\"dp_stream_cumulative_uint64\""*"\"correctness\":true"*)
+		;;
+	*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_persistent_chain\""*"\"packet_count\":4"*"\"jump_schedule\":\"scaled4_balanced\""*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected scaled4 metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench output"
+		printf '%s\n' "$persistent_chain_scaled_output"
+		exit 1
+		;;
+esac
+
+persistent_chain_invalid_schedule_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench --iterations 64 --steps 256 --packets 2 --rounds 2 --jumps 4 --dp-bits 8 --jump-schedule unknown 2>&1)"
+case "$persistent_chain_invalid_schedule_output" in
+	*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_persistent_chain\""*"\"jump_schedule\":\"invalid\""*"\"correctness\":false"*"\"reason\":\"unknown jump schedule\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected invalid persistent-chain jump schedule output"
+		printf '%s\n' "$persistent_chain_invalid_schedule_output"
 		exit 1
 		;;
 esac

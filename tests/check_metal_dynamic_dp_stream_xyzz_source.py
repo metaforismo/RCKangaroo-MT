@@ -271,6 +271,37 @@ if "paired_baseline_command" in chain_payload:
 if int(chain_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("XYZZ chain experiment should keep sample_runs >= 3")
 
+chain_scaled_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_chain_scaled4_balanced.json")
+if not chain_scaled_experiment.exists():
+    raise SystemExit("missing XYZZ chain scaled4 autoresearch experiment")
+chain_scaled_payload = json.loads(chain_scaled_experiment.read_text(encoding="utf-8"))
+expected_chain_scaled_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-chain-bench",
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--packets",
+    "2",
+    "--jumps",
+    "4",
+    "--dp-bits",
+    "8",
+    "--min-ms",
+    "500",
+    "--jump-schedule",
+    "scaled4-balanced",
+]
+if chain_scaled_payload.get("build_target") != "macos-build":
+    raise SystemExit("XYZZ chain scaled4 experiment should use macos-build")
+if chain_scaled_payload.get("bench_command") != expected_chain_scaled_command:
+    raise SystemExit("XYZZ chain scaled4 experiment should run the scaled schedule chain CLI")
+if chain_scaled_payload.get("paired_baseline_command") != expected_chain_command:
+    raise SystemExit("XYZZ chain scaled4 experiment should compare against the matching power2 chain")
+if int(chain_scaled_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("XYZZ chain scaled4 experiment should keep sample_runs >= 3")
+
 persistent_chain_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_persistent_chain_steps512.json")
 if not persistent_chain_experiment.exists():
     raise SystemExit("missing XYZZ persistent chain steps512 autoresearch experiment")
@@ -317,5 +348,38 @@ if int(persistent_chain_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("XYZZ persistent chain experiment should keep sample_runs >= 3")
 if float(persistent_chain_payload.get("cooldown_sec", 0.0)) < 10.0:
     raise SystemExit("XYZZ persistent chain experiment should cool down between paired samples")
+
+persistent_chain_scaled_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_persistent_chain_scaled4_balanced.json")
+if not persistent_chain_scaled_experiment.exists():
+    raise SystemExit("missing XYZZ persistent chain scaled4 autoresearch experiment")
+persistent_chain_scaled_payload = json.loads(persistent_chain_scaled_experiment.read_text(encoding="utf-8"))
+expected_persistent_chain_scaled_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench",
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--packets",
+    "2",
+    "--rounds",
+    "2",
+    "--jumps",
+    "4",
+    "--dp-bits",
+    "8",
+    "--jump-schedule",
+    "scaled4-balanced",
+]
+if persistent_chain_scaled_payload.get("build_target") != "macos-build":
+    raise SystemExit("XYZZ persistent chain scaled4 experiment should use macos-build")
+if persistent_chain_scaled_payload.get("bench_command") != expected_persistent_chain_scaled_command:
+    raise SystemExit("XYZZ persistent chain scaled4 experiment should run the scaled schedule persistent CLI")
+if persistent_chain_scaled_payload.get("paired_baseline_command") != expected_persistent_chain_command:
+    raise SystemExit("XYZZ persistent chain scaled4 experiment should compare against the matching power2 persistent chain")
+if int(persistent_chain_scaled_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("XYZZ persistent chain scaled4 experiment should keep sample_runs >= 3")
+if float(persistent_chain_scaled_payload.get("cooldown_sec", 0.0)) < 10.0:
+    raise SystemExit("XYZZ persistent chain scaled4 experiment should cool down between paired samples")
 
 print("metal dynamic dp stream XYZZ source ok")

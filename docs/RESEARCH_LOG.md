@@ -130,6 +130,16 @@ GPU work should use Metal.
   measured `191461`, `268652`, `14001`, and `53811`. This supports
   `scaled4-balanced` as a real schedule candidate beyond the original `0x7`
   fixture, while also showing strong phase sensitivity in the walk.
+- Accepted `--jump-schedule` plumbing for Metal XYZZ chain and persistent-chain
+  benches so the solver-facing cumulative-distance GPU paths can validate the
+  same schedules as the single-packet XYZZ bench. Defaults remain `power2`;
+  `scaled4-balanced` is still gated to `--jumps 4` and is reported in JSON.
+  Correctness held for `steps=512`, `packets=2`, `dp_bits=8`, `tg=128` chain
+  and for the matching persistent-chain `packets=2`, `rounds=2` probe. Do not
+  promote it as a chain throughput win: chain measured `123.7M` steps/sec for
+  `jumps=16 power2` versus `120.1M` for `scaled4-balanced`, and
+  persistent-chain measured `126.6M` versus `118.8M`. The useful result is
+  broader schedule correctness coverage plus a measured negative speed result.
 - Rejected treating smaller jump tables as a solver improvement from raw Metal
   throughput alone. On the synthetic XYZZ kernel benchmark, `jumps=4` measured
   `125.4M` steps/sec versus `jumps=16` around `121.9M`, with correctness
