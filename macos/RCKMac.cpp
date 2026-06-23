@@ -35,6 +35,11 @@ static const char* FieldRhsPassingMode()
 	return "const_ref";
 }
 
+static const char* KangarooInitialAffineConversionMode()
+{
+	return "unit_z_copy";
+}
+
 static u64 MixPointChecksum(u64 checksum, const EcPoint& p, u64 index)
 {
 	return checksum + p.x.data[0] + (p.x.data[1] ^ p.x.data[2]) + p.x.data[3] +
@@ -209,6 +214,15 @@ static void JacobianAffineWithZInv(const JacobianPoint& p, const EcInt& z_inv, E
 	out.y = FieldMul(p.y, z3);
 }
 
+static void JacobianUnitZToAffine(const JacobianPoint& p, EcPoint& out)
+{
+	out = EcPoint();
+	if (p.infinity)
+		return;
+	out.x = p.x;
+	out.y = p.y;
+}
+
 static void JacobianPairToAffine(const JacobianPoint& a, const JacobianPoint& b, EcPoint& a_affine, EcPoint& b_affine)
 {
 	a_affine = EcPoint();
@@ -372,6 +386,15 @@ static void JacobianBatchToAffine(const JacobianPoint& tame, const std::vector<J
 		affines[i].y = p.y;
 		affines[i].y.MulModP(z3);
 	}
+}
+
+static void JacobianBatchUnitZToAffine(const JacobianPoint& tame, const std::vector<JacobianPoint>& wilds, std::vector<EcPoint>& affines)
+{
+	size_t point_count = wilds.size() + 1;
+	affines.resize(point_count);
+	JacobianUnitZToAffine(tame, affines[0]);
+	for (size_t i = 1; i < point_count; i++)
+		JacobianUnitZToAffine(wilds[i - 1], affines[i]);
 }
 
 static JacobianPoint JacobianAddAffine(const JacobianPoint& p, const EcPoint& q)
@@ -1141,7 +1164,15 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooWithJumps(const EcPoint&
 	{
 		EcPoint tame_affine;
 		EcPoint wild_affine;
-		JacobianPairToAffine(tame, wild, tame_affine, wild_affine);
+		if (step == 0)
+		{
+			JacobianUnitZToAffine(tame, tame_affine);
+			JacobianUnitZToAffine(wild, wild_affine);
+		}
+		else
+		{
+			JacobianPairToAffine(tame, wild, tame_affine, wild_affine);
+		}
 		if (IsDistinguished(tame_affine, dp_bits))
 		{
 			KangarooPointKey key = RawPointKey(tame_affine);
@@ -1223,7 +1254,10 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiWithJumps(const std
 
 	for (unsigned int step = 0; step <= max_steps; step++)
 	{
-		JacobianBatchToAffine(tame, wilds, affine_points, affine_prefixes, affine_active);
+		if (step == 0)
+			JacobianBatchUnitZToAffine(tame, wilds, affine_points);
+		else
+			JacobianBatchToAffine(tame, wilds, affine_points, affine_prefixes, affine_active);
 
 		const EcPoint& tame_affine = affine_points[0];
 		if (IsDistinguished(tame_affine, dp_bits))
@@ -1442,6 +1476,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "\"dp_clear\":\"" << KangarooDpClearMode() << "\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
+	out << "\"affine_initial_conversion\":\"" << KangarooInitialAffineConversionMode() << "\",";
 	out << "\"jump_index\":\"" << JumpIndexMode(jump_count) << "\",";
 	out << "\"jump_table\":\"precomputed\",";
 	out << "\"scratch\":\"reused\",";
@@ -1563,6 +1598,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"dp_clear\":\"" << KangarooDpClearMode() << "\",";
 	out << "\"point_passing\":\"const_ref\",";
 	out << "\"affine_conversion\":\"batch\",";
+	out << "\"affine_initial_conversion\":\"" << KangarooInitialAffineConversionMode() << "\",";
 	out << "\"affine_z_access\":\"" << JacobianBatchZAccessMode() << "\",";
 	out << "\"affine_z_check\":\"" << JacobianBatchZCheckMode() << "\",";
 	out << "\"affine_field_ops\":\"" << JacobianBatchFieldOpsMode() << "\",";

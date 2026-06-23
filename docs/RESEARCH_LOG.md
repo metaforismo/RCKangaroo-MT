@@ -61,6 +61,38 @@ GPU work should use Metal.
 
 ## Accepted Results
 
+### CPU Kangaroo Unit-Z First-Step Affine Conversion
+
+Accepted: 2026-06-23.
+
+- The bounded CPU tiny kangaroo solvers now special-case step zero when
+  converting Jacobian walk states to affine. Tame and wild states are created
+  directly from affine points, so their Jacobian `Z` coordinate is exactly
+  one; the first affine view can therefore copy `x/y` directly instead of
+  spending an inversion or a batch inversion setup.
+- This does not change the kangaroo walk, distinguished-point predicate,
+  DP table, collision verification, range checks, target-index checks, jump
+  table, or later batch-affine conversions. From step one onward the existing
+  batch conversion remains the active path.
+- The solvers and benchmarks now report
+  `affine_initial_conversion=unit_z_copy` alongside the existing
+  `affine_conversion=batch` marker.
+- Correctness gates passed:
+  `sh tests/check_jacobian_kangaroo_small_cli.sh`,
+  `sh tests/check_jacobian_kangaroo_multi_small_cli.sh`,
+  `sh tests/check_jacobian_kangaroo_small_bench_cli.sh`,
+  `sh tests/check_jacobian_kangaroo_multi_small_bench_cli.sh`, and
+  `make macos-check`.
+- Paired autoresearch against `main` kept the candidate on the local M3 Air:
+  `jacobian_kangaroo_multi_small --budget-sec 8 --confirm-runs 3` ended at
+  `35740.492125` candidate ops/sec versus `34767.542094` baseline
+  (`paired_speedup=1.027984`, `confirmation_status=keep`,
+  `found_private_key=0x7`, `found_target_index=3`, `last_dp_count=84`);
+  `jacobian_kangaroo_multi16_small --budget-sec 8 --confirm-runs 3` ended at
+  `16135.468515` candidate ops/sec versus `15768.725361` baseline
+  (`paired_speedup=1.023258`, `confirmation_status=keep`,
+  `found_private_key=0x7`, `found_target_index=15`, `last_dp_count=288`).
+
 ### Quality Gates
 
 - Added `docs/QUALITY_GATES.md` and `docs/QUALITY_GATES.it.md`.
