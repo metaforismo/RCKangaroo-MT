@@ -33,6 +33,17 @@ case "$scaled_output" in
 		;;
 esac
 
+scaled_mid_output="$(./macos/rck_macos jacobian-kangaroo-multi-small-bench --target-count 16 --iterations 1 --min-ms 0 --range 20 --jumps 4 --dp-bits 4 --max-steps 2000000 --jump-schedule scaled4-balanced --key-offset 524288 2>&1)"
+case "$scaled_mid_output" in
+	*"\"operation\":\"jacobian_kangaroo_multi_small\""*"\"jump_schedule\":\"scaled4_balanced\""*"\"jump_count\":4"*"\"key_offset\":524288"*"\"expected_private_key\":\"0x80002\""*"\"found_target_index\":15"*"\"found_private_key\":\"0x80002\""*"\"correctness\":true"*)
+		;;
+	*)
+		printf '%s\n' "$scaled_mid_output"
+		printf '%s\n' "unexpected mid-interval scaled4-balanced multi-target output"
+		exit 1
+		;;
+esac
+
 invalid_output="$(./macos/rck_macos jacobian-kangaroo-multi-small-bench --target-count 16 --iterations 1 --min-ms 0 --range 20 --jumps 16 --dp-bits 4 --max-steps 500000 --jump-schedule scaled4-balanced 2>&1)"
 case "$invalid_output" in
 	*"\"jump_schedule\":\"scaled4_balanced\""*"\"correctness\":false"*"\"reason\":\"jump schedule requires --jumps 4\""*)

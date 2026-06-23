@@ -117,6 +117,19 @@ GPU work should use Metal.
   single-target reference; `{1,1024,4096,11267}` was close but still worse at
   `8216`; `{1,512,4096,11779}` was much worse at `171387`. Keep
   `{1,2,8192,8193}` as the best tested four-jump schedule.
+- Accepted `--key-offset` for CPU kangaroo bench fixtures so schedule probes no
+  longer depend only on the historical near-lower-bound key `0x7`. The option
+  clamps the requested offset inside the bounded range and reports the actual
+  `key_offset` in JSON. While adding it, the multi-target single-reference
+  oracle was corrected to use the same `start` and fallback offset as the
+  multi-target fixture instead of anchoring the reference at scalar zero. A
+  varied-position sweep with `target_count=16`, `range=20`, `dp_bits=4`,
+  `max_steps=2000000` preserved correctness for `scaled4-balanced` at offsets
+  `5`, `262144`, `524288`, and `786432`, measuring `avg_dp_count` `7611`,
+  `37409`, `3032`, and `3081`. The same offsets with `jumps=16 power2`
+  measured `191461`, `268652`, `14001`, and `53811`. This supports
+  `scaled4-balanced` as a real schedule candidate beyond the original `0x7`
+  fixture, while also showing strong phase sensitivity in the walk.
 - Rejected treating smaller jump tables as a solver improvement from raw Metal
   throughput alone. On the synthetic XYZZ kernel benchmark, `jumps=4` measured
   `125.4M` steps/sec versus `jumps=16` around `121.9M`, with correctness

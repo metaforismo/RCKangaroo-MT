@@ -165,6 +165,21 @@ static u64 ScheduledJumpDistance(KangarooJumpSchedule schedule, unsigned int jum
 	return JumpDistance(index);
 }
 
+static constexpr unsigned int kAutoBenchKeyOffset = 0xFFFFFFFFU;
+
+static u64 BenchKeyOffset(u64 limit, unsigned int requested_offset, u64 fallback_offset)
+{
+	if (!limit)
+		return 0;
+
+	u64 max_offset = limit - 1;
+	if (requested_offset == kAutoBenchKeyOffset)
+		return limit > fallback_offset ? fallback_offset : max_offset;
+
+	u64 offset = requested_offset;
+	return offset < limit ? offset : max_offset;
+}
+
 static unsigned int NormalizeJumpCount(unsigned int jump_count)
 {
 	if (jump_count < 2)
@@ -1383,7 +1398,7 @@ struct KangarooSingleBenchReference
 	std::string reason;
 };
 
-static KangarooSingleBenchReference MeasureSingleTargetKangarooSmall(unsigned int iterations, unsigned int min_ms, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps, KangarooJumpSchedule jump_schedule)
+static KangarooSingleBenchReference MeasureSingleTargetKangarooSmall(unsigned int iterations, unsigned int min_ms, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps, KangarooJumpSchedule jump_schedule, unsigned int key_offset = kAutoBenchKeyOffset, u64 start = 0, u64 fallback_offset = 7)
 {
 	KangarooSingleBenchReference reference;
 	reference.ops_per_sec = 0.0;
@@ -1392,7 +1407,6 @@ static KangarooSingleBenchReference MeasureSingleTargetKangarooSmall(unsigned in
 	if (!iterations)
 		iterations = 1;
 
-	u64 start = 0;
 	u64 limit = RangeLimit(range_bits);
 	if (!limit)
 	{
@@ -1401,7 +1415,8 @@ static KangarooSingleBenchReference MeasureSingleTargetKangarooSmall(unsigned in
 		return reference;
 	}
 
-	u64 solved_private_key = start + (limit > 7 ? 7 : limit - 1);
+	u64 actual_key_offset = BenchKeyOffset(limit, key_offset, fallback_offset);
+	u64 solved_private_key = start + actual_key_offset;
 	EcInt solved_k;
 	solved_k.Set(solved_private_key);
 	EcPoint target = Ec::MultiplyG(solved_k);
@@ -1432,7 +1447,7 @@ static KangarooSingleBenchReference MeasureSingleTargetKangarooSmall(unsigned in
 	return reference;
 }
 
-std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps, const char* jump_schedule_name)
+std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps, const char* jump_schedule_name, unsigned int key_offset)
 {
 	if (!iterations)
 		iterations = 1;
@@ -1459,7 +1474,8 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 		reason = "jump schedule requires --jumps 4";
 	}
 
-	u64 solved_private_key = limit ? start + (limit > 7 ? 7 : limit - 1) : start;
+	u64 actual_key_offset = BenchKeyOffset(limit, key_offset, 7);
+	u64 solved_private_key = limit ? start + actual_key_offset : start;
 	EcPoint target;
 	if (limit)
 	{
@@ -1549,6 +1565,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "\"avg_dp_count\":" << avg_dp_count << ",";
 	out << "\"last_dp_count\":" << last_dp_count << ",";
 	out << "\"start_scalar\":\"0x" << std::hex << start << std::dec << "\",";
+	out << "\"key_offset\":" << actual_key_offset << ",";
 	out << "\"expected_private_key\":\"0x" << std::hex << solved_private_key << std::dec << "\",";
 	out << "\"found_target_index\":" << found_target_index << ",";
 	out << "\"found_private_key\":\"0x" << std::hex << found_private_key << std::dec << "\",";
@@ -1559,7 +1576,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	return out.str();
 }
 
-std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int target_count, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps, const char* jump_schedule_name)
+std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int target_count, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps, const char* jump_schedule_name, unsigned int key_offset)
 {
 	if (!iterations)
 		iterations = 1;
@@ -1590,7 +1607,8 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 		reason = "jump schedule requires --jumps 4";
 	}
 
-	u64 solved_private_key = limit ? start + (limit > 5 ? 5 : limit - 1) : start;
+	u64 actual_key_offset = BenchKeyOffset(limit, key_offset, 5);
+	u64 solved_private_key = limit ? start + actual_key_offset : start;
 	std::vector<EcPoint> targets;
 	if (limit)
 		targets = BuildSyntheticMultiTargets(target_count, start, limit, solved_private_key);
@@ -1604,7 +1622,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	single_reference.ops_per_sec = 0.0;
 	single_reference.correctness = true;
 	if (limit && correctness)
-		single_reference = MeasureSingleTargetKangarooSmall(iterations, min_ms, range_bits, jump_count, dp_bits, max_steps, jump_schedule);
+		single_reference = MeasureSingleTargetKangarooSmall(iterations, min_ms, range_bits, jump_count, dp_bits, max_steps, jump_schedule, key_offset, start, 5);
 	if (limit && correctness && !single_reference.correctness)
 	{
 		correctness = false;
@@ -1698,6 +1716,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"avg_dp_count\":" << avg_dp_count << ",";
 	out << "\"last_dp_count\":" << last_dp_count << ",";
 	out << "\"start_scalar\":\"0x" << std::hex << start << std::dec << "\",";
+	out << "\"key_offset\":" << actual_key_offset << ",";
 	out << "\"expected_private_key\":\"0x" << std::hex << solved_private_key << std::dec << "\",";
 	out << "\"found_target_index\":" << found_target_index << ",";
 	out << "\"found_private_key\":\"0x" << std::hex << found_private_key << std::dec << "\",";
