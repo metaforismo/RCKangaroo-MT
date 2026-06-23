@@ -76,6 +76,20 @@ GPU work should use Metal.
   raw paired run showed `1.013091x`, but the three-run confirmation still
   discarded it as non-durable. Keep the secondary avalanche in `IndexHash` for
   stable probe distribution.
+- Rejected CPU kangaroo precomputed jump-mode metadata. Adding `count`, `mask`,
+  and `power_of_two` to the jump table and using them in `KangarooStep`
+  preserved single/multi-target correctness (`found_private_key=0x7`,
+  `found_target_index=3`, `last_dp_count=84`), but the three-run paired
+  confirmation discarded the candidate. The final visible run was only
+  `1.010945x`, and earlier confirmation medians missed the 1% gate or
+  regressed. Keep the simpler `JacobianJumpIndex(..., jumps.points.size())`
+  path.
+- Rejected CPU specialized `SqrModP` for Jacobian field squares. A 10-product
+  square accumulator with explicit carry propagation matched `MulModP(a)` in a
+  direct selftest and preserved the multi-target oracle, but paired
+  autoresearch ended at `0.993911x` versus `main`. The reduction in limb
+  products did not pay for the added carry-propagation/codegen shape on the M3
+  CPU; keep square as `MulModP` with a copied operand.
 
 ## Accepted Results
 
