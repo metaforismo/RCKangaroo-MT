@@ -30,6 +30,35 @@ The local target machine is a MacBook Air M3 with 16 GB RAM and a 10-core Apple
 M3 GPU. Metal is available outside the sandbox. CUDA remains NVIDIA-only; macOS
 GPU work should use Metal.
 
+## Recent Rejected Or Inconclusive Experiments
+
+### 2026-06-23 Metal Arithmetic And Scheduling Probes
+
+- Rejected a `reduce512_mod_p` normalization shortcut that replaced the final
+  loop with two conditional subtractions. Field, Jacobian, `make macos-check`,
+  and the public `rckmetal` oracle stayed correct, but paired public DP4
+  confirmation ended at about `0.59x`; keep the looped reducer.
+- Rejected a public DP4 common-thread no-exception mixed-add helper. The direct
+  DP4 checksum oracle stayed correct, but `make macos-check` source gates
+  rejected the changed hot-path shape and a longer direct run regressed to about
+  `21.2M` ops/sec versus a prior stable baseline around `34.7M`.
+- Rejected a square cross-term accumulator that doubled each 128-bit product
+  and propagated carry once instead of calling `add128_to_512` twice.
+  Correctness and `make macos-check` passed, but paired `metal_field_square`
+  confirmation ended at about `0.845x`; keep the two-add spelling.
+- Rejected public DP4 implicit distance (`distance += 1UL << jump_index`).
+  The public runtime checksum stayed correct, but source gates intentionally
+  require the accepted distance-table load shape, and related dynamic/XYZZ
+  implicit-distance probes were already slower.
+- Rejected promoting a `917504`-state XYZZ `steps512` peak batch. One direct
+  scout reached `126.2M` steps/sec, but alternating checks against the
+  documented `524288` large batch were not robust; a repeat fell to
+  `105.8M`. Keep `524288` as the large-batch probe.
+- Retested persistent XYZZ schedule `packets x rounds` at total four packets.
+  `1 x 4` and `2 x 2` preserved identical DP count/checksums, but timings
+  flipped by run order (`2 x 2` then `1 x 4`: `123.6M` vs `125.1M`; reverse:
+  `124.1M` vs `124.8M`). Keep the balanced `2 x 2` default.
+
 ## Accepted Results
 
 ### Quality Gates
