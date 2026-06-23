@@ -3194,7 +3194,10 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `--tg-limit 128`, compared with `123,472,739.196919` at the previous
   automatic 256-thread cap. The long-step dynamic-DP threadgroup policy now
   uses 128 threads for `steps>=256` independent of DP density; explicit
-  `--tg-limit` still overrides it.
+  `--tg-limit` still overrides it. Clean autoresearch on commit `7ceb57c`
+  kept `metal_jacobian_dynamic_dp_stream_xyzz_persistent_chain_dp12_steps512`
+  with three correct samples and median `123,851,132.746183` steps/sec
+  (`min=123,076,360.919518`, `max=124,366,353.036694`).
 - Rejected follow-up `macos-metal-xyzz-total-packet8-geometry`: increasing
   persistent-chain total packet count from four to eight did not show a stable
   geometry win. A first parallel scout was contaminated and used only for
