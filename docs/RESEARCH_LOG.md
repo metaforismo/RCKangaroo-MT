@@ -3275,6 +3275,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   runtime `ProjectiveDpMask(dp_bits)` path unless a different specialization
   changes register pressure or instruction scheduling enough to beat this
   negative gate.
+- Rejected follow-up `macos-metal-xyzz-dp16-scaled4-persistent`: the
+  `scaled4-balanced` four-jump schedule remained correct for the hardcoded
+  DP16 persistent-chain path and produced a very balanced jump histogram
+  (`68 ppm` max deviation), but the scout measured only
+  `121,928,780.219342` steps/sec with `dp_count=7`,
+  `dp_distance_checksum=0x7ec7b709e671d790`, and
+  `dp_checksum=0xb5691c80f1d5a82e`, below the power-of-two DP16 clean median
+  of `123,257,579.364915`. Keep `scaled4-balanced` as schedule coverage and
+  CPU tiny-solver research, not as the current Metal persistent-chain
+  throughput default.
 
 ## Next Research Targets
 
