@@ -3294,6 +3294,12 @@ These did not pass the performance gate or had a correctness/architecture issue:
   overhead, tune packet count versus walker count, and explore affine
   recovery/collision verification from `X,Y,ZZ,ZZZ` without reintroducing a
   per-step `Z` dependency.
+- Treat `dp_tracking=projective_x_limb0` as a throughput probe, not a complete
+  solver collision-table key. The projective `X` limb is not invariant under
+  equivalent Jacobian/XYZZ scalings, so a production DP table needs either an
+  affine DP predicate/key, an invariant homogeneous predicate, or a batched
+  normalization design that amortizes inversions at packet boundaries without
+  discarding the accepted XYZZ arithmetic plateau.
 - Keep CPU tiny-range kangaroo as the correctness oracle while GPU kernels are
   introduced one layer at a time.
 - Prefer fused kernels only when paired benchmarks show a real win. The fused
