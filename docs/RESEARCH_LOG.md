@@ -3207,7 +3207,11 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_count=69`, `dp_distance_checksum=0x7d3a2fdc136996be`, and
   `dp_checksum=0x86abc2c890e57c88`, improving from the previous runtime-mask
   measurement of `113,783,621.442092` steps/sec to
-  `122,945,894.692246` steps/sec. The persistent-chain `131072 x 512 x 4`
+  `122,945,894.692246` steps/sec. Clean autoresearch on commit `7ee5643`
+  kept `metal_jacobian_dynamic_dp_stream_xyzz_dp12_steps512` with three
+  correct samples and median `125,987,056.586718` steps/sec
+  (`min=125,830,515.853641`, `max=126,012,896.972671`). The
+  persistent-chain `131072 x 512 x 4`
   DP12 probe remained in the same plateau, measuring
   `123,570,962.092489` steps/sec with `dp_count=132`,
   `dp_distance_checksum=0xe885b9216531a8b2`, and
