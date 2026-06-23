@@ -3252,6 +3252,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   promoted: `tg=256` helped a single packet in one run, while `tg=64` helped
   persistent-chain and `tg=256` hurt it, so the shared 128-thread long-step
   default remains the safer base.
+- Rejected follow-up `macos-metal-xyzz-dp16-tg64-default`: after the DP16
+  hardcoded-mask commit, a single explicit `--tg-limit 64` persistent-chain
+  scout jumped to `127,439,454.404249` steps/sec with matching checksums, but
+  the result did not reproduce. Three immediate cooled samples measured
+  `108,553,915.612407`, `107,914,485.017660`, and `122,912,031.041083`
+  steps/sec, while the clean 128-thread default remained at
+  `123,257,579.364915` median and an explicit `--tg-limit 256` scout measured
+  `122,606,149.149497`. Keep the default at 128 threads for DP16
+  persistent-chain until a paired autoresearch gate separates cleanly.
 
 ## Next Research Targets
 
