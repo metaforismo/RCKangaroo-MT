@@ -3167,14 +3167,53 @@ These did not pass the performance gate or had a correctness/architecture issue:
   by thermal throttling (`20,652,861.141964`) and was not used for promotion.
   This mirrors the earlier non-XYZZ normal-first rejection; keep the existing
   edge-first helper shape.
+- Accepted follow-up `macos-metal-xyzz-runtime-dp-mask`: the XYZZ packet,
+  chain, and persistent-chain paths now keep the promoted DP8 hardcoded
+  `0xFF` kernels but select separate runtime-mask kernels for non-DP8
+  `ProjectiveDpMask(dp_bits)` probes up to 32 bits. This preserves the DP8
+  fast path while making DP10/DP12/DP16 sparse-stream shapes available on the
+  same CPU XYZZ replay oracle. Fresh M3 checks preserved correctness:
+  `262144 x 512` DP8 packet measured `124,656,463.095272` steps/sec with
+  `dp_count=1015`, `dp_distance_checksum=0xdf5ba046e663f744`, and
+  `dp_checksum=0x65d61f2aa446682c`; the same packet with DP12 measured
+  `113,783,621.442092` steps/sec with `dp_count=69`,
+  `dp_distance_checksum=0x7d3a2fdc136996be`, and
+  `dp_checksum=0x86abc2c890e57c88`. Do not treat packet DP12 as a speed
+  promotion over DP8 because the DP density changed and the generic mask path
+  is slower in that single-packet shape.
+- Accepted follow-up `macos-metal-xyzz-runtime-dp-persistent-chain`: on the
+  solver-facing persistent chain, runtime DP masks reduce stream pressure
+  without hurting arithmetic throughput in the measured shape. On
+  `131072 x 512 x 4`, DP8 measured `124,352,386.831228` steps/sec with
+  `dp_count=2042`, `dp_distance_checksum=0x2fc17b9313fc0204`, and
+  `dp_checksum=0x2b1728330fd9cdc6`; DP12 measured
+  `124,448,355.789433` steps/sec with only `dp_count=132`,
+  `dp_distance_checksum=0xe885b9216531a8b2`, and
+  `dp_checksum=0x62d6817b35ede52a`. DP16 at the same shape emitted only
+  `10` records and measured `124,647,237.795156` steps/sec when forced to
+  `--tg-limit 128`, compared with `123,472,739.196919` at the previous
+  automatic 256-thread cap. The long-step dynamic-DP threadgroup policy now
+  uses 128 threads for `steps>=256` independent of DP density; explicit
+  `--tg-limit` still overrides it.
+- Rejected follow-up `macos-metal-xyzz-total-packet8-geometry`: increasing
+  persistent-chain total packet count from four to eight did not show a stable
+  geometry win. A first parallel scout was contaminated and used only for
+  checksum equality; all four shapes (`8x1`, `4x2`, `2x4`, `1x8`) preserved
+  `dp_count=2050`, `dp_distance_checksum=0xd9b169a1e66faa75`, and
+  `dp_checksum=0x6839425f67cccc42`. Sequential extremes on
+  `65536 x 512 x 8` measured `121,784,499.848321` steps/sec for `1x8` and
+  `121,209,250.733544` for `8x1`, both correct and within noise. Keep the
+  existing total-packet-four persistent experiments as the base until a paired
+  run shows a real advantage.
 
 ## Next Research Targets
 
 - Move from isolated field kernels toward Jacobian point kernels on Metal.
-- Build on the accepted XYZZ chain probe: reduce cumulative-distance overhead,
-  tune packet count versus walker count, and explore affine recovery/collision
-  verification from `X,Y,ZZ,ZZZ` without reintroducing a per-step `Z`
-  dependency.
+- Build on the accepted XYZZ chain probe: use runtime `dp_bits` to tune solver
+  table pressure versus collision latency, reduce cumulative-distance
+  overhead, tune packet count versus walker count, and explore affine
+  recovery/collision verification from `X,Y,ZZ,ZZZ` without reintroducing a
+  per-step `Z` dependency.
 - Keep CPU tiny-range kangaroo as the correctness oracle while GPU kernels are
   introduced one layer at a time.
 - Prefer fused kernels only when paired benchmarks show a real win. The fused

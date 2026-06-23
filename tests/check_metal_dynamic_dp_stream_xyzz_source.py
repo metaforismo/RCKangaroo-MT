@@ -16,6 +16,12 @@ required_kernel_markers = (
     "field_mul_values(zzz0, zzz1, zzz2, zzz3, hhh0, hhh1, hhh2, hhh3, zzz_out0",
     "kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp8_pow2_u32_distance",
     "kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_dp8_pow2_u32_distance",
+    "kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_pow2_u32_distance",
+    "kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_pow2_u32_distance",
+    "kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_pow2_u32_distance",
+    "kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_pow2_u32_distance",
+    "constant ulong& dp_mask [[buffer(14)]]",
+    "if (!out.inf && ((out.x0 & dp_mask) == 0))",
     "device ulong* p_xyzz [[buffer(0)]]",
     "out_dp_terms[slot] = x0 ^ (y0 << 1) ^ (zz0 << 7) ^ (zzz0 << 13);",
 )
@@ -60,6 +66,14 @@ required_host_markers = (
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_dp8_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_dp8_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_dp8_pow2_u32_distance\"",
+    "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_pow2_u32_distance\"",
+    "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_pow2_u32_distance\"",
+    "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_pow2_u32_distance\"",
+    "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_pow2_u32_distance\"",
+    "use_xyzz_dp8_specialization",
+    "ProjectiveDpMask(dp_bits)",
+    "dp_mask_buffer",
+    "[encoder setBuffer:dp_mask_buffer offset:0 atIndex:14]",
     "\\\"state_layout\\\":\\\"xyzz\\\"",
     "\\\"packet_count\\\":",
     "\\\"packets_per_round\\\":",
@@ -73,6 +87,7 @@ required_host_markers = (
     "RCK_VALIDATION_WORKERS",
     "ParallelForSamples(p.size()",
     "std::thread::hardware_concurrency()",
+    "steps_per_sample >= 256",
     "\\\"validation_workers\\\"",
     "\\\"validation_seconds\\\"",
     "emitted_indices_bytes",
@@ -381,5 +396,90 @@ if int(persistent_chain_scaled_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("XYZZ persistent chain scaled4 experiment should keep sample_runs >= 3")
 if float(persistent_chain_scaled_payload.get("cooldown_sec", 0.0)) < 10.0:
     raise SystemExit("XYZZ persistent chain scaled4 experiment should cool down between paired samples")
+
+xyzz_dp12_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_dp12_steps512.json")
+if not xyzz_dp12_experiment.exists():
+    raise SystemExit("missing XYZZ runtime DP12 steps512 autoresearch experiment")
+xyzz_dp12_payload = json.loads(xyzz_dp12_experiment.read_text(encoding="utf-8"))
+expected_xyzz_dp12_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-bench",
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "12",
+    "--min-ms",
+    "500",
+]
+if xyzz_dp12_payload.get("build_target") != "macos-build":
+    raise SystemExit("XYZZ runtime DP12 experiment should use macos-build")
+if xyzz_dp12_payload.get("bench_command") != expected_xyzz_dp12_command:
+    raise SystemExit("XYZZ runtime DP12 experiment should run the DP12 packet CLI")
+if int(xyzz_dp12_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("XYZZ runtime DP12 experiment should keep sample_runs >= 3")
+if float(xyzz_dp12_payload.get("cooldown_sec", 0.0)) < 10.0:
+    raise SystemExit("XYZZ runtime DP12 experiment should cool down between samples")
+
+persistent_chain_dp12_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_persistent_chain_dp12_steps512.json")
+if not persistent_chain_dp12_experiment.exists():
+    raise SystemExit("missing XYZZ persistent chain runtime DP12 autoresearch experiment")
+persistent_chain_dp12_payload = json.loads(persistent_chain_dp12_experiment.read_text(encoding="utf-8"))
+expected_persistent_chain_dp12_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench",
+    "--iterations",
+    "131072",
+    "--steps",
+    "512",
+    "--packets",
+    "2",
+    "--rounds",
+    "2",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "12",
+]
+if persistent_chain_dp12_payload.get("build_target") != "macos-build":
+    raise SystemExit("XYZZ persistent chain runtime DP12 experiment should use macos-build")
+if persistent_chain_dp12_payload.get("bench_command") != expected_persistent_chain_dp12_command:
+    raise SystemExit("XYZZ persistent chain runtime DP12 experiment should run the persistent DP12 CLI")
+if int(persistent_chain_dp12_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("XYZZ persistent chain runtime DP12 experiment should keep sample_runs >= 3")
+if float(persistent_chain_dp12_payload.get("cooldown_sec", 0.0)) < 10.0:
+    raise SystemExit("XYZZ persistent chain runtime DP12 experiment should cool down between samples")
+
+persistent_chain_dp16_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_persistent_chain_dp16_steps512.json")
+if not persistent_chain_dp16_experiment.exists():
+    raise SystemExit("missing XYZZ persistent chain runtime DP16 autoresearch experiment")
+persistent_chain_dp16_payload = json.loads(persistent_chain_dp16_experiment.read_text(encoding="utf-8"))
+expected_persistent_chain_dp16_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench",
+    "--iterations",
+    "131072",
+    "--steps",
+    "512",
+    "--packets",
+    "2",
+    "--rounds",
+    "2",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "16",
+]
+if persistent_chain_dp16_payload.get("build_target") != "macos-build":
+    raise SystemExit("XYZZ persistent chain runtime DP16 experiment should use macos-build")
+if persistent_chain_dp16_payload.get("bench_command") != expected_persistent_chain_dp16_command:
+    raise SystemExit("XYZZ persistent chain runtime DP16 experiment should run the persistent DP16 CLI")
+if int(persistent_chain_dp16_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("XYZZ persistent chain runtime DP16 experiment should keep sample_runs >= 3")
+if float(persistent_chain_dp16_payload.get("cooldown_sec", 0.0)) < 10.0:
+    raise SystemExit("XYZZ persistent chain runtime DP16 experiment should cool down between samples")
 
 print("metal dynamic dp stream XYZZ source ok")

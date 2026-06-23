@@ -21,6 +21,26 @@ case "$output" in
 		;;
 esac
 
+runtime_dp_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations 128 --steps 256 --jumps 8 --dp-bits 12 --min-ms 0 2>&1)"
+runtime_dp_status=$?
+if [ "$runtime_dp_status" -ne 0 ]; then
+	printf 'metal-jacobian-dynamic-dp-stream-xyzz-bench runtime dp returned status %s\n' "$runtime_dp_status"
+	printf '%s\n' "$runtime_dp_output"
+	exit 1
+fi
+
+case "$runtime_dp_output" in
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz\""*"\"state_layout\":\"xyzz\""*"\"sample_count\":128"*"\"steps_per_sample\":256"*"\"jump_count\":8"*"\"output_layout\":\"dp_stream\""*"\"distance_tracking\":\"dp_stream_uint64\""*"\"dp_bits\":12"*"\"correctness\":true"*)
+		;;
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz\""*"\"state_layout\":\"xyzz\""*"\"dp_bits\":12"*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected runtime-dp metal-jacobian-dynamic-dp-stream-xyzz-bench output"
+		printf '%s\n' "$runtime_dp_output"
+		exit 1
+		;;
+esac
+
 scaled_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations 128 --steps 256 --jumps 4 --dp-bits 8 --min-ms 1 --jump-schedule scaled4-balanced 2>&1)"
 scaled_status=$?
 if [ "$scaled_status" -ne 0 ]; then
@@ -75,6 +95,26 @@ case "$chain_output" in
 	*)
 		printf '%s\n' "unexpected metal-jacobian-dynamic-dp-stream-xyzz-chain-bench output"
 		printf '%s\n' "$chain_output"
+		exit 1
+		;;
+esac
+
+chain_runtime_dp_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations 128 --steps 256 --packets 2 --jumps 8 --dp-bits 12 --min-ms 0 2>&1)"
+chain_runtime_dp_status=$?
+if [ "$chain_runtime_dp_status" -ne 0 ]; then
+	printf 'metal-jacobian-dynamic-dp-stream-xyzz-chain-bench runtime dp returned status %s\n' "$chain_runtime_dp_status"
+	printf '%s\n' "$chain_runtime_dp_output"
+	exit 1
+fi
+
+case "$chain_runtime_dp_output" in
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain\""*"\"state_layout\":\"xyzz\""*"\"sample_count\":128"*"\"steps_per_sample\":256"*"\"packet_count\":2"*"\"distance_tracking\":\"dp_stream_cumulative_uint64\""*"\"dp_bits\":12"*"\"correctness\":true"*)
+		;;
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain\""*"\"state_layout\":\"xyzz\""*"\"packet_count\":2"*"\"dp_bits\":12"*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected runtime-dp metal-jacobian-dynamic-dp-stream-xyzz-chain-bench output"
+		printf '%s\n' "$chain_runtime_dp_output"
 		exit 1
 		;;
 esac
@@ -162,6 +202,26 @@ case "$persistent_chain_output" in
 	*)
 		printf '%s\n' "unexpected metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench output"
 		printf '%s\n' "$persistent_chain_output"
+		exit 1
+		;;
+esac
+
+persistent_chain_runtime_dp_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench --iterations 64 --steps 256 --packets 2 --rounds 2 --jumps 8 --dp-bits 12 2>&1)"
+persistent_chain_runtime_dp_status=$?
+if [ "$persistent_chain_runtime_dp_status" -ne 0 ]; then
+	printf 'metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench runtime dp returned status %s\n' "$persistent_chain_runtime_dp_status"
+	printf '%s\n' "$persistent_chain_runtime_dp_output"
+	exit 1
+fi
+
+case "$persistent_chain_runtime_dp_output" in
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_persistent_chain\""*"\"state_layout\":\"xyzz\""*"\"sample_count\":64"*"\"steps_per_sample\":256"*"\"packet_count\":4"*"\"packets_per_round\":2"*"\"round_count\":2"*"\"distance_tracking\":\"dp_stream_cumulative_uint64\""*"\"dp_bits\":12"*"\"correctness\":true"*)
+		;;
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_persistent_chain\""*"\"state_layout\":\"xyzz\""*"\"round_count\":2"*"\"dp_bits\":12"*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected runtime-dp metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench output"
+		printf '%s\n' "$persistent_chain_runtime_dp_output"
 		exit 1
 		;;
 esac
