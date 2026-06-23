@@ -98,6 +98,18 @@ GPU work should use Metal.
   kernel-parity to slightly above the nearby `jumps=16 power2` checks. Treat
   this primarily as a solver-facing math/schedule candidate, not as a proven
   per-step GPU micro-optimization.
+- Rejected a temporary `xorfold` XYZZ 512-step jump mixer probe. The idea was
+  to replace the per-step avalanche multiply with shifts/xors while keeping the
+  CPU replay oracle identical. It preserved correctness and had acceptable jump
+  balance (`528 ppm` for `jumps=16 power2`, `83 ppm` for `scaled4-balanced`),
+  but measured only `119.2M` steps/sec for `jumps=16 power2` and `122.4M`
+  steps/sec for `scaled4-balanced`, below the nearby avalanche64 runs
+  (`~124-126M`). The partition mixer is not the current M3 bottleneck.
+- Rejected changing the `scaled4-balanced` XYZZ 512-step default threadgroup
+  cap from `128` to `32`. A sequential sweep found one high `tg=32` sample at
+  `127.7M` steps/sec, but repeats landed at `124.2M` and `125.7M`; `tg=64`,
+  `96`, `128`, and `160` were all in the same noisy band. Keep the inherited
+  `128` default and use explicit `--tg-limit` only for local tuning.
 - Rejected treating smaller jump tables as a solver improvement from raw Metal
   throughput alone. On the synthetic XYZZ kernel benchmark, `jumps=4` measured
   `125.4M` steps/sec versus `jumps=16` around `121.9M`, with correctness
