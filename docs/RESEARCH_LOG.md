@@ -80,6 +80,24 @@ GPU work should use Metal.
   versus a same-binary `524288` check at `121.9M`, but a repeat fell to
   `121.3M`; `786432` measured `121.9M`. Keep the established `524288`
   large-batch gate.
+- Accepted an explicit experimental `scaled4-balanced` jump schedule for bench
+  exploration. The schedule uses four jumps `{1, 2, 8192, 8193}`, preserving
+  gcd `1` and roughly the same mean scalar advance as the 16-entry power-of-two
+  schedule. It is opt-in via `--jump-schedule scaled4-balanced`; default
+  behavior remains `power2`. CPU tiny multi-target probes with
+  `target_count=16`, `range=20`, `dp_bits=4`, `jumps=4` preserved correctness
+  and reduced `avg_dp_count` to `7611` versus `191461` for `jumps=16 power2` on
+  the same deterministic fixture. Autoresearch kept the first CPU schedule
+  benchmark at median `31.011318 ops/sec`; a same-code repeat preserved
+  correctness but was marked discard at median `30.433391 ops/sec`, so do not
+  claim CPU throughput from this probe yet. The Metal XYZZ large-batch schedule
+  benchmark also preserved correctness
+  (`dp_distance_checksum=0x3ea0b5a3cd958a70`,
+  `dp_checksum=0x564364b08c72a1da`) with kept medians
+  `123,234,598.455869` and `125,874,951.286111` steps/sec, roughly
+  kernel-parity to slightly above the nearby `jumps=16 power2` checks. Treat
+  this primarily as a solver-facing math/schedule candidate, not as a proven
+  per-step GPU micro-optimization.
 - Rejected treating smaller jump tables as a solver improvement from raw Metal
   throughput alone. On the synthetic XYZZ kernel benchmark, `jumps=4` measured
   `125.4M` steps/sec versus `jumps=16` around `121.9M`, with correctness

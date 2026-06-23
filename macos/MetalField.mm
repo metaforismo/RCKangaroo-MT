@@ -9,11 +9,13 @@
 
 #include <array>
 #include <chrono>
+#include <cstring>
 #include <iomanip>
 #include <sstream>
 #include <thread>
 #include <vector>
 
+#include "Ec.h"
 #include "macos/MetalFieldKernels.h"
 
 typedef std::array<uint64_t, 4> FieldElement;
@@ -914,6 +916,7 @@ static std::string MetalJacobianDynamicDpStreamXyzzBenchJson(const char* operati
 	unsigned int jump_count,
 	const char* jump_index_mode,
 	const char* jump_mixer,
+	const char* jump_schedule,
 	uint64_t jump_histogram_min_bucket,
 	uint64_t jump_histogram_max_bucket,
 	uint64_t jump_histogram_max_deviation_ppm,
@@ -943,6 +946,7 @@ static std::string MetalJacobianDynamicDpStreamXyzzBenchJson(const char* operati
 	oss << "\"jump_count\":" << jump_count << ",";
 	oss << "\"jump_index\":\"" << jump_index_mode << "\",";
 	oss << "\"jump_mixer\":\"" << jump_mixer << "\",";
+	oss << "\"jump_schedule\":\"" << jump_schedule << "\",";
 	oss << "\"jump_histogram_min_bucket\":" << jump_histogram_min_bucket << ",";
 	oss << "\"jump_histogram_max_bucket\":" << jump_histogram_max_bucket << ",";
 	oss << "\"jump_histogram_max_deviation_ppm\":" << jump_histogram_max_deviation_ppm << ",";
@@ -3319,12 +3323,102 @@ static void BuildJacobianJumpWalkSamples(unsigned int sample_count,
 	jumps.assign(sample_q.begin(), sample_q.begin() + jump_count);
 }
 
+static bool IsScaled4BalancedJumpSchedule(const char* jump_schedule)
+{
+	return jump_schedule && (strcmp(jump_schedule, "scaled4-balanced") == 0 || strcmp(jump_schedule, "scaled4_balanced") == 0);
+}
+
+static const char* NormalizeMetalJumpScheduleName(const char* jump_schedule)
+{
+	if (!jump_schedule || !*jump_schedule || strcmp(jump_schedule, "power2") == 0)
+		return "power2";
+	if (IsScaled4BalancedJumpSchedule(jump_schedule))
+		return "scaled4_balanced";
+	return "invalid";
+}
+
+static bool ValidateMetalJumpSchedule(const char* jump_schedule, unsigned int jump_count, std::string& reason)
+{
+	if (!jump_schedule || !*jump_schedule || strcmp(jump_schedule, "power2") == 0)
+		return true;
+	if (IsScaled4BalancedJumpSchedule(jump_schedule))
+	{
+		if (jump_count == 4)
+			return true;
+		reason = "scaled4-balanced jump schedule requires --jumps 4";
+		return false;
+	}
+	reason = "unknown jump schedule";
+	return false;
+}
+
+static FieldElement FieldFromEcInt(const EcInt& value)
+{
+	return {value.data[0], value.data[1], value.data[2], value.data[3]};
+}
+
+static CpuAffinePoint CpuAffineFromEcPoint(const EcPoint& point)
+{
+	CpuAffinePoint out;
+	out.x = FieldFromEcInt(point.x);
+	out.y = FieldFromEcInt(point.y);
+	return out;
+}
+
+static void BuildAffineJumpsFromDistances(const std::vector<uint64_t>& jump_distances,
+	std::vector<CpuAffinePoint>& jumps)
+{
+	jumps.clear();
+	jumps.reserve(jump_distances.size());
+	for (uint64_t distance : jump_distances)
+	{
+		EcInt k;
+		k.Set(distance);
+		EcPoint point = Ec::MultiplyG(k);
+		jumps.push_back(CpuAffineFromEcPoint(point));
+	}
+}
+
+static void BuildJacobianJumpWalkSamplesForSchedule(unsigned int sample_count,
+	unsigned int jump_count,
+	const char* jump_schedule,
+	const std::vector<uint64_t>& jump_distances,
+	std::vector<CpuJacobianPoint>& p,
+	std::vector<CpuAffinePoint>& jumps)
+{
+	if (!IsScaled4BalancedJumpSchedule(jump_schedule))
+	{
+		BuildJacobianJumpWalkSamples(sample_count, jump_count, p, jumps);
+		return;
+	}
+
+	std::vector<CpuJacobianPoint> sample_p;
+	std::vector<CpuAffinePoint> sample_q;
+	BuildJacobianAddSamples(sample_count ? sample_count : 1, sample_p, sample_q);
+	p.assign(sample_p.begin(), sample_p.begin() + sample_count);
+	BuildAffineJumpsFromDistances(jump_distances, jumps);
+}
+
 static void BuildJacobianJumpDistances(unsigned int jump_count, std::vector<uint64_t>& jump_distances)
 {
 	jump_distances.clear();
 	jump_distances.reserve(jump_count);
 	for (unsigned int i = 0; i < jump_count; ++i)
 		jump_distances.push_back(1ULL << i);
+}
+
+static void BuildJacobianJumpDistancesForSchedule(unsigned int jump_count,
+	const char* jump_schedule,
+	std::vector<uint64_t>& jump_distances)
+{
+	static const uint64_t scaled4_distances[] = {1, 2, 8192, 8193};
+	if (!IsScaled4BalancedJumpSchedule(jump_schedule))
+	{
+		BuildJacobianJumpDistances(jump_count, jump_distances);
+		return;
+	}
+
+	jump_distances.assign(scaled4_distances, scaled4_distances + 4);
 }
 
 static unsigned int NormalizeMetalJumpCount(unsigned int jump_count)
@@ -5068,7 +5162,7 @@ std::string RCKMetalJacobianDynamicDpStreamInplaceBenchJson(unsigned int iterati
 	return MetalJacobianDynamicDpStreamBenchJson("jacobian_affine_walk_dynamic_dp_stream_inplace", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_histogram_min_bucket, jump_histogram_max_bucket, jump_histogram_max_deviation_ppm, emitted_records, dp_capacity, dp_stream_overflow, dp_distance_checksum, dp_bits, dp_count, dp_checksum, min_ms, dispatch_stats, seconds, ops_per_sec, true, false, "");
 }
 
-std::string RCKMetalJacobianDynamicDpStreamXyzzBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int jump_count, unsigned int min_ms, unsigned int threadgroup_limit, unsigned int dp_bits)
+std::string RCKMetalJacobianDynamicDpStreamXyzzBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int jump_count, unsigned int min_ms, unsigned int threadgroup_limit, unsigned int dp_bits, const char* jump_schedule)
 {
 	if (iterations == 0)
 		iterations = 1;
@@ -5079,6 +5173,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzBenchJson(unsigned int iterations
 	jump_count = NormalizeMetalJumpCount(jump_count);
 	dp_bits = NormalizeMetalDpBits(dp_bits);
 	const char* jump_index_mode = MetalJumpIndexMode(jump_count);
+	const char* jump_schedule_name = NormalizeMetalJumpScheduleName(jump_schedule);
 	const unsigned int sample_count = iterations;
 	const unsigned int dp_capacity = sample_count;
 
@@ -5087,18 +5182,23 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzBenchJson(unsigned int iterations
 	if ((steps_per_sample != 256 && steps_per_sample != 512) || dp_bits != 8 || !IsMetalPowerOfTwo(jump_count))
 	{
 		std::string reason = "XYZZ dynamic dp stream supports steps=256 or steps=512, power-of-two jumps, dp_bits=8";
-		return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, 0.0, false, false, reason);
+		return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, 0.0, false, false, reason);
+	}
+	std::string schedule_reason;
+	if (!ValidateMetalJumpSchedule(jump_schedule, jump_count, schedule_reason))
+	{
+		return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, 0.0, false, false, schedule_reason);
 	}
 
 	std::vector<CpuJacobianPoint> p;
 	std::vector<CpuAffinePoint> jumps;
 	std::vector<uint64_t> jump_distances;
-	BuildJacobianJumpWalkSamples(sample_count, jump_count, p, jumps);
-	BuildJacobianJumpDistances(jump_count, jump_distances);
+	BuildJacobianJumpDistancesForSchedule(jump_count, jump_schedule, jump_distances);
+	BuildJacobianJumpWalkSamplesForSchedule(sample_count, jump_count, jump_schedule, jump_distances, p, jumps);
 	if (!CanAccumulateDistanceU32(jump_distances, steps_per_sample))
 	{
 		std::string reason = "XYZZ dynamic dp stream packet distance exceeds uint32 accumulator";
-		return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, 0.0, false, false, reason);
+		return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, 0.0, false, false, reason);
 	}
 
 	std::vector<CpuXyzzPoint> state_out;
@@ -5117,8 +5217,8 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzBenchJson(unsigned int iterations
 		if (!RunJacobianDynamicDpStreamXyzzKernel(p, jumps, jump_distances, steps_per_sample, state_out, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, error, &dispatch_seconds, threadgroup_limit, &dispatch_stats))
 		{
 			if (error == "no Metal device available")
-				return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", 0, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, 0.0, false, true, error);
-			return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", operations ? operations : (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, min_ms, dispatch_stats, seconds, 0.0, 0.0, false, false, error);
+				return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", 0, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, 0.0, false, true, error);
+			return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", operations ? operations : (uint64_t)sample_count * steps_per_sample, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, 0, dp_capacity, false, 0, dp_bits, 0, 0, min_ms, dispatch_stats, seconds, 0.0, 0.0, false, false, error);
 		}
 		seconds += dispatch_seconds;
 		operations += (uint64_t)sample_count * steps_per_sample;
@@ -5136,7 +5236,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzBenchJson(unsigned int iterations
 	if (!ValidateDynamicXyzzDpStreamAndStateOutputs(p, jumps, jump_distances, steps_per_sample, state_out, out_indices, out_distances, out_dp_terms, emitted_records, dp_stream_overflow, dp_bits, &jump_histogram, &dp_distance_checksum, &dp_checksum, &dp_count, reason))
 	{
 		double validation_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - validation_start).count();
-		return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, 0, 0, 0, emitted_records, dp_capacity, dp_stream_overflow, dp_distance_checksum, dp_bits, dp_count, dp_checksum, min_ms, dispatch_stats, seconds, validation_seconds, 0.0, false, false, reason);
+		return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, emitted_records, dp_capacity, dp_stream_overflow, dp_distance_checksum, dp_bits, dp_count, dp_checksum, min_ms, dispatch_stats, seconds, validation_seconds, 0.0, false, false, reason);
 	}
 	double validation_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - validation_start).count();
 
@@ -5144,7 +5244,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzBenchJson(unsigned int iterations
 	uint64_t jump_histogram_min_bucket = JumpHistogramMinBucket(jump_histogram);
 	uint64_t jump_histogram_max_bucket = JumpHistogramMaxBucket(jump_histogram);
 	uint64_t jump_histogram_max_deviation_ppm = JumpHistogramMaxDeviationPpm(jump_histogram);
-	return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_histogram_min_bucket, jump_histogram_max_bucket, jump_histogram_max_deviation_ppm, emitted_records, dp_capacity, dp_stream_overflow, dp_distance_checksum, dp_bits, dp_count, dp_checksum, min_ms, dispatch_stats, seconds, validation_seconds, ops_per_sec, true, false, "");
+	return MetalJacobianDynamicDpStreamXyzzBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, jump_histogram_min_bucket, jump_histogram_max_bucket, jump_histogram_max_deviation_ppm, emitted_records, dp_capacity, dp_stream_overflow, dp_distance_checksum, dp_bits, dp_count, dp_checksum, min_ms, dispatch_stats, seconds, validation_seconds, ops_per_sec, true, false, "");
 }
 
 std::string RCKMetalJacobianDynamicDpStreamXyzzChainBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int packet_count, unsigned int jump_count, unsigned int min_ms, unsigned int threadgroup_limit, unsigned int dp_bits)

@@ -18,8 +18,8 @@ static void PrintUsage()
 	printf("  rck_macos solve-small --range N --start HEX --pubkey PUBKEY\n");
 	printf("  rck_macos jacobian-kangaroo-small --range N --start HEX --pubkey PUBKEY [--jumps N] [--dp-bits N] [--max-steps N]\n");
 	printf("  rck_macos jacobian-kangaroo-multi-small --range N --start HEX --targets FILE [--jumps N] [--dp-bits N] [--max-steps N]\n");
-	printf("  rck_macos jacobian-kangaroo-small-bench [--iterations N] [--min-ms N] [--range N] [--jumps N] [--dp-bits N] [--max-steps N]\n");
-	printf("  rck_macos jacobian-kangaroo-multi-small-bench --target-count N [--iterations N] [--min-ms N] [--range N] [--jumps N] [--dp-bits N] [--max-steps N]\n");
+	printf("  rck_macos jacobian-kangaroo-small-bench [--iterations N] [--min-ms N] [--range N] [--jumps N] [--dp-bits N] [--max-steps N] [--jump-schedule power2|scaled4-balanced]\n");
+	printf("  rck_macos jacobian-kangaroo-multi-small-bench --target-count N [--iterations N] [--min-ms N] [--range N] [--jumps N] [--dp-bits N] [--max-steps N] [--jump-schedule power2|scaled4-balanced]\n");
 	printf("  rck_macos bench --iterations N\n");
 	printf("  rck_macos point-bench --iterations N [--min-ms N]\n");
 	printf("  rck_macos jacobian-point-bench --iterations N [--min-ms N]\n");
@@ -59,7 +59,7 @@ static void PrintUsage()
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-inplace-test\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-inplace-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-test\n");
-	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N]\n");
+	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N] [--jump-schedule power2|scaled4-balanced]\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations N [--steps N] [--packets N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench --iterations N [--steps N] [--packets N] [--rounds N] [--jumps N] [--dp-bits N] [--tg-limit N]\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-count-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N]\n");
@@ -377,6 +377,7 @@ int main(int argc, char* argv[])
 		const char* jumps_s = NULL;
 		const char* dp_bits_s = NULL;
 		const char* max_steps_s = NULL;
+		const char* jump_schedule_s = "power2";
 		unsigned int iterations = 1;
 		unsigned int min_ms = 0;
 		unsigned int range_bits = 8;
@@ -419,7 +420,8 @@ int main(int argc, char* argv[])
 			DeInitEc();
 			return 1;
 		}
-		printf("%s\n", RCKJacobianKangarooSmallBenchJson(iterations, min_ms, range_bits, jumps, dp_bits, max_steps).c_str());
+		ReadOption(argc, argv, "--jump-schedule", &jump_schedule_s);
+		printf("%s\n", RCKJacobianKangarooSmallBenchJson(iterations, min_ms, range_bits, jumps, dp_bits, max_steps, jump_schedule_s).c_str());
 	}
 	else if (strcmp(argv[1], "jacobian-kangaroo-multi-small-bench") == 0)
 	{
@@ -430,6 +432,7 @@ int main(int argc, char* argv[])
 		const char* jumps_s = NULL;
 		const char* dp_bits_s = NULL;
 		const char* max_steps_s = NULL;
+		const char* jump_schedule_s = "power2";
 		unsigned int iterations = 1;
 		unsigned int min_ms = 0;
 		unsigned int target_count = 4;
@@ -479,7 +482,8 @@ int main(int argc, char* argv[])
 			DeInitEc();
 			return 1;
 		}
-		printf("%s\n", RCKJacobianKangarooMultiSmallBenchJson(iterations, min_ms, target_count, range_bits, jumps, dp_bits, max_steps).c_str());
+		ReadOption(argc, argv, "--jump-schedule", &jump_schedule_s);
+		printf("%s\n", RCKJacobianKangarooMultiSmallBenchJson(iterations, min_ms, target_count, range_bits, jumps, dp_bits, max_steps, jump_schedule_s).c_str());
 	}
 	else if (strcmp(argv[1], "point-bench") == 0)
 	{
@@ -1076,6 +1080,7 @@ int main(int argc, char* argv[])
 	else if (strcmp(argv[1], "metal-jacobian-dynamic-dp-stream-xyzz-bench") == 0)
 	{
 		const char* steps_s = NULL;
+		const char* jump_schedule_s = "power2";
 		unsigned int iterations = 1024;
 		unsigned int steps = 256;
 		unsigned int jumps = 16;
@@ -1090,7 +1095,8 @@ int main(int argc, char* argv[])
 		}
 		if (!ReadOption(argc, argv, "--steps", &steps_s))
 			steps = 256;
-		printf("%s\n", RCKMetalJacobianDynamicDpStreamXyzzBenchJson(iterations, steps, jumps, min_ms, threadgroup_limit, dp_bits).c_str());
+		ReadOption(argc, argv, "--jump-schedule", &jump_schedule_s);
+		printf("%s\n", RCKMetalJacobianDynamicDpStreamXyzzBenchJson(iterations, steps, jumps, min_ms, threadgroup_limit, dp_bits, jump_schedule_s).c_str());
 	}
 	else if (strcmp(argv[1], "metal-jacobian-dynamic-dp-stream-xyzz-chain-bench") == 0)
 	{

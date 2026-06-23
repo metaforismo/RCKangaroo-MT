@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <sstream>
 #include <utility>
 
@@ -125,6 +126,45 @@ struct KangarooJumpTable
 	std::vector<u64> distances;
 };
 
+enum class KangarooJumpSchedule
+{
+	Power2,
+	Scaled4Balanced,
+	Invalid
+};
+
+static KangarooJumpSchedule ParseKangarooJumpSchedule(const char* raw)
+{
+	if (!raw || !*raw || strcmp(raw, "power2") == 0)
+		return KangarooJumpSchedule::Power2;
+	if (strcmp(raw, "scaled4-balanced") == 0 || strcmp(raw, "scaled4_balanced") == 0)
+		return KangarooJumpSchedule::Scaled4Balanced;
+	return KangarooJumpSchedule::Invalid;
+}
+
+static const char* KangarooJumpScheduleName(KangarooJumpSchedule schedule)
+{
+	if (schedule == KangarooJumpSchedule::Scaled4Balanced)
+		return "scaled4_balanced";
+	if (schedule == KangarooJumpSchedule::Invalid)
+		return "invalid";
+	return "power2";
+}
+
+static bool KangarooJumpScheduleAllowed(KangarooJumpSchedule schedule, unsigned int jump_count)
+{
+	return schedule == KangarooJumpSchedule::Power2 ||
+		(schedule == KangarooJumpSchedule::Scaled4Balanced && jump_count == 4);
+}
+
+static u64 ScheduledJumpDistance(KangarooJumpSchedule schedule, unsigned int jump_count, unsigned int index)
+{
+	static const u64 scaled4_distances[] = {1, 2, 8192, 8193};
+	if (schedule == KangarooJumpSchedule::Scaled4Balanced && jump_count == 4)
+		return scaled4_distances[index];
+	return JumpDistance(index);
+}
+
 static unsigned int NormalizeJumpCount(unsigned int jump_count)
 {
 	if (jump_count < 2)
@@ -134,7 +174,7 @@ static unsigned int NormalizeJumpCount(unsigned int jump_count)
 	return jump_count;
 }
 
-static KangarooJumpTable BuildKangarooJumpTable(unsigned int jump_count)
+static KangarooJumpTable BuildKangarooJumpTable(unsigned int jump_count, KangarooJumpSchedule schedule = KangarooJumpSchedule::Power2)
 {
 	jump_count = NormalizeJumpCount(jump_count);
 
@@ -143,7 +183,7 @@ static KangarooJumpTable BuildKangarooJumpTable(unsigned int jump_count)
 	table.distances.reserve(jump_count);
 	for (unsigned int i = 0; i < jump_count; i++)
 	{
-		u64 distance = JumpDistance(i);
+		u64 distance = ScheduledJumpDistance(schedule, jump_count, i);
 		EcInt k;
 		k.Set(distance);
 		table.distances.push_back(distance);
@@ -1343,7 +1383,7 @@ struct KangarooSingleBenchReference
 	std::string reason;
 };
 
-static KangarooSingleBenchReference MeasureSingleTargetKangarooSmall(unsigned int iterations, unsigned int min_ms, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
+static KangarooSingleBenchReference MeasureSingleTargetKangarooSmall(unsigned int iterations, unsigned int min_ms, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps, KangarooJumpSchedule jump_schedule)
 {
 	KangarooSingleBenchReference reference;
 	reference.ops_per_sec = 0.0;
@@ -1366,7 +1406,7 @@ static KangarooSingleBenchReference MeasureSingleTargetKangarooSmall(unsigned in
 	solved_k.Set(solved_private_key);
 	EcPoint target = Ec::MultiplyG(solved_k);
 	KangarooRangeContext range = BuildKangarooRangeContext(start, range_bits);
-	KangarooJumpTable jumps = BuildKangarooJumpTable(jump_count);
+	KangarooJumpTable jumps = BuildKangarooJumpTable(jump_count, jump_schedule);
 	KangarooSolveScratch scratch;
 
 	u64 operations = 0;
@@ -1392,10 +1432,12 @@ static KangarooSingleBenchReference MeasureSingleTargetKangarooSmall(unsigned in
 	return reference;
 }
 
-std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
+std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps, const char* jump_schedule_name)
 {
 	if (!iterations)
 		iterations = 1;
+	jump_count = NormalizeJumpCount(jump_count);
+	KangarooJumpSchedule jump_schedule = ParseKangarooJumpSchedule(jump_schedule_name);
 
 	u64 start = 0;
 	u64 limit = RangeLimit(range_bits);
@@ -1405,6 +1447,16 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	{
 		correctness = false;
 		reason = "range_bits must be <= 24";
+	}
+	if (jump_schedule == KangarooJumpSchedule::Invalid)
+	{
+		correctness = false;
+		reason = "unknown jump schedule";
+	}
+	else if (!KangarooJumpScheduleAllowed(jump_schedule, jump_count))
+	{
+		correctness = false;
+		reason = "jump schedule requires --jumps 4";
 	}
 
 	u64 solved_private_key = limit ? start + (limit > 7 ? 7 : limit - 1) : start;
@@ -1416,8 +1468,8 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 		target = Ec::MultiplyG(solved_k);
 	}
 	KangarooJumpTable jumps;
-	if (limit)
-		jumps = BuildKangarooJumpTable(jump_count);
+	if (limit && correctness)
+		jumps = BuildKangarooJumpTable(jump_count, jump_schedule);
 	KangarooRangeContext range;
 	if (limit)
 		range = BuildKangarooRangeContext(start, range_bits);
@@ -1430,7 +1482,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	u64 found_private_key = 0;
 	auto t0 = std::chrono::steady_clock::now();
 	auto t1 = t0;
-	if (limit)
+	if (limit && correctness)
 	{
 		do
 		{
@@ -1479,6 +1531,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "\"affine_initial_conversion\":\"" << KangarooInitialAffineConversionMode() << "\",";
 	out << "\"jump_index\":\"" << JumpIndexMode(jump_count) << "\",";
 	out << "\"jump_table\":\"precomputed\",";
+	out << "\"jump_schedule\":\"" << KangarooJumpScheduleName(jump_schedule) << "\",";
 	out << "\"scratch\":\"reused\",";
 	out << "\"range_context\":\"precomputed\",";
 	out << "\"iterations\":" << operations << ",";
@@ -1506,7 +1559,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	return out.str();
 }
 
-std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int target_count, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
+std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int target_count, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps, const char* jump_schedule_name)
 {
 	if (!iterations)
 		iterations = 1;
@@ -1514,6 +1567,8 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 		target_count = 1;
 	if (target_count > 64)
 		target_count = 64;
+	jump_count = NormalizeJumpCount(jump_count);
+	KangarooJumpSchedule jump_schedule = ParseKangarooJumpSchedule(jump_schedule_name);
 
 	u64 start = 2;
 	u64 limit = RangeLimit(range_bits);
@@ -1524,19 +1579,33 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 		correctness = false;
 		reason = "range_bits must be <= 24";
 	}
+	if (jump_schedule == KangarooJumpSchedule::Invalid)
+	{
+		correctness = false;
+		reason = "unknown jump schedule";
+	}
+	else if (!KangarooJumpScheduleAllowed(jump_schedule, jump_count))
+	{
+		correctness = false;
+		reason = "jump schedule requires --jumps 4";
+	}
 
 	u64 solved_private_key = limit ? start + (limit > 5 ? 5 : limit - 1) : start;
 	std::vector<EcPoint> targets;
 	if (limit)
 		targets = BuildSyntheticMultiTargets(target_count, start, limit, solved_private_key);
 	KangarooJumpTable jumps;
-	if (limit)
-		jumps = BuildKangarooJumpTable(jump_count);
+	if (limit && correctness)
+		jumps = BuildKangarooJumpTable(jump_count, jump_schedule);
 	KangarooRangeContext range;
 	if (limit)
 		range = BuildKangarooRangeContext(start, range_bits);
-	KangarooSingleBenchReference single_reference = MeasureSingleTargetKangarooSmall(iterations, min_ms, range_bits, jump_count, dp_bits, max_steps);
-	if (limit && !single_reference.correctness)
+	KangarooSingleBenchReference single_reference;
+	single_reference.ops_per_sec = 0.0;
+	single_reference.correctness = true;
+	if (limit && correctness)
+		single_reference = MeasureSingleTargetKangarooSmall(iterations, min_ms, range_bits, jump_count, dp_bits, max_steps, jump_schedule);
+	if (limit && correctness && !single_reference.correctness)
 	{
 		correctness = false;
 		reason = single_reference.reason;
@@ -1550,7 +1619,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	KangarooSolveScratch scratch;
 	auto t0 = std::chrono::steady_clock::now();
 	auto t1 = t0;
-	if (limit)
+	if (limit && correctness)
 	{
 		do
 		{
@@ -1608,6 +1677,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"affine_tail_update\":\"" << JacobianBatchTailUpdateMode() << "\",";
 	out << "\"jump_index\":\"" << JumpIndexMode(jump_count) << "\",";
 	out << "\"jump_table\":\"precomputed\",";
+	out << "\"jump_schedule\":\"" << KangarooJumpScheduleName(jump_schedule) << "\",";
 	out << "\"scratch\":\"reused\",";
 	out << "\"range_context\":\"precomputed\",";
 	out << "\"iterations\":" << operations << ",";

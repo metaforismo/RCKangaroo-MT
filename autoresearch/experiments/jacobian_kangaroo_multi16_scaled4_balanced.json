@@ -1,0 +1,27 @@
+{
+  "name": "jacobian_kangaroo_multi16_scaled4_balanced",
+  "description": "Apple Silicon CPU shared-tame tiny 16-target kangaroo benchmark with the scaled4-balanced jump schedule",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "jacobian-kangaroo-multi-small-bench",
+    "--target-count",
+    "16",
+    "--iterations",
+    "1",
+    "--min-ms",
+    "50",
+    "--range",
+    "20",
+    "--jumps",
+    "4",
+    "--dp-bits",
+    "4",
+    "--max-steps",
+    "500000",
+    "--jump-schedule",
+    "scaled4-balanced"
+  ],
+  "sample_runs": 3,
+  "min_improvement_ratio": 0.01
+}
