@@ -3237,10 +3237,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   with three correct samples and median `122,318,871.862145` steps/sec
   (`min=122,231,092.631304`, `max=122,955,909.345437`), preserving
   `dp_count=10`, `dp_distance_checksum=0xb1c940ae7864db0e`, and
-  `dp_checksum=0xeb0822497a41aca2`. The hardcoded DP16 candidate measured
-  `123,705,825.479850` steps/sec with the same checksums
-  (`min=123,113,230.120760`, `max=123,863,512.501802`), a local paired lift of
-  about `1.13%` on the solver-facing `131072 x 512 x 4` persistent-chain gate.
+  `dp_checksum=0xeb0822497a41aca2`. Clean autoresearch on commit `88816b7`
+  measured the hardcoded DP16 candidate at `123,257,579.364915` steps/sec with
+  the same checksums (`min=123,215,222.207105`,
+  `max=123,441,127.302035`), a local paired lift of about `0.77%` on the
+  solver-facing `131072 x 512 x 4` persistent-chain gate. All three clean
+  candidate samples were above the maximum detached-baseline sample, so keep
+  the specialization despite the modest effect size.
   A same-shape packet smoke preserved `dp_count=3`,
   `dp_distance_checksum=0xfb58c604140b6d33`, and
   `dp_checksum=0x7a3ee32278528fba`; treat the packet result as coverage, not a
