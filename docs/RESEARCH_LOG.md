@@ -110,6 +110,13 @@ GPU work should use Metal.
   `127.7M` steps/sec, but repeats landed at `124.2M` and `125.7M`; `tg=64`,
   `96`, `128`, and `160` were all in the same noisy band. Keep the inherited
   `128` default and use explicit `--tg-limit` only for local tuning.
+- Rejected alternate four-jump CPU schedule probes around `scaled4-balanced`.
+  `{1,2,4096,4097}` preserved correctness but exploded the 16-target
+  `range=20`, `dp_bits=4` oracle to `avg_dp_count=291801`; `{1,2,16384,16385}`
+  preserved correctness but measured `22885`; `{1,2,12288,12289}` failed the
+  single-target reference; `{1,1024,4096,11267}` was close but still worse at
+  `8216`; `{1,512,4096,11779}` was much worse at `171387`. Keep
+  `{1,2,8192,8193}` as the best tested four-jump schedule.
 - Rejected treating smaller jump tables as a solver improvement from raw Metal
   throughput alone. On the synthetic XYZZ kernel benchmark, `jumps=4` measured
   `125.4M` steps/sec versus `jumps=16` around `121.9M`, with correctness
