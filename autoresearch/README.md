@@ -44,6 +44,13 @@ python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk_dp --budget
 
 With `--confirm-runs N`, the runner runs the complete benchmark decision `N` times and appends all rows only after applying confirmation policy. A provisional keep is downgraded to `discard` unless every confirmation run also keeps it; JSON rows include `raw_status`, `confirmation_status`, `confirmation_runs`, and `confirmation_index` for auditability.
 
+Large Metal XYZZ experiments also report `validation_workers`, the CPU worker
+count used by the replay oracle. By default this follows
+`std::thread::hardware_concurrency()` with the existing per-sample cap. Set
+`RCK_VALIDATION_WORKERS=N` only for explicit reproducibility or thermal-control
+experiments; it never changes the Metal dispatch timing window or the
+correctness oracle.
+
 ```sh
 make macos-check
 make macos-bench

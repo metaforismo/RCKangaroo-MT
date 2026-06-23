@@ -59,6 +59,24 @@ case "$chain_default_output" in
 		;;
 esac
 
+worker_output="$(RCK_VALIDATION_WORKERS=1 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations 16 --steps 256 --jumps 8 --dp-bits 8 --min-ms 0 2>&1)"
+worker_status=$?
+if [ "$worker_status" -ne 0 ]; then
+	printf 'metal-jacobian-dynamic-dp-stream-xyzz-bench validation worker override returned status %s\n' "$worker_status"
+	printf '%s\n' "$worker_output"
+	exit 1
+fi
+
+case "$worker_output" in
+	*"\"validation_workers\":1"*)
+		;;
+	*)
+		printf '%s\n' "unexpected validation worker override output"
+		printf '%s\n' "$worker_output"
+		exit 1
+		;;
+esac
+
 persistent_chain_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench --iterations 64 --steps 256 --packets 2 --rounds 2 --jumps 8 --dp-bits 8 2>&1)"
 persistent_chain_status=$?
 if [ "$persistent_chain_status" -ne 0 ]; then

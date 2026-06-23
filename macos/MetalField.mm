@@ -4,6 +4,7 @@
 #import <Metal/Metal.h>
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <array>
@@ -29,9 +30,26 @@ struct MetalDispatchStats
 	unsigned int threads_per_threadgroup = 0;
 };
 
+static unsigned int ValidationWorkerOverride()
+{
+	const char* raw = getenv("RCK_VALIDATION_WORKERS");
+	if (!raw || !*raw)
+		return 0;
+
+	char* end = NULL;
+	unsigned long parsed = strtoul(raw, &end, 10);
+	if (end == raw || *end != '\0' || parsed == 0)
+		return 0;
+	if (parsed > 1024UL)
+		parsed = 1024UL;
+	return (unsigned int)parsed;
+}
+
 static unsigned int ValidationWorkerCount(size_t sample_count)
 {
-	unsigned int worker_count = std::thread::hardware_concurrency();
+	unsigned int worker_count = ValidationWorkerOverride();
+	if (worker_count == 0)
+		worker_count = std::thread::hardware_concurrency();
 	if (worker_count == 0)
 		worker_count = 1;
 	size_t sample_limited_workers = sample_count / kMinValidationSamplesPerWorker;
@@ -946,6 +964,7 @@ static std::string MetalJacobianDynamicDpStreamXyzzBenchJson(const char* operati
 	oss << "\"max_threads_per_threadgroup\":" << dispatch_stats.max_threads_per_threadgroup << ",";
 	oss << "\"threads_per_threadgroup\":" << dispatch_stats.threads_per_threadgroup << ",";
 	oss << "\"seconds\":" << seconds << ",";
+	oss << "\"validation_workers\":" << ValidationWorkerCount(sample_count) << ",";
 	oss << "\"validation_seconds\":" << validation_seconds << ",";
 	oss << "\"ops_per_sec\":" << ops_per_sec << ",";
 	oss << "\"correctness\":" << (correctness ? "true" : "false") << ",";
@@ -1016,6 +1035,7 @@ static std::string MetalJacobianDynamicDpStreamXyzzChainBenchJson(const char* op
 	oss << "\"max_threads_per_threadgroup\":" << dispatch_stats.max_threads_per_threadgroup << ",";
 	oss << "\"threads_per_threadgroup\":" << dispatch_stats.threads_per_threadgroup << ",";
 	oss << "\"seconds\":" << seconds << ",";
+	oss << "\"validation_workers\":" << ValidationWorkerCount(sample_count) << ",";
 	oss << "\"validation_seconds\":" << validation_seconds << ",";
 	oss << "\"ops_per_sec\":" << ops_per_sec << ",";
 	oss << "\"correctness\":" << (correctness ? "true" : "false") << ",";
@@ -1091,6 +1111,7 @@ static std::string MetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson(cons
 	oss << "\"max_threads_per_threadgroup\":" << dispatch_stats.max_threads_per_threadgroup << ",";
 	oss << "\"threads_per_threadgroup\":" << dispatch_stats.threads_per_threadgroup << ",";
 	oss << "\"seconds\":" << seconds << ",";
+	oss << "\"validation_workers\":" << ValidationWorkerCount(sample_count) << ",";
 	oss << "\"validation_seconds\":" << validation_seconds << ",";
 	oss << "\"ops_per_sec\":" << ops_per_sec << ",";
 	oss << "\"correctness\":" << (correctness ? "true" : "false") << ",";
