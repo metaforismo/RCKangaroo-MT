@@ -58,6 +58,24 @@ GPU work should use Metal.
   `1 x 4` and `2 x 2` preserved identical DP count/checksums, but timings
   flipped by run order (`2 x 2` then `1 x 4`: `123.6M` vs `125.1M`; reverse:
   `124.1M` vs `124.8M`). Keep the balanced `2 x 2` default.
+- Rejected CPU tiny multi-target implicit jump distance after paired
+  autoresearch confirmation. Replacing the jump-distance table load with
+  `1 << jump_index` preserved all small single/multi-target correctness oracles,
+  but the final paired result was only `1.000604x` and confirmation discarded
+  the candidate. Keep the explicit table load, which also leaves room for
+  non-power-of-two jump schedules.
+- Rejected Metal XYZZ chain cumulative-distance early load. Moving
+  `cumulative_distances[id]` before the 256/512-step inner loop preserved
+  `emitted_records=2016`,
+  `dp_distance_checksum=0x7a221c62b92a5ed3`, and
+  `dp_checksum=0x23509000c8141686`, but the paired chain512 scout measured
+  `0.979056x`. The extra long-lived scalar likely increases register pressure;
+  keep the late cumulative-distance load/store.
+- Rejected CPU distinguished-point table hash no-avalanche. Returning the base
+  `KangarooPointKeyHash` directly preserved the tiny multi-target oracle and one
+  raw paired run showed `1.013091x`, but the three-run confirmation still
+  discarded it as non-durable. Keep the secondary avalanche in `IndexHash` for
+  stable probe distribution.
 
 ## Accepted Results
 
