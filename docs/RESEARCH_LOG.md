@@ -3307,6 +3307,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `1.52%` of the dispatch time in the clean median. This is not yet a full
   collision table, but it gives future GPU batch-normalization work a
   reproducible oracle and non-cheating metric.
+- Inconclusive follow-up `macos-metal-xyzz-affine-scan-tg-sweep`: explicit
+  threadgroup probes on the saturated affine-scan gate preserved
+  `dp_count=1057`, `dp_distance_checksum=0xf0dc88ed68b2ff64`, and
+  `dp_checksum=0x9dba4a07ebbb8e14`. `tg=256` was clearly worse
+  (`119,308,438.468156` end-to-end steps/sec), but `tg=64` and `tg=128`
+  overlapped across sequential samples (`126,051,033.790371` then
+  `125,064,123.237407` for `tg=64`; `124,825,972.726648` then
+  `125,677,075.402889` for `tg=128`). Keep the inherited 128-thread default
+  for the affine-scan gate until a paired/confirmed run separates the two.
 
 ## Next Research Targets
 
