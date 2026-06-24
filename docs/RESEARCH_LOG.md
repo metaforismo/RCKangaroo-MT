@@ -3338,6 +3338,22 @@ These did not pass the performance gate or had a correctness/architecture issue:
   multi-target join layer that follows affine DP extraction; it is not a
   kangaroo per-step GKeys/s claim, and the core XYZZ mixed-add walk remains the
   main throughput bottleneck.
+- Accepted probe `macos-metal-target-lookup-compact-exact256`: replaced the
+  full-key-per-bucket lookup table with a compact `hash64 + target_index`
+  bucket plus a separate full target-key array. The kernel still verifies full
+  affine `x256 + y_parity` equality after the hash prefilter
+  (`candidate_verification=hash64_prefilter_then_exact_key_equality`), so the
+  hash is only a memory/locality gate, not a correctness oracle. For
+  one million targets and one million queries, table memory dropped from
+  `100,663,296` bytes to `75,497,472` bytes (`96.000000` to `72.000000`
+  bytes/target) while preserving `hit_count=4096`, `miss_count=1044480`, and
+  `target_lookup_checksum=0x4f62d3a7170b250a`. Clean paired autoresearch on
+  commit `de7323f` kept the gate: compact median `156,975,200.176937`
+  lookups/sec (`min=153,101,277.578787`, `max=159,416,087.646262`) versus paired
+  exact-layout baseline median `114,033,683.880847` lookups/sec, for
+  `paired_speedup=1.376569`. This is a real multi-target DP-join improvement
+  and lowers memory pressure for large target sets; it still sits after packet
+  affine-DP extraction, so walk-core GKeys/s/MKeys/s must be measured separately.
 - Rejected probe `macos-metal-xyzz-affine-scan-xorfold-mixer`: prototyped an
   explicit `xorfold64` jump mixer only for the affine-scan distance kernel,
   keeping `avalanche64` as the default and validating the alternate walk with
