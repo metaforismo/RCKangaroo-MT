@@ -3338,6 +3338,18 @@ These did not pass the performance gate or had a correctness/architecture issue:
   multi-target join layer that follows affine DP extraction; it is not a
   kangaroo per-step GKeys/s claim, and the core XYZZ mixed-add walk remains the
   main throughput bottleneck.
+- Rejected probe `macos-metal-xyzz-affine-scan-xorfold-mixer`: prototyped an
+  explicit `xorfold64` jump mixer only for the affine-scan distance kernel,
+  keeping `avalanche64` as the default and validating the alternate walk with
+  full CPU replay. The alternate mixer was correct and had a healthy jump
+  histogram (`735 ppm` max deviation versus `759 ppm` for avalanche on the
+  saturated `262144 x 512` gate), but it did not separate from noise. Sequential
+  same-shape end-to-end ratios were approximately `1.000x`, `1.046x`, and
+  `0.969x`; the median was neutral and the last pair regressed. Checksums
+  changed as expected for a different walk (`dp_distance_checksum`
+  `0x3c64d09f19f97adf`, `dp_checksum=0x3f5ba264076581a0`, `dp_count=957`),
+  so the path was reverted instead of adding a non-default code surface with no
+  demonstrated throughput win.
 
 ## Next Research Targets
 
