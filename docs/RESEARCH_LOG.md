@@ -3327,7 +3327,10 @@ These did not pass the performance gate or had a correctness/architecture issue:
   preserved `hit_count=4096`, `miss_count=1044480`,
   `target_table_buckets=2097152`, `target_table_bytes=100663296`,
   `bytes_per_target=96.000000`, and
-  `target_lookup_checksum=0x4f62d3a7170b250a`. Earlier sequential scouts showed
+  `target_lookup_checksum=0x4f62d3a7170b250a`. Clean autoresearch on commit
+  `2fe9034` kept the gate with median `125,616,200.459179` lookups/sec across
+  three correct samples (`min=108,509,735.324471`,
+  `max=143,301,714.266811`) and the same checksum. Earlier sequential scouts showed
   why this should be documented conservatively: the old 256-ish default was
   around `70,816,077.316200` lookups/sec, explicit `tg=64` reached
   `87,588,904.438702` and later `97,733,301.268179`, while `tg=32` was noisy
