@@ -3350,6 +3350,25 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `0x3c64d09f19f97adf`, `dp_checksum=0x3f5ba264076581a0`, `dp_count=957`),
   so the path was reverted instead of adding a non-default code surface with no
   demonstrated throughput win.
+- Rejected probe `macos-metal-field-mul32-u32x8`: tested a first-principles
+  idea that Apple GPU integer throughput might prefer an 8x32-limb secp256k1
+  field multiplication over the current 4x64 path. The prototype added an
+  isolated `field_mul32_mod_p` benchmark only, kept the solver and XYZZ walk
+  untouched, and validated every output against the existing `CpuFieldMul`
+  oracle. It was correct but slower in the paired autoresearch run against
+  `main`: five real-Metal samples gave candidate median
+  `151,867,984.149860` mul/s versus baseline median `177,148,234.231316`
+  mul/s (`paired_speedup=0.857293`, status `discard`). Explicit threadgroup
+  scouts did not rescue it: `tg=128` measured `90,192,662.852857` mul/s and
+  `tg=512` measured `64,951,613.243122` mul/s, both correct and both worse.
+  The dirty sandbox autoresearch attempt also produced a `no Metal device
+  available` skip row before the authorized GPU run; that row was removed with
+  the discarded experiment ledger entries. The prototype was reverted and only
+  this note was kept. A future 32-bit arithmetic attempt should not repeat this
+  direct 8x32 Comba/fold design; it would need a meaningfully different
+  representation such as a lower-radix carry-save form, vectorized paired
+  limbs, or a point-formula-level redesign that reduces reductions rather than
+  merely swapping limb width.
 
 ## Next Research Targets
 
