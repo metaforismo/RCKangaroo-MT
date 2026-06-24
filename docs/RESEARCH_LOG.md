@@ -3316,6 +3316,25 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `125,064,123.237407` for `tg=64`; `124,825,972.726648` then
   `125,677,075.402889` for `tg=128`). Keep the inherited 128-thread default
   for the affine-scan gate until a paired/confirmed run separates the two.
+- Accepted probe `macos-metal-target-lookup-exact256`: added an exact Metal
+  multi-target lookup gate for packet-boundary affine DP candidates. The kernel
+  probes a deterministic open-addressed table keyed by full affine `x` plus
+  `y` parity (`target_key=x256_y_parity`,
+  `lookup_layout=open_address_exact256`) and confirms candidates with exact key
+  equality, not a fingerprint or probabilistic filter. A one-million target,
+  one-million query smoke with 4096 known hits measured
+  `80,834,482.287167` exact lookups/sec at the promoted 64-thread default,
+  preserved `hit_count=4096`, `miss_count=1044480`,
+  `target_table_buckets=2097152`, `target_table_bytes=100663296`,
+  `bytes_per_target=96.000000`, and
+  `target_lookup_checksum=0x4f62d3a7170b250a`. Earlier sequential scouts showed
+  why this should be documented conservatively: the old 256-ish default was
+  around `70,816,077.316200` lookups/sec, explicit `tg=64` reached
+  `87,588,904.438702` and later `97,733,301.268179`, while `tg=32` was noisy
+  (`113,458,390.662137` then `81,032,565.214847`). This improves the
+  multi-target join layer that follows affine DP extraction; it is not a
+  kangaroo per-step GKeys/s claim, and the core XYZZ mixed-add walk remains the
+  main throughput bottleneck.
 
 ## Next Research Targets
 
@@ -3335,6 +3354,9 @@ These did not pass the performance gate or had a correctness/architecture issue:
   design: keep GPU packet distances resident, avoid CPU replay, and compare
   `gpu_ops_per_sec` versus end-to-end `ops_per_sec` before moving any collision
   table work onto Metal.
+- Extend the exact target-lookup gate from synthetic hit/miss probes toward the
+  affine DP scan output, preserving exact full-key verification and separating
+  `lookups_per_sec` from walk-step throughput.
 - Keep CPU tiny-range kangaroo as the correctness oracle while GPU kernels are
   introduced one layer at a time.
 - Prefer fused kernels only when paired benchmarks show a real win. The fused

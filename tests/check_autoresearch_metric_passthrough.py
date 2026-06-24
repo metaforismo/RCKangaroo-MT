@@ -110,6 +110,17 @@ assert aggregated["runner_sample_count"] == 3
 assert aggregated["iterations"] == 10
 assert aggregated["correctness"] is True
 
+lookup_samples = [
+    dict(metrics, operation="target_lookup_exact256", lookups_per_sec=10.0, ops_per_sec=0.0),
+    dict(metrics, operation="target_lookup_exact256", lookups_per_sec=20.0, ops_per_sec=0.0),
+    dict(metrics, operation="target_lookup_exact256", lookups_per_sec=30.0, ops_per_sec=0.0),
+]
+lookup_aggregated = runner.aggregate_metric_samples(lookup_samples, metric_name="lookups_per_sec")
+assert lookup_aggregated["lookups_per_sec"] == 20.0
+assert lookup_aggregated["lookups_per_sec_min"] == 10.0
+assert lookup_aggregated["lookups_per_sec_max"] == 30.0
+assert lookup_aggregated["ops_per_sec"] == 20.0
+
 jump_walk_experiment = runner.load_experiment("jacobian_jump_walk")
 assert int(jump_walk_experiment.get("sample_runs", 1)) >= 3
 assert jump_walk_experiment.get("build_target") == "macos-build"

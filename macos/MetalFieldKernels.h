@@ -2374,4 +2374,71 @@ kernel void jacobian_affine_walk_dynamic_dp_count_steps8_pow2_mask(constant ulon
     atomic_fetch_add_explicit(out_dp_count, 1U, memory_order_relaxed);
   }
 }
+
+struct TargetLookupKey {
+  ulong x[4];
+  uint parity;
+};
+
+struct TargetLookupBucket {
+  TargetLookupKey key;
+  uint target_index;
+  uint occupied;
+};
+
+static inline ulong target_lookup_mix(ulong v) {
+  v ^= v >> 33;
+  v *= 0xff51afd7ed558ccdUL;
+  v ^= v >> 33;
+  v *= 0xc4ceb9fe1a85ec53UL;
+  v ^= v >> 33;
+  return v;
+}
+
+static inline ulong target_lookup_hash(thread const TargetLookupKey& key) {
+  ulong h = 0x9e3779b97f4a7c15UL;
+  h = target_lookup_mix(h ^ key.x[0]);
+  h = target_lookup_mix(h ^ key.x[1]);
+  h = target_lookup_mix(h ^ key.x[2]);
+  h = target_lookup_mix(h ^ key.x[3]);
+  return target_lookup_mix(h ^ (ulong)key.parity);
+}
+
+static inline bool target_lookup_key_equals(thread const TargetLookupKey& a, thread const TargetLookupKey& b) {
+  return a.parity == b.parity &&
+         a.x[0] == b.x[0] &&
+         a.x[1] == b.x[1] &&
+         a.x[2] == b.x[2] &&
+         a.x[3] == b.x[3];
+}
+
+kernel void target_lookup_exact256(device const TargetLookupBucket* target_buckets [[buffer(0)]],
+                                   device const TargetLookupKey* query_keys [[buffer(1)]],
+                                   device uint* out_target_indices [[buffer(2)]],
+                                   device atomic_uint* out_hit_count [[buffer(3)]],
+                                   constant uint& bucket_count [[buffer(4)]],
+                                   constant uint& query_count [[buffer(5)]],
+                                   uint id [[thread_position_in_grid]]) {
+  if (id >= query_count) return;
+  TargetLookupKey query = query_keys[id];
+  uint slot = (uint)(target_lookup_hash(query) & (ulong)(bucket_count - 1));
+  uint probes = 0;
+  uint found = 0xFFFFFFFFU;
+
+  while (probes < bucket_count) {
+    TargetLookupBucket bucket = target_buckets[slot];
+    if (!bucket.occupied) {
+      break;
+    }
+    if (target_lookup_key_equals(bucket.key, query)) {
+      found = bucket.target_index;
+      atomic_fetch_add_explicit(out_hit_count, 1U, memory_order_relaxed);
+      break;
+    }
+    slot = (slot + 1U) & (bucket_count - 1U);
+    probes++;
+  }
+
+  out_target_indices[id] = found;
+}
 )RCK_METAL";

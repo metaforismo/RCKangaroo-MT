@@ -133,6 +133,8 @@ make macos-check
 make macos-bench
 ./macos/rck_macos metal-smoke
 ./macos/rck_macos metal-field-test
+make macos-metal-target-lookup-bench
+./macos/rck_macos metal-target-lookup-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
 ./macos/rck_macos metal-field-sub-test
 ./macos/rck_macos metal-field-double-test
 ./macos/rck_macos metal-field-mul4-test
@@ -145,6 +147,7 @@ python3 autoresearch/runner.py --experiment metal_field_double --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_mul4 --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_neg --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_square --budget-sec 5
+python3 autoresearch/runner.py --experiment metal_target_lookup_exact256 --budget-sec 10
 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations 262144 --steps 512 --packets 2 --jumps 16 --dp-bits 8 --min-ms 500
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_chain_steps512 --budget-sec 120
 ```
@@ -191,6 +194,8 @@ Il benchmark CPU field riporta `carry_impl=clang_builtin` su Apple Clang: le cat
 I benchmark kangaroo macOS riportano `dp_hash=partial_limb_mix` e `dp_key=x_parity`: l'hash dei distinguished point usa pochi limb ad alta entropia per scegliere il bucket, mentre l'identita' affine compressa (`x` piu' parita' di `y`) resta la chiave di equality. Riportano anche `candidate_verification=full_point_collision`, `dp_reserve=sqrt_range_estimate`, `dp_capacity=max_load_2of3`, `dp_clear=empty_guard`: una collisione full-point cross-side piu' i controlli range/target prova il candidato senza rimoltiplicarlo per `G`, la riserva iniziale parte dalla stima sqrt(range), applica `dp_bits`, punta a un load massimo piu' denso di due terzi e pulisce i bucket evitando `overflow.clear()` quando non serve. I percorsi Jacobian riportano inoltre `field_rhs_passing=const_ref`, `jacobian_step_passing=const_ref`, `ecint_carry_impl` ed `ecint_mul_final_sub`; il batch affine multi-target espone `affine_z_access=const_ref`, `affine_z_check=infinity_flag`, `affine_field_ops=inplace`, `affine_buffer=resize_reuse`, `affine_active_path=all_active_fast`, `affine_reverse_loop=split_zero` e `affine_tail_update=skip_final` per tracciare copie, validita' Z basata sul flag infinity, moltiplicazioni field in-place, buffer riusati, fast path all-active, gestione separata dell'indice zero nella reverse pass e update finale saltato.
 
 I tiny solver CPU kangaroo riportano anche `affine_initial_conversion=unit_z_copy`. Questo traccia il fast path del passo zero: gli stati tame/wild Jacobian appena inizializzati hanno `Z=1`, quindi la prima vista affine copia direttamente `x/y`; dai passi successivi resta il normale percorso `affine_conversion=batch` e restano invariati tutti gli oracle di collisione.
+
+Il benchmark Metal macOS per target lookup isola il join multi-target esatto da usare dopo l'estrazione affine dei DP al confine packet. `metal-target-lookup-bench` costruisce una tabella open-addressed deterministica indicizzata da `x` affine completo piu' parita' di `y` (`target_key=x256_y_parity`, `lookup_layout=open_address_exact256`) e valida query hit/miss note con equality esatta della chiave. Riporta `lookups_per_sec`, `target_table_bytes`, `bytes_per_target`, `hit_count`, `miss_count` e `target_lookup_checksum`; non e' throughput kangaroo per step, ma misura se un grande set di target puo' essere unito ai DP in modo economico senza scorciatoie probabilistiche.
 
 ## Limiti
 

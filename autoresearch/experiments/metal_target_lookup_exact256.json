@@ -1,0 +1,20 @@
+{
+  "name": "metal_target_lookup_exact256",
+  "description": "Metal exact x256+y-parity open-address target lookup gate for multi-target kangaroo DP joins",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "metal-target-lookup-bench",
+    "--target-count",
+    "1048576",
+    "--query-count",
+    "1048576",
+    "--hits",
+    "4096",
+    "--min-ms",
+    "500"
+  ],
+  "metric": "lookups_per_sec",
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3
+}

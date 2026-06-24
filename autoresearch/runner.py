@@ -46,17 +46,20 @@ def parse_last_json(stdout: str) -> dict:
     raise ValueError("benchmark output did not contain a JSON line")
 
 
-def aggregate_metric_samples(samples: list[dict]) -> dict:
+def aggregate_metric_samples(samples: list[dict], metric_name: str = "ops_per_sec") -> dict:
     if not samples:
         raise ValueError("at least one benchmark sample is required")
 
-    ops_values = [float(sample.get("ops_per_sec", 0.0)) for sample in samples]
-    sorted_samples = sorted(samples, key=lambda sample: float(sample.get("ops_per_sec", 0.0)))
+    ops_values = [float(sample.get(metric_name, 0.0)) for sample in samples]
+    sorted_samples = sorted(samples, key=lambda sample: float(sample.get(metric_name, 0.0)))
     median_sample = dict(sorted_samples[len(sorted_samples) // 2])
     median_ops = float(statistics.median(ops_values))
 
     median_sample.update(
         {
+            metric_name: median_ops,
+            f"{metric_name}_min": min(ops_values),
+            f"{metric_name}_max": max(ops_values),
             "ops_per_sec": median_ops,
             "ops_per_sec_min": min(ops_values),
             "ops_per_sec_max": max(ops_values),
@@ -278,6 +281,7 @@ def run_experiment_sample(experiment: dict, timeout: int, cwd: Path, *, build: b
 
 def run_experiment_samples(experiment: dict, timeout: int, cwd: Path) -> dict:
     sample_runs = max(1, int(experiment.get("sample_runs", 1)))
+    metric_name = str(experiment.get("metric", "ops_per_sec"))
     metric_samples: list[dict] = []
     build_experiment(experiment, timeout, cwd)
     for sample_index in range(sample_runs):
@@ -286,11 +290,12 @@ def run_experiment_samples(experiment: dict, timeout: int, cwd: Path) -> dict:
         metric_samples.append(run_experiment_sample(experiment, timeout, cwd, build=False))
         cooldown_between_samples(experiment, sample_index, sample_runs)
 
-    return aggregate_metric_samples(metric_samples)
+    return aggregate_metric_samples(metric_samples, metric_name=metric_name)
 
 
 def run_paired_experiment_samples(experiment: dict, timeout: int, baseline_cwd: Path, candidate_cwd: Path, *, build: bool = True) -> tuple[dict, dict]:
     sample_runs = max(1, int(experiment.get("sample_runs", 1)))
+    metric_name = str(experiment.get("metric", "ops_per_sec"))
     baseline_samples: list[dict] = []
     candidate_samples: list[dict] = []
     if build:
@@ -305,7 +310,7 @@ def run_paired_experiment_samples(experiment: dict, timeout: int, baseline_cwd: 
         candidate_samples.append(run_experiment_sample(experiment, timeout, candidate_cwd, build=False))
         cooldown_between_samples(experiment, sample_index, sample_runs)
 
-    return aggregate_metric_samples(baseline_samples), aggregate_metric_samples(candidate_samples)
+    return aggregate_metric_samples(baseline_samples, metric_name=metric_name), aggregate_metric_samples(candidate_samples, metric_name=metric_name)
 
 
 def run_paired_baseline_and_candidate(experiment: dict, timeout: int, ref: str, candidate_cwd: Path) -> tuple[dict, dict]:

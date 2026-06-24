@@ -32,6 +32,22 @@ struct MetalDispatchStats
 	unsigned int threads_per_threadgroup = 0;
 };
 
+struct TargetLookupKeyHost
+{
+	uint64_t x[4];
+	uint32_t parity;
+};
+
+struct TargetLookupBucketHost
+{
+	TargetLookupKeyHost key;
+	uint32_t target_index;
+	uint32_t occupied;
+};
+
+static_assert(sizeof(TargetLookupKeyHost) == 40, "Metal target lookup key layout drifted");
+static_assert(sizeof(TargetLookupBucketHost) == 48, "Metal target lookup bucket layout drifted");
+
 static unsigned int ValidationWorkerOverride()
 {
 	const char* raw = getenv("RCK_VALIDATION_WORKERS");
@@ -670,6 +686,58 @@ static std::string MetalFieldBenchJson(const char* operation,
 	return oss.str();
 }
 
+static std::string MetalTargetLookupBenchJson(const char* operation,
+	uint64_t iterations,
+	unsigned int target_count,
+	unsigned int query_count,
+	unsigned int expected_hits,
+	unsigned int hit_count,
+	uint64_t target_table_buckets,
+	uint64_t target_table_bytes,
+	unsigned int min_ms,
+	const MetalDispatchStats& dispatch_stats,
+	double seconds,
+	double lookups_per_sec,
+	uint64_t target_lookup_checksum,
+	bool correctness,
+	bool skipped,
+	const std::string& reason)
+{
+	unsigned int miss_count = query_count >= hit_count ? query_count - hit_count : 0;
+	double bytes_per_target = target_count ? (double)target_table_bytes / (double)target_count : 0.0;
+	std::ostringstream oss;
+	oss << std::fixed << std::setprecision(6);
+	oss << "{\"backend\":\"metal\",\"operation\":\"" << operation << "\",";
+	oss << "\"lookup_layout\":\"open_address_exact256\",";
+	oss << "\"target_key\":\"x256_y_parity\",";
+	oss << "\"candidate_verification\":\"exact_key_equality\",";
+	oss << "\"iterations\":" << iterations << ",";
+	oss << "\"sample_count\":" << query_count << ",";
+	oss << "\"target_count\":" << target_count << ",";
+	oss << "\"query_count\":" << query_count << ",";
+	oss << "\"expected_hits\":" << expected_hits << ",";
+	oss << "\"hit_count\":" << hit_count << ",";
+	oss << "\"miss_count\":" << miss_count << ",";
+	oss << "\"target_table_buckets\":" << target_table_buckets << ",";
+	oss << "\"target_table_bytes\":" << target_table_bytes << ",";
+	oss << "\"bytes_per_target\":" << bytes_per_target << ",";
+	oss << "\"min_ms\":" << min_ms << ",";
+	oss << "\"threadgroup_limit\":" << dispatch_stats.threadgroup_limit << ",";
+	oss << "\"thread_execution_width\":" << dispatch_stats.thread_execution_width << ",";
+	oss << "\"max_threads_per_threadgroup\":" << dispatch_stats.max_threads_per_threadgroup << ",";
+	oss << "\"threads_per_threadgroup\":" << dispatch_stats.threads_per_threadgroup << ",";
+	oss << "\"seconds\":" << seconds << ",";
+	oss << "\"lookups_per_sec\":" << lookups_per_sec << ",";
+	oss << "\"ops_per_sec\":" << lookups_per_sec << ",";
+	oss << "\"target_lookup_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << target_lookup_checksum << std::dec << std::setfill(' ') << "\",";
+	oss << "\"correctness\":" << (correctness ? "true" : "false") << ",";
+	oss << "\"skipped\":" << (skipped ? "true" : "false");
+	if (!reason.empty())
+		oss << ",\"reason\":\"" << JsonEscape(reason) << "\"";
+	oss << "}";
+	return oss.str();
+}
+
 static std::string MetalJacobianWalkBenchJson(const char* operation,
 	uint64_t iterations,
 	unsigned int sample_count,
@@ -1291,6 +1359,13 @@ static NSUInteger EffectiveDynamicDpStreamInplaceThreadgroupLimit(unsigned int t
 	return EffectiveDynamicDpStreamThreadgroupLimit(threadgroup_limit, dp_bits);
 }
 
+static NSUInteger EffectiveTargetLookupThreadgroupLimit(unsigned int threadgroup_limit)
+{
+	if (threadgroup_limit)
+		return (NSUInteger)threadgroup_limit;
+	return (NSUInteger)64;
+}
+
 static NSUInteger PreferredThreadgroupWidth(id<MTLComputePipelineState> pipeline, unsigned int threadgroup_limit)
 {
 	NSUInteger execution_width = [pipeline threadExecutionWidth] ? [pipeline threadExecutionWidth] : 1;
@@ -1301,6 +1376,318 @@ static NSUInteger PreferredThreadgroupWidth(id<MTLComputePipelineState> pipeline
 	if (target < execution_width)
 		target = execution_width;
 	return target;
+}
+
+static NSUInteger PreferredTargetLookupThreadgroupWidth(id<MTLComputePipelineState> pipeline, unsigned int threadgroup_limit)
+{
+	NSUInteger execution_width = [pipeline threadExecutionWidth] ? [pipeline threadExecutionWidth] : 1;
+	NSUInteger max_threads = [pipeline maxTotalThreadsPerThreadgroup] ? [pipeline maxTotalThreadsPerThreadgroup] : execution_width;
+	NSUInteger requested_limit = EffectiveTargetLookupThreadgroupLimit(threadgroup_limit);
+	NSUInteger target = max_threads < requested_limit ? max_threads : requested_limit;
+	target -= target % execution_width;
+	if (target < execution_width)
+		target = execution_width;
+	return target;
+}
+
+static uint64_t TargetLookupMix(uint64_t v)
+{
+	v ^= v >> 33;
+	v *= 0xff51afd7ed558ccdULL;
+	v ^= v >> 33;
+	v *= 0xc4ceb9fe1a85ec53ULL;
+	v ^= v >> 33;
+	return v;
+}
+
+static TargetLookupKeyHost DeterministicTargetLookupKey(uint64_t index, uint64_t salt)
+{
+	TargetLookupKeyHost key;
+	for (unsigned int limb = 0; limb < 4; ++limb)
+		key.x[limb] = TargetLookupMix(index + salt + 0x9e3779b97f4a7c15ULL * (uint64_t)(limb + 1));
+	key.parity = (uint32_t)(TargetLookupMix(index ^ (salt << 1) ^ 0xD1B54A32D192ED03ULL) & 1ULL);
+	return key;
+}
+
+static bool TargetLookupKeyEquals(const TargetLookupKeyHost& a, const TargetLookupKeyHost& b)
+{
+	return a.parity == b.parity &&
+		a.x[0] == b.x[0] &&
+		a.x[1] == b.x[1] &&
+		a.x[2] == b.x[2] &&
+		a.x[3] == b.x[3];
+}
+
+static uint64_t TargetLookupHash(const TargetLookupKeyHost& key)
+{
+	uint64_t h = 0x9e3779b97f4a7c15ULL;
+	h = TargetLookupMix(h ^ key.x[0]);
+	h = TargetLookupMix(h ^ key.x[1]);
+	h = TargetLookupMix(h ^ key.x[2]);
+	h = TargetLookupMix(h ^ key.x[3]);
+	return TargetLookupMix(h ^ (uint64_t)key.parity);
+}
+
+static unsigned int TargetLookupBucketCount(unsigned int target_count)
+{
+	uint64_t needed = target_count ? target_count : 1;
+	uint64_t buckets = 2;
+	while (buckets * 3ULL < needed * 4ULL)
+		buckets <<= 1;
+	if (buckets > 0x80000000ULL)
+		return 0;
+	return (unsigned int)buckets;
+}
+
+static bool TargetLookupFind(const std::vector<TargetLookupBucketHost>& buckets,
+	const TargetLookupKeyHost& key,
+	uint32_t* target_index)
+{
+	if (buckets.empty())
+		return false;
+	uint32_t mask = (uint32_t)buckets.size() - 1U;
+	uint32_t slot = (uint32_t)(TargetLookupHash(key) & (uint64_t)mask);
+	for (uint32_t probes = 0; probes < buckets.size(); ++probes)
+	{
+		const TargetLookupBucketHost& bucket = buckets[slot];
+		if (!bucket.occupied)
+			return false;
+		if (TargetLookupKeyEquals(bucket.key, key))
+		{
+			if (target_index)
+				*target_index = bucket.target_index;
+			return true;
+		}
+		slot = (slot + 1U) & mask;
+	}
+	return false;
+}
+
+static bool BuildTargetLookupExactTable(unsigned int target_count,
+	std::vector<TargetLookupKeyHost>& target_keys,
+	std::vector<TargetLookupBucketHost>& buckets,
+	std::string& error)
+{
+	unsigned int bucket_count = TargetLookupBucketCount(target_count);
+	if (!bucket_count)
+	{
+		error = "target lookup table too large";
+		return false;
+	}
+
+	target_keys.clear();
+	target_keys.reserve(target_count);
+	buckets.assign(bucket_count, TargetLookupBucketHost{});
+	uint32_t mask = bucket_count - 1U;
+	for (unsigned int i = 0; i < target_count; ++i)
+	{
+		TargetLookupKeyHost key = DeterministicTargetLookupKey(i, 0xA47D1B5EEDULL);
+		target_keys.push_back(key);
+		uint32_t slot = (uint32_t)(TargetLookupHash(key) & (uint64_t)mask);
+		for (uint32_t probes = 0; probes < bucket_count; ++probes)
+		{
+			TargetLookupBucketHost& bucket = buckets[slot];
+			if (!bucket.occupied)
+			{
+				bucket.key = key;
+				bucket.target_index = i;
+				bucket.occupied = 1;
+				break;
+			}
+			slot = (slot + 1U) & mask;
+			if (probes + 1U == bucket_count)
+			{
+				error = "target lookup table insertion failed";
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+static void BuildTargetLookupQueries(const std::vector<TargetLookupKeyHost>& target_keys,
+	const std::vector<TargetLookupBucketHost>& buckets,
+	unsigned int query_count,
+	unsigned int expected_hits,
+	std::vector<TargetLookupKeyHost>& queries,
+	std::vector<uint32_t>& expected_indices)
+{
+	queries.clear();
+	expected_indices.clear();
+	queries.reserve(query_count);
+	expected_indices.reserve(query_count);
+	for (unsigned int i = 0; i < query_count; ++i)
+	{
+		if (i < expected_hits && !target_keys.empty())
+		{
+			uint32_t target_index = (uint32_t)(((uint64_t)i * 2654435761ULL) % target_keys.size());
+			queries.push_back(target_keys[target_index]);
+			expected_indices.push_back(target_index);
+			continue;
+		}
+
+		uint64_t miss_nonce = i;
+		TargetLookupKeyHost miss_key = DeterministicTargetLookupKey(miss_nonce, 0xC001D00D55ULL);
+		uint32_t ignored = 0;
+		while (TargetLookupFind(buckets, miss_key, &ignored))
+			miss_key = DeterministicTargetLookupKey(++miss_nonce, 0xBAD5EED123ULL);
+		queries.push_back(miss_key);
+		expected_indices.push_back(0xFFFFFFFFU);
+	}
+}
+
+static uint64_t MixTargetLookupChecksum(uint64_t checksum, uint32_t target_index, size_t query_index)
+{
+	uint64_t v = ((uint64_t)target_index << 32) ^ (uint64_t)query_index ^ 0xD6E8FEB86659FD93ULL;
+	return TargetLookupMix(checksum ^ TargetLookupMix(v));
+}
+
+static bool ValidateTargetLookupOutputs(const std::vector<uint32_t>& out_indices,
+	const std::vector<uint32_t>& expected_indices,
+	uint32_t hit_count,
+	unsigned int expected_hits,
+	uint64_t* checksum,
+	std::string& reason)
+{
+	if (hit_count != expected_hits)
+	{
+		reason = "target lookup hit count mismatch: got " + std::to_string(hit_count) +
+			" expected " + std::to_string(expected_hits);
+		return false;
+	}
+	if (out_indices.size() != expected_indices.size())
+	{
+		reason = "target lookup output size mismatch";
+		return false;
+	}
+
+	uint64_t sum = 0x84c2f3a952d7495bULL;
+	for (size_t i = 0; i < out_indices.size(); ++i)
+	{
+		if (out_indices[i] != expected_indices[i])
+		{
+			reason = "target lookup index mismatch at query " + std::to_string(i) +
+				": got " + std::to_string(out_indices[i]) +
+				" expected " + std::to_string(expected_indices[i]);
+			return false;
+		}
+		sum = MixTargetLookupChecksum(sum, out_indices[i], i);
+	}
+	*checksum = sum;
+	return true;
+}
+
+static bool RunTargetLookupExactKernel(const std::vector<TargetLookupBucketHost>& buckets,
+	const std::vector<TargetLookupKeyHost>& queries,
+	std::vector<uint32_t>& out_indices,
+	uint32_t& hit_count,
+	std::string& error,
+	double* seconds,
+	unsigned int threadgroup_limit = 0,
+	MetalDispatchStats* dispatch_stats = NULL)
+{
+	if (dispatch_stats)
+		dispatch_stats->threadgroup_limit = (unsigned int)EffectiveTargetLookupThreadgroupLimit(threadgroup_limit);
+	if (buckets.empty() || queries.empty())
+	{
+		error = "invalid target lookup input";
+		return false;
+	}
+
+	@autoreleasepool
+	{
+		id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+		if (!device)
+		{
+			error = "no Metal device available";
+			return false;
+		}
+
+		NSError* ns_error = nil;
+		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		if (!library)
+		{
+			error = NSErrorToString(ns_error);
+			return false;
+		}
+
+		id<MTLFunction> function = [library newFunctionWithName:@"target_lookup_exact256"];
+		if (!function)
+		{
+			error = "failed to load target_lookup_exact256 function";
+			return false;
+		}
+
+		id<MTLComputePipelineState> pipeline = [device newComputePipelineStateWithFunction:function error:&ns_error];
+		if (!pipeline)
+		{
+			error = NSErrorToString(ns_error);
+			return false;
+		}
+		NSUInteger execution_width = [pipeline threadExecutionWidth] ? [pipeline threadExecutionWidth] : 1;
+		NSUInteger max_threads = [pipeline maxTotalThreadsPerThreadgroup] ? [pipeline maxTotalThreadsPerThreadgroup] : execution_width;
+		NSUInteger threads_per_threadgroup = PreferredTargetLookupThreadgroupWidth(pipeline, threadgroup_limit);
+		if (dispatch_stats)
+		{
+			dispatch_stats->thread_execution_width = (unsigned int)execution_width;
+			dispatch_stats->max_threads_per_threadgroup = (unsigned int)max_threads;
+			dispatch_stats->threads_per_threadgroup = (unsigned int)threads_per_threadgroup;
+		}
+
+		size_t bucket_bytes = buckets.size() * sizeof(TargetLookupBucketHost);
+		size_t query_bytes = queries.size() * sizeof(TargetLookupKeyHost);
+		size_t out_bytes = queries.size() * sizeof(uint32_t);
+		uint32_t zero = 0;
+		uint32_t bucket_count = (uint32_t)buckets.size();
+		uint32_t query_count = (uint32_t)queries.size();
+		id<MTLBuffer> buckets_buffer = [device newBufferWithBytes:buckets.data() length:bucket_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> queries_buffer = [device newBufferWithBytes:queries.data() length:query_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> out_buffer = [device newBufferWithLength:out_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> hit_count_buffer = [device newBufferWithBytes:&zero length:sizeof(zero) options:MTLResourceStorageModeShared];
+		id<MTLBuffer> bucket_count_buffer = [device newBufferWithBytes:&bucket_count length:sizeof(bucket_count) options:MTLResourceStorageModeShared];
+		id<MTLBuffer> query_count_buffer = [device newBufferWithBytes:&query_count length:sizeof(query_count) options:MTLResourceStorageModeShared];
+		if (!buckets_buffer || !queries_buffer || !out_buffer || !hit_count_buffer || !bucket_count_buffer || !query_count_buffer)
+		{
+			error = "failed to allocate Metal target lookup buffers";
+			return false;
+		}
+
+		id<MTLCommandQueue> queue = [device newCommandQueue];
+		if (!queue)
+		{
+			error = "failed to create Metal command queue";
+			return false;
+		}
+
+		id<MTLCommandBuffer> command_buffer = [queue commandBuffer];
+		id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:buckets_buffer offset:0 atIndex:0];
+		[encoder setBuffer:queries_buffer offset:0 atIndex:1];
+		[encoder setBuffer:out_buffer offset:0 atIndex:2];
+		[encoder setBuffer:hit_count_buffer offset:0 atIndex:3];
+		[encoder setBuffer:bucket_count_buffer offset:0 atIndex:4];
+		[encoder setBuffer:query_count_buffer offset:0 atIndex:5];
+		[encoder dispatchThreads:MTLSizeMake(query_count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
+		[encoder endEncoding];
+		auto start = std::chrono::steady_clock::now();
+		[command_buffer commit];
+		[command_buffer waitUntilCompleted];
+		auto end = std::chrono::steady_clock::now();
+		if (seconds)
+			*seconds = std::chrono::duration<double>(end - start).count();
+
+		if ([command_buffer status] != MTLCommandBufferStatusCompleted)
+		{
+			error = NSErrorToString([command_buffer error]);
+			return false;
+		}
+
+		out_indices.resize(queries.size());
+		memcpy(out_indices.data(), [out_buffer contents], out_bytes);
+		memcpy(&hit_count, [hit_count_buffer contents], sizeof(hit_count));
+		return true;
+	}
 }
 
 static bool RunFieldKernel(const std::vector<FieldElement>& a,
@@ -5127,7 +5514,7 @@ std::string RCKMetalJacobianAddBenchJson(unsigned int iterations, unsigned int m
 	uint64_t operations = 0;
 	unsigned int dispatch_count = 0;
 	MetalDispatchStats dispatch_stats;
-	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveThreadgroupLimit(threadgroup_limit);
+	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveTargetLookupThreadgroupLimit(threadgroup_limit);
 	do
 	{
 		double dispatch_seconds = 0.0;
@@ -6012,6 +6399,63 @@ std::string RCKMetalJacobianDynamicDpCountBenchJson(unsigned int iterations, uns
 	uint64_t jump_histogram_max_bucket = JumpHistogramMaxBucket(jump_histogram);
 	uint64_t jump_histogram_max_deviation_ppm = JumpHistogramMaxDeviationPpm(jump_histogram);
 	return MetalJacobianDynamicDpCountBenchJson("jacobian_affine_walk_dynamic_dp_count", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_histogram_min_bucket, jump_histogram_max_bucket, jump_histogram_max_deviation_ppm, dp_bits, dp_count, min_ms, dispatch_stats, seconds, ops_per_sec, true, false, "");
+}
+
+std::string RCKMetalTargetLookupBenchJson(unsigned int target_count, unsigned int query_count, unsigned int expected_hits, unsigned int min_ms, unsigned int threadgroup_limit)
+{
+	if (target_count == 0)
+		target_count = 1;
+	if (query_count == 0)
+		query_count = 1;
+	if (expected_hits > query_count)
+		expected_hits = query_count;
+
+	MetalDispatchStats dispatch_stats;
+	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveThreadgroupLimit(threadgroup_limit);
+	if (target_count > 32000000U)
+	{
+		std::string reason = "target lookup benchmark target_count limit is 32000000 for host memory safety";
+		return MetalTargetLookupBenchJson("target_lookup_exact256", 0, target_count, query_count, expected_hits, 0, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, 0, false, false, reason);
+	}
+
+	std::vector<TargetLookupKeyHost> target_keys;
+	std::vector<TargetLookupBucketHost> buckets;
+	std::string error;
+	if (!BuildTargetLookupExactTable(target_count, target_keys, buckets, error))
+		return MetalTargetLookupBenchJson("target_lookup_exact256", 0, target_count, query_count, expected_hits, 0, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, 0, false, false, error);
+
+	std::vector<TargetLookupKeyHost> queries;
+	std::vector<uint32_t> expected_indices;
+	BuildTargetLookupQueries(target_keys, buckets, query_count, expected_hits, queries, expected_indices);
+
+	std::vector<uint32_t> out_indices;
+	uint32_t hit_count = 0;
+	double seconds = 0.0;
+	uint64_t operations = 0;
+	unsigned int dispatch_count = 0;
+	do
+	{
+		double dispatch_seconds = 0.0;
+		if (!RunTargetLookupExactKernel(buckets, queries, out_indices, hit_count, error, &dispatch_seconds, threadgroup_limit, &dispatch_stats))
+		{
+			if (error == "no Metal device available")
+				return MetalTargetLookupBenchJson("target_lookup_exact256", 0, target_count, query_count, expected_hits, 0, buckets.size(), buckets.size() * sizeof(TargetLookupBucketHost), min_ms, dispatch_stats, 0.0, 0.0, 0, false, true, error);
+			return MetalTargetLookupBenchJson("target_lookup_exact256", operations ? operations : query_count, target_count, query_count, expected_hits, 0, buckets.size(), buckets.size() * sizeof(TargetLookupBucketHost), min_ms, dispatch_stats, seconds, 0.0, 0, false, false, error);
+		}
+		seconds += dispatch_seconds;
+		operations += query_count;
+		dispatch_count++;
+		if (min_ms && dispatch_seconds == 0.0)
+			break;
+	} while (min_ms && (seconds * 1000.0 < (double)min_ms) && (dispatch_count < 100000));
+
+	uint64_t checksum = 0;
+	std::string reason;
+	if (!ValidateTargetLookupOutputs(out_indices, expected_indices, hit_count, expected_hits, &checksum, reason))
+		return MetalTargetLookupBenchJson("target_lookup_exact256", operations, target_count, query_count, expected_hits, hit_count, buckets.size(), buckets.size() * sizeof(TargetLookupBucketHost), min_ms, dispatch_stats, seconds, 0.0, checksum, false, false, reason);
+
+	double lookups_per_sec = seconds > 0.0 ? (double)operations / seconds : 0.0;
+	return MetalTargetLookupBenchJson("target_lookup_exact256", operations, target_count, query_count, expected_hits, hit_count, buckets.size(), buckets.size() * sizeof(TargetLookupBucketHost), min_ms, dispatch_stats, seconds, lookups_per_sec, checksum, true, false, "");
 }
 
 static std::string RunMetalFieldBenchJson(const char* operation,
