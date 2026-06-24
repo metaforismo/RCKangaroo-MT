@@ -60,7 +60,15 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_dp16_steps512 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_persistent_chain_dp12_steps512 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_persistent_chain_dp16_steps512 --budget-sec 10
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_steps512 --budget-sec 10
 ```
+
+The affine-scan experiment is a solver-facing bridge: Metal writes final XYZZ
+state plus one packet distance per walker, then the host batch-normalizes with
+one inversion over `ZZ*ZZZ` products and scans affine `x` low bits. It reports
+`dp_tracking=affine_x_limb0_cpu_batch`, `affine_scan_seconds`, and
+`gpu_ops_per_sec` so GPU walk speed and packet-boundary normalization cost stay
+separate.
 
 ```sh
 make macos-check

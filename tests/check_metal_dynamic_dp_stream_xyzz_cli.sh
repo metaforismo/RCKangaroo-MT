@@ -257,6 +257,26 @@ case "$persistent_chain_invalid_schedule_output" in
 		;;
 esac
 
+affine_scan_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-bench --iterations 64 --steps 256 --jumps 8 --dp-bits 8 --min-ms 0 2>&1)"
+affine_scan_status=$?
+if [ "$affine_scan_status" -ne 0 ]; then
+	printf 'metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-bench returned status %s\n' "$affine_scan_status"
+	printf '%s\n' "$affine_scan_output"
+	exit 1
+fi
+
+case "$affine_scan_output" in
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_affine_scan\""*"\"state_layout\":\"xyzz\""*"\"sample_count\":64"*"\"steps_per_sample\":256"*"\"jump_count\":8"*"\"affine_scan_mode\":\"cpu_batch_prod_zz_zzz\""*"\"distance_tracking\":\"packet_distance_uint64\""*"\"dp_tracking\":\"affine_x_limb0_cpu_batch\""*"\"dp_bits\":8"*"\"affine_scan_seconds\":"*"\"correctness\":true"*)
+		;;
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_walk_dynamic_dp_stream_xyzz_affine_scan\""*"\"state_layout\":\"xyzz\""*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-bench output"
+		printf '%s\n' "$affine_scan_output"
+		exit 1
+		;;
+esac
+
 overflow_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations 128 --steps 512 --jumps 32 --dp-bits 8 --min-ms 1 2>&1)"
 overflow_status=$?
 if [ "$overflow_status" -ne 0 ]; then

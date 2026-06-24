@@ -3285,6 +3285,26 @@ These did not pass the performance gate or had a correctness/architecture issue:
   of `123,257,579.364915`. Keep `scaled4-balanced` as schedule coverage and
   CPU tiny-solver research, not as the current Metal persistent-chain
   throughput default.
+- Accepted probe `macos-metal-xyzz-affine-scan-gate`: added a solver-facing
+  XYZZ packet benchmark that keeps the accepted register-resident XYZZ
+  mixed-add plateau, writes one GPU packet distance per walker, then performs a
+  CPU batched affine distinguished-point scan at the packet boundary. The scan
+  normalizes `X,Y,ZZ,ZZZ` with one batch inversion over per-point
+  `ZZ*ZZZ` products, deriving `X/ZZ` and `Y/ZZZ` without per-step inversion.
+  Runtime JSON marks this as `output_layout=affine_dp_scan`,
+  `affine_scan_mode=cpu_batch_prod_zz_zzz`,
+  `distance_tracking=packet_distance_uint64`, and
+  `dp_tracking=affine_x_limb0_cpu_batch`. A direct sequential M3 sample on the
+  saturated `262144 x 512` shape measured `120,040,370.165048` end-to-end
+  steps/sec, with raw GPU walk throughput `121,778,537.507735` steps/sec,
+  `affine_scan_seconds=0.015959` versus `seconds=1.102146`,
+  `dp_count=1057`, `dp_distance_checksum=0xf0dc88ed68b2ff64`, and
+  `dp_checksum=0x9dba4a07ebbb8e14`. The same-shape projective DP stream sample
+  measured `119,810,339.931442` steps/sec with `dp_count=1015`, confirming that
+  projective and affine DP surfaces differ while the affine scan cost is only
+  about `1.45%` of the dispatch time in this shape. This is not yet a full
+  collision table, but it gives future GPU batch-normalization work a
+  reproducible oracle and non-cheating metric.
 
 ## Next Research Targets
 
@@ -3300,6 +3320,10 @@ These did not pass the performance gate or had a correctness/architecture issue:
   affine DP predicate/key, an invariant homogeneous predicate, or a batched
   normalization design that amortizes inversions at packet boundaries without
   discarding the accepted XYZZ arithmetic plateau.
+- Extend the accepted affine-scan gate toward a device-side batch-normalization
+  design: keep GPU packet distances resident, avoid CPU replay, and compare
+  `gpu_ops_per_sec` versus end-to-end `ops_per_sec` before moving any collision
+  table work onto Metal.
 - Keep CPU tiny-range kangaroo as the correctness oracle while GPU kernels are
   introduced one layer at a time.
 - Prefer fused kernels only when paired benchmarks show a real win. The fused

@@ -70,8 +70,14 @@ required_host_markers = (
     "RCKMetalJacobianDynamicDpStreamXyzzBenchJson",
     "RCKMetalJacobianDynamicDpStreamXyzzChainBenchJson",
     "RCKMetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson",
+    "RCKMetalJacobianDynamicDpStreamXyzzAffineScanBenchJson",
     "RunJacobianDynamicDpStreamXyzzChainKernel",
     "RunJacobianDynamicDpStreamXyzzPersistentChainKernel",
+    "CpuXyzzBatchAffineDpScan",
+    "affine_scan_mode",
+    "cpu_batch_prod_zz_zzz",
+    "affine_scan_seconds",
+    "\\\"dp_tracking\\\":\\\"affine_x_limb0_cpu_batch\\\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp8_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_dp8_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_dp8_pow2_u32_distance\"",
@@ -132,6 +138,7 @@ for marker in (
     "RCKMetalJacobianDynamicDpStreamXyzzBenchJson",
     "RCKMetalJacobianDynamicDpStreamXyzzChainBenchJson",
     "RCKMetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson",
+    "RCKMetalJacobianDynamicDpStreamXyzzAffineScanBenchJson",
 ):
     if marker not in header_source:
         raise SystemExit("missing XYZZ header marker: " + marker)
@@ -141,10 +148,12 @@ for marker in (
     "metal-jacobian-dynamic-dp-stream-xyzz-bench",
     "metal-jacobian-dynamic-dp-stream-xyzz-chain-bench",
     "metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench",
+    "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-bench",
     "RCKMetalJacobianDynamicDpStreamXyzzSelfTest",
     "RCKMetalJacobianDynamicDpStreamXyzzBenchJson",
     "RCKMetalJacobianDynamicDpStreamXyzzChainBenchJson",
     "RCKMetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson",
+    "RCKMetalJacobianDynamicDpStreamXyzzAffineScanBenchJson",
 ):
     if marker not in cli_source:
         raise SystemExit("missing XYZZ CLI marker: " + marker)
@@ -160,6 +169,7 @@ for marker in (
     "macos-metal-jacobian-dynamic-dp-stream-xyzz-steps512-large-batch-bench",
     "macos-metal-jacobian-dynamic-dp-stream-xyzz-chain-steps512-bench",
     "macos-metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-steps512-bench",
+    "macos-metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-bench",
 ):
     if marker not in makefile:
         raise SystemExit("missing XYZZ Makefile marker: " + marker)
@@ -277,6 +287,29 @@ if "paired_baseline_command" in large_batch_payload:
     raise SystemExit("XYZZ steps512 large-batch experiment should not mix packet and batch-size baselines")
 if int(large_batch_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("XYZZ steps512 large-batch experiment should keep sample_runs >= 3")
+
+affine_scan_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_steps512.json")
+if not affine_scan_experiment.exists():
+    raise SystemExit("missing XYZZ affine-scan steps512 autoresearch experiment")
+affine_scan_payload = json.loads(affine_scan_experiment.read_text(encoding="utf-8"))
+expected_affine_scan_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-bench",
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--min-ms",
+    "500",
+]
+if affine_scan_payload.get("bench_command") != expected_affine_scan_command:
+    raise SystemExit("XYZZ affine-scan experiment should run the affine packet-boundary CLI")
+if int(affine_scan_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("XYZZ affine-scan experiment should keep sample_runs >= 3")
 
 chain_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_chain_steps512.json")
 if not chain_experiment.exists():
