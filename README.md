@@ -19,7 +19,7 @@ This fork keeps the original single-target, benchmark, and tames workflows, and 
 - Per-DP target metadata so solved collisions can be verified against the matching target.
 - macOS CPU oracle for tiny-range correctness checks, local benchmarks, and limb-level field arithmetic.
 - Metal smoke plus secp256k1 field-add, field-sub, field-double, field-mul4, field-neg, field-mul, and field-square microkernel checks for Apple Silicon runtime verification.
-- Experimental Apple Silicon Metal Jacobian/XYZZ walk probes, including runtime-DP sparse streams and cumulative multi-packet XYZZ chain benchmarks.
+- Experimental Apple Silicon Metal Jacobian/XYZZ walk probes, including runtime-DP sparse streams, cumulative multi-packet XYZZ chain benchmarks, and exact multi-target lookup gates.
 - Autoresearch runner for fixed-gate optimization experiments.
 - Benchforge Metal Lab for local notes, replayable submissions, verifier JSON, and static leaderboards for the macOS/Metal track.
 
@@ -151,6 +151,8 @@ make macos-cpu-field-bench
 make macos-metal-field-bench
 make macos-metal-target-lookup-bench
 ./macos/rck_macos metal-target-lookup-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
+make macos-metal-target-lookup-compact-bench
+./macos/rck_macos metal-target-lookup-compact-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
 ./macos/rck_macos metal-field-sub-test
 make macos-metal-field-sub-bench
 ./macos/rck_macos metal-field-double-test
@@ -185,6 +187,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream --b
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_dp8 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_count_dp8 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_target_lookup_exact256 --budget-sec 10
+python3 autoresearch/runner.py --experiment metal_target_lookup_compact_exact256 --budget-sec 10 --paired-baseline-ref main
 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations 262144 --steps 512 --packets 2 --jumps 16 --dp-bits 8 --min-ms 500
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_chain_steps512 --budget-sec 120
 ```

@@ -39,3 +39,4 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson(unsigned
 std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int jump_count, unsigned int min_ms, unsigned int threadgroup_limit = 0, unsigned int dp_bits = 0, const char* jump_schedule = "power2");
 std::string RCKMetalJacobianDynamicDpCountBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int jump_count, unsigned int min_ms, unsigned int threadgroup_limit = 0, unsigned int dp_bits = 0);
 std::string RCKMetalTargetLookupBenchJson(unsigned int target_count, unsigned int query_count, unsigned int expected_hits, unsigned int min_ms = 0, unsigned int threadgroup_limit = 0);
+std::string RCKMetalTargetLookupCompactBenchJson(unsigned int target_count, unsigned int query_count, unsigned int expected_hits, unsigned int min_ms = 0, unsigned int threadgroup_limit = 0);

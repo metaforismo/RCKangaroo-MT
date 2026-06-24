@@ -19,7 +19,7 @@ Questo fork mantiene single-target, benchmark e tames del progetto originale, e 
 - Metadati target per ogni distinguished point, cosi' la collisione risolta viene verificata contro il target corretto.
 - Oracle CPU macOS per tiny-range, test di correttezza e benchmark locali.
 - Backend Metal smoke e microkernel field-add/field-sub/field-double/field-mul4/field-neg/field-mul/field-square per verificare il runtime Apple Silicon.
-- Probe sperimentali Metal su Apple Silicon per walk Jacobian/XYZZ, inclusi stream DP sparsi con maschera runtime e benchmark chain XYZZ multi-packet con distanza cumulativa.
+- Probe sperimentali Metal su Apple Silicon per walk Jacobian/XYZZ, inclusi stream DP sparsi, benchmark chain XYZZ multi-packet e gate lookup multi-target esatti.
 - Runner autoresearch per esperimenti con gate fissi e risultati misurabili.
 - Benchforge Metal Lab per note locali, submission riproducibili, verifier JSON e leaderboard statiche del track macOS/Metal.
 
@@ -135,6 +135,8 @@ make macos-bench
 ./macos/rck_macos metal-field-test
 make macos-metal-target-lookup-bench
 ./macos/rck_macos metal-target-lookup-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
+make macos-metal-target-lookup-compact-bench
+./macos/rck_macos metal-target-lookup-compact-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
 ./macos/rck_macos metal-field-sub-test
 ./macos/rck_macos metal-field-double-test
 ./macos/rck_macos metal-field-mul4-test
@@ -148,6 +150,7 @@ python3 autoresearch/runner.py --experiment metal_field_mul4 --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_neg --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_square --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_target_lookup_exact256 --budget-sec 10
+python3 autoresearch/runner.py --experiment metal_target_lookup_compact_exact256 --budget-sec 10 --paired-baseline-ref main
 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations 262144 --steps 512 --packets 2 --jumps 16 --dp-bits 8 --min-ms 500
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_chain_steps512 --budget-sec 120
 ```
