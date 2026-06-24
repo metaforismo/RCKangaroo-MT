@@ -2392,6 +2392,11 @@ struct TargetLookupCompactBucket {
   uint occupied;
 };
 
+struct TargetLookupTag32Bucket {
+  uint tag;
+  uint target_index;
+};
+
 static inline ulong target_lookup_mix(ulong v) {
   v ^= v >> 33;
   v *= 0xff51afd7ed558ccdUL;
@@ -2477,6 +2482,39 @@ kernel void target_lookup_compact_exact256(device const TargetLookupCompactBucke
       break;
     }
     if (bucket.hash == hash && target_lookup_key_equals(target_keys[bucket.target_index], query)) {
+      found = bucket.target_index;
+      atomic_fetch_add_explicit(out_hit_count, 1U, memory_order_relaxed);
+      break;
+    }
+    slot = (slot + 1U) & (bucket_count - 1U);
+    probes++;
+  }
+
+  out_target_indices[id] = found;
+}
+
+kernel void target_lookup_tag32_exact256(device const TargetLookupTag32Bucket* target_buckets [[buffer(0)]],
+                                         device const TargetLookupKey* target_keys [[buffer(1)]],
+                                         device const TargetLookupKey* query_keys [[buffer(2)]],
+                                         device uint* out_target_indices [[buffer(3)]],
+                                         device atomic_uint* out_hit_count [[buffer(4)]],
+                                         constant uint& bucket_count [[buffer(5)]],
+                                         constant uint& query_count [[buffer(6)]],
+                                         uint id [[thread_position_in_grid]]) {
+  if (id >= query_count) return;
+  TargetLookupKey query = query_keys[id];
+  ulong hash = target_lookup_hash(query);
+  uint tag = (uint)(hash >> 32);
+  uint slot = (uint)(hash & (ulong)(bucket_count - 1));
+  uint probes = 0;
+  uint found = 0xFFFFFFFFU;
+
+  while (probes < bucket_count) {
+    TargetLookupTag32Bucket bucket = target_buckets[slot];
+    if (bucket.target_index == 0xFFFFFFFFU) {
+      break;
+    }
+    if (bucket.target_index != 0xFFFFFFFFU && bucket.tag == tag && target_lookup_key_equals(target_keys[bucket.target_index], query)) {
       found = bucket.target_index;
       atomic_fetch_add_explicit(out_hit_count, 1U, memory_order_relaxed);
       break;
