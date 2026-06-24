@@ -3294,15 +3294,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   Runtime JSON marks this as `output_layout=affine_dp_scan`,
   `affine_scan_mode=cpu_batch_prod_zz_zzz`,
   `distance_tracking=packet_distance_uint64`, and
-  `dp_tracking=affine_x_limb0_cpu_batch`. A direct sequential M3 sample on the
-  saturated `262144 x 512` shape measured `120,040,370.165048` end-to-end
-  steps/sec, with raw GPU walk throughput `121,778,537.507735` steps/sec,
-  `affine_scan_seconds=0.015959` versus `seconds=1.102146`,
-  `dp_count=1057`, `dp_distance_checksum=0xf0dc88ed68b2ff64`, and
-  `dp_checksum=0x9dba4a07ebbb8e14`. The same-shape projective DP stream sample
+  `dp_tracking=affine_x_limb0_cpu_batch`. Clean autoresearch on commit
+  `0b9a406` kept the saturated `262144 x 512` gate with three correct samples:
+  median end-to-end throughput `124,390,543.442828` steps/sec
+  (`min=122,916,540.587774`, `max=125,536,737.093264`), median raw GPU walk
+  throughput `126,283,290.989389` steps/sec, `affine_scan_seconds=0.016172`
+  versus `seconds=1.062830`, `dp_count=1057`,
+  `dp_distance_checksum=0xf0dc88ed68b2ff64`, and
+  `dp_checksum=0x9dba4a07ebbb8e14`. A same-shape projective DP stream sample
   measured `119,810,339.931442` steps/sec with `dp_count=1015`, confirming that
-  projective and affine DP surfaces differ while the affine scan cost is only
-  about `1.45%` of the dispatch time in this shape. This is not yet a full
+  projective and affine DP surfaces differ while the affine scan cost is about
+  `1.52%` of the dispatch time in the clean median. This is not yet a full
   collision table, but it gives future GPU batch-normalization work a
   reproducible oracle and non-cheating metric.
 
