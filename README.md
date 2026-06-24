@@ -153,6 +153,8 @@ make macos-metal-target-lookup-bench
 ./macos/rck_macos metal-target-lookup-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
 make macos-metal-target-lookup-compact-bench
 ./macos/rck_macos metal-target-lookup-compact-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
+make macos-metal-target-lookup-tag32-bench
+./macos/rck_macos metal-target-lookup-tag32-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
 ./macos/rck_macos metal-field-sub-test
 make macos-metal-field-sub-bench
 ./macos/rck_macos metal-field-double-test
@@ -188,6 +190,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_dp8
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_count_dp8 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_target_lookup_exact256 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_target_lookup_compact_exact256 --budget-sec 10 --paired-baseline-ref main
+python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_exact256 --budget-sec 10 --paired-baseline-ref main
 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations 262144 --steps 512 --packets 2 --jumps 16 --dp-bits 8 --min-ms 500
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_chain_steps512 --budget-sec 120
 ```
@@ -232,7 +235,7 @@ The macOS `jacobian-batch-affine-bench` command isolates the Jacobian batch-to-a
 
 Tiny CPU kangaroo solvers also report `affine_initial_conversion=unit_z_copy`. This records the step-zero fast path: freshly initialized Jacobian tame/wild states have `Z=1`, so their first affine view copies `x/y` directly; subsequent steps keep the normal `affine_conversion=batch` path and all existing collision oracles.
 
-The macOS Metal target lookup benchmark isolates the exact multi-target join needed after packet-boundary affine DP extraction. `metal-target-lookup-bench` builds a deterministic open-addressed table keyed by full affine `x` plus `y` parity (`target_key=x256_y_parity`, `lookup_layout=open_address_exact256`) and validates known hit/miss queries with exact key equality. It reports `lookups_per_sec`, `target_table_bytes`, `bytes_per_target`, `hit_count`, `miss_count`, and `target_lookup_checksum`; this is not per-step kangaroo throughput, but it tells whether a large target set can be joined cheaply at DP boundaries without probabilistic shortcuts.
+The macOS Metal target lookup benchmark isolates the exact multi-target join needed after packet-boundary affine DP extraction. `metal-target-lookup-bench` builds a deterministic open-addressed table keyed by full affine `x` plus `y` parity (`target_key=x256_y_parity`, `lookup_layout=open_address_exact256`) and validates known hit/miss queries with exact key equality. `metal-target-lookup-compact-bench` keeps full-key equality but stores `hash64 + target_index` buckets, and `metal-target-lookup-tag32-bench` uses an 8-byte `tag32 + target_index` bucket with the full target key in a separate array. All variants report `lookups_per_sec`, `target_table_bytes`, `bytes_per_target`, `hit_count`, `miss_count`, and `target_lookup_checksum`; these are not per-step kangaroo throughput, but they tell whether a large target set can be joined cheaply at DP boundaries without probabilistic shortcuts.
 
 More details:
 

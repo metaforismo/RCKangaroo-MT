@@ -137,6 +137,8 @@ make macos-metal-target-lookup-bench
 ./macos/rck_macos metal-target-lookup-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
 make macos-metal-target-lookup-compact-bench
 ./macos/rck_macos metal-target-lookup-compact-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
+make macos-metal-target-lookup-tag32-bench
+./macos/rck_macos metal-target-lookup-tag32-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
 ./macos/rck_macos metal-field-sub-test
 ./macos/rck_macos metal-field-double-test
 ./macos/rck_macos metal-field-mul4-test
@@ -151,6 +153,7 @@ python3 autoresearch/runner.py --experiment metal_field_neg --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_field_square --budget-sec 5
 python3 autoresearch/runner.py --experiment metal_target_lookup_exact256 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_target_lookup_compact_exact256 --budget-sec 10 --paired-baseline-ref main
+python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_exact256 --budget-sec 10 --paired-baseline-ref main
 ./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations 262144 --steps 512 --packets 2 --jumps 16 --dp-bits 8 --min-ms 500
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_chain_steps512 --budget-sec 120
 ```

@@ -3354,6 +3354,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `paired_speedup=1.376569`. This is a real multi-target DP-join improvement
   and lowers memory pressure for large target sets; it still sits after packet
   affine-DP extraction, so walk-core GKeys/s/MKeys/s must be measured separately.
+- Accepted probe `macos-metal-target-lookup-tag32-exact256`: compressed the
+  target lookup bucket again to an 8-byte `tag32 + target_index` row. The tag is
+  the high 32 bits of the same deterministic hash; the low hash bits still pick
+  the open-addressed slot. A tag match only triggers a fetch from the separate
+  full-key array, and correctness still requires exact affine `x256 + y_parity`
+  equality (`candidate_verification=tag32_prefilter_then_exact_key_equality`).
+  For the same one-million target/query gate, table memory dropped to
+  `58,720,256` bytes (`56.000000` bytes/target) while preserving
+  `hit_count=4096`, `miss_count=1044480`, and
+  `target_lookup_checksum=0x4f62d3a7170b250a`. Clean paired autoresearch on
+  commit `1d0e147` kept the gate against compact64: tag32 median
+  `201,502,401.315374` lookups/sec (`min=142,309,882.030769`,
+  `max=232,128,339.039737`) versus compact64 baseline median
+  `152,753,533.069305` lookups/sec, `paired_speedup=1.319134`. The run was
+  noisy, but both memory and median throughput moved in the right direction, so
+  tag32 becomes the promoted exact lookup layout for the multi-target DP join
+  benchmark.
 - Rejected probe `macos-metal-xyzz-affine-scan-xorfold-mixer`: prototyped an
   explicit `xorfold64` jump mixer only for the affine-scan distance kernel,
   keeping `avalanche64` as the default and validating the alternate walk with
