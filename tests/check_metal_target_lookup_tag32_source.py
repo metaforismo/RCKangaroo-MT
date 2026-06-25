@@ -23,6 +23,7 @@ for marker in (
 for marker in (
     "TargetLookupTag32BucketHost",
     "static_assert(sizeof(TargetLookupTag32BucketHost) == 8",
+    "TargetLookupBucketCount(target_count, 1U, 2U)",
     "BuildTargetLookupTag32Table",
     "RunTargetLookupTag32Kernel",
     "RCKMetalTargetLookupTag32BenchJson",
@@ -75,5 +76,30 @@ if payload.get("metric") != "lookups_per_sec":
     raise SystemExit("tag32 target lookup experiment should optimize lookups_per_sec")
 if int(payload.get("sample_runs", 0)) < 3:
     raise SystemExit("tag32 target lookup experiment should keep sample_runs >= 3")
+
+highload_experiment = Path("autoresearch/experiments/metal_target_lookup_tag32_halfload_highload_exact256.json")
+if not highload_experiment.exists():
+    raise SystemExit("missing tag32 half-load high-load autoresearch experiment")
+highload_payload = json.loads(highload_experiment.read_text(encoding="utf-8"))
+expected_highload_command = [
+    "./macos/rck_macos",
+    "metal-target-lookup-tag32-bench",
+    "--target-count",
+    "1572864",
+    "--query-count",
+    "1048576",
+    "--hits",
+    "4096",
+    "--min-ms",
+    "500",
+]
+if highload_payload.get("bench_command") != expected_highload_command:
+    raise SystemExit("tag32 half-load high-load experiment should run the high-load tag32 lookup CLI")
+if highload_payload.get("paired_baseline_command") != expected_highload_command:
+    raise SystemExit("tag32 half-load high-load experiment should compare the same high-load command")
+if highload_payload.get("metric") != "lookups_per_sec":
+    raise SystemExit("tag32 half-load high-load experiment should optimize lookups_per_sec")
+if int(highload_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("tag32 half-load high-load experiment should keep sample_runs >= 3")
 
 print("metal tag32 target lookup source ok")

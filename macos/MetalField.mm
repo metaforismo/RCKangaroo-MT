@@ -1562,11 +1562,13 @@ static uint32_t TargetLookupTag32(uint64_t hash)
 	return (uint32_t)(hash >> 32);
 }
 
-static unsigned int TargetLookupBucketCount(unsigned int target_count)
+static unsigned int TargetLookupBucketCount(unsigned int target_count, unsigned int max_load_numerator = 3U, unsigned int max_load_denominator = 4U)
 {
+	if (max_load_numerator == 0 || max_load_denominator == 0 || max_load_numerator > max_load_denominator)
+		return 0;
 	uint64_t needed = target_count ? target_count : 1;
 	uint64_t buckets = 2;
-	while (buckets * 3ULL < needed * 4ULL)
+	while (buckets * (uint64_t)max_load_numerator < needed * (uint64_t)max_load_denominator)
 		buckets <<= 1;
 	if (buckets > 0x80000000ULL)
 		return 0;
@@ -1742,7 +1744,7 @@ static bool BuildTargetLookupTag32Table(unsigned int target_count,
 	std::vector<TargetLookupTag32BucketHost>& buckets,
 	std::string& error)
 {
-	unsigned int bucket_count = TargetLookupBucketCount(target_count);
+	unsigned int bucket_count = TargetLookupBucketCount(target_count, 1U, 2U);
 	if (!bucket_count)
 	{
 		error = "target lookup table too large";
