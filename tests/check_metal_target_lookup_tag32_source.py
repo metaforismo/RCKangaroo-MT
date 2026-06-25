@@ -25,8 +25,11 @@ for marker in (
     "static_assert(sizeof(TargetLookupTag32BucketHost) == 8",
     "BuildTargetLookupTag32Table",
     "RunTargetLookupTag32Kernel",
+    "RunTargetLookupTag32Cpu",
     "RCKMetalTargetLookupTag32BenchJson",
+    "RCKCpuTargetLookupTag32BenchJson",
     "\\\"lookup_layout\\\":\\\"open_address_tag32_index_exact256\\\"",
+    "\\\"lookup_engine\\\":\\\"cpu\\\"",
     "\\\"candidate_verification\\\":\\\"tag32_prefilter_then_exact_key_equality\\\"",
     "\\\"target_key_bytes\\\":",
     "\\\"target_bucket_bytes\\\":",
@@ -39,7 +42,9 @@ if "RCKMetalTargetLookupTag32BenchJson" not in header_source:
 
 for marker in (
     "metal-target-lookup-tag32-bench",
+    "target-lookup-tag32-cpu-bench",
     "RCKMetalTargetLookupTag32BenchJson",
+    "RCKCpuTargetLookupTag32BenchJson",
 ):
     if marker not in cli_source:
         raise SystemExit("missing tag32 target lookup CLI marker: " + marker)

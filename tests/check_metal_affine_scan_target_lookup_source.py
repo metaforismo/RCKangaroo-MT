@@ -14,9 +14,11 @@ markers = [
     "affine_dp_scan_target_lookup",
     "lookup_repeat",
     "lookup_query_mode",
+    "lookup_engine",
     "dp_query_count",
     "target_lookup_checksum",
     "RunTargetLookupTag32Kernel",
+    "RunTargetLookupTag32Cpu",
 ]
 for marker in markers:
     if marker not in kernels:
@@ -32,6 +34,8 @@ if "--lookup-repeat" not in cli:
     raise SystemExit("missing affine-scan target-lookup lookup-repeat CLI option")
 if "--lookup-query-mode" not in cli:
     raise SystemExit("missing affine-scan target-lookup lookup-query-mode CLI option")
+if "--lookup-engine" not in cli:
+    raise SystemExit("missing affine-scan target-lookup lookup-engine CLI option")
 
 make_markers = [
     "macos-metal-affine-scan-target-lookup-source-check",

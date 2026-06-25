@@ -3578,6 +3578,30 @@ These did not pass the performance gate or had a correctness/architecture issue:
   promoted two-`uint` bucket; for very large multi-target files, the real next
   target is batching and locality across packet-boundary DP queries, not
   splitting the existing 8-byte row.
+- Kept `macos-cpu-tag32-large-target-lookup-engine`: added a host CPU lookup
+  engine for the exact tag32 target table and exposed it as
+  `target-lookup-tag32-cpu-bench` plus `--lookup-engine cpu` on the integrated
+  affine-scan target-lookup benchmark. The GPU walker and affine DP scan remain
+  unchanged; only the final exact `x256 + y_parity` target lookup can be routed
+  through CPU. This matches the MacBook Air M3 multi-target cost model: for a
+  huge 25,005,000-target table and only 1057 DP queries, the Metal lookup
+  dispatch plus random table access dominates. A 50ms standalone CPU run kept
+  `target_table_bytes=1268635456`, `hit_count=64`,
+  `target_lookup_checksum=0x923e3284a866bb64`, and measured
+  `87,452,788.580860` lookups/sec. Two same-binary integrated 25,005,000-target
+  pairs at `262144 x 512`, `dp_bits=8`, `hits=64`, and `lookup_repeat=1`
+  preserved `dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `dp_checksum=0x9dba4a07ebbb8e14`, and
+  `target_lookup_checksum=0x25249bb63bf646d9`: GPU lookup measured
+  `110,545,500.668632` then `108,992,407.143044` ops/sec, while CPU lookup
+  measured `120,335,696.839228` then `121,373,018.665758` ops/sec. A larger
+  `lookup_repeat=1024` distinct-miss run also stayed exact with
+  `target_lookup_checksum=0x8b2568562837af7f`; CPU measured
+  `111,191,892.977335` ops/sec and `7,949,552.399940` lookups/sec versus GPU
+  `105,302,699.290370` ops/sec and `5,860,746.294648` lookups/sec in the
+  current binary. Keep the default engine as `gpu` for continuity, but use
+  `--lookup-engine cpu` for large target tables and small or moderate DP query
+  batches on Apple Silicon until an auto policy is benchmarked.
 
 ## Next Research Targets
 
@@ -3608,6 +3632,9 @@ These did not pass the performance gate or had a correctness/architecture issue:
   distinguished-point table work on GPU.
 - Keep multi-target CPU architecture unchanged unless a candidate beats the
   paired autoresearch gate and preserves full collision verification.
+- Add a benchmark-gated `--lookup-engine auto` policy once enough paired data
+  exists across target counts, DP density, and `lookup_repeat`; do not make CPU
+  the default globally from one hardware class.
 
 ## Cleanup Policy
 

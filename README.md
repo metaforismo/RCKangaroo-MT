@@ -155,6 +155,7 @@ make macos-metal-target-lookup-compact-bench
 ./macos/rck_macos metal-target-lookup-compact-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
 make macos-metal-target-lookup-tag32-bench
 ./macos/rck_macos metal-target-lookup-tag32-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
+./macos/rck_macos target-lookup-tag32-cpu-bench --target-count 25005000 --query-count 1057 --hits 64 --min-ms 50
 ./macos/rck_macos metal-field-sub-test
 make macos-metal-field-sub-bench
 ./macos/rck_macos metal-field-double-test
@@ -235,7 +236,7 @@ The macOS `jacobian-batch-affine-bench` command isolates the Jacobian batch-to-a
 
 Tiny CPU kangaroo solvers also report `affine_initial_conversion=unit_z_copy`. This records the step-zero fast path: freshly initialized Jacobian tame/wild states have `Z=1`, so their first affine view copies `x/y` directly; subsequent steps keep the normal `affine_conversion=batch` path and all existing collision oracles.
 
-The macOS Metal target lookup benchmark isolates the exact multi-target join needed after packet-boundary affine DP extraction. `metal-target-lookup-bench` builds a deterministic open-addressed table keyed by full affine `x` plus `y` parity (`target_key=x256_y_parity`, `lookup_layout=open_address_exact256`) and validates known hit/miss queries with exact key equality. `metal-target-lookup-compact-bench` keeps full-key equality but stores `hash64 + target_index` buckets, and `metal-target-lookup-tag32-bench` uses an 8-byte `tag32 + target_index` bucket with the full target key in a separate array. All variants report `lookups_per_sec`, `target_table_bytes`, `bytes_per_target`, `hit_count`, `miss_count`, and `target_lookup_checksum`; these are not per-step kangaroo throughput, but they tell whether a large target set can be joined cheaply at DP boundaries without probabilistic shortcuts.
+The macOS Metal target lookup benchmark isolates the exact multi-target join needed after packet-boundary affine DP extraction. `metal-target-lookup-bench` builds a deterministic open-addressed table keyed by full affine `x` plus `y` parity (`target_key=x256_y_parity`, `lookup_layout=open_address_exact256`) and validates known hit/miss queries with exact key equality. `metal-target-lookup-compact-bench` keeps full-key equality but stores `hash64 + target_index` buckets, and `metal-target-lookup-tag32-bench` uses an 8-byte `tag32 + target_index` bucket with the full target key in a separate array. `target-lookup-tag32-cpu-bench` runs the same exact tag32 lookup on the host CPU, which is useful on Apple Silicon when a huge target table produces only a small DP query batch. The integrated affine-scan target-lookup command keeps the GPU lookup default, but accepts `--lookup-engine cpu` to route only the final exact target join through the host while preserving the same hit/miss oracle and checksum. All variants report `lookups_per_sec`, `target_table_bytes`, `bytes_per_target`, `hit_count`, `miss_count`, and `target_lookup_checksum`; these are not per-step kangaroo throughput, but they tell whether a large target set can be joined cheaply at DP boundaries without probabilistic shortcuts.
 
 More details:
 
