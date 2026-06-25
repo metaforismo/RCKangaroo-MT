@@ -97,7 +97,10 @@ GPU work should use Metal.
   `123,234,598.455869` and `125,874,951.286111` steps/sec, roughly
   kernel-parity to slightly above the nearby `jumps=16 power2` checks. Treat
   this primarily as a solver-facing math/schedule candidate, not as a proven
-  per-step GPU micro-optimization.
+  per-step GPU micro-optimization. A clean 2026-06-25 repeat at commit
+  `f53621c` preserved the same Metal oracle but was discarded at median
+  `117,076,522.598601` steps/sec, reinforcing that `scaled4-balanced` should
+  not be promoted as a raw M3 walk-throughput win.
 - Rejected a temporary `xorfold` XYZZ 512-step jump mixer probe. The idea was
   to replace the per-step avalanche multiply with shifts/xors while keeping the
   CPU replay oracle identical. It preserved correctness and had acceptable jump
