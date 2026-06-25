@@ -3430,6 +3430,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   identical (`0xe2b09e38dc85a153`). Keep the existing 3/4 tag32 load policy;
   on this Apple Silicon shape, doubling the bucket table hurts cache behavior
   more than it helps probe count.
+- Rejected probe `macos-metal-target-lookup-tag32-sentinel-simplified`: removed
+  the redundant `target_index != empty` condition from the tag32 kernel after
+  the preceding empty-bucket `break`. The oracle surface was unchanged:
+  `tag32` still only filtered candidates before exact full-key equality, and
+  `make macos-check` passed. One clean paired run on commit `768b93a` looked
+  promising (`245,435,616.929923` lookups/sec versus baseline
+  `240,104,595.314191`, `paired_speedup=1.022203`, status `keep`), but the
+  required confirmation rejected it. Two confirmation runs produced discard
+  rows; the final confirmation median was `159,995,387.777540` lookups/sec
+  versus baseline `170,733,796.380747`
+  (`paired_speedup=0.937104`, `confirmation_status=discard`). Keep the original
+  explicit sentinel guard shape. This is a concrete example of why small
+  Metal lookup wins need confirmation before promotion.
 
 ## Next Research Targets
 
