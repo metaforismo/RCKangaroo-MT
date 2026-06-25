@@ -2514,7 +2514,7 @@ kernel void target_lookup_tag32_exact256(device const TargetLookupTag32Bucket* t
     if (bucket.target_index == 0xFFFFFFFFU) {
       break;
     }
-    if (bucket.target_index != 0xFFFFFFFFU && bucket.tag == tag && target_lookup_key_equals(target_keys[bucket.target_index], query)) {
+    if (bucket.tag == tag && target_lookup_key_equals(target_keys[bucket.target_index], query)) {
       found = bucket.target_index;
       atomic_fetch_add_explicit(out_hit_count, 1U, memory_order_relaxed);
       break;

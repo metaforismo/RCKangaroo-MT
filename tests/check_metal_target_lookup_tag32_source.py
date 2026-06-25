@@ -14,8 +14,8 @@ for marker in (
     "target_lookup_tag32_exact256",
     "device const TargetLookupTag32Bucket* target_buckets [[buffer(0)]]",
     "uint tag = (uint)(hash >> 32)",
-    "bucket.target_index != 0xFFFFFFFFU",
-    "bucket.tag == tag && target_lookup_key_equals(target_keys[bucket.target_index], query)",
+    "if (bucket.target_index == 0xFFFFFFFFU)",
+    "if (bucket.tag == tag && target_lookup_key_equals(target_keys[bucket.target_index], query))",
 ):
     if marker not in kernel_source:
         raise SystemExit("missing tag32 target lookup kernel marker: " + marker)
@@ -75,5 +75,18 @@ if payload.get("metric") != "lookups_per_sec":
     raise SystemExit("tag32 target lookup experiment should optimize lookups_per_sec")
 if int(payload.get("sample_runs", 0)) < 3:
     raise SystemExit("tag32 target lookup experiment should keep sample_runs >= 3")
+
+sentinel_experiment = Path("autoresearch/experiments/metal_target_lookup_tag32_sentinel_simplified_exact256.json")
+if not sentinel_experiment.exists():
+    raise SystemExit("missing tag32 sentinel-simplified autoresearch experiment")
+sentinel_payload = json.loads(sentinel_experiment.read_text(encoding="utf-8"))
+if sentinel_payload.get("bench_command") != expected_command:
+    raise SystemExit("tag32 sentinel-simplified experiment should run the tag32 lookup CLI")
+if sentinel_payload.get("paired_baseline_command") != expected_command:
+    raise SystemExit("tag32 sentinel-simplified experiment should compare the same tag32 command")
+if sentinel_payload.get("metric") != "lookups_per_sec":
+    raise SystemExit("tag32 sentinel-simplified experiment should optimize lookups_per_sec")
+if int(sentinel_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("tag32 sentinel-simplified experiment should keep sample_runs >= 3")
 
 print("metal tag32 target lookup source ok")

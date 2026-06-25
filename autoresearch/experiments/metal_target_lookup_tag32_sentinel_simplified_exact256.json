@@ -1,0 +1,32 @@
+{
+  "name": "metal_target_lookup_tag32_sentinel_simplified_exact256",
+  "description": "Metal tag32 target lookup with redundant sentinel condition removed",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "metal-target-lookup-tag32-bench",
+    "--target-count",
+    "1048576",
+    "--query-count",
+    "1048576",
+    "--hits",
+    "4096",
+    "--min-ms",
+    "500"
+  ],
+  "paired_baseline_command": [
+    "./macos/rck_macos",
+    "metal-target-lookup-tag32-bench",
+    "--target-count",
+    "1048576",
+    "--query-count",
+    "1048576",
+    "--hits",
+    "4096",
+    "--min-ms",
+    "500"
+  ],
+  "metric": "lookups_per_sec",
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3
+}
