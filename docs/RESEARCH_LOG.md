@@ -3352,9 +3352,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `lookup_seconds=0.002578`, and `lookups_per_sec=52,478,448.484848`.
   With `--lookup-repeat 1024`, the run used `query_count=1082368`,
   `hit_count=65536`, `miss_count=1016832`, `lookup_seconds=0.004705`, and
-  `lookups_per_sec=230,052,445.601637`. Promote only after the new
+  `lookups_per_sec=230,052,445.601637`. Clean autoresearch on commit
+  `40b6387` then kept the dedicated
   `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_bulk1024`
-  autoresearch gate records clean samples; until then these are scout numbers.
+  gate with median `338,447,087.311549` lookups/sec across three correct
+  samples (`min=228,103,021.990759`, `max=619,854,011.588818`), preserving
+  `dp_count=1057`, `query_count=1082368`, `hit_count=65536`,
+  `miss_count=1016832`, and `target_lookup_checksum=0x342aa518f1adaed1`.
+  In `autoresearch/results.tsv`, the value is stored in the `ops_per_sec`
+  column because the runner aliases the selected metric; for this experiment
+  that selected metric is `lookups_per_sec`.
 - Accepted probe `macos-metal-target-lookup-exact256`: added an exact Metal
   multi-target lookup gate for packet-boundary affine DP candidates. The kernel
   probes a deterministic open-addressed table keyed by full affine `x` plus
