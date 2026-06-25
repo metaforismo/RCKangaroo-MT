@@ -3050,6 +3050,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   row for this new operation, but the long three-sample runner was thermally
   noisy (`52,054,794.687903` median steps/sec); treat it as a reproducibility
   row for the cumulative-distance operation, not as a peak-throughput record.
+- `macos-metal-dp8-xyzz-chain-packets4`: added a dedicated autoresearch gate
+  for the four-packet cumulative chain shape that beat persistent-chain in the
+  paired promotion check. The new experiment runs
+  `262144 x 512 x 4`, uses `--min-ms 0`, and cools down between samples. The
+  first clean run at commit `d4398d9` preserved the cumulative oracle
+  (`dp_count=4037`, `dp_distance_checksum=0x30e91a5edffed133`,
+  `dp_checksum=0x950a1186dae66384`) and kept at median
+  `92,484,157.517172` steps/sec. Because the same shape measured
+  `126,396,922.377779` in the paired baseline immediately before this run,
+  future packet/round decisions should use paired comparisons against this
+  command rather than standalone peak claims.
 - `macos-metal-dp8-xyzz-persistent-chain-rounds`: accepted as the next
   solver-facing host architecture after the cumulative chain. It adds
   `metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench`, where
