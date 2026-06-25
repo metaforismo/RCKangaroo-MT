@@ -3416,6 +3416,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   tag32 bucket. Future lookup work should target fewer probes, better query
   locality, batched DP stream integration, or a materially different table
   layout instead of repacking the same 8-byte row.
+- Rejected probe `macos-metal-target-lookup-tag32-halfload-highload`: tested
+  whether the tag32 lookup should use a stricter half-load bucket table for
+  non-power-of-two multi-target counts. The motivation was linear probing:
+  large target files can land near the old 3/4 load threshold, and miss-heavy
+  DP joins can pay several extra probes. The candidate changed only tag32
+  bucket sizing, kept exact `x256 + y_parity` verification, and passed
+  `make macos-check`. A high-load paired benchmark at `target_count=1,572,864`
+  rejected it: candidate median `137,879,070.930129` lookups/sec with
+  `4,194,304` buckets and `61.333333` bytes/target versus baseline median
+  `152,250,947.577372` lookups/sec with `2,097,152` buckets and `50.666667`
+  bytes/target (`paired_speedup=0.905604`, status `discard`). The checksum was
+  identical (`0xe2b09e38dc85a153`). Keep the existing 3/4 tag32 load policy;
+  on this Apple Silicon shape, doubling the bucket table hurts cache behavior
+  more than it helps probe count.
 
 ## Next Research Targets
 
