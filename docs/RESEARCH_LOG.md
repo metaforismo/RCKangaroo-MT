@@ -3402,6 +3402,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   representation such as a lower-radix carry-save form, vectorized paired
   limbs, or a point-formula-level redesign that reduces reductions rather than
   merely swapping limb width.
+- Rejected probe `macos-metal-target-lookup-tag32-packed-exact256`: tested
+  whether packing the accepted 8-byte `tag32 + target_index` bucket into one
+  `ulong` load would improve the multi-target DP join gate on Apple Silicon.
+  The prototype preserved the exact target oracle: the 32-bit tag remained only
+  a prefilter, and every candidate still required full `x256 + y_parity`
+  equality against the target-key array. `make macos-check` passed, including
+  the new packed source/CLI checks, and the checksum stayed
+  `0x4f62d3a7170b250a`. The clean commit benchmark on `a48e913` against
+  `HEAD~1` rejected it: packed median `135,664,964.776392` lookups/sec versus
+  tag32 baseline median `150,200,076.394806` lookups/sec
+  (`paired_speedup=0.903228`, status `discard`). Keep the accepted two-`uint`
+  tag32 bucket. Future lookup work should target fewer probes, better query
+  locality, batched DP stream integration, or a materially different table
+  layout instead of repacking the same 8-byte row.
 
 ## Next Research Targets
 
