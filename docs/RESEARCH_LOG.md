@@ -3547,6 +3547,37 @@ These did not pass the performance gate or had a correctness/architecture issue:
   (`paired_speedup=0.937104`, `confirmation_status=discard`). Keep the original
   explicit sentinel guard shape. This is a concrete example of why small
   Metal lookup wins need confirmation before promotion.
+- Rejected scout `macos-metal-affine-target-dp10-dp12-large-target-soa`:
+  tested whether sparser affine DP settings or a split `tag32`/`target_index`
+  lookup table could move the macOS multi-target path toward the 25M-target
+  transcript shape. Same-binary direct M3 runs of the integrated affine-scan
+  target lookup at `262144 x 512`, one million targets, `lookup_repeat=1024`,
+  and distinct misses stayed correct but did not improve the DP8 baseline:
+  DP12 measured `117,196,934.111233` end-to-end ops/sec with `dp_count=56`,
+  `dp_distance_checksum=0x7d0ee76b8500af2c`, and
+  `target_lookup_checksum=0xc5734459b21ca1fc`; DP10 measured
+  `114,535,731.414219` ops/sec with `dp_count=252` and
+  `target_lookup_checksum=0x6351a7af74e4b2d7`; a same-sequence DP8 control
+  measured `117,860,338.540384` ops/sec with the promoted affine DP checksum
+  and `target_lookup_checksum=0x8b2568562837af7f`. A 25,005,000-target direct
+  integrated run proved the current tag32 table fits and remains exact on a
+  MacBook Air M3 16GB shape: `target_table_bytes=1268635456`,
+  `bytes_per_target=50.735271`, `dp_count=1057`, `hit_count=64`,
+  `target_lookup_checksum=0x25249bb63bf646d9`, and
+  `ops_per_sec=101,775,521.235792` for the tiny 1057-query lookup batch.
+  Accumulating queries with `lookup_repeat=1024` kept the same affine DP
+  oracle and improved end-to-end to `105,475,085.926833` ops/sec while lookup
+  throughput reached `7,360,095.669929` lookups/sec on the large table, far
+  below the one-million-target cache-friendly gate. A local split-array SoA
+  prototype kept exact checksums but was not retained: on 25,005,000 targets
+  and 1,082,368 mostly-miss queries, the existing tag32 bucket measured
+  `8,285,211.878742` then `7,390,754.552319` lookups/sec, while SoA measured
+  `7,470,301.945639` then `5,743,682.460318`; on one million targets, a clean
+  sequential repeat also favored the current bucket
+  (`175,834,760.507273` versus `130,997,626.097783`). Conclusion: keep the
+  promoted two-`uint` bucket; for very large multi-target files, the real next
+  target is batching and locality across packet-boundary DP queries, not
+  splitting the existing 8-byte row.
 
 ## Next Research Targets
 
