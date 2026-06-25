@@ -27,7 +27,12 @@ for marker in (
     "RunTargetLookupTag32Kernel",
     "RunTargetLookupTag32Cpu",
     "RCKMetalTargetLookupTag32BenchJson",
+    "RCKMetalTargetLookupTag32PersistentBenchJson",
     "RCKCpuTargetLookupTag32BenchJson",
+    "target_lookup_tag32_persistent_exact256",
+    "\\\"buffer_lifetime\\\":\\\"persistent\\\"",
+    "\\\"metal_setup_seconds\\\":",
+    "\\\"dispatch_lookups_per_sec\\\":",
     "\\\"lookup_layout\\\":\\\"open_address_tag32_index_exact256\\\"",
     "\\\"lookup_engine\\\":\\\"cpu\\\"",
     "\\\"candidate_verification\\\":\\\"tag32_prefilter_then_exact_key_equality\\\"",
@@ -42,8 +47,10 @@ if "RCKMetalTargetLookupTag32BenchJson" not in header_source:
 
 for marker in (
     "metal-target-lookup-tag32-bench",
+    "metal-target-lookup-tag32-persistent-bench",
     "target-lookup-tag32-cpu-bench",
     "RCKMetalTargetLookupTag32BenchJson",
+    "RCKMetalTargetLookupTag32PersistentBenchJson",
     "RCKCpuTargetLookupTag32BenchJson",
 ):
     if marker not in cli_source:
@@ -52,6 +59,7 @@ for marker in (
 for marker in (
     "macos-metal-target-lookup-tag32-source-check",
     "macos-metal-target-lookup-tag32-bench",
+    "macos-metal-target-lookup-tag32-persistent-bench",
 ):
     if marker not in makefile:
         raise SystemExit("missing tag32 target lookup Makefile marker: " + marker)

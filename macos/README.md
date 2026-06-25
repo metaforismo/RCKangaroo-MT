@@ -98,6 +98,8 @@ make macos-metal-target-lookup-compact-bench
 ./macos/rck_macos metal-target-lookup-compact-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
 make macos-metal-target-lookup-tag32-bench
 ./macos/rck_macos metal-target-lookup-tag32-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
+make macos-metal-target-lookup-tag32-persistent-bench
+./macos/rck_macos metal-target-lookup-tag32-persistent-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
 ./macos/rck_macos target-lookup-tag32-cpu-bench --target-count 25005000 --query-count 1057 --hits 64 --min-ms 50
 ./macos/rck_macos metal-field-sub-test
 make macos-metal-field-sub-bench

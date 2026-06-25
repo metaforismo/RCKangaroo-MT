@@ -3602,6 +3602,33 @@ These did not pass the performance gate or had a correctness/architecture issue:
   current binary. Keep the default engine as `gpu` for continuity, but use
   `--lookup-engine cpu` for large target tables and small or moderate DP query
   batches on Apple Silicon until an auto policy is benchmarked.
+- Kept diagnostic benchmark `macos-metal-target-lookup-tag32-persistent`:
+  added `metal-target-lookup-tag32-persistent-bench` to separate Metal setup
+  cost from repeated dispatch cost for the exact tag32 target lookup. It
+  creates the device pipeline and `target_keys`/bucket/query buffers once,
+  repeats dispatches for `--min-ms`, and reports both `metal_setup_seconds`
+  and `dispatch_seconds`; `seconds` and `lookups_per_sec` include setup, while
+  `dispatch_lookups_per_sec` isolates the warmed dispatch loop. This is useful
+  for understanding device-resident target-table economics, but it must not be
+  read as a solver win when `--min-ms` repeats the same query set and warms
+  cache. Same-binary M3 probes stayed exact. On one million targets with one
+  million queries and `min_ms=500`, the old per-call buffer path measured
+  `101,048,711.053541` lookups/sec, while persistent measured
+  `629,993,688.283748` lookups/sec including setup and
+  `687,238,232.934819` dispatch-only, with
+  `target_lookup_checksum=0x4f62d3a7170b250a`. On the 25,005,000-target,
+  1057-query tiny batch, persistent improved the old GPU path only modestly
+  (`77,016.523835` total lookups/sec and `610,879.173568` dispatch-only versus
+  `53,436.540847` old GPU), still far below CPU
+  (`83,196,783.500529` lookups/sec). On 25,005,000 targets with 1,082,368
+  queries, persistent repeated-dispatch measured `30,149,298.733013` total and
+  `122,171,279.437910` dispatch-only, but a single dispatch showed the honest
+  setup penalty: `metal_setup_seconds=0.743334`, `dispatch_seconds=0.148893`,
+  and `1,213,108.039165` total lookups/sec. Conclusion: persistent Metal
+  buffers are promising for long-lived, device-resident multi-target tables and
+  large fresh batches, but the production decision should be gated by a future
+  integrated benchmark that reuses the target table while feeding fresh DP
+  query batches.
 
 ## Next Research Targets
 
@@ -3635,6 +3662,10 @@ These did not pass the performance gate or had a correctness/architecture issue:
 - Add a benchmark-gated `--lookup-engine auto` policy once enough paired data
   exists across target counts, DP density, and `lookup_repeat`; do not make CPU
   the default globally from one hardware class.
+- Add an integrated fresh-batch GPU persistent lookup engine before promoting
+  any persistent-buffer result to solver behavior: keep the target table
+  resident, update query buffers with new packet-boundary DP keys, and score
+  setup-inclusive and setup-excluded metrics separately.
 
 ## Cleanup Policy
 
