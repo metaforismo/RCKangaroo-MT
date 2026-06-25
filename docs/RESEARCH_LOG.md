@@ -3332,7 +3332,10 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `miss_count=993`, `bytes_per_target=56.000000`,
   `target_lookup_checksum=0x25249bb63bf646d9`, `lookup_seconds=0.001760`,
   `gpu_ops_per_sec=122,269,515.376937`, and end-to-end
-  `ops_per_sec=118,758,130.954171`.
+  `ops_per_sec=118,758,130.954171`. Clean autoresearch on commit `436d252`
+  kept the gate with median `121,827,155.136391` end-to-end ops/sec across
+  three correct samples (`min=120,643,386.557275`,
+  `max=123,887,745.866683`) and the same DP and target-lookup checksums.
 - Accepted probe `macos-metal-target-lookup-exact256`: added an exact Metal
   multi-target lookup gate for packet-boundary affine DP candidates. The kernel
   probes a deterministic open-addressed table keyed by full affine `x` plus
