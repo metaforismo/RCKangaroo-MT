@@ -13,6 +13,7 @@ markers = [
     "jacobian_affine_scan_target_lookup_tag32",
     "affine_dp_scan_target_lookup",
     "lookup_repeat",
+    "lookup_query_mode",
     "dp_query_count",
     "target_lookup_checksum",
     "RunTargetLookupTag32Kernel",
@@ -29,6 +30,8 @@ if command not in cli:
     raise SystemExit("missing affine-scan target-lookup CLI command")
 if "--lookup-repeat" not in cli:
     raise SystemExit("missing affine-scan target-lookup lookup-repeat CLI option")
+if "--lookup-query-mode" not in cli:
+    raise SystemExit("missing affine-scan target-lookup lookup-query-mode CLI option")
 
 make_markers = [
     "macos-metal-affine-scan-target-lookup-source-check",
@@ -99,6 +102,34 @@ bulk1024_command = [
 check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_bulk1024.json",
     bulk1024_command,
+    "lookups_per_sec",
+)
+
+distinct1024_command = [
+    "./macos/rck_macos",
+    command,
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--target-count",
+    "1048576",
+    "--hits",
+    "64",
+    "--lookup-repeat",
+    "1024",
+    "--lookup-query-mode",
+    "distinct-misses",
+    "--min-ms",
+    "500",
+]
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_distinct_misses1024.json",
+    distinct1024_command,
     "lookups_per_sec",
 )
 

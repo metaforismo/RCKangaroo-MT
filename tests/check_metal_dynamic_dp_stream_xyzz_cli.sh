@@ -286,13 +286,33 @@ if [ "$affine_lookup_status" -ne 0 ]; then
 fi
 
 case "$affine_lookup_output" in
-	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32\""*"\"output_layout\":\"affine_dp_scan_target_lookup\""*"\"lookup_layout\":\"open_address_tag32_index_exact256\""*"\"target_key\":\"x256_y_parity\""*"\"candidate_verification\":\"tag32_prefilter_then_exact_key_equality\""*"\"sample_count\":64"*"\"steps_per_sample\":256"*"\"jump_count\":8"*"\"dp_bits\":4"*"\"target_count\":128"*"\"requested_hits\":4"*"\"injected_hits\":4"*"\"lookup_repeat\":3"*"\"dp_query_count\":5"*"\"query_count\":15"*"\"hit_count\":12"*"\"miss_count\":3"*"\"target_lookup_checksum\":\"0x"*"\"correctness\":true"*)
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32\""*"\"output_layout\":\"affine_dp_scan_target_lookup\""*"\"lookup_layout\":\"open_address_tag32_index_exact256\""*"\"target_key\":\"x256_y_parity\""*"\"candidate_verification\":\"tag32_prefilter_then_exact_key_equality\""*"\"sample_count\":64"*"\"steps_per_sample\":256"*"\"jump_count\":8"*"\"dp_bits\":4"*"\"target_count\":128"*"\"requested_hits\":4"*"\"injected_hits\":4"*"\"lookup_repeat\":3"*"\"lookup_query_mode\":\"repeat\""*"\"dp_query_count\":5"*"\"query_count\":15"*"\"hit_count\":12"*"\"miss_count\":3"*"\"target_lookup_checksum\":\"0x"*"\"correctness\":true"*)
 		;;
 	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32\""*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
 		;;
 	*)
 		printf '%s\n' "unexpected metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench output"
 		printf '%s\n' "$affine_lookup_output"
+		exit 1
+		;;
+esac
+
+affine_lookup_distinct_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench --iterations 64 --steps 256 --jumps 8 --dp-bits 4 --target-count 128 --hits 4 --lookup-repeat 3 --lookup-query-mode distinct-misses --min-ms 0 2>&1)"
+affine_lookup_distinct_status=$?
+if [ "$affine_lookup_distinct_status" -ne 0 ]; then
+	printf 'metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench distinct returned status %s\n' "$affine_lookup_distinct_status"
+	printf '%s\n' "$affine_lookup_distinct_output"
+	exit 1
+fi
+
+case "$affine_lookup_distinct_output" in
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32\""*"\"lookup_repeat\":3"*"\"lookup_query_mode\":\"distinct_misses\""*"\"dp_query_count\":5"*"\"query_count\":15"*"\"hit_count\":4"*"\"miss_count\":11"*"\"target_lookup_checksum\":\"0x"*"\"correctness\":true"*)
+		;;
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32\""*"\"lookup_query_mode\":\"distinct_misses\""*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected distinct metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench output"
+		printf '%s\n' "$affine_lookup_distinct_output"
 		exit 1
 		;;
 esac

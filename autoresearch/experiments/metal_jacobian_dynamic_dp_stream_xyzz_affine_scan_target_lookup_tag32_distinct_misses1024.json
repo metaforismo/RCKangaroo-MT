@@ -1,0 +1,30 @@
+{
+  "name": "metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_distinct_misses1024",
+  "description": "Metal XYZZ affine DP scan feeding exact tag32 multi-target lookup with a distinct-miss bulk query batch",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench",
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--target-count",
+    "1048576",
+    "--hits",
+    "64",
+    "--lookup-repeat",
+    "1024",
+    "--lookup-query-mode",
+    "distinct-misses",
+    "--min-ms",
+    "500"
+  ],
+  "metric": "lookups_per_sec",
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3
+}

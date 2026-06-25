@@ -447,6 +447,20 @@ to decide whether a solver should accumulate many packet-boundary DPs before
 launching the GPU multi-target join instead of dispatching a lookup for each
 small DP batch.
 
+Run the distinct-miss batched affine-DP scan plus exact tag32 target-lookup gate:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_distinct_misses1024 --budget-sec 10
+```
+
+This uses the same real DP keys and exact target table, passes
+`--lookup-repeat 1024 --lookup-query-mode distinct-misses`, and records
+`metric=lookups_per_sec`. Unlike the repeat gate, only the first real DP batch
+contains target hits; the remaining bulk query slots are deterministic keys
+that the host verifies as misses before launching the Metal lookup. Use this
+gate to measure a more cache-realistic mostly-miss multi-target join while
+keeping exact hit-count, miss-count, and output-index validation.
+
 Run the CPU field multiplication experiment:
 
 ```sh
