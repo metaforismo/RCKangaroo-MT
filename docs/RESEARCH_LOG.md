@@ -3362,6 +3362,26 @@ These did not pass the performance gate or had a correctness/architecture issue:
   In `autoresearch/results.tsv`, the value is stored in the `ops_per_sec`
   column because the runner aliases the selected metric; for this experiment
   that selected metric is `lookups_per_sec`.
+- Accepted follow-up `macos-metal-affine-scan-target-lookup-tag32-distinct-misses1024`:
+  added `--lookup-query-mode distinct-misses` for the integrated affine-DP
+  target-lookup bench. The default repeat mode is useful for measuring dispatch
+  saturation, but it repeats the same DP query keys and can be too cache
+  friendly. The distinct-miss mode keeps one real affine-DP query batch with
+  its exact injected hits, then fills the remaining bulk query slots with
+  deterministic keys that the host first verifies as misses against the tag32
+  target table. A direct M3 scout on the `1024x` shape preserved the accepted
+  DP oracle and produced `query_count=1082368`, `hit_count=64`,
+  `miss_count=1082304`, `lookup_seconds=0.005001`, and
+  `lookups_per_sec=216,442,951.678042`. Clean autoresearch on commit
+  `49c539d` kept the dedicated
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_distinct_misses1024`
+  gate with median `332,746,255.341113` lookups/sec across three correct
+  samples (`min=255,305,578.488029`, `max=443,464,765.141918`), preserving
+  `dp_count=1057`, `dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `dp_checksum=0x9dba4a07ebbb8e14`, `query_count=1082368`, `hit_count=64`,
+  `miss_count=1082304`, and `target_lookup_checksum=0x8b2568562837af7f`.
+  This strengthens the batching conclusion: the macOS GPU lookup remains
+  high-throughput on a mostly-miss batch, not only on repeated DP keys.
 - Accepted probe `macos-metal-target-lookup-exact256`: added an exact Metal
   multi-target lookup gate for packet-boundary affine DP candidates. The kernel
   probes a deterministic open-addressed table keyed by full affine `x` plus
