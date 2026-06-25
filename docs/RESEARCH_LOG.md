@@ -3075,7 +3075,10 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0x950a1186dae66384`, and `correctness=true`. This promotes
   command-buffer-level persistence as a real Mac path: it is not a new ECDLP
   shortcut, but it removes host-side reinitialization pressure while preserving
-  full cumulative-distance correctness.
+  full cumulative-distance correctness. A clean 2026-06-25 autoresearch
+  refresh at commit `2cc50c2` kept the same `262144 x 512 x 4` persistent
+  shape at median `124,755,147.554164` steps/sec with the same DP count and
+  checksums; follow-up promotion still requires a paired baseline run.
 - Follow-up schedule sweep for `macos-metal-dp8-xyzz-persistent-chain-rounds`
   kept the accepted `packets=2, rounds=2` experiment as the best reproducible
   default, but recorded useful boundaries. With total packets fixed at four,
