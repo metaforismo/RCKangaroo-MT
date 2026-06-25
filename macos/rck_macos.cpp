@@ -66,7 +66,7 @@ static void PrintUsage()
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations N [--steps N] [--packets N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N] [--jump-schedule power2|scaled4-balanced]\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench --iterations N [--steps N] [--packets N] [--rounds N] [--jumps N] [--dp-bits N] [--tg-limit N] [--jump-schedule power2|scaled4-balanced]\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N] [--jump-schedule power2|scaled4-balanced]\n");
-	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench --iterations N --target-count N [--hits N] [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N] [--jump-schedule power2|scaled4-balanced]\n");
+	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench --iterations N --target-count N [--hits N] [--lookup-repeat N] [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N] [--jump-schedule power2|scaled4-balanced]\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-count-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N]\n");
 }
 
@@ -1328,6 +1328,7 @@ int main(int argc, char* argv[])
 		const char* jump_schedule_s = "power2";
 		const char* target_count_s = NULL;
 		const char* hits_s = NULL;
+		const char* lookup_repeat_s = NULL;
 		unsigned int iterations = 1024;
 		unsigned int steps = 256;
 		unsigned int jumps = 16;
@@ -1336,6 +1337,7 @@ int main(int argc, char* argv[])
 		unsigned int threadgroup_limit = 0;
 		unsigned int target_count = 0;
 		unsigned int hits = 0;
+		unsigned int lookup_repeat = 1;
 		if (!ReadMetalJumpWalkBenchOptions(argc, argv, &iterations, &steps, &jumps, &dp_bits, &min_ms, &threadgroup_limit) ||
 			!ReadOption(argc, argv, "--target-count", &target_count_s) ||
 			!ParseU32(target_count_s, &target_count))
@@ -1357,8 +1359,14 @@ int main(int argc, char* argv[])
 		}
 		else
 			hits = 0;
+		if (ReadOption(argc, argv, "--lookup-repeat", &lookup_repeat_s) && !ParseU32(lookup_repeat_s, &lookup_repeat))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
 		ReadOption(argc, argv, "--jump-schedule", &jump_schedule_s);
-		printf("%s\n", RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJson(iterations, steps, jumps, min_ms, target_count, hits, threadgroup_limit, dp_bits, jump_schedule_s).c_str());
+		printf("%s\n", RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJson(iterations, steps, jumps, min_ms, target_count, hits, lookup_repeat, threadgroup_limit, dp_bits, jump_schedule_s).c_str());
 	}
 	else if (strcmp(argv[1], "metal-jacobian-dynamic-dp-count-bench") == 0)
 	{

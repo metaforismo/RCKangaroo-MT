@@ -3336,6 +3336,25 @@ These did not pass the performance gate or had a correctness/architecture issue:
   kept the gate with median `121,827,155.136391` end-to-end ops/sec across
   three correct samples (`min=120,643,386.557275`,
   `max=123,887,745.866683`) and the same DP and target-lookup checksums.
+- Follow-up batching probe `macos-metal-affine-scan-target-lookup-tag32-bulk1024`:
+  added `--lookup-repeat N` to the integrated affine-DP target-lookup bench.
+  The option repeats the real affine-DP query batch before the Metal tag32
+  lookup and repeats the expected exact target-index oracle by the same factor,
+  so the hit/miss proof remains exact while the lookup dispatch sees a larger
+  DP batch. This tests a solver architecture question rather than a faster
+  mixed-add formula: dispatching lookup for about one thousand DP keys
+  underfills the GPU, while accumulating packet-boundary DPs can expose the
+  accepted tag32 lookup kernel throughput. Direct M3 scouts on the same
+  `262144 x 512`, `dp_bits=8`, `target_count=1048576`, `hits=64` shape
+  preserved `dp_count=1057`, `dp_distance_checksum=0xf0dc88ed68b2ff64`, and
+  `dp_checksum=0x9dba4a07ebbb8e14`. With `--lookup-repeat 128`, the run used
+  `query_count=135296`, `hit_count=8192`, `miss_count=127104`,
+  `lookup_seconds=0.002578`, and `lookups_per_sec=52,478,448.484848`.
+  With `--lookup-repeat 1024`, the run used `query_count=1082368`,
+  `hit_count=65536`, `miss_count=1016832`, `lookup_seconds=0.004705`, and
+  `lookups_per_sec=230,052,445.601637`. Promote only after the new
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_bulk1024`
+  autoresearch gate records clean samples; until then these are scout numbers.
 - Accepted probe `macos-metal-target-lookup-exact256`: added an exact Metal
   multi-target lookup gate for packet-boundary affine DP candidates. The kernel
   probes a deterministic open-addressed table keyed by full affine `x` plus

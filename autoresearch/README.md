@@ -420,6 +420,33 @@ but only increments a DP counter and writes no record payloads. Use it to
 separate record-write overhead from the arithmetic walk cost; it is a
 diagnostic benchmark, not a replacement for `dp_stream` candidate emission.
 
+Run the integrated affine-DP scan plus exact tag32 target-lookup gate:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32 --budget-sec 10
+```
+
+This records the macOS integrated multi-target join path with `metric=ops_per_sec`.
+The Metal XYZZ packet walk and CPU affine-DP scan produce real packet-boundary
+`x256+y_parity` DP keys, the benchmark injects a controlled subset into a
+tag32 target table, and the Metal target lookup verifies candidates by exact
+key equality after the tag prefilter. Use this gate for end-to-end packet walk
+throughput where lookup is included but the default query batch is still the
+single DP batch emitted by one scan.
+
+Run the batched affine-DP scan plus exact tag32 target-lookup gate:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_bulk1024 --budget-sec 10
+```
+
+This uses the same real DP keys and exact oracle, but passes
+`--lookup-repeat 1024` and records `metric=lookups_per_sec`. It is a target
+lookup batching gate, not a claim that the mixed-add walk became faster. Use it
+to decide whether a solver should accumulate many packet-boundary DPs before
+launching the GPU multi-target join instead of dispatching a lookup for each
+small DP batch.
+
 Run the CPU field multiplication experiment:
 
 ```sh
