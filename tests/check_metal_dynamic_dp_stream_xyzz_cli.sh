@@ -286,7 +286,7 @@ if [ "$affine_lookup_status" -ne 0 ]; then
 fi
 
 case "$affine_lookup_output" in
-	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32\""*"\"output_layout\":\"affine_dp_scan_target_lookup\""*"\"lookup_layout\":\"open_address_tag32_index_exact256\""*"\"candidate_verification\":\"tag32_prefilter_then_exact_key_equality\""*"\"target_key\":\"x256_y_parity\""*"\"sample_count\":64"*"\"steps_per_sample\":256"*"\"jump_count\":8"*"\"dp_bits\":4"*"\"target_count\":128"*"\"requested_hits\":4"*"\"injected_hits\":4"*"\"hit_count\":4"*"\"target_lookup_checksum\":\"0x"*"\"correctness\":true"*)
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32\""*"\"output_layout\":\"affine_dp_scan_target_lookup\""*"\"lookup_layout\":\"open_address_tag32_index_exact256\""*"\"target_key\":\"x256_y_parity\""*"\"candidate_verification\":\"tag32_prefilter_then_exact_key_equality\""*"\"sample_count\":64"*"\"steps_per_sample\":256"*"\"jump_count\":8"*"\"dp_bits\":4"*"\"target_count\":128"*"\"requested_hits\":4"*"\"injected_hits\":4"*"\"hit_count\":4"*"\"target_lookup_checksum\":\"0x"*"\"correctness\":true"*)
 		;;
 	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32\""*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
 		;;
