@@ -3382,6 +3382,22 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `miss_count=1082304`, and `target_lookup_checksum=0x8b2568562837af7f`.
   This strengthens the batching conclusion: the macOS GPU lookup remains
   high-throughput on a mostly-miss batch, not only on repeated DP keys.
+- Rejected follow-up `macos-metal-affine-scan-target-lookup-tag32-hits-only`:
+  tested a hits-only tag32 output architecture for the same mostly-miss
+  integrated DP lookup shape. The idea was to avoid writing one miss sentinel
+  per query and instead emit only compact hit records, while still using tag32
+  only as a prefilter and verifying every candidate by exact `x256 + y_parity`
+  equality. The candidate preserved the accepted DP oracle
+  (`dp_count=1057`, `dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `dp_checksum=0x9dba4a07ebbb8e14`), `query_count=1082368`, `hit_count=64`,
+  and `miss_count=1082304`, but autoresearch measured only
+  `265,142,720.522149` lookups/sec (`min=215,334,137.876015`,
+  `max=272,134,116.001853`) versus the accepted full-output
+  `distinct_misses1024` median of `332,746,255.341113` lookups/sec. A single
+  immediate full-vs-hits scout had looked promising (`306,898,734.033649` vs
+  `354,066,901.126250` lookups/sec), but the three-sample gate rejected it.
+  Do not promote hits-only output until a paired/confirmed variant beats the
+  full-output distinct-miss gate.
 - Accepted probe `macos-metal-target-lookup-exact256`: added an exact Metal
   multi-target lookup gate for packet-boundary affine DP candidates. The kernel
   probes a deterministic open-addressed table keyed by full affine `x` plus
