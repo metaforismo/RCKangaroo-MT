@@ -3316,6 +3316,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `125,064,123.237407` for `tg=64`; `124,825,972.726648` then
   `125,677,075.402889` for `tg=128`). Keep the inherited 128-thread default
   for the affine-scan gate until a paired/confirmed run separates the two.
+- Accepted architecture probe `macos-metal-affine-scan-target-lookup-tag32`:
+  added an integrated benchmark that feeds real affine DP candidates from the
+  XYZZ packet-boundary scan into the accepted exact tag32 multi-target lookup
+  gate. The scan can now emit full affine `x256` plus `y` parity for each DP;
+  the host injects a controlled number of those keys into a tag32 target table,
+  runs `target_lookup_tag32_exact256`, and validates every returned index
+  against an exact `x256_y_parity` oracle. This does not claim a faster
+  mixed-add kernel; it closes the first non-cheating multi-target join metric
+  for the macOS path while keeping walk, affine scan, and lookup timings
+  separate. A direct M3 scout on `262144 x 512`, `dp_bits=8`,
+  `target_count=1048576`, and `hits=64` preserved the accepted affine DP oracle
+  (`dp_count=1057`, `dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `dp_checksum=0x9dba4a07ebbb8e14`) and produced `hit_count=64`,
+  `miss_count=993`, `bytes_per_target=56.000000`,
+  `target_lookup_checksum=0x25249bb63bf646d9`, `lookup_seconds=0.001760`,
+  `gpu_ops_per_sec=122,269,515.376937`, and end-to-end
+  `ops_per_sec=118,758,130.954171`.
 - Accepted probe `macos-metal-target-lookup-exact256`: added an exact Metal
   multi-target lookup gate for packet-boundary affine DP candidates. The kernel
   probes a deterministic open-addressed table keyed by full affine `x` plus

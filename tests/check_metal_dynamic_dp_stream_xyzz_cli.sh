@@ -277,6 +277,26 @@ case "$affine_scan_output" in
 		;;
 esac
 
+affine_lookup_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench --iterations 64 --steps 256 --jumps 8 --dp-bits 4 --target-count 128 --hits 4 --min-ms 0 2>&1)"
+affine_lookup_status=$?
+if [ "$affine_lookup_status" -ne 0 ]; then
+	printf 'metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench returned status %s\n' "$affine_lookup_status"
+	printf '%s\n' "$affine_lookup_output"
+	exit 1
+fi
+
+case "$affine_lookup_output" in
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32\""*"\"output_layout\":\"affine_dp_scan_target_lookup\""*"\"lookup_layout\":\"open_address_tag32_index_exact256\""*"\"candidate_verification\":\"tag32_prefilter_then_exact_key_equality\""*"\"target_key\":\"x256_y_parity\""*"\"sample_count\":64"*"\"steps_per_sample\":256"*"\"jump_count\":8"*"\"dp_bits\":4"*"\"target_count\":128"*"\"requested_hits\":4"*"\"injected_hits\":4"*"\"hit_count\":4"*"\"target_lookup_checksum\":\"0x"*"\"correctness\":true"*)
+		;;
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32\""*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench output"
+		printf '%s\n' "$affine_lookup_output"
+		exit 1
+		;;
+esac
+
 overflow_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations 128 --steps 512 --jumps 32 --dp-bits 8 --min-ms 1 2>&1)"
 overflow_status=$?
 if [ "$overflow_status" -ne 0 ]; then
