@@ -2397,10 +2397,6 @@ struct TargetLookupTag32Bucket {
   uint target_index;
 };
 
-struct TargetLookupTag32PackedBucket {
-  ulong packed;
-};
-
 static inline ulong target_lookup_mix(ulong v) {
   v ^= v >> 33;
   v *= 0xff51afd7ed558ccdUL;
@@ -2520,41 +2516,6 @@ kernel void target_lookup_tag32_exact256(device const TargetLookupTag32Bucket* t
     }
     if (bucket.target_index != 0xFFFFFFFFU && bucket.tag == tag && target_lookup_key_equals(target_keys[bucket.target_index], query)) {
       found = bucket.target_index;
-      atomic_fetch_add_explicit(out_hit_count, 1U, memory_order_relaxed);
-      break;
-    }
-    slot = (slot + 1U) & (bucket_count - 1U);
-    probes++;
-  }
-
-  out_target_indices[id] = found;
-}
-
-kernel void target_lookup_tag32_packed_exact256(device const TargetLookupTag32PackedBucket* target_buckets [[buffer(0)]],
-                                                device const TargetLookupKey* target_keys [[buffer(1)]],
-                                                device const TargetLookupKey* query_keys [[buffer(2)]],
-                                                device uint* out_target_indices [[buffer(3)]],
-                                                device atomic_uint* out_hit_count [[buffer(4)]],
-                                                constant uint& bucket_count [[buffer(5)]],
-                                                constant uint& query_count [[buffer(6)]],
-                                                uint id [[thread_position_in_grid]]) {
-  if (id >= query_count) return;
-  TargetLookupKey query = query_keys[id];
-  ulong hash = target_lookup_hash(query);
-  uint query_tag = (uint)(hash >> 32);
-  uint slot = (uint)(hash & (ulong)(bucket_count - 1));
-  uint probes = 0;
-  uint found = 0xFFFFFFFFU;
-
-  while (probes < bucket_count) {
-    ulong packed = target_buckets[slot].packed;
-    uint target_index = (uint)(packed & 0xFFFFFFFFUL);
-    if (target_index == 0xFFFFFFFFU) {
-      break;
-    }
-    uint bucket_tag = (uint)(packed >> 32);
-    if (target_index != 0xFFFFFFFFU && bucket_tag == query_tag && target_lookup_key_equals(target_keys[target_index], query)) {
-      found = target_index;
       atomic_fetch_add_explicit(out_hit_count, 1U, memory_order_relaxed);
       break;
     }
