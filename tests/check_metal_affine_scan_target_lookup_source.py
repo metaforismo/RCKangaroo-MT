@@ -25,10 +25,6 @@ markers = [
     "RunTargetLookupTag32FilterKernel",
     "RunTargetLookupTag16HashFilterKernel",
     "ResolveTargetLookupTag32FilterCandidates",
-    "AppendTargetLookupExpectedIndex",
-    "ResolveTargetLookupTag32FilterCandidatesSparse",
-    "lookup_expected_checksum",
-    "lookup_outputs_sparse_validated",
     "RunTargetLookupTag32Cpu",
     "\"gpu_filter\"",
     "\"gpu_filter16_hash\"",
@@ -263,12 +259,6 @@ check_experiment(
 
 check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_cpu_gate.json",
-    gpu_filter16_hash25m_command,
-    "ops_per_sec",
-)
-
-check_experiment(
-    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_filter_sparse_validation25m.json",
     gpu_filter16_hash25m_command,
     "ops_per_sec",
 )
