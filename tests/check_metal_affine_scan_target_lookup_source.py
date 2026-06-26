@@ -23,10 +23,18 @@ markers = [
     "target_lookup_checksum",
     "RunTargetLookupTag32Kernel",
     "RunTargetLookupTag32FilterKernel",
+    "RunTargetLookupTag16HashFilterKernel",
     "ResolveTargetLookupTag32FilterCandidates",
     "RunTargetLookupTag32Cpu",
     "\"gpu_filter\"",
+    "\"gpu_filter16_hash\"",
     "BuildTargetLookupTag32FilterTable",
+    "BuildTargetLookupTag16FilterTable",
+    "BuildTargetLookupQueryHashes",
+    "\\\"lookup_layout\\\":\\\"open_address_tag16_hash_filter_exact256\\\"",
+    "\\\"candidate_verification\\\":\\\"tag16_hash_filter_then_cpu_exact_key_equality\\\"",
+    "\\\"query_input\\\":\\\"hash64\\\"",
+    "\\\"target_query_hash_bytes\\\":",
     "filter_positive_count",
     "filter_false_positive_count",
 ]
@@ -214,6 +222,38 @@ gpu_filter25m_command = [
 check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_gpu_filter25m.json",
     gpu_filter25m_command,
+    "ops_per_sec",
+)
+
+gpu_filter16_hash25m_command = [
+    "./macos/rck_macos",
+    command,
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--target-count",
+    "25005000",
+    "--hits",
+    "64",
+    "--lookup-repeat",
+    "1024",
+    "--lookup-query-mode",
+    "distinct-misses",
+    "--lookup-engine",
+    "gpu-filter16-hash",
+    "--lookup-tg-limit",
+    "512",
+    "--min-ms",
+    "500",
+]
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m.json",
+    gpu_filter16_hash25m_command,
     "ops_per_sec",
 )
 
