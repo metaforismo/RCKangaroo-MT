@@ -3937,6 +3937,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   spend complexity on sparse validation in this benchmark path; target query
   generation, hashing, lookup dispatch, and XYZZ walk economics are better
   optimization surfaces.
+- Rejected changing the large integrated `gpu-filter16-hash` default lookup
+  threadgroup cap from 512 to 128. A direct scout suggested better
+  lookup-only throughput at 128, but paired autoresearch on commit `314e461`
+  against the old default was mixed and therefore discarded by confirmation
+  policy: confirmation 1 was a raw keep (`29,668,582.042430` versus
+  `26,502,836.838557`, `1.119449x`), while confirmation 2 regressed
+  (`28,114,725.754939` versus `33,063,506.770770`, `0.850325x`). Both rows
+  preserved `correctness=true` and `target_lookup_checksum=0x8b2568562837af7f`.
+  Conclusion: keep the 512-thread default for now; revisit 128 only with a
+  lookup-metric-specific gate or a less noisy lookup-isolated benchmark.
 
 ## Next Research Targets
 
