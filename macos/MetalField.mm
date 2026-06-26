@@ -5409,8 +5409,6 @@ static const char* ChooseAffineLookupEngine(const char* lookup_engine, unsigned 
 {
 	if (strcmp(lookup_engine, "auto") != 0)
 		return lookup_engine;
-	if (target_count >= 16777216U && query_count >= 1048576ULL)
-		return "gpu_filter";
 	if (target_count <= 4194304U && query_count >= 1048576ULL)
 		return "gpu";
 	if (target_count >= 1048576U && query_count <= 4194304ULL)
@@ -7895,12 +7893,9 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 				return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name);
 			target_key_bytes = target_keys.size() * sizeof(TargetLookupKeyHost);
 			target_bucket_bytes = target_buckets.size() * sizeof(TargetLookupTag32BucketHost);
-			if (!BuildTargetLookupTag32FilterTable(target_keys, target_filter_buckets, error))
-				return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name);
 			expected_indices.assign(dp_query_count, kTargetLookupEmptyIndex);
 			for (unsigned int i = 0; i < injected_hits; ++i)
 				expected_indices[i] = i;
-			target_filter_bucket_bytes = target_filter_buckets.size() * sizeof(uint32_t);
 			target_table_ready = true;
 		}
 		if (expected_indices.size() != dp_keys.size())
@@ -7961,6 +7956,12 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 		}
 		else if (strcmp(effective_lookup_engine_name, "gpu_filter") == 0)
 		{
+			if (target_filter_buckets.empty())
+			{
+				if (!BuildTargetLookupTag32FilterTable(target_keys, target_filter_buckets, error))
+					return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name, effective_lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes);
+				target_filter_bucket_bytes = target_filter_buckets.size() * sizeof(uint32_t);
+			}
 			std::vector<uint32_t> positive_query_indices;
 			uint32_t local_filter_positive_count = 0;
 			lookup_ok = RunTargetLookupTag32FilterKernel(target_filter_buckets, lookup_queries, positive_query_indices, local_filter_positive_count, error, &lookup_dispatch_seconds, effective_lookup_threadgroup_limit, &lookup_stats);

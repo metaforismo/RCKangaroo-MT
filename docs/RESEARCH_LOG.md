@@ -3770,22 +3770,30 @@ These did not pass the performance gate or had a correctness/architecture issue:
   the conclusion that the breakthrough is fewer random bytes per probe, not a
   threadgroup scheduling tweak. Keep the standalone `metal-target-lookup-tag32-filter-bench`
   gate and use paired confirmation before promoting future variants.
-- Accepted integrated scout `macos-metal-affine-target-lookup-auto-filter25m`:
-  added `--lookup-engine gpu-filter` and broadened `--lookup-engine auto` so
-  the 25,005,000-target, `lookup_repeat=1024`, distinct-miss integrated gate
-  chooses `lookup_engine_effective=gpu_filter`. The walk, affine scan, injected
-  hits, and final exact key equality remain unchanged; only the final
-  multi-target join now uses the compact GPU filter plus CPU exact
-  verification of positives. Two direct M3 runs preserved
-  `target_lookup_checksum=0x8b2568562837af7f`, `correctness=true`,
-  `filter_positive_count=64`, and `filter_false_positive_count=0`. CPU routing
-  measured `110,421,412.238887` and `110,213,461.114858` ops/sec. Auto-filter
-  measured `120,674,390.799366` and `119,031,056.396993` ops/sec, while
-  explicit `gpu-filter` measured `122,315,209.631509` and
-  `117,012,102.624015` ops/sec. Treat this as an accepted architecture scout
-  and run `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_auto_filter25m`
-  under paired autoresearch before using it as the next default baseline for
-  broader target-count and DP-density sweeps.
+- Kept explicit engine but rejected auto promotion
+  `macos-metal-affine-target-lookup-gpu-filter25m`: added
+  `--lookup-engine gpu-filter` for the 25,005,000-target, `lookup_repeat=1024`,
+  distinct-miss integrated gate. The walk, affine scan, injected hits, and final
+  exact key equality remain unchanged; only the final multi-target join uses
+  the compact GPU filter plus CPU exact verification of positives. Two direct
+  M3 scouts preserved `target_lookup_checksum=0x8b2568562837af7f`,
+  `correctness=true`, `filter_positive_count=64`, and
+  `filter_false_positive_count=0`. CPU routing measured
+  `110,421,412.238887` and `110,213,461.114858` ops/sec. The filter path
+  measured `120,674,390.799366` and `119,031,056.396993` ops/sec through
+  `auto` before the policy was reverted, and explicit `gpu-filter` measured
+  `122,315,209.631509` and `117,012,102.624015` ops/sec. Clean paired
+  autoresearch on commit `9a88e7e` against `main^` with two confirmations
+  rejected automatic promotion: confirmation 1 had candidate median
+  `118,192,117.838356` ops/sec versus paired CPU baseline
+  `107,945,031.651480` (`1.094929x`, raw keep), but confirmation 2 had
+  candidate median `64,324,197.141042` versus paired CPU baseline
+  `64,245,663.646454` (`1.001222x`, raw discard). Both rows preserved
+  `correctness=true`, `lookup_engine_effective=gpu_filter`,
+  `filter_positive_count=64`, `filter_false_positive_count=0`, and the same
+  checksum. Conclusion: keep `--lookup-engine gpu-filter` and the standalone
+  filter benchmark, but do not route `--lookup-engine auto` to the filter on
+  this shape until a future paired gate keeps across confirmations.
 
 ## Next Research Targets
 

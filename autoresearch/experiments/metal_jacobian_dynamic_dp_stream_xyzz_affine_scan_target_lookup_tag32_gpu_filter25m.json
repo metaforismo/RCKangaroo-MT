@@ -1,6 +1,6 @@
 {
-  "name": "metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_auto_filter25m",
-  "description": "Metal XYZZ affine DP scan with auto routing to GPU tag32 filter on a 25M-target distinct-miss batch",
+  "name": "metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_gpu_filter25m",
+  "description": "Metal XYZZ affine DP scan with explicit GPU tag32 filter on a 25M-target distinct-miss batch",
   "build_target": "macos-build",
   "bench_command": [
     "./macos/rck_macos",
@@ -22,7 +22,7 @@
     "--lookup-query-mode",
     "distinct-misses",
     "--lookup-engine",
-    "auto",
+    "gpu-filter",
     "--min-ms",
     "500"
   ],

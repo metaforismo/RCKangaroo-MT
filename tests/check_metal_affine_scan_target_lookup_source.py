@@ -34,6 +34,12 @@ for marker in markers:
     if marker not in kernels:
         raise SystemExit("missing affine-scan target-lookup host marker: " + marker)
 
+choose_start = kernels.index("static const char* ChooseAffineLookupEngine")
+choose_end = kernels.index("static unsigned int ChooseAffineLookupThreadgroupLimit", choose_start)
+choose_body = kernels[choose_start:choose_end]
+if '"gpu_filter"' in choose_body:
+    raise SystemExit("auto lookup routing should not promote gpu_filter without a kept paired gate")
+
 if "RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJson" not in header:
     raise SystemExit("missing affine-scan target-lookup header declaration")
 
@@ -181,7 +187,7 @@ check_experiment(
     "lookups_per_sec",
 )
 
-auto_filter25m_command = [
+gpu_filter25m_command = [
     "./macos/rck_macos",
     command,
     "--iterations",
@@ -201,13 +207,13 @@ auto_filter25m_command = [
     "--lookup-query-mode",
     "distinct-misses",
     "--lookup-engine",
-    "auto",
+    "gpu-filter",
     "--min-ms",
     "500",
 ]
 check_experiment(
-    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_auto_filter25m.json",
-    auto_filter25m_command,
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_gpu_filter25m.json",
+    gpu_filter25m_command,
     "ops_per_sec",
 )
 
