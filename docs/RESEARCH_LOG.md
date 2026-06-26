@@ -3629,6 +3629,25 @@ These did not pass the performance gate or had a correctness/architecture issue:
   large fresh batches, but the production decision should be gated by a future
   integrated benchmark that reuses the target table while feeding fresh DP
   query batches.
+- Rejected integrated probe `macos-metal-affine-target-lookup-gpu-persistent`:
+  tested reusing the Metal tag32 target table and pipeline in the integrated
+  affine-scan target-lookup path while allocating fresh query/output buffers
+  per DP batch. It preserved exact checksums but was slower setup-inclusive on
+  the MacBook Air M3 shape. At 25,005,000 targets with `lookup_repeat=1`, it
+  measured `81,433,053.501561` ops/sec with
+  `target_lookup_checksum=0x25249bb63bf646d9`, behind the prior same-shape
+  default GPU pair (`110,545,500.668632` then `108,992,407.143044` ops/sec)
+  and CPU pair (`120,335,696.839228` then `121,373,018.665758` ops/sec). With
+  `lookup_repeat=1024` and distinct misses, it measured
+  `63,685,540.617618` ops/sec and `1,845,679.529534` lookups/sec with
+  `target_lookup_checksum=0x8b2568562837af7f`, behind the current CPU/GPU
+  baselines. A contended `min_ms=300` scout also favored CPU
+  (`46,461,716.600766` ops/sec) over gpu-persistent
+  (`38,249,841.037901` ops/sec) with the same checksum. Conclusion: keep the
+  standalone persistent Metal lookup benchmark as a diagnostic, but do not add
+  an integrated `gpu-persistent` engine until the solver can keep the target
+  table resident across genuinely long-lived batches and amortize setup without
+  repeating the same query set.
 
 ## Next Research Targets
 
@@ -3662,10 +3681,10 @@ These did not pass the performance gate or had a correctness/architecture issue:
 - Add a benchmark-gated `--lookup-engine auto` policy once enough paired data
   exists across target counts, DP density, and `lookup_repeat`; do not make CPU
   the default globally from one hardware class.
-- Add an integrated fresh-batch GPU persistent lookup engine before promoting
-  any persistent-buffer result to solver behavior: keep the target table
-  resident, update query buffers with new packet-boundary DP keys, and score
-  setup-inclusive and setup-excluded metrics separately.
+- Revisit GPU persistent lookup only as a long-lived solver-level design: keep
+  the target table resident across many fresh packet-boundary DP batches, avoid
+  rebuilding query/output resources where possible, and score setup-inclusive
+  and setup-excluded metrics separately.
 
 ## Cleanup Policy
 
