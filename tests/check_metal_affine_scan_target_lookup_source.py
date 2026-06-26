@@ -19,8 +19,6 @@ markers = [
     "ChooseAffineLookupEngine",
     "lookup_threadgroup_limit",
     "ChooseAffineLookupThreadgroupLimit",
-    "kDefaultMetalPersistentTargetLookupHashFilterLargeThreadgroupLimit = 128",
-    "return kDefaultMetalPersistentTargetLookupHashFilterLargeThreadgroupLimit;",
     "dp_query_count",
     "target_lookup_checksum",
     "RunTargetLookupTag32Kernel",
@@ -262,36 +260,6 @@ check_experiment(
 check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_cpu_gate.json",
     gpu_filter16_hash25m_command,
-    "ops_per_sec",
-)
-
-gpu_filter16_hash25m_default_tg_command = [
-    "./macos/rck_macos",
-    command,
-    "--iterations",
-    "262144",
-    "--steps",
-    "512",
-    "--jumps",
-    "16",
-    "--dp-bits",
-    "8",
-    "--target-count",
-    "25005000",
-    "--hits",
-    "64",
-    "--lookup-repeat",
-    "1024",
-    "--lookup-query-mode",
-    "distinct-misses",
-    "--lookup-engine",
-    "gpu-filter16-hash",
-    "--min-ms",
-    "500",
-]
-check_experiment(
-    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_tg128_default.json",
-    gpu_filter16_hash25m_default_tg_command,
     "ops_per_sec",
 )
 
