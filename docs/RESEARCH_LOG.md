@@ -3793,8 +3793,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   Persistent filter measured `481,602,631.287665` at 64 threads,
   `502,568,498.005001` at 512 threads, and `416,378,732.454942` at 1024
   threads, so the large-table persistent-filter default is 512 threads on M3.
-  Run `metal_target_lookup_tag32_filter_persistent` under paired autoresearch
-  before treating these direct numbers as a promoted gate.
+  Clean paired autoresearch on commit `bf01557` against `main^` kept the gate
+  across two confirmations. Confirmation 1 recorded median
+  `336,974,086.813292` lookups/sec versus non-persistent filter baseline
+  `56,761,507.658097` (`5.936666x`); confirmation 2 recorded median
+  `433,107,771.320567` versus `83,397,796.618923` (`5.193276x`). Both rows
+  preserved `target_lookup_checksum=0x9b23e560b9fdfe29`, `correctness=true`,
+  `threadgroup_limit=512`, `filter_positive_count=64`,
+  `filter_false_positive_count=0`, and `confirmation_status=keep`.
 - Kept explicit engine but rejected auto promotion
   `macos-metal-affine-target-lookup-gpu-filter25m`: added
   `--lookup-engine gpu-filter` for the 25,005,000-target, `lookup_repeat=1024`,
