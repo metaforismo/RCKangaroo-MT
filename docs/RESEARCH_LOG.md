@@ -3817,6 +3817,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `480,486,002.881186` versus `381,489,141.634999` (`1.259501x`). The
   no-cheat boundary is unchanged: tag16 is only a memory filter, and every
   reported hit is still decided by full target-key equality.
+- Rejected `macos-metal-target-lookup-tag8-filter-persistent`: a local
+  25,005,000-target, 1,082,368-query scout kept exact correctness and the same
+  `target_lookup_checksum=0x9b23e560b9fdfe29`, but the 1-byte filter created
+  too many compact positives for the CPU exact resolver. The tag16 baseline in
+  the same scout measured `426,395,117.864425` lookups/sec with
+  `filter_positive_count=311`, `filter_false_positive_count=247`, and
+  `exact_verify_seconds=0.005822`; tag8 measured only
+  `51,660,928.817672` lookups/sec with `filter_positive_count=55624`,
+  `filter_false_positive_count=55560`, and `exact_verify_seconds=0.216984`.
+  Conclusion: the useful memory/filter-width knee for this mostly-miss M3
+  shape is tag16, not tag8. No tag8 code or autoresearch gate was kept.
 - Kept explicit engine but rejected auto promotion
   `macos-metal-affine-target-lookup-gpu-filter25m`: added
   `--lookup-engine gpu-filter` for the 25,005,000-target, `lookup_repeat=1024`,
