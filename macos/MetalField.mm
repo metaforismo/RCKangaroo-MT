@@ -24,7 +24,7 @@ static constexpr unsigned int kDefaultMetalFieldThreadgroupLimit = 256;
 static constexpr unsigned int kDefaultMetalDp12StreamThreadgroupLimit = 128;
 static constexpr unsigned int kDefaultMetalTargetLookupThreadgroupLimit = 64;
 static constexpr unsigned int kDefaultMetalPersistentTargetLookupLargeThreadgroupLimit = 1024;
-static constexpr unsigned int kDefaultMetalPersistentTargetLookupFilterLargeThreadgroupLimit = 256;
+static constexpr unsigned int kDefaultMetalPersistentTargetLookupFilterLargeThreadgroupLimit = 512;
 static constexpr size_t kDefaultMetalPersistentTargetLookupLargeTargetThreshold = 16777216;
 static constexpr size_t kMinValidationSamplesPerWorker = 1024;
 
