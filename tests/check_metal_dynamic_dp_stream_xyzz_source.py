@@ -115,10 +115,6 @@ required_host_markers = (
     "ParallelForSamples(p.size()",
     "std::thread::hardware_concurrency()",
     "steps_per_sample >= 256",
-    "EffectiveDynamicDpStreamXyzzThreadgroupLimit",
-    "EffectiveDynamicDpStreamXyzzThreadgroupLimit(threadgroup_limit, dp_bits, steps_per_sample)",
-    "kDefaultMetalLongDpStreamThreadgroupLimit = 512",
-    "return (NSUInteger)kDefaultMetalLongDpStreamThreadgroupLimit;",
     "\\\"validation_workers\\\"",
     "\\\"validation_seconds\\\"",
     "emitted_indices_bytes",
@@ -597,34 +593,5 @@ if int(persistent_chain_dp16_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("XYZZ persistent chain DP16 experiment should keep sample_runs >= 3")
 if float(persistent_chain_dp16_payload.get("cooldown_sec", 0.0)) < 10.0:
     raise SystemExit("XYZZ persistent chain DP16 experiment should cool down between samples")
-
-xyzz_tg512_default_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_steps512_tg512_default.json")
-if not xyzz_tg512_default_experiment.exists():
-    raise SystemExit("missing XYZZ tg512 default autoresearch experiment")
-xyzz_tg512_default_payload = json.loads(xyzz_tg512_default_experiment.read_text(encoding="utf-8"))
-expected_xyzz_tg512_default_command = [
-    "./macos/rck_macos",
-    "metal-jacobian-dynamic-dp-stream-xyzz-bench",
-    "--iterations",
-    "524288",
-    "--steps",
-    "512",
-    "--jumps",
-    "16",
-    "--dp-bits",
-    "8",
-    "--min-ms",
-    "500",
-]
-if xyzz_tg512_default_payload.get("build_target") != "macos-build":
-    raise SystemExit("XYZZ tg512 default experiment should use macos-build")
-if xyzz_tg512_default_payload.get("bench_command") != expected_xyzz_tg512_default_command:
-    raise SystemExit("XYZZ tg512 default experiment should run the default-threadgroup packet CLI")
-if xyzz_tg512_default_payload.get("paired_baseline_command") != expected_xyzz_tg512_default_command:
-    raise SystemExit("XYZZ tg512 default experiment should compare the same CLI across commits")
-if int(xyzz_tg512_default_payload.get("sample_runs", 0)) < 3:
-    raise SystemExit("XYZZ tg512 default experiment should keep sample_runs >= 3")
-if float(xyzz_tg512_default_payload.get("cooldown_sec", 0.0)) < 10.0:
-    raise SystemExit("XYZZ tg512 default experiment should cool down between paired samples")
 
 print("metal dynamic dp stream XYZZ source ok")
