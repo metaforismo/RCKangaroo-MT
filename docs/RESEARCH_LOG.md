@@ -3926,6 +3926,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   baseline. Conclusion: keep `gpu-filter16-hash` as an explicit integrated
   engine, but keep `--lookup-engine auto` conservative until more target counts
   and DP densities pass paired gates.
+- Rejected sparse full-output validation for integrated filter engines. Commit
+  `87d8025` kept the exact checksum (`0x8b2568562837af7f`) and correctness, but
+  paired autoresearch against `main^` discarded both confirmations:
+  `29,442,389.766506` ops/sec versus `32,451,339.308134` (`0.907278x`) and
+  `26,769,370.789497` versus `33,207,078.010911` (`0.806134x`). The idea was
+  to compute the expected checksum while building the mostly-miss oracle and
+  validate only compact filter positives, but the affine-scan throughput metric
+  already excludes the final full-output validation pass. Conclusion: do not
+  spend complexity on sparse validation in this benchmark path; target query
+  generation, hashing, lookup dispatch, and XYZZ walk economics are better
+  optimization surfaces.
 
 ## Next Research Targets
 
