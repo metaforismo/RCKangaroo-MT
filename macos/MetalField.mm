@@ -6354,6 +6354,8 @@ static const char* ChooseAffineLookupEngine(const char* lookup_engine, unsigned 
 		return lookup_engine;
 	if (target_count <= 4194304U && query_count >= 1048576ULL)
 		return "gpu";
+	if (target_count >= kDefaultMetalPersistentTargetLookupLargeTargetThreshold && query_count >= 1048576ULL)
+		return "gpu_filter16_hash";
 	if (target_count >= 1048576U && query_count <= 4194304ULL)
 		return "cpu";
 	return "gpu";

@@ -47,6 +47,13 @@ choose_end = kernels.index("static unsigned int ChooseAffineLookupThreadgroupLim
 choose_body = kernels[choose_start:choose_end]
 if '"gpu_filter"' in choose_body:
     raise SystemExit("auto lookup routing should not promote gpu_filter without a kept paired gate")
+for marker in (
+    "target_count >= kDefaultMetalPersistentTargetLookupLargeTargetThreshold",
+    "query_count >= 1048576ULL",
+    'return "gpu_filter16_hash";',
+):
+    if marker not in choose_body:
+        raise SystemExit("auto lookup routing should promote tag16 hash filter after paired gates: " + marker)
 
 if "RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJson" not in header:
     raise SystemExit("missing affine-scan target-lookup header declaration")
@@ -260,6 +267,36 @@ check_experiment(
 check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_cpu_gate.json",
     gpu_filter16_hash25m_command,
+    "ops_per_sec",
+)
+
+auto_tag16_hash25m_command = [
+    "./macos/rck_macos",
+    command,
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--target-count",
+    "25005000",
+    "--hits",
+    "64",
+    "--lookup-repeat",
+    "1024",
+    "--lookup-query-mode",
+    "distinct-misses",
+    "--lookup-engine",
+    "auto",
+    "--min-ms",
+    "500",
+]
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_auto_tag16_hash25m.json",
+    auto_tag16_hash25m_command,
     "ops_per_sec",
 )
 
