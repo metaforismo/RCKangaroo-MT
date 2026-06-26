@@ -3913,10 +3913,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   candidate and tag32-filter baseline, kept across two confirmations.
   Confirmation 1 recorded median `110,796,227.320140` ops/sec versus
   `97,896,085.677205` (`1.131774x`); confirmation 2 recorded
-  `97,927,206.806094` versus `90,575,505.666126` (`1.081167x`). Conclusion:
-  keep `gpu-filter16-hash` as an explicit integrated engine, but keep
-  `--lookup-engine auto` conservative until more target counts and DP densities
-  pass paired gates.
+  `97,927,206.806094` versus `90,575,505.666126` (`1.081167x`). A stricter
+  follow-up CPU gate on commit `1e2ca77` kept the same explicit engine against
+  CPU routing across both confirmations: `118,623,733.699262` versus
+  `107,559,765.934095` (`1.102863x`) and `110,765,603.652636` versus
+  `106,798,322.172981` (`1.037147x`). Both rows preserved
+  `correctness=true`, `filter_positive_count=280`,
+  `filter_false_positive_count=216`, and the same checksum. A separate
+  attempt to promote `--lookup-engine auto` to `gpu_filter16_hash` for this
+  25M-target shape on commit `43974c5` was rejected and reverted: the two
+  confirmations measured only `0.442977x` and `0.869524x` versus the old auto
+  baseline. Conclusion: keep `gpu-filter16-hash` as an explicit integrated
+  engine, but keep `--lookup-engine auto` conservative until more target counts
+  and DP densities pass paired gates.
 
 ## Next Research Targets
 
