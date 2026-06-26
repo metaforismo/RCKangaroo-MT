@@ -507,6 +507,19 @@ compact positives, and the host verifies those positives against the full
 so the smaller filter can be kept only when the extra false positives stay
 cheap enough.
 
+Run the persistent large-table tag16 prehashed-query GPU filter gate:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_target_lookup_tag16_hash_filter_persistent --budget-sec 30 --paired-baseline-ref main --confirm-runs 2
+```
+
+This keeps the accepted tag16 resident filter and final CPU exact
+`x256+y_parity` verification, but sends precomputed 64-bit query hashes to
+Metal instead of full query keys. The gate records `query_input=hash64`,
+`target_query_hash_bytes`, `filter_positive_count`, false positives, exact
+verification time, and checksum, so a query-bandwidth win cannot hide changed
+candidate semantics.
+
 Run the integrated large-table explicit GPU-filter gate:
 
 ```sh

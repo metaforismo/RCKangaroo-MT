@@ -104,6 +104,8 @@ make macos-metal-target-lookup-tag32-filter-persistent-bench
 ./macos/rck_macos metal-target-lookup-tag32-filter-persistent-bench --target-count 25005000 --query-count 1082368 --hits 64 --min-ms 700
 make macos-metal-target-lookup-tag16-filter-persistent-bench
 ./macos/rck_macos metal-target-lookup-tag16-filter-persistent-bench --target-count 25005000 --query-count 1082368 --hits 64 --min-ms 700
+make macos-metal-target-lookup-tag16-hash-filter-persistent-bench
+./macos/rck_macos metal-target-lookup-tag16-hash-filter-persistent-bench --target-count 25005000 --query-count 1082368 --hits 64 --min-ms 700
 make macos-metal-target-lookup-tag32-persistent-bench
 ./macos/rck_macos metal-target-lookup-tag32-persistent-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
 ./macos/rck_macos metal-target-lookup-tag32-persistent-bench --target-count 25005000 --query-count 1082368 --hits 64 --min-ms 700
@@ -169,6 +171,8 @@ The in-place DP8 stream path also has `steps=16`, `steps=32`, `steps=64`, `steps
 `metal-target-lookup-tag32-filter-persistent-bench` keeps the compact 4-byte tag filter, query batch, positive-index output buffer, and pipeline resident, then verifies only the compact positives on CPU with exact `x256 + y_parity` equality after each dispatch. Its JSON reports `buffer_lifetime=persistent`, `filter_positive_count`, `filter_false_positive_count`, `metal_setup_seconds`, `dispatch_seconds`, `exact_verify_seconds`, setup-inclusive `lookups_per_sec`, and no-setup `dispatch_lookups_per_sec`; the no-setup metric includes exact CPU verification time. Large filter tables use a 512-thread default on M3, while explicit `--tg-limit N` overrides it.
 
 `metal-target-lookup-tag16-filter-persistent-bench` keeps the same persistent filter architecture but stores a 2-byte high-hash tag per GPU bucket. The smaller resident filter cuts large 25M-target filter memory in half, at the cost of extra tag collisions; correctness still comes only from the CPU exact `x256 + y_parity` equality over compact positives. JSON uses `lookup_layout=open_address_tag16_filter_exact256`, `candidate_verification=tag16_filter_then_cpu_exact_key_equality`, and reports false positives separately from true hits so the speedup cannot hide lost correctness.
+
+`metal-target-lookup-tag16-hash-filter-persistent-bench` uses the same resident tag16 filter and exact CPU verification, but the Metal kernel reads precomputed 64-bit query hashes instead of full `TargetLookupKey` rows. JSON reports `query_input=hash64`, `target_query_hash_bytes`, `lookup_layout=open_address_tag16_hash_filter_exact256`, and `candidate_verification=tag16_hash_filter_then_cpu_exact_key_equality`. This is a query-bandwidth and hash-work probe; it does not change the target table, the positive-index resolver, or the final exact equality oracle.
 
 `jacobian_affine_walk_dynamic_dp_stream_xyzz_chain` extends the XYZZ packet path into a solver-facing cumulative-distance probe. It keeps `X,Y,ZZ,ZZZ`, infinity flags, and a per-sample distance buffer resident across multiple packet dispatches in one Metal command buffer. Runtime JSON reports `packet_count`, `distance_tracking=dp_stream_cumulative_uint64`, `stream_indexing=packet_sample_u32`, and `jump_schedule`; this lets one walker emit multiple boundary DPs without confusing records from different packets. The host oracle replays every packet boundary, validates final XYZZ state, and checks sparse stream count, duplicates, missing DPs, distances, and DP terms. The chain and persistent-chain bench commands accept `--dp-bits` up to 32 bits with hardcoded DP8/DP12/DP16 and runtime masks for the other values; long-step packets default to a 128-thread cap on M3, and explicit `--tg-limit N` still overrides it. They also accept `--jump-schedule scaled4-balanced` with `--jumps 4` for schedule-correctness probes, while default behavior remains `power2`. This is an architecture probe for persistent GPU walks, not a replacement for the single-packet XYZZ throughput baseline.
 
@@ -259,6 +263,7 @@ python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_exact256 -
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_persistent --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag16_filter_persistent --budget-sec 30 --paired-baseline-ref main --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_target_lookup_tag16_hash_filter_persistent --budget-sec 30 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_bulk1024 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_distinct_misses1024 --budget-sec 10

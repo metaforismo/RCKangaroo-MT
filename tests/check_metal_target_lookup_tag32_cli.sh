@@ -48,6 +48,29 @@ case "$tag16_filter_persistent_output" in
 esac
 
 set +e
+tag16_hash_filter_persistent_output="$(./macos/rck_macos metal-target-lookup-tag16-hash-filter-persistent-bench --target-count 64 --query-count 256 --hits 32 --min-ms 0 2>&1)"
+tag16_hash_filter_persistent_status=$?
+set -e
+
+if [ "$tag16_hash_filter_persistent_status" -ne 0 ]; then
+	printf 'metal-target-lookup-tag16-hash-filter-persistent-bench returned status %s\n' "$tag16_hash_filter_persistent_status"
+	printf '%s\n' "$tag16_hash_filter_persistent_output"
+	exit 1
+fi
+
+case "$tag16_hash_filter_persistent_output" in
+	*"\"backend\":\"metal\""*"\"operation\":\"target_lookup_tag16_hash_filter_persistent_exact256\""*"\"lookup_layout\":\"open_address_tag16_hash_filter_exact256\""*"\"buffer_lifetime\":\"persistent\""*"\"query_input\":\"hash64\""*"\"target_key\":\"x256_y_parity\""*"\"candidate_verification\":\"tag16_hash_filter_then_cpu_exact_key_equality\""*"\"target_count\":64"*"\"query_count\":256"*"\"expected_hits\":32"*"\"hit_count\":32"*"\"miss_count\":224"*"\"filter_positive_count\":"*"\"filter_false_positive_count\":"*"\"target_key_bytes\":2560"*"\"target_bucket_bytes\":1024"*"\"target_filter_bucket_bytes\":256"*"\"target_query_hash_bytes\":2048"*"\"bytes_per_target\":4.000000"*"\"metal_setup_seconds\":"*"\"dispatch_seconds\":"*"\"exact_verify_seconds\":"*"\"dispatch_lookups_per_sec\":"*"\"correctness\":true"*)
+		;;
+	*"\"backend\":\"metal\""*"\"operation\":\"target_lookup_tag16_hash_filter_persistent_exact256\""*"\"target_count\":64"*"\"query_count\":256"*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
+		;;
+	*)
+		printf '%s\n' "$tag16_hash_filter_persistent_output"
+		printf '%s\n' "unexpected metal-target-lookup-tag16-hash-filter-persistent-bench output"
+		exit 1
+		;;
+esac
+
+set +e
 filter_persistent_output="$(./macos/rck_macos metal-target-lookup-tag32-filter-persistent-bench --target-count 64 --query-count 256 --hits 32 --min-ms 0 2>&1)"
 filter_persistent_status=$?
 set -e
