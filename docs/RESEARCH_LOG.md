@@ -3844,6 +3844,26 @@ These did not pass the performance gate or had a correctness/architecture issue:
   sweep; `512` measured `441,719,452.250274`, and `1024` measured
   `394,760,645.293742`. Conclusion: keep the existing 512-thread large-filter
   default for the prehashed kernel too.
+- Rejected and reverted tag16 zero-only sentinel remap for
+  `macos-metal-target-lookup-tag16-hash-filter-persistent`: the idea was to
+  replace the old `tag | 1` encoding, which folds all even tags into odd tags,
+  with a mapping that preserves every nonzero 16-bit tag and remaps only zero
+  to the nonzero sentinel. Deterministically, this reduced compact positives on
+  the 25,005,000-target, 1,082,368-query, `hits=64` shape from
+  `filter_positive_count=311` and `filter_false_positive_count=247` to
+  `190` and `126`, while preserving `correctness=true` and
+  `target_lookup_checksum=0x9b23e560b9fdfe29`. Throughput did not pass the
+  paired gate. The first ternary version had one isolated raw keep
+  (`45,353,378.397795` versus `44,244,407.017188`, `1.025065x`) and one
+  discard (`53,724,312.532616` versus `80,314,447.239320`, `0.668925x`).
+  The branchless `tag | (tag == 0)` version had one very noisy raw keep
+  (`648,259,973.315809` versus `105,861,805.836167`, `6.123644x`) and one
+  discard (`93,387,661.680901` versus `584,292,117.657674`, `0.159830x`).
+  Both confirmation sets ended with `confirmation_status=discard`, so the code
+  was reverted and only the experiment/ledger entries were kept. Conclusion:
+  lower false positives alone are not enough on this mostly-miss M3 shape; do
+  not reintroduce tag16 remapping unless it is tied to a workload where CPU
+  exact-positive verification dominates and the paired gate keeps.
 - Rejected `macos-metal-target-lookup-tag8-filter-persistent`: a local
   25,005,000-target, 1,082,368-query scout kept exact correctness and the same
   `target_lookup_checksum=0x9b23e560b9fdfe29`, but the 1-byte filter created
