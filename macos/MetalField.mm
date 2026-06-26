@@ -25,6 +25,7 @@ static constexpr unsigned int kDefaultMetalDp12StreamThreadgroupLimit = 128;
 static constexpr unsigned int kDefaultMetalTargetLookupThreadgroupLimit = 64;
 static constexpr unsigned int kDefaultMetalPersistentTargetLookupLargeThreadgroupLimit = 1024;
 static constexpr unsigned int kDefaultMetalPersistentTargetLookupFilterLargeThreadgroupLimit = 512;
+static constexpr unsigned int kDefaultMetalPersistentTargetLookupHashFilterLargeThreadgroupLimit = 128;
 static constexpr size_t kDefaultMetalPersistentTargetLookupLargeTargetThreshold = 16777216;
 static constexpr size_t kMinValidationSamplesPerWorker = 1024;
 
@@ -6370,7 +6371,7 @@ static unsigned int ChooseAffineLookupThreadgroupLimit(const char* lookup_engine
 		return lookup_threadgroup_limit;
 	if (strcmp(effective_lookup_engine, "gpu_filter16_hash") == 0 &&
 		target_count >= kDefaultMetalPersistentTargetLookupLargeTargetThreshold)
-		return kDefaultMetalPersistentTargetLookupFilterLargeThreadgroupLimit;
+		return kDefaultMetalPersistentTargetLookupHashFilterLargeThreadgroupLimit;
 	if (strcmp(lookup_engine, "auto") == 0 &&
 		strcmp(effective_lookup_engine, "gpu") == 0 &&
 		target_count <= 4194304U &&
