@@ -22,6 +22,7 @@ typedef std::array<uint64_t, 4> FieldElement;
 
 static constexpr unsigned int kDefaultMetalFieldThreadgroupLimit = 256;
 static constexpr unsigned int kDefaultMetalDp12StreamThreadgroupLimit = 128;
+static constexpr unsigned int kDefaultMetalLongDpStreamThreadgroupLimit = 512;
 static constexpr unsigned int kDefaultMetalTargetLookupThreadgroupLimit = 64;
 static constexpr unsigned int kDefaultMetalPersistentTargetLookupLargeThreadgroupLimit = 1024;
 static constexpr unsigned int kDefaultMetalPersistentTargetLookupFilterLargeThreadgroupLimit = 512;
@@ -2036,6 +2037,15 @@ static NSUInteger EffectiveDynamicDpStreamInplaceThreadgroupLimit(unsigned int t
 	if (steps_per_sample >= 256 || (dp_bits == 8 && steps_per_sample >= 16))
 		return (NSUInteger)128;
 	return EffectiveDynamicDpStreamThreadgroupLimit(threadgroup_limit, dp_bits);
+}
+
+static NSUInteger EffectiveDynamicDpStreamXyzzThreadgroupLimit(unsigned int threadgroup_limit, unsigned int dp_bits, unsigned int steps_per_sample)
+{
+	if (threadgroup_limit)
+		return (NSUInteger)threadgroup_limit;
+	if (dp_bits == 8 && steps_per_sample >= 256)
+		return (NSUInteger)kDefaultMetalLongDpStreamThreadgroupLimit;
+	return EffectiveDynamicDpStreamInplaceThreadgroupLimit(threadgroup_limit, dp_bits, steps_per_sample);
 }
 
 static NSUInteger EffectiveTargetLookupThreadgroupLimit(unsigned int threadgroup_limit)
@@ -5185,7 +5195,7 @@ static bool RunJacobianDynamicDpStreamXyzzKernel(const std::vector<CpuJacobianPo
 	unsigned int threadgroup_limit,
 	MetalDispatchStats* dispatch_stats)
 {
-	NSUInteger effective_threadgroup_limit = EffectiveDynamicDpStreamInplaceThreadgroupLimit(threadgroup_limit, dp_bits, steps_per_sample);
+	NSUInteger effective_threadgroup_limit = EffectiveDynamicDpStreamXyzzThreadgroupLimit(threadgroup_limit, dp_bits, steps_per_sample);
 	if (dispatch_stats)
 		dispatch_stats->threadgroup_limit = (unsigned int)effective_threadgroup_limit;
 
@@ -8371,7 +8381,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzBenchJson(unsigned int iterations
 	const unsigned int dp_capacity = sample_count;
 
 	MetalDispatchStats dispatch_stats;
-	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveDynamicDpStreamInplaceThreadgroupLimit(threadgroup_limit, dp_bits, steps_per_sample);
+	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveDynamicDpStreamXyzzThreadgroupLimit(threadgroup_limit, dp_bits, steps_per_sample);
 	if ((steps_per_sample != 256 && steps_per_sample != 512) || !IsMetalPowerOfTwo(jump_count))
 	{
 		std::string reason = "XYZZ dynamic dp stream supports steps=256 or steps=512, power-of-two jumps, and dp_bits<=32";
