@@ -3835,6 +3835,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   after tag16 found the useful filter-width knee, the next durable win is
   reducing query-side GPU bandwidth and hash work without changing candidate
   semantics.
+- Kept the inherited 512-thread large-table default for
+  `macos-metal-target-lookup-tag16-hash-filter-persistent`: a direct
+  25,005,000-target, 1,082,368-query scout with `min_ms=300` preserved
+  correctness and checksum for all caps, but did not justify a default change.
+  `--tg-limit 64`, `128`, and `256` measured `22,468,677.594189`,
+  `13,207,985.528788`, and `22,676,290.324094` lookups/sec in that noisy
+  sweep; `512` measured `441,719,452.250274`, and `1024` measured
+  `394,760,645.293742`. Conclusion: keep the existing 512-thread large-filter
+  default for the prehashed kernel too.
 - Rejected `macos-metal-target-lookup-tag8-filter-persistent`: a local
   25,005,000-target, 1,082,368-query scout kept exact correctness and the same
   `target_lookup_checksum=0x9b23e560b9fdfe29`, but the 1-byte filter created
