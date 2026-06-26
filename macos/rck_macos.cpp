@@ -33,6 +33,7 @@ static void PrintUsage()
 	printf("  rck_macos metal-target-lookup-tag32-bench --target-count N --query-count N [--hits N] [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-target-lookup-tag32-filter-bench --target-count N --query-count N [--hits N] [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-target-lookup-tag32-filter-persistent-bench --target-count N --query-count N [--hits N] [--min-ms N] [--tg-limit N]\n");
+	printf("  rck_macos metal-target-lookup-tag16-filter-persistent-bench --target-count N --query-count N [--hits N] [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-target-lookup-tag32-persistent-bench --target-count N --query-count N [--hits N] [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos target-lookup-tag32-cpu-bench --target-count N --query-count N [--hits N] [--min-ms N]\n");
 	printf("  rck_macos metal-field-test\n");
@@ -880,6 +881,52 @@ int main(int argc, char* argv[])
 		else
 			hits = query_count / 64U;
 		printf("%s\n", RCKMetalTargetLookupTag32FilterPersistentBenchJson(target_count, query_count, hits, min_ms, threadgroup_limit).c_str());
+	}
+	else if (strcmp(argv[1], "metal-target-lookup-tag16-filter-persistent-bench") == 0)
+	{
+		const char* target_count_s = NULL;
+		const char* query_count_s = NULL;
+		const char* hits_s = NULL;
+		const char* min_ms_s = NULL;
+		const char* tg_s = NULL;
+		unsigned int target_count = 0;
+		unsigned int query_count = 0;
+		unsigned int hits = 0;
+		unsigned int min_ms = 0;
+		unsigned int threadgroup_limit = 0;
+		if (!ReadOption(argc, argv, "--target-count", &target_count_s) ||
+			!ReadOption(argc, argv, "--query-count", &query_count_s) ||
+			!ParseU32(target_count_s, &target_count) ||
+			!ParseU32(query_count_s, &query_count))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--min-ms", &min_ms_s) && !ParseU32(min_ms_s, &min_ms))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--tg-limit", &tg_s) && !ParseU32(tg_s, &threadgroup_limit))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--hits", &hits_s))
+		{
+			if (!ParseU32(hits_s, &hits))
+			{
+				PrintUsage();
+				DeInitEc();
+				return 1;
+			}
+		}
+		else
+			hits = query_count / 64U;
+		printf("%s\n", RCKMetalTargetLookupTag16FilterPersistentBenchJson(target_count, query_count, hits, min_ms, threadgroup_limit).c_str());
 	}
 	else if (strcmp(argv[1], "metal-target-lookup-tag32-persistent-bench") == 0)
 	{

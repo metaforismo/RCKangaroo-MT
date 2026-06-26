@@ -3801,6 +3801,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   preserved `target_lookup_checksum=0x9b23e560b9fdfe29`, `correctness=true`,
   `threadgroup_limit=512`, `filter_positive_count=64`,
   `filter_false_positive_count=0`, and `confirmation_status=keep`.
+- Kept `macos-metal-target-lookup-tag16-filter-persistent`: changed the
+  persistent filter row from a 4-byte tag32 bucket to a 2-byte tag16 bucket
+  while leaving final verification on exact CPU `x256 + y_parity` equality.
+  The smaller resident filter halves the GPU filter table from 134,217,728 to
+  67,108,864 bytes on the 25,005,000-target shape. It intentionally allows
+  extra tag collisions; the 1,082,368-query, `hits=64`, mostly-miss gate
+  reported `filter_positive_count=311` and `filter_false_positive_count=247`,
+  with `hit_count=64`, `miss_count=1082304`, `correctness=true`, and
+  `target_lookup_checksum=0x9b23e560b9fdfe29`. Paired autoresearch against
+  clean `main` tag32 persistent baseline with two confirmation decisions kept
+  the gate. Confirmation 1 recorded median `512,970,962.057760` lookups/sec
+  versus paired baseline `391,625,116.762985` (`1.309852x`); confirmation 2
+  recorded median `503,014,098.761179` versus `411,010,221.016516`
+  (`1.223848x`). The no-cheat boundary is unchanged: tag16 is only a memory
+  filter, and every reported hit is still decided by full target-key equality.
 - Kept explicit engine but rejected auto promotion
   `macos-metal-affine-target-lookup-gpu-filter25m`: added
   `--lookup-engine gpu-filter` for the 25,005,000-target, `lookup_repeat=1024`,

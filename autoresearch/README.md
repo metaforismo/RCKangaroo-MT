@@ -493,6 +493,20 @@ the non-persistent filter benchmark on the same 25,005,000-target shape. Use
 this gate to decide whether a solver should keep the target filter resident
 across repeated batches before trying to move exact verification back to GPU.
 
+Run the persistent large-table tag16 GPU filter gate:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_target_lookup_tag16_filter_persistent --budget-sec 30 --paired-baseline-ref main --confirm-runs 2
+```
+
+This compares a 2-byte-per-bucket resident GPU filter against the accepted
+tag32 persistent filter. The final answer is still exact: Metal only emits
+compact positives, and the host verifies those positives against the full
+`x256+y_parity` target keys. The gate records `filter_positive_count`,
+`filter_false_positive_count`, `exact_verify_seconds`, and the exact checksum
+so the smaller filter can be kept only when the extra false positives stay
+cheap enough.
+
 Run the integrated large-table explicit GPU-filter gate:
 
 ```sh

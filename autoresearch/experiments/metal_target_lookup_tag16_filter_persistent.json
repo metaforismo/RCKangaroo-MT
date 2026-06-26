@@ -1,0 +1,32 @@
+{
+  "name": "metal_target_lookup_tag16_filter_persistent",
+  "description": "Persistent Metal tag16 filter lookup with CPU exact verification of compact positives",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "metal-target-lookup-tag16-filter-persistent-bench",
+    "--target-count",
+    "25005000",
+    "--query-count",
+    "1082368",
+    "--hits",
+    "64",
+    "--min-ms",
+    "700"
+  ],
+  "paired_baseline_command": [
+    "./macos/rck_macos",
+    "metal-target-lookup-tag32-filter-persistent-bench",
+    "--target-count",
+    "25005000",
+    "--query-count",
+    "1082368",
+    "--hits",
+    "64",
+    "--min-ms",
+    "700"
+  ],
+  "metric": "lookups_per_sec",
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3
+}

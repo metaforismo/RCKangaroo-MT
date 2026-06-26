@@ -102,6 +102,8 @@ make macos-metal-target-lookup-tag32-filter-bench
 ./macos/rck_macos metal-target-lookup-tag32-filter-bench --target-count 25005000 --query-count 1082368 --hits 64 --min-ms 500
 make macos-metal-target-lookup-tag32-filter-persistent-bench
 ./macos/rck_macos metal-target-lookup-tag32-filter-persistent-bench --target-count 25005000 --query-count 1082368 --hits 64 --min-ms 700
+make macos-metal-target-lookup-tag16-filter-persistent-bench
+./macos/rck_macos metal-target-lookup-tag16-filter-persistent-bench --target-count 25005000 --query-count 1082368 --hits 64 --min-ms 700
 make macos-metal-target-lookup-tag32-persistent-bench
 ./macos/rck_macos metal-target-lookup-tag32-persistent-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
 ./macos/rck_macos metal-target-lookup-tag32-persistent-bench --target-count 25005000 --query-count 1082368 --hits 64 --min-ms 700
@@ -165,6 +167,8 @@ Il percorso DP8 stream in-place ha anche specializzazioni packet `steps=16`, `st
 `metal-target-lookup-tag32-persistent-bench` mantiene residenti in Metal tabella tag32, chiavi, query, output e pipeline mentre ripete i dispatch per il `--min-ms` richiesto. Il JSON separa `metal_setup_seconds`, `dispatch_seconds` gia' caldo, `lookups_per_sec` inclusivo del setup e `dispatch_lookups_per_sec`. Il cap threadgroup di default resta 64 sotto 16,777,216 target, ma le grandi tabelle diagnostiche usano 1024 di default su M3 dopo controlli paired a 25M target; un `--tg-limit N` esplicito prevale sempre su questo default adattivo. E' una diagnostica per capire l'economia di tabelle target GPU residenti a lungo, non un sostituto del gate integrato affine-scan target-lookup.
 
 `metal-target-lookup-tag32-filter-persistent-bench` mantiene residenti il filtro tag32 compatto da 4 byte, il batch di query, il buffer degli indici positivi e la pipeline, poi verifica su CPU solo i positivi compatti con equality esatta `x256 + y_parity` dopo ogni dispatch. Il JSON riporta `buffer_lifetime=persistent`, `filter_positive_count`, `filter_false_positive_count`, `metal_setup_seconds`, `dispatch_seconds`, `exact_verify_seconds`, `lookups_per_sec` inclusivo del setup e `dispatch_lookups_per_sec` senza setup; la metrica senza setup include comunque il tempo di verifica exact CPU. Le grandi tabelle filtro usano un default a 512 thread su M3, mentre `--tg-limit N` esplicito lo sovrascrive.
+
+`metal-target-lookup-tag16-filter-persistent-bench` mantiene la stessa architettura con filtro persistente, ma salva un tag high-hash da 2 byte per bucket GPU. Il filtro residente piu' piccolo dimezza la memoria del filtro sui grandi casi da 25M target, pagando collisioni tag aggiuntive; la correttezza resta affidata solo alla equality CPU esatta `x256 + y_parity` sui positivi compatti. Il JSON usa `lookup_layout=open_address_tag16_filter_exact256`, `candidate_verification=tag16_filter_then_cpu_exact_key_equality` e riporta i falsi positivi separatamente dagli hit reali.
 
 `jacobian_affine_walk_dynamic_dp_stream_xyzz_chain` estende il packet XYZZ in un probe piu' vicino a un solver con distanza cumulativa. Mantiene `X,Y,ZZ,ZZZ`, flag infinity e un buffer distanza per campione residenti attraverso piu' dispatch packet nello stesso command buffer Metal. Il JSON runtime riporta `packet_count`, `distance_tracking=dp_stream_cumulative_uint64`, `stream_indexing=packet_sample_u32` e `jump_schedule`; cosi' uno stesso walker puo' emettere piu' DP ai confini packet senza confondere record di packet diversi. L'oracle host riproduce ogni confine packet, valida lo stato finale XYZZ, e controlla conteggio stream sparso, duplicati, DP mancanti, distanze e termini DP. I comandi chain e persistent-chain accettano `--dp-bits` fino a 32 bit con DP8/DP12/DP16 hardcoded e maschera runtime per gli altri valori; i packet long-step usano di default un cap a 128 thread su M3, e un `--tg-limit N` esplicito continua a prevalere. Accettano anche `--jump-schedule scaled4-balanced` con `--jumps 4` per probe di correttezza della schedule, mentre il default resta `power2`. E' un probe architetturale per walk GPU persistenti, non un sostituto della baseline throughput XYZZ single-packet.
 
@@ -254,6 +258,7 @@ python3 autoresearch/runner.py --experiment metal_target_lookup_compact_exact256
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_exact256 --budget-sec 10 --paired-baseline-ref main
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_persistent --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_target_lookup_tag16_filter_persistent --budget-sec 30 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_gpu_filter25m --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 ```
 

@@ -19,6 +19,9 @@ for marker in (
     "target_lookup_tag32_filter256",
     "device const uint* target_filter_buckets [[buffer(0)]]",
     "uint filter_tag = target_lookup_filter_tag(hash)",
+    "target_lookup_tag16_filter256",
+    "device const ushort* target_filter_buckets [[buffer(0)]]",
+    "ushort filter_tag = target_lookup_filter_tag16(hash)",
 ):
     if marker not in kernel_source:
         raise SystemExit("missing tag32 target lookup kernel marker: " + marker)
@@ -27,11 +30,14 @@ for marker in (
     "TargetLookupTag32BucketHost",
     "static_assert(sizeof(TargetLookupTag32BucketHost) == 8",
     "BuildTargetLookupTag32FilterTable",
+    "BuildTargetLookupTag16FilterTable",
     "BuildTargetLookupTag32Table",
     "RunTargetLookupTag32FilterKernel",
     "RunTargetLookupTag32FilterPersistentKernel",
+    "RunTargetLookupTag16FilterPersistentKernel",
     "RCKMetalTargetLookupTag32FilterBenchJson",
     "RCKMetalTargetLookupTag32FilterPersistentBenchJson",
+    "RCKMetalTargetLookupTag16FilterPersistentBenchJson",
     "RunTargetLookupTag32Kernel",
     "RunTargetLookupTag32Cpu",
     "RCKMetalTargetLookupTag32BenchJson",
@@ -50,8 +56,11 @@ for marker in (
     "target_lookup_tag32_persistent_exact256",
     "target_lookup_tag32_filter_exact256",
     "target_lookup_tag32_filter_persistent_exact256",
+    "target_lookup_tag16_filter_persistent_exact256",
     "\\\"lookup_layout\\\":\\\"open_address_tag32_filter_exact256\\\"",
+    "\\\"lookup_layout\\\":\\\"open_address_tag16_filter_exact256\\\"",
     "\\\"candidate_verification\\\":\\\"tag32_filter_then_cpu_exact_key_equality\\\"",
+    "\\\"candidate_verification\\\":\\\"tag16_filter_then_cpu_exact_key_equality\\\"",
     "\\\"filter_positive_count\\\":",
     "\\\"filter_false_positive_count\\\":",
     "\\\"buffer_lifetime\\\":\\\"persistent\\\"",
@@ -73,11 +82,13 @@ for marker in (
     "metal-target-lookup-tag32-bench",
     "metal-target-lookup-tag32-filter-bench",
     "metal-target-lookup-tag32-filter-persistent-bench",
+    "metal-target-lookup-tag16-filter-persistent-bench",
     "metal-target-lookup-tag32-persistent-bench",
     "target-lookup-tag32-cpu-bench",
     "RCKMetalTargetLookupTag32BenchJson",
     "RCKMetalTargetLookupTag32FilterBenchJson",
     "RCKMetalTargetLookupTag32FilterPersistentBenchJson",
+    "RCKMetalTargetLookupTag16FilterPersistentBenchJson",
     "RCKMetalTargetLookupTag32PersistentBenchJson",
     "RCKCpuTargetLookupTag32BenchJson",
 ):
@@ -89,6 +100,7 @@ for marker in (
     "macos-metal-target-lookup-tag32-bench",
     "macos-metal-target-lookup-tag32-filter-bench",
     "macos-metal-target-lookup-tag32-filter-persistent-bench",
+    "macos-metal-target-lookup-tag16-filter-persistent-bench",
     "macos-metal-target-lookup-tag32-persistent-bench",
 ):
     if marker not in makefile:
@@ -168,6 +180,31 @@ if filter_persistent_payload.get("metric") != "lookups_per_sec":
     raise SystemExit("persistent tag32 filter experiment should optimize lookups_per_sec")
 if int(filter_persistent_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("persistent tag32 filter experiment should keep sample_runs >= 3")
+
+tag16_filter_persistent_experiment = Path("autoresearch/experiments/metal_target_lookup_tag16_filter_persistent.json")
+if not tag16_filter_persistent_experiment.exists():
+    raise SystemExit("missing persistent tag16 filter target lookup autoresearch experiment")
+tag16_filter_persistent_payload = json.loads(tag16_filter_persistent_experiment.read_text(encoding="utf-8"))
+tag16_filter_persistent_command = [
+    "./macos/rck_macos",
+    "metal-target-lookup-tag16-filter-persistent-bench",
+    "--target-count",
+    "25005000",
+    "--query-count",
+    "1082368",
+    "--hits",
+    "64",
+    "--min-ms",
+    "700",
+]
+if tag16_filter_persistent_payload.get("bench_command") != tag16_filter_persistent_command:
+    raise SystemExit("persistent tag16 filter experiment should run the persistent tag16 filter lookup CLI")
+if tag16_filter_persistent_payload.get("paired_baseline_command", [])[:2] != ["./macos/rck_macos", "metal-target-lookup-tag32-filter-persistent-bench"]:
+    raise SystemExit("persistent tag16 filter experiment should compare against persistent tag32 filter baseline")
+if tag16_filter_persistent_payload.get("metric") != "lookups_per_sec":
+    raise SystemExit("persistent tag16 filter experiment should optimize lookups_per_sec")
+if int(tag16_filter_persistent_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("persistent tag16 filter experiment should keep sample_runs >= 3")
 
 persistent_experiment = Path("autoresearch/experiments/metal_target_lookup_tag32_persistent_tg1024.json")
 if not persistent_experiment.exists():
