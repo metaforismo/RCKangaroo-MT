@@ -64,7 +64,9 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_steps512 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_lookup_tg512 --budget-sec 10
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_auto_filter25m --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_persistent_tg1024 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_exact256 --budget-sec 10
 ```
 
@@ -463,6 +465,32 @@ contains target hits; the remaining bulk query slots are deterministic keys
 that the host verifies as misses before launching the Metal lookup. Use this
 gate to measure a more cache-realistic mostly-miss multi-target join while
 keeping exact hit-count, miss-count, and output-index validation.
+
+Run the large-table tag32 GPU filter lookup gate:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
+```
+
+This keeps the final answer exact while changing the GPU memory layout: Metal
+probes a 4-byte-per-bucket tag filter and emits only positive query indices,
+then the host verifies those compact positives against the full `x256+y_parity`
+target keys. The gate records `filter_positive_count`,
+`filter_false_positive_count`, exact checksum, and `lookups_per_sec`, so a
+false-positive-heavy candidate cannot hide behind a faster dispatch.
+
+Run the integrated large-table auto-filter gate:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_auto_filter25m --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
+```
+
+This uses the 25,005,000-target, mostly-miss, `lookup_repeat=1024` shape and
+records `metric=ops_per_sec`. The paired baseline is the same integrated
+benchmark routed through `--lookup-engine cpu`; the candidate uses
+`--lookup-engine auto`, which is expected to choose `lookup_engine_effective=gpu_filter`
+only for this large-batch shape. Treat this as the promotion gate for the
+macOS multi-target path, not a standalone lookup-only microbenchmark.
 
 Run the CPU field multiplication experiment:
 

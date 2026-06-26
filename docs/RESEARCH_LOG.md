@@ -3750,6 +3750,42 @@ These did not pass the performance gate or had a correctness/architecture issue:
   an integrated `gpu-persistent` engine until the solver can keep the target
   table resident across genuinely long-lived batches and amortize setup without
   repeating the same query set.
+- Accepted direct probe `macos-metal-target-lookup-tag32-filter-exact256`:
+  replaced the GPU-side exact tag32 bucket row with a 4-byte filter tag and a
+  compact positive-query list, then kept exact verification on CPU against the
+  full `x256 + y_parity` target keys. The filter tag is derived from the same
+  high hash bits as the exact tag32 prefilter, with zero reserved as the empty
+  bucket sentinel, so it can introduce false positives but not false negatives.
+  This changes the large-table memory economy without changing the correctness
+  oracle: the final `target_lookup_checksum` and `correctness=true` still come
+  from exact key equality. On the 25,005,000-target, 1,082,368-query,
+  `hits=64`, mostly-miss standalone shape, two direct M3 scouts preserved
+  `target_lookup_checksum=0x9b23e560b9fdfe29`, produced
+  `filter_positive_count=64`, `filter_false_positive_count=0`, and reduced the
+  GPU table bytes from `1,268,635,456` to `134,217,728`. The filter path
+  measured `75,078,857.365323` and `77,918,623.497528` lookups/sec, versus CPU
+  exact lookup at `7,983,948.410868` and `7,703,140.841793` lookups/sec on the
+  same generated table. The old exact Metal tag32 path was noisy on this shape
+  (`1,628,976.934645` then `11,962,461.472999` lookups/sec), which reinforces
+  the conclusion that the breakthrough is fewer random bytes per probe, not a
+  threadgroup scheduling tweak. Keep the standalone `metal-target-lookup-tag32-filter-bench`
+  gate and use paired confirmation before promoting future variants.
+- Accepted integrated scout `macos-metal-affine-target-lookup-auto-filter25m`:
+  added `--lookup-engine gpu-filter` and broadened `--lookup-engine auto` so
+  the 25,005,000-target, `lookup_repeat=1024`, distinct-miss integrated gate
+  chooses `lookup_engine_effective=gpu_filter`. The walk, affine scan, injected
+  hits, and final exact key equality remain unchanged; only the final
+  multi-target join now uses the compact GPU filter plus CPU exact
+  verification of positives. Two direct M3 runs preserved
+  `target_lookup_checksum=0x8b2568562837af7f`, `correctness=true`,
+  `filter_positive_count=64`, and `filter_false_positive_count=0`. CPU routing
+  measured `110,421,412.238887` and `110,213,461.114858` ops/sec. Auto-filter
+  measured `120,674,390.799366` and `119,031,056.396993` ops/sec, while
+  explicit `gpu-filter` measured `122,315,209.631509` and
+  `117,012,102.624015` ops/sec. Treat this as an accepted architecture scout
+  and run `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_auto_filter25m`
+  under paired autoresearch before using it as the next default baseline for
+  broader target-count and DP-density sweeps.
 
 ## Next Research Targets
 
@@ -3783,6 +3819,10 @@ These did not pass the performance gate or had a correctness/architecture issue:
 - Broaden the benchmark-gated `--lookup-engine auto` policy only with paired
   data across more target counts, DP density, and `lookup_repeat`; do not make
   CPU the default globally from one hardware class.
+- Build on the accepted tag32 filter path: tune positive compaction, measure
+  false-positive-heavy synthetic cases, and only consider moving exact
+  verification back onto GPU if it beats compact-positive CPU verification
+  without losing full-key equality.
 - Revisit GPU persistent lookup only as a long-lived solver-level design: keep
   the target table resident across many fresh packet-boundary DP batches, avoid
   rebuilding query/output resources where possible, and score setup-inclusive

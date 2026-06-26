@@ -22,7 +22,13 @@ markers = [
     "dp_query_count",
     "target_lookup_checksum",
     "RunTargetLookupTag32Kernel",
+    "RunTargetLookupTag32FilterKernel",
+    "ResolveTargetLookupTag32FilterCandidates",
     "RunTargetLookupTag32Cpu",
+    "\"gpu_filter\"",
+    "BuildTargetLookupTag32FilterTable",
+    "filter_positive_count",
+    "filter_false_positive_count",
 ]
 for marker in markers:
     if marker not in kernels:
@@ -173,6 +179,36 @@ check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_lookup_tg512.json",
     lookup_tg512_command,
     "lookups_per_sec",
+)
+
+auto_filter25m_command = [
+    "./macos/rck_macos",
+    command,
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--target-count",
+    "25005000",
+    "--hits",
+    "64",
+    "--lookup-repeat",
+    "1024",
+    "--lookup-query-mode",
+    "distinct-misses",
+    "--lookup-engine",
+    "auto",
+    "--min-ms",
+    "500",
+]
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_auto_filter25m.json",
+    auto_filter25m_command,
+    "ops_per_sec",
 )
 
 print("metal affine-scan target lookup source ok")

@@ -2415,6 +2415,10 @@ static inline ulong target_lookup_hash(thread const TargetLookupKey& key) {
   return target_lookup_mix(h ^ (ulong)key.parity);
 }
 
+static inline uint target_lookup_filter_tag(ulong hash) {
+  return ((uint)(hash >> 32)) | 1U;
+}
+
 static inline bool target_lookup_key_equals(thread const TargetLookupKey& a, thread const TargetLookupKey& b) {
   return a.parity == b.parity &&
          a.x[0] == b.x[0] &&
@@ -2491,6 +2495,37 @@ kernel void target_lookup_compact_exact256(device const TargetLookupCompactBucke
   }
 
   out_target_indices[id] = found;
+}
+
+kernel void target_lookup_tag32_filter256(device const uint* target_filter_buckets [[buffer(0)]],
+                                          device const TargetLookupKey* query_keys [[buffer(1)]],
+                                          device uint* out_positive_query_indices [[buffer(2)]],
+                                          device atomic_uint* out_filter_positive_count [[buffer(3)]],
+                                          constant uint& bucket_count [[buffer(4)]],
+                                          constant uint& query_count [[buffer(5)]],
+                                          uint id [[thread_position_in_grid]]) {
+  if (id >= query_count) return;
+  TargetLookupKey query = query_keys[id];
+  ulong hash = target_lookup_hash(query);
+  uint filter_tag = target_lookup_filter_tag(hash);
+  uint slot = (uint)(hash & (ulong)(bucket_count - 1));
+  uint probes = 0;
+
+  while (probes < bucket_count) {
+    uint bucket_tag = target_filter_buckets[slot];
+    if (bucket_tag == 0U) {
+      break;
+    }
+    if (bucket_tag == filter_tag) {
+      uint out_slot = atomic_fetch_add_explicit(out_filter_positive_count, 1U, memory_order_relaxed);
+      if (out_slot < query_count) {
+        out_positive_query_indices[out_slot] = id;
+      }
+      break;
+    }
+    slot = (slot + 1U) & (bucket_count - 1U);
+    probes++;
+  }
 }
 
 kernel void target_lookup_tag32_exact256(device const TargetLookupTag32Bucket* target_buckets [[buffer(0)]],
