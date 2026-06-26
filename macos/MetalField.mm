@@ -3626,7 +3626,7 @@ static bool RunTargetLookupTag32FilterPersistentKernel(const std::vector<uint32_
 			dispatch_count++;
 			if (min_ms && local_dispatch_seconds == 0.0)
 				break;
-		} while (min_ms && ((total_dispatch_seconds + total_exact_verify_seconds) * 1000.0 < (double)min_ms) && (dispatch_count < 100000));
+		} while (min_ms && (total_dispatch_seconds * 1000.0 < (double)min_ms) && (dispatch_count < 100000));
 
 		if (dispatch_seconds)
 			*dispatch_seconds = total_dispatch_seconds;
@@ -3793,7 +3793,7 @@ static bool RunTargetLookupTag16FilterPersistentKernel(const std::vector<uint16_
 			dispatch_count++;
 			if (min_ms && local_dispatch_seconds == 0.0)
 				break;
-		} while (min_ms && ((total_dispatch_seconds + total_exact_verify_seconds) * 1000.0 < (double)min_ms) && (dispatch_count < 100000));
+		} while (min_ms && (total_dispatch_seconds * 1000.0 < (double)min_ms) && (dispatch_count < 100000));
 
 		if (dispatch_seconds)
 			*dispatch_seconds = total_dispatch_seconds;
@@ -3961,7 +3961,7 @@ static bool RunTargetLookupTag16HashFilterPersistentKernel(const std::vector<uin
 			dispatch_count++;
 			if (min_ms && local_dispatch_seconds == 0.0)
 				break;
-		} while (min_ms && ((total_dispatch_seconds + total_exact_verify_seconds) * 1000.0 < (double)min_ms) && (dispatch_count < 100000));
+		} while (min_ms && (total_dispatch_seconds * 1000.0 < (double)min_ms) && (dispatch_count < 100000));
 
 		if (dispatch_seconds)
 			*dispatch_seconds = total_dispatch_seconds;

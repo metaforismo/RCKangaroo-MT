@@ -95,7 +95,9 @@ diagnostic multi-target GPU metric. It compares prehashed query input against
 in-kernel query hashing with the same exact CPU verification path, but scores
 `gpu_dispatch_lookups_per_sec` so setup allocation and CPU exact-verification
 noise do not decide whether the Metal filter kernel itself is worth further
-work.
+work. Persistent filter lookup commands keep exact verification visible in
+`exact_verify_seconds` and `dispatch_lookups_per_sec`, while their `--min-ms`
+window is bounded by Metal dispatch time for the GPU-only metric.
 
 ```sh
 make macos-check

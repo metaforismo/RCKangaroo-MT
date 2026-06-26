@@ -87,6 +87,11 @@ for marker in (
     if marker not in host_source:
         raise SystemExit("missing tag32 target lookup host marker: " + marker)
 
+if "((total_dispatch_seconds + total_exact_verify_seconds) * 1000.0 < (double)min_ms)" in host_source:
+    raise SystemExit("persistent filter lookup min-ms window should be bounded by GPU dispatch time, not exact CPU verification")
+if host_source.count("(total_dispatch_seconds * 1000.0 < (double)min_ms)") < 3:
+    raise SystemExit("persistent filter lookup kernels should keep GPU dispatch-bound min-ms windows")
+
 if "RCKMetalTargetLookupTag32BenchJson" not in header_source:
     raise SystemExit("missing tag32 target lookup header declaration")
 
