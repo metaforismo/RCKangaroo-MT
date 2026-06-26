@@ -3972,6 +3972,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `filter_positive_count=311`. Conclusion: keep the dispatch-only gate as a
   useful microscope, but do not treat prehashed query input as a durable GPU
   lookup win on this M3 run.
+- Added `gpu_dispatch_lookups_per_sec` to the persistent filter lookup JSON so
+  future gates can score only Metal dispatch time instead of setup or exact CPU
+  verification. A first paired run at commit `d97bd05` kept the prehashed
+  tag16 hash-filter path by this new metric (`641,785,601.889930` versus
+  `40,184,259.839965`, then `260,477,452.934580` versus `22,885,559.034950`)
+  with `correctness=true` and the same
+  `target_lookup_checksum=0x9b23e560b9fdfe29`. Caveat: this is not yet a
+  solver-speed claim, because the persistent filter loop still stops its
+  `--min-ms` window on dispatch plus exact CPU verification; the next harness
+  change should make the timing window dispatch-bound before promoting
+  prehashed queries as a durable GPU win.
 - Rejected changing the long XYZZ 512-step packet default threadgroup cap from
   128 to 512. A local scout sometimes showed higher lookup-free packet
   throughput at 384/512, but paired autoresearch on commit `d8f05f4` against
