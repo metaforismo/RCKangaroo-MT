@@ -3947,6 +3947,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   preserved `correctness=true` and `target_lookup_checksum=0x8b2568562837af7f`.
   Conclusion: keep the 512-thread default for now; revisit 128 only with a
   lookup-metric-specific gate or a less noisy lookup-isolated benchmark.
+- Rejected changing the isolated persistent tag16 hash-filter lookup default
+  cap from 512 to 256 on the 25M-target gate. Direct scouts alternated between
+  apparent 256 wins and 512 wins with the same checksum, so commit `ba4a706`
+  was tested against an explicit old `--tg-limit 512` baseline. The paired
+  confirmation discarded it: confirmation 1 was already below baseline
+  (`384,244,831.768039` versus `403,094,013.250482`, `0.953239x`), and
+  confirmation 2 collapsed after a high setup-time sample
+  (`23,582,491.610644` versus `94,876,091.595852`, `0.248561x`). Both rows
+  preserved `correctness=true`,
+  `target_lookup_checksum=0x9b23e560b9fdfe29`, `hit_count=64`, and
+  `filter_positive_count=311`. Conclusion: keep 512 as the persistent
+  hash-filter large-target default; future lookup tuning needs a setup-excluded
+  decision metric or a solver-resident table harness.
 - Rejected changing the long XYZZ 512-step packet default threadgroup cap from
   128 to 512. A local scout sometimes showed higher lookup-free packet
   throughput at 384/512, but paired autoresearch on commit `d8f05f4` against
