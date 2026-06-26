@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstring>
@@ -2639,6 +2640,17 @@ static uint64_t MixTargetLookupChecksum(uint64_t checksum, uint32_t target_index
 	return TargetLookupMix(checksum ^ TargetLookupMix(v));
 }
 
+static constexpr uint64_t kTargetLookupChecksumSeed = 0x84c2f3a952d7495bULL;
+
+static void AppendTargetLookupExpectedIndex(std::vector<uint32_t>& expected_indices,
+	uint32_t expected_index,
+	uint64_t& checksum)
+{
+	size_t query_index = expected_indices.size();
+	expected_indices.push_back(expected_index);
+	checksum = MixTargetLookupChecksum(checksum, expected_index, query_index);
+}
+
 static bool ValidateTargetLookupOutputs(const std::vector<uint32_t>& out_indices,
 	const std::vector<uint32_t>& expected_indices,
 	uint32_t hit_count,
@@ -2658,7 +2670,7 @@ static bool ValidateTargetLookupOutputs(const std::vector<uint32_t>& out_indices
 		return false;
 	}
 
-	uint64_t sum = 0x84c2f3a952d7495bULL;
+	uint64_t sum = kTargetLookupChecksumSeed;
 	for (size_t i = 0; i < out_indices.size(); ++i)
 	{
 		if (out_indices[i] != expected_indices[i])
@@ -2671,6 +2683,84 @@ static bool ValidateTargetLookupOutputs(const std::vector<uint32_t>& out_indices
 		sum = MixTargetLookupChecksum(sum, out_indices[i], i);
 	}
 	*checksum = sum;
+	return true;
+}
+
+static bool ResolveTargetLookupTag32FilterCandidatesSparse(const std::vector<TargetLookupTag32BucketHost>& buckets,
+	const std::vector<TargetLookupKeyHost>& target_keys,
+	const std::vector<TargetLookupKeyHost>& queries,
+	const std::vector<uint32_t>& expected_indices,
+	const std::vector<uint32_t>& positive_query_indices,
+	uint32_t filter_positive_count,
+	unsigned int expected_hits,
+	uint64_t expected_checksum,
+	uint32_t& hit_count,
+	uint32_t& false_positive_count,
+	uint64_t* checksum,
+	std::string& reason)
+{
+	if (expected_indices.size() != queries.size())
+	{
+		reason = "target lookup sparse expected size mismatch";
+		return false;
+	}
+	if (filter_positive_count > positive_query_indices.size())
+	{
+		reason = "tag32 filter positive count exceeds output capacity";
+		return false;
+	}
+
+	std::vector<uint32_t> sorted_positive_indices(positive_query_indices.begin(), positive_query_indices.begin() + filter_positive_count);
+	std::sort(sorted_positive_indices.begin(), sorted_positive_indices.end());
+	for (size_t i = 1; i < sorted_positive_indices.size(); ++i)
+	{
+		if (sorted_positive_indices[i] == sorted_positive_indices[i - 1])
+		{
+			reason = "tag32 filter emitted duplicate query index";
+			return false;
+		}
+	}
+
+	hit_count = 0;
+	false_positive_count = 0;
+	for (uint32_t query_index : sorted_positive_indices)
+	{
+		if (query_index >= queries.size())
+		{
+			reason = "tag32 filter emitted invalid query index";
+			return false;
+		}
+
+		uint32_t found = kTargetLookupEmptyIndex;
+		if (TargetLookupTag32Find(target_keys, buckets, queries[query_index], &found))
+		{
+			if (expected_indices[query_index] != found)
+			{
+				reason = "target lookup sparse index mismatch at query " + std::to_string(query_index) +
+					": got " + std::to_string(found) +
+					" expected " + std::to_string(expected_indices[query_index]);
+				return false;
+			}
+			hit_count++;
+		}
+		else
+		{
+			if (expected_indices[query_index] != kTargetLookupEmptyIndex)
+			{
+				reason = "target lookup sparse missed expected hit at query " + std::to_string(query_index);
+				return false;
+			}
+			false_positive_count++;
+		}
+	}
+
+	if (hit_count != expected_hits)
+	{
+		reason = "target lookup sparse hit count mismatch: got " + std::to_string(hit_count) +
+			" expected " + std::to_string(expected_hits);
+		return false;
+	}
+	*checksum = expected_checksum;
 	return true;
 }
 
@@ -8862,10 +8952,14 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 		lookup_queries.reserve((size_t)repeated_query_count);
 		lookup_expected_indices.reserve((size_t)repeated_query_count);
 		unsigned int expected_lookup_hits = 0;
+		uint64_t lookup_expected_checksum = kTargetLookupChecksumSeed;
 		if (strcmp(lookup_query_mode_name, "distinct_misses") == 0)
 		{
-			lookup_queries.insert(lookup_queries.end(), dp_keys.begin(), dp_keys.end());
-			lookup_expected_indices.insert(lookup_expected_indices.end(), expected_indices.begin(), expected_indices.end());
+			for (size_t i = 0; i < dp_keys.size(); ++i)
+			{
+				lookup_queries.push_back(dp_keys[i]);
+				AppendTargetLookupExpectedIndex(lookup_expected_indices, expected_indices[i], lookup_expected_checksum);
+			}
 			expected_lookup_hits = injected_hits;
 
 			uint64_t miss_nonce = 0;
@@ -8876,15 +8970,18 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 				while (TargetLookupTag32Find(target_keys, target_buckets, miss_key, &ignored))
 					miss_key = DeterministicTargetLookupKey(miss_nonce++, 0xBADC0FFEE0DDF00DULL);
 				lookup_queries.push_back(miss_key);
-				lookup_expected_indices.push_back(kTargetLookupEmptyIndex);
+				AppendTargetLookupExpectedIndex(lookup_expected_indices, kTargetLookupEmptyIndex, lookup_expected_checksum);
 			}
 		}
 		else
 		{
 			for (unsigned int repeat = 0; repeat < lookup_repeat; ++repeat)
 			{
-				lookup_queries.insert(lookup_queries.end(), dp_keys.begin(), dp_keys.end());
-				lookup_expected_indices.insert(lookup_expected_indices.end(), expected_indices.begin(), expected_indices.end());
+				for (size_t i = 0; i < dp_keys.size(); ++i)
+				{
+					lookup_queries.push_back(dp_keys[i]);
+					AppendTargetLookupExpectedIndex(lookup_expected_indices, expected_indices[i], lookup_expected_checksum);
+				}
 			}
 			expected_lookup_hits = injected_hits * lookup_repeat;
 		}
@@ -8894,6 +8991,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 		std::vector<uint32_t> out_indices;
 		double lookup_dispatch_seconds = 0.0;
 		bool lookup_ok = false;
+		bool lookup_outputs_sparse_validated = false;
 		if (strcmp(effective_lookup_engine_name, "cpu") == 0)
 		{
 			lookup_stats.threadgroup_limit = 0;
@@ -8919,7 +9017,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 				uint32_t local_false_positive_count = 0;
 				std::string resolve_reason;
 				auto exact_start = std::chrono::steady_clock::now();
-				lookup_ok = ResolveTargetLookupTag32FilterCandidates(target_buckets, target_keys, lookup_queries, positive_query_indices, local_filter_positive_count, out_indices, local_hit_count, local_false_positive_count, resolve_reason, false);
+				lookup_ok = ResolveTargetLookupTag32FilterCandidatesSparse(target_buckets, target_keys, lookup_queries, lookup_expected_indices, positive_query_indices, local_filter_positive_count, expected_lookup_hits, lookup_expected_checksum, local_hit_count, local_false_positive_count, &target_lookup_checksum, resolve_reason);
 				lookup_dispatch_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - exact_start).count();
 				if (!lookup_ok)
 					error = resolve_reason;
@@ -8928,12 +9026,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 					filter_positive_count = local_filter_positive_count;
 					filter_false_positive_count = local_false_positive_count;
 					hit_count = local_hit_count;
-					std::string fill_reason;
-					if (!ResolveTargetLookupTag32FilterCandidates(target_buckets, target_keys, lookup_queries, positive_query_indices, local_filter_positive_count, out_indices, local_hit_count, local_false_positive_count, fill_reason, true))
-					{
-						lookup_ok = false;
-						error = fill_reason;
-					}
+					lookup_outputs_sparse_validated = true;
 				}
 			}
 		}
@@ -8962,7 +9055,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 				uint32_t local_false_positive_count = 0;
 				std::string resolve_reason;
 				auto exact_start = std::chrono::steady_clock::now();
-				lookup_ok = ResolveTargetLookupTag32FilterCandidates(target_buckets, target_keys, lookup_queries, positive_query_indices, local_filter_positive_count, out_indices, local_hit_count, local_false_positive_count, resolve_reason, false);
+				lookup_ok = ResolveTargetLookupTag32FilterCandidatesSparse(target_buckets, target_keys, lookup_queries, lookup_expected_indices, positive_query_indices, local_filter_positive_count, expected_lookup_hits, lookup_expected_checksum, local_hit_count, local_false_positive_count, &target_lookup_checksum, resolve_reason);
 				lookup_dispatch_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - exact_start).count();
 				if (!lookup_ok)
 					error = resolve_reason;
@@ -8971,12 +9064,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 					filter_positive_count = local_filter_positive_count;
 					filter_false_positive_count = local_false_positive_count;
 					hit_count = local_hit_count;
-					std::string fill_reason;
-					if (!ResolveTargetLookupTag32FilterCandidates(target_buckets, target_keys, lookup_queries, positive_query_indices, local_filter_positive_count, out_indices, local_hit_count, local_false_positive_count, fill_reason, true))
-					{
-						lookup_ok = false;
-						error = fill_reason;
-					}
+					lookup_outputs_sparse_validated = true;
 				}
 			}
 		}
@@ -8992,7 +9080,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 		lookup_operations += lookup_queries.size();
 
 		std::string lookup_reason;
-		if (!ValidateTargetLookupOutputs(out_indices, lookup_expected_indices, hit_count, expected_lookup_hits, &target_lookup_checksum, lookup_reason))
+		if (!lookup_outputs_sparse_validated && !ValidateTargetLookupOutputs(out_indices, lookup_expected_indices, hit_count, expected_lookup_hits, &target_lookup_checksum, lookup_reason))
 			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, lookup_reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name, effective_lookup_engine_name);
 
 		operations += requested_operations;
