@@ -7424,7 +7424,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanBenchJson(unsigned int 
 	return MetalJacobianDynamicDpStreamXyzzAffineScanBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz_affine_scan", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, jump_histogram_min_bucket, jump_histogram_max_bucket, jump_histogram_max_deviation_ppm, dp_distance_checksum, dp_bits, dp_count, dp_checksum, min_ms, dispatch_stats, seconds, affine_scan_seconds, validation_seconds, ops_per_sec, gpu_ops_per_sec, true, false, "");
 }
 
-std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int jump_count, unsigned int min_ms, unsigned int target_count, unsigned int requested_hits, unsigned int lookup_repeat, unsigned int threadgroup_limit, unsigned int dp_bits, const char* jump_schedule, const char* lookup_query_mode, const char* lookup_engine)
+std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int jump_count, unsigned int min_ms, unsigned int target_count, unsigned int requested_hits, unsigned int lookup_repeat, unsigned int threadgroup_limit, unsigned int dp_bits, const char* jump_schedule, const char* lookup_query_mode, const char* lookup_engine, unsigned int lookup_threadgroup_limit)
 {
 	if (iterations == 0)
 		iterations = 1;
@@ -7444,8 +7444,9 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 
 	MetalDispatchStats walk_stats;
 	walk_stats.threadgroup_limit = (unsigned int)EffectiveDynamicDpStreamInplaceThreadgroupLimit(threadgroup_limit, dp_bits, steps_per_sample);
+	unsigned int effective_lookup_threadgroup_limit = lookup_threadgroup_limit ? lookup_threadgroup_limit : threadgroup_limit;
 	MetalDispatchStats lookup_stats;
-	lookup_stats.threadgroup_limit = (unsigned int)EffectiveTargetLookupThreadgroupLimit(threadgroup_limit);
+	lookup_stats.threadgroup_limit = (unsigned int)EffectiveTargetLookupThreadgroupLimit(effective_lookup_threadgroup_limit);
 	uint64_t requested_operations = (uint64_t)sample_count * steps_per_sample;
 	if ((steps_per_sample != 256 && steps_per_sample != 512) || !IsMetalPowerOfTwo(jump_count))
 	{
@@ -7616,7 +7617,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 			lookup_ok = RunTargetLookupTag32Cpu(target_buckets, target_keys, lookup_queries, out_indices, hit_count, error, &lookup_dispatch_seconds);
 		}
 		else
-			lookup_ok = RunTargetLookupTag32Kernel(target_buckets, target_keys, lookup_queries, out_indices, hit_count, error, &lookup_dispatch_seconds, threadgroup_limit, &lookup_stats);
+			lookup_ok = RunTargetLookupTag32Kernel(target_buckets, target_keys, lookup_queries, out_indices, hit_count, error, &lookup_dispatch_seconds, effective_lookup_threadgroup_limit, &lookup_stats);
 		if (!lookup_ok)
 		{
 			if (error == "no Metal device available")

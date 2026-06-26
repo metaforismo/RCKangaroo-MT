@@ -3623,6 +3623,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   pragmatic routing improvement, not a new discrete-log algorithm: it preserves
   the GPU walk and affine scan, then avoids Metal dispatch/random-memory cost
   for large multi-target joins where the host lookup is already faster.
+- Kept `macos-affine-target-lookup-tg-split`: added `--lookup-tg-limit` to the
+  integrated affine-scan target-lookup benchmark so the final Metal tag32 join
+  can use a different threadgroup cap from the XYZZ walk. This preserves the
+  exact `x256 + y_parity` oracle and keeps the JSON fields separate:
+  `threadgroup_limit` describes the walk, while `lookup_threadgroup_limit`
+  describes the target join. The motivating 25,005,000-target M3 sweep with
+  `lookup_repeat=1024`, `distinct-misses`, and explicit GPU lookup kept
+  `target_lookup_checksum=0x8b2568562837af7f`. With the walk left at its
+  default 128-thread cap, lookup-only caps measured `5,702,767.902107`
+  lookups/sec at 64, `14,438,608.208282` at 128,
+  `20,822,511.200607` at 256, and `32,476,723.426600` at 512 in the first
+  sweep. A second pass kept 512 high on lookup throughput
+  (`29,861,242.368694` and `30,914,421.587039` lookups/sec), while 1024 did
+  not improve end-to-end stability. Do not make 512 the global default yet:
+  walk timing and thermals still dominate total `ops_per_sec`, so this is a
+  benchmark-gated GPU lookup tuning knob plus an autoresearch experiment, not
+  an automatic policy change.
 - Rejected `macos-cpu-tag32-bucket-prefetch`: tested a one-bucket-ahead
   `__builtin_prefetch` inside the host CPU tag32 open-addressing probe loop.
   The oracle stayed exact on the 25,005,000-target, 1,082,368-query mostly-miss

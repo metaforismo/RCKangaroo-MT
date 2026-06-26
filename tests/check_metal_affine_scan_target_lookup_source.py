@@ -17,6 +17,7 @@ markers = [
     "lookup_engine",
     "lookup_engine_effective",
     "ChooseAffineLookupEngine",
+    "lookup_threadgroup_limit",
     "dp_query_count",
     "target_lookup_checksum",
     "RunTargetLookupTag32Kernel",
@@ -38,6 +39,8 @@ if "--lookup-query-mode" not in cli:
     raise SystemExit("missing affine-scan target-lookup lookup-query-mode CLI option")
 if "--lookup-engine" not in cli:
     raise SystemExit("missing affine-scan target-lookup lookup-engine CLI option")
+if "--lookup-tg-limit" not in cli:
+    raise SystemExit("missing affine-scan target-lookup lookup-tg-limit CLI option")
 
 make_markers = [
     "macos-metal-affine-scan-target-lookup-source-check",
@@ -136,6 +139,38 @@ distinct1024_command = [
 check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_distinct_misses1024.json",
     distinct1024_command,
+    "lookups_per_sec",
+)
+
+lookup_tg512_command = [
+    "./macos/rck_macos",
+    command,
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--target-count",
+    "1048576",
+    "--hits",
+    "64",
+    "--lookup-repeat",
+    "1024",
+    "--lookup-query-mode",
+    "distinct-misses",
+    "--lookup-engine",
+    "gpu",
+    "--lookup-tg-limit",
+    "512",
+    "--min-ms",
+    "500",
+]
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_lookup_tg512.json",
+    lookup_tg512_command,
     "lookups_per_sec",
 )
 

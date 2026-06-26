@@ -297,6 +297,26 @@ case "$affine_lookup_output" in
 		;;
 esac
 
+affine_lookup_tg_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench --iterations 64 --steps 256 --jumps 8 --dp-bits 4 --target-count 128 --hits 4 --lookup-repeat 3 --lookup-engine gpu --lookup-tg-limit 256 --min-ms 0 2>&1)"
+affine_lookup_tg_status=$?
+if [ "$affine_lookup_tg_status" -ne 0 ]; then
+	printf 'metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench lookup tg returned status %s\n' "$affine_lookup_tg_status"
+	printf '%s\n' "$affine_lookup_tg_output"
+	exit 1
+fi
+
+case "$affine_lookup_tg_output" in
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32\""*"\"lookup_engine\":\"gpu\""*"\"threadgroup_limit\":128"*"\"lookup_threadgroup_limit\":256"*"\"lookup_threads_per_threadgroup\":256"*"\"target_lookup_checksum\":\"0x"*"\"correctness\":true"*)
+		;;
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32\""*"\"lookup_engine\":\"gpu\""*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected lookup-tg metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench output"
+		printf '%s\n' "$affine_lookup_tg_output"
+		exit 1
+		;;
+esac
+
 affine_lookup_cpu_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench --iterations 64 --steps 256 --jumps 8 --dp-bits 4 --target-count 128 --hits 4 --lookup-repeat 3 --lookup-engine cpu --min-ms 0 2>&1)"
 affine_lookup_cpu_status=$?
 if [ "$affine_lookup_cpu_status" -ne 0 ]; then
