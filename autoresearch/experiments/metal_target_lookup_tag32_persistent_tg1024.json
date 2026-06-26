@@ -1,0 +1,34 @@
+{
+  "name": "metal_target_lookup_tag32_persistent_tg1024",
+  "description": "Persistent Metal tag32 target lookup with the promoted 1024-thread large-table default against the old tg64 default",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "metal-target-lookup-tag32-persistent-bench",
+    "--target-count",
+    "25005000",
+    "--query-count",
+    "1082368",
+    "--hits",
+    "64",
+    "--min-ms",
+    "700"
+  ],
+  "paired_baseline_command": [
+    "./macos/rck_macos",
+    "metal-target-lookup-tag32-persistent-bench",
+    "--target-count",
+    "25005000",
+    "--query-count",
+    "1082368",
+    "--hits",
+    "64",
+    "--min-ms",
+    "700",
+    "--tg-limit",
+    "64"
+  ],
+  "metric": "lookups_per_sec",
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3
+}

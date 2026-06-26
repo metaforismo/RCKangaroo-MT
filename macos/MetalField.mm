@@ -22,6 +22,9 @@ typedef std::array<uint64_t, 4> FieldElement;
 
 static constexpr unsigned int kDefaultMetalFieldThreadgroupLimit = 256;
 static constexpr unsigned int kDefaultMetalDp12StreamThreadgroupLimit = 128;
+static constexpr unsigned int kDefaultMetalTargetLookupThreadgroupLimit = 64;
+static constexpr unsigned int kDefaultMetalPersistentTargetLookupLargeThreadgroupLimit = 1024;
+static constexpr size_t kDefaultMetalPersistentTargetLookupLargeTargetThreshold = 16777216;
 static constexpr size_t kMinValidationSamplesPerWorker = 1024;
 
 struct MetalDispatchStats
@@ -1721,7 +1724,19 @@ static NSUInteger EffectiveTargetLookupThreadgroupLimit(unsigned int threadgroup
 {
 	if (threadgroup_limit)
 		return (NSUInteger)threadgroup_limit;
-	return (NSUInteger)64;
+	return (NSUInteger)kDefaultMetalTargetLookupThreadgroupLimit;
+}
+
+static unsigned int PersistentTargetLookupDefaultThreadgroupLimit(size_t target_count)
+{
+	return target_count >= kDefaultMetalPersistentTargetLookupLargeTargetThreshold ? kDefaultMetalPersistentTargetLookupLargeThreadgroupLimit : kDefaultMetalTargetLookupThreadgroupLimit;
+}
+
+static NSUInteger EffectiveTargetLookupPersistentThreadgroupLimit(unsigned int threadgroup_limit, size_t target_count)
+{
+	if (threadgroup_limit)
+		return (NSUInteger)threadgroup_limit;
+	return (NSUInteger)PersistentTargetLookupDefaultThreadgroupLimit(target_count);
 }
 
 static NSUInteger PreferredThreadgroupWidth(id<MTLComputePipelineState> pipeline, unsigned int threadgroup_limit)
@@ -1741,6 +1756,18 @@ static NSUInteger PreferredTargetLookupThreadgroupWidth(id<MTLComputePipelineSta
 	NSUInteger execution_width = [pipeline threadExecutionWidth] ? [pipeline threadExecutionWidth] : 1;
 	NSUInteger max_threads = [pipeline maxTotalThreadsPerThreadgroup] ? [pipeline maxTotalThreadsPerThreadgroup] : execution_width;
 	NSUInteger requested_limit = EffectiveTargetLookupThreadgroupLimit(threadgroup_limit);
+	NSUInteger target = max_threads < requested_limit ? max_threads : requested_limit;
+	target -= target % execution_width;
+	if (target < execution_width)
+		target = execution_width;
+	return target;
+}
+
+static NSUInteger PreferredTargetLookupPersistentThreadgroupWidth(id<MTLComputePipelineState> pipeline, unsigned int threadgroup_limit, size_t target_count)
+{
+	NSUInteger execution_width = [pipeline threadExecutionWidth] ? [pipeline threadExecutionWidth] : 1;
+	NSUInteger max_threads = [pipeline maxTotalThreadsPerThreadgroup] ? [pipeline maxTotalThreadsPerThreadgroup] : execution_width;
+	NSUInteger requested_limit = EffectiveTargetLookupPersistentThreadgroupLimit(threadgroup_limit, target_count);
 	NSUInteger target = max_threads < requested_limit ? max_threads : requested_limit;
 	target -= target % execution_width;
 	if (target < execution_width)
@@ -2596,7 +2623,7 @@ static bool RunTargetLookupTag32PersistentKernel(const std::vector<TargetLookupT
 	MetalDispatchStats* dispatch_stats = NULL)
 {
 	if (dispatch_stats)
-		dispatch_stats->threadgroup_limit = (unsigned int)EffectiveTargetLookupThreadgroupLimit(threadgroup_limit);
+		dispatch_stats->threadgroup_limit = (unsigned int)EffectiveTargetLookupPersistentThreadgroupLimit(threadgroup_limit, target_keys.size());
 	if (buckets.empty() || target_keys.empty() || queries.empty())
 	{
 		error = "invalid tag32 target lookup input";
@@ -2636,7 +2663,7 @@ static bool RunTargetLookupTag32PersistentKernel(const std::vector<TargetLookupT
 		}
 		NSUInteger execution_width = [pipeline threadExecutionWidth] ? [pipeline threadExecutionWidth] : 1;
 		NSUInteger max_threads = [pipeline maxTotalThreadsPerThreadgroup] ? [pipeline maxTotalThreadsPerThreadgroup] : execution_width;
-		NSUInteger threads_per_threadgroup = PreferredTargetLookupThreadgroupWidth(pipeline, threadgroup_limit);
+		NSUInteger threads_per_threadgroup = PreferredTargetLookupPersistentThreadgroupWidth(pipeline, threadgroup_limit, target_keys.size());
 		if (dispatch_stats)
 		{
 			dispatch_stats->thread_execution_width = (unsigned int)execution_width;
@@ -7931,7 +7958,7 @@ std::string RCKMetalTargetLookupTag32PersistentBenchJson(unsigned int target_cou
 		expected_hits = query_count;
 
 	MetalDispatchStats dispatch_stats;
-	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveTargetLookupThreadgroupLimit(threadgroup_limit);
+	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveTargetLookupPersistentThreadgroupLimit(threadgroup_limit, target_count);
 	if (target_count > 32000000U)
 	{
 		std::string reason = "target lookup benchmark target_count limit is 32000000 for host memory safety";

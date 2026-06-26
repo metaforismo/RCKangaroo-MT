@@ -29,6 +29,12 @@ for marker in (
     "RCKMetalTargetLookupTag32BenchJson",
     "RCKMetalTargetLookupTag32PersistentBenchJson",
     "RCKCpuTargetLookupTag32BenchJson",
+    "kDefaultMetalTargetLookupThreadgroupLimit = 64",
+    "kDefaultMetalPersistentTargetLookupLargeThreadgroupLimit = 1024",
+    "kDefaultMetalPersistentTargetLookupLargeTargetThreshold = 16777216",
+    "PersistentTargetLookupDefaultThreadgroupLimit",
+    "EffectiveTargetLookupPersistentThreadgroupLimit",
+    "PreferredTargetLookupPersistentThreadgroupWidth",
     "target_lookup_tag32_persistent_exact256",
     "\\\"buffer_lifetime\\\":\\\"persistent\\\"",
     "\\\"metal_setup_seconds\\\":",
@@ -88,5 +94,30 @@ if payload.get("metric") != "lookups_per_sec":
     raise SystemExit("tag32 target lookup experiment should optimize lookups_per_sec")
 if int(payload.get("sample_runs", 0)) < 3:
     raise SystemExit("tag32 target lookup experiment should keep sample_runs >= 3")
+
+persistent_experiment = Path("autoresearch/experiments/metal_target_lookup_tag32_persistent_tg1024.json")
+if not persistent_experiment.exists():
+    raise SystemExit("missing persistent tag32 target lookup autoresearch experiment")
+persistent_payload = json.loads(persistent_experiment.read_text(encoding="utf-8"))
+persistent_command = [
+    "./macos/rck_macos",
+    "metal-target-lookup-tag32-persistent-bench",
+    "--target-count",
+    "25005000",
+    "--query-count",
+    "1082368",
+    "--hits",
+    "64",
+    "--min-ms",
+    "700",
+]
+if persistent_payload.get("bench_command") != persistent_command:
+    raise SystemExit("persistent tag32 target lookup experiment should run the promoted persistent CLI default")
+if persistent_payload.get("paired_baseline_command", [])[-2:] != ["--tg-limit", "64"]:
+    raise SystemExit("persistent tag32 target lookup experiment should compare against the old tg64 default")
+if persistent_payload.get("metric") != "lookups_per_sec":
+    raise SystemExit("persistent tag32 target lookup experiment should optimize lookups_per_sec")
+if int(persistent_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("persistent tag32 target lookup experiment should keep sample_runs >= 3")
 
 print("metal tag32 target lookup source ok")

@@ -38,8 +38,8 @@ for forbidden in (
 required_host_markers = (
     "BuildTargetLookupExactTable",
     "ValidateTargetLookupOutputs",
+    "kDefaultMetalTargetLookupThreadgroupLimit = 64",
     "EffectiveTargetLookupThreadgroupLimit",
-    "return (NSUInteger)64;",
     "RCKMetalTargetLookupBenchJson",
     "\"target_lookup_exact256\"",
     "\\\"lookup_layout\\\":\\\"open_address_exact256\\\"",

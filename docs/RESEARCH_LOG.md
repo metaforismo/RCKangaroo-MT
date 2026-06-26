@@ -3659,6 +3659,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `333,853,890.188310` lookups/sec on the one-million-target gate. The
   25,005,000-target bulk gate still selected CPU and preserved the same
   checksum, keeping the large-table host routing from the earlier auto policy.
+- Rejected widening `auto` GPU routing to 25,005,000-target bulk joins: after
+  `--lookup-tg-limit 512` improved cache-friendlier target tables, an
+  alternating 25,005,000-target test compared explicit CPU with explicit GPU
+  plus lookup cap 512 on the same `lookup_repeat=1024`, `distinct-misses`
+  gate. Both paths preserved `target_lookup_checksum=0x8b2568562837af7f`.
+  CPU measured `6,860,398.930175` then `7,519,044.362895` lookups/sec with
+  `71,783,918.844038` then `70,273,916.262432` ops/sec. GPU+512 measured
+  `6,905,762.055189` then `6,333,109.526422` lookups/sec with
+  `70,297,193.197471` then `69,908,211.625927` ops/sec. Conclusion: keep
+  25M-target bulk auto routing on CPU until a paired cooled run shows a clear,
+  repeatable GPU win.
 - Rejected `macos-cpu-tag32-bucket-prefetch`: tested a one-bucket-ahead
   `__builtin_prefetch` inside the host CPU tag32 open-addressing probe loop.
   The oracle stayed exact on the 25,005,000-target, 1,082,368-query mostly-miss
@@ -3696,6 +3707,24 @@ These did not pass the performance gate or had a correctness/architecture issue:
   large fresh batches, but the production decision should be gated by a future
   integrated benchmark that reuses the target table while feeding fresh DP
   query batches.
+- Kept follow-up `macos-metal-target-lookup-tag32-persistent-tg1024`: the
+  persistent Metal tag32 lookup now keeps the historical 64-thread default for
+  tables below 16,777,216 targets, but uses a 1024-thread cap for larger
+  diagnostic tables unless `--tg-limit` is explicit. This is deliberately
+  scoped to the standalone persistent benchmark; integrated affine lookup and
+  `--lookup-engine auto` routing are unchanged. Several candidates were noisy:
+  an early sweep made 128/256 look attractive, but later alternating runs
+  showed 256 outliers and 128 setup spikes. The stable large-table head-to-head
+  on 25,005,000 targets, 1,082,368 queries, `hits=64`, and `min_ms=700`
+  compared old `--tg-limit 64` against the new default 1024. Both preserved
+  `target_lookup_checksum=0x9b23e560b9fdfe29`. The old 64-thread cap measured
+  `201,386,356.101149`, `218,208,323.440100`, and `101,037,320.822952`
+  lookups/sec; the 1024-thread cap measured `221,510,357.829906`,
+  `218,161,668.783517`, and `221,515,019.875647` lookups/sec. The median
+  setup-inclusive improvement is about `1.10x`, with 1024 also keeping warmed
+  dispatch throughput near `266M` lookups/sec in all three runs. The 1M-target
+  command remains on 64 because its short smoke checks did not justify a
+  default change there.
 - Rejected integrated probe `macos-metal-affine-target-lookup-gpu-persistent`:
   tested reusing the Metal tag32 target table and pipeline in the integrated
   affine-scan target-lookup path while allocating fresh query/output buffers
