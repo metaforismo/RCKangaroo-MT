@@ -3960,6 +3960,18 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `filter_positive_count=311`. Conclusion: keep 512 as the persistent
   hash-filter large-target default; future lookup tuning needs a setup-excluded
   decision metric or a solver-resident table harness.
+- Added a dispatch-only diagnostic gate for persistent tag16 hash-filter lookup
+  so prehashed query input can be judged on `dispatch_lookups_per_sec` without
+  setup allocation noise deciding the result. The first paired run at commit
+  `3f502b5` still rejected the prehash path against the in-kernel tag16 filter:
+  confirmation 1 was a raw keep (`460,269,790.538310` versus
+  `412,656,845.592278`, `1.115381x`) but confirmation policy discarded it after
+  confirmation 2 regressed (`431,249,765.064511` versus
+  `530,756,126.382268`, `0.812520x`). Both rows preserved `correctness=true`,
+  `target_lookup_checksum=0x9b23e560b9fdfe29`, `hit_count=64`, and
+  `filter_positive_count=311`. Conclusion: keep the dispatch-only gate as a
+  useful microscope, but do not treat prehashed query input as a durable GPU
+  lookup win on this M3 run.
 - Rejected changing the long XYZZ 512-step packet default threadgroup cap from
   128 to 512. A local scout sometimes showed higher lookup-free packet
   throughput at 384/512, but paired autoresearch on commit `d8f05f4` against
