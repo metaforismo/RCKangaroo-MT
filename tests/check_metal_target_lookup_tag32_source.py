@@ -245,6 +245,21 @@ if tag16_hash_filter_persistent_payload.get("metric") != "lookups_per_sec":
 if int(tag16_hash_filter_persistent_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("persistent tag16 hash-filter experiment should keep sample_runs >= 3")
 
+tag16_hash_dispatch_experiment = Path("autoresearch/experiments/metal_target_lookup_tag16_hash_filter_persistent_dispatch.json")
+if not tag16_hash_dispatch_experiment.exists():
+    raise SystemExit("missing persistent tag16 hash-filter dispatch target lookup autoresearch experiment")
+tag16_hash_dispatch_payload = json.loads(tag16_hash_dispatch_experiment.read_text(encoding="utf-8"))
+if tag16_hash_dispatch_payload.get("bench_command") != tag16_hash_filter_persistent_command:
+    raise SystemExit("persistent tag16 hash-filter dispatch experiment should run the prehashed persistent CLI")
+if tag16_hash_dispatch_payload.get("paired_baseline_command", [])[:2] != ["./macos/rck_macos", "metal-target-lookup-tag16-filter-persistent-bench"]:
+    raise SystemExit("persistent tag16 hash-filter dispatch experiment should compare against persistent tag16 filter baseline")
+if tag16_hash_dispatch_payload.get("metric") != "dispatch_lookups_per_sec":
+    raise SystemExit("persistent tag16 hash-filter dispatch experiment should optimize dispatch_lookups_per_sec")
+if int(tag16_hash_dispatch_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("persistent tag16 hash-filter dispatch experiment should keep sample_runs >= 3")
+if float(tag16_hash_dispatch_payload.get("cooldown_sec", 0.0)) < 10.0:
+    raise SystemExit("persistent tag16 hash-filter dispatch experiment should cool down between paired samples")
+
 persistent_experiment = Path("autoresearch/experiments/metal_target_lookup_tag32_persistent_tg1024.json")
 if not persistent_experiment.exists():
     raise SystemExit("missing persistent tag32 target lookup autoresearch experiment")

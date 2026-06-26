@@ -68,6 +68,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_persistent_tg1024 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_persistent --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_target_lookup_tag16_hash_filter_persistent_dispatch --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_exact256 --budget-sec 10
 ```
 
@@ -88,6 +89,12 @@ runner also aliases the median custom metric into `ops_per_sec` for ledger
 compatibility, but comparisons should read the explicit
 `lookups_per_sec_min/max` fields because this is not a kangaroo walk-step
 throughput gate.
+
+The `metal_target_lookup_tag16_hash_filter_persistent_dispatch` gate is a
+diagnostic multi-target GPU metric. It compares prehashed query input against
+in-kernel query hashing with the same exact CPU verification path, but scores
+`dispatch_lookups_per_sec` so setup allocation noise does not decide whether
+the Metal filter kernel itself is worth further work.
 
 ```sh
 make macos-check
