@@ -3778,6 +3778,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `target_lookup_checksum=0x9b23e560b9fdfe29`, `correctness=true`,
   `filter_positive_count=64`, `filter_false_positive_count=0`, and
   `confirmation_status=keep`.
+- Direct scout `macos-metal-target-lookup-tag32-filter-persistent`: added a
+  persistent version of the accepted tag32 filter lookup, keeping the compact
+  filter table, query buffer, positive-index output, and Metal pipeline
+  resident while still verifying compact positives on CPU with exact
+  `x256 + y_parity` equality after each dispatch. The no-setup
+  `dispatch_lookups_per_sec` includes exact CPU verification time, not only GPU
+  dispatch time. A 25,005,000-target, 1,082,368-query, `hits=64`,
+  `min_ms=700` direct sweep preserved
+  `target_lookup_checksum=0x9b23e560b9fdfe29`, `correctness=true`,
+  `filter_positive_count=64`, and `filter_false_positive_count=0` for all
+  variants. Non-persistent filter measured `42,529,328.877982` lookups/sec at
+  the default 64-thread cap and `61,674,769.263690` with `--tg-limit 1024`.
+  Persistent filter measured `481,602,631.287665` at 64 threads,
+  `502,568,498.005001` at 512 threads, and `416,378,732.454942` at 1024
+  threads, so the large-table persistent-filter default is 512 threads on M3.
+  Run `metal_target_lookup_tag32_filter_persistent` under paired autoresearch
+  before treating these direct numbers as a promoted gate.
 - Kept explicit engine but rejected auto promotion
   `macos-metal-affine-target-lookup-gpu-filter25m`: added
   `--lookup-engine gpu-filter` for the 25,005,000-target, `lookup_repeat=1024`,

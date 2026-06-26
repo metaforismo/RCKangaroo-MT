@@ -67,6 +67,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_gpu_filter25m --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_persistent_tg1024 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_persistent --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_exact256 --budget-sec 10
 ```
 
@@ -478,6 +479,19 @@ then the host verifies those compact positives against the full `x256+y_parity`
 target keys. The gate records `filter_positive_count`,
 `filter_false_positive_count`, exact checksum, and `lookups_per_sec`, so a
 false-positive-heavy candidate cannot hide behind a faster dispatch.
+
+Run the persistent large-table tag32 GPU filter gate:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_persistent --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
+```
+
+This keeps the compact tag filter, query batch, positive-index output buffer,
+and Metal pipeline resident while still verifying compact positives on CPU
+with exact `x256+y_parity` equality after each dispatch. The paired baseline is
+the non-persistent filter benchmark on the same 25,005,000-target shape. Use
+this gate to decide whether a solver should keep the target filter resident
+across repeated batches before trying to move exact verification back to GPU.
 
 Run the integrated large-table explicit GPU-filter gate:
 

@@ -25,6 +25,29 @@ case "$output" in
 esac
 
 set +e
+filter_persistent_output="$(./macos/rck_macos metal-target-lookup-tag32-filter-persistent-bench --target-count 64 --query-count 256 --hits 32 --min-ms 0 2>&1)"
+filter_persistent_status=$?
+set -e
+
+if [ "$filter_persistent_status" -ne 0 ]; then
+	printf 'metal-target-lookup-tag32-filter-persistent-bench returned status %s\n' "$filter_persistent_status"
+	printf '%s\n' "$filter_persistent_output"
+	exit 1
+fi
+
+case "$filter_persistent_output" in
+	*"\"backend\":\"metal\""*"\"operation\":\"target_lookup_tag32_filter_persistent_exact256\""*"\"lookup_layout\":\"open_address_tag32_filter_exact256\""*"\"buffer_lifetime\":\"persistent\""*"\"target_key\":\"x256_y_parity\""*"\"candidate_verification\":\"tag32_filter_then_cpu_exact_key_equality\""*"\"target_count\":64"*"\"query_count\":256"*"\"expected_hits\":32"*"\"hit_count\":32"*"\"miss_count\":224"*"\"filter_positive_count\":32"*"\"filter_false_positive_count\":0"*"\"target_key_bytes\":2560"*"\"target_bucket_bytes\":1024"*"\"target_filter_bucket_bytes\":512"*"\"bytes_per_target\":8.000000"*"\"metal_setup_seconds\":"*"\"dispatch_seconds\":"*"\"exact_verify_seconds\":"*"\"dispatch_lookups_per_sec\":"*"\"correctness\":true"*)
+		;;
+	*"\"backend\":\"metal\""*"\"operation\":\"target_lookup_tag32_filter_persistent_exact256\""*"\"target_count\":64"*"\"query_count\":256"*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
+		;;
+	*)
+		printf '%s\n' "$filter_persistent_output"
+		printf '%s\n' "unexpected metal-target-lookup-tag32-filter-persistent-bench output"
+		exit 1
+		;;
+esac
+
+set +e
 persistent_output="$(./macos/rck_macos metal-target-lookup-tag32-persistent-bench --target-count 64 --query-count 256 --hits 32 --min-ms 0 2>&1)"
 persistent_status=$?
 set -e
