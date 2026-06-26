@@ -3724,7 +3724,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   setup-inclusive improvement is about `1.10x`, with 1024 also keeping warmed
   dispatch throughput near `266M` lookups/sec in all three runs. The 1M-target
   command remains on 64 because its short smoke checks did not justify a
-  default change there.
+  default change there. Clean paired autoresearch on commit `5a27649` against
+  `main^` with two confirmation decisions also kept the gate. Confirmation 1
+  recorded median `193,850,878.038308` lookups/sec versus paired baseline
+  `184,805,207.139682` (`1.048947x`); confirmation 2 recorded median
+  `175,132,519.820510` versus `169,434,696.493505` (`1.033628x`). Both rows
+  preserved `correctness=true`, `confirmation_status=keep`, `threadgroup_limit=1024`,
+  and `target_lookup_checksum=0x9b23e560b9fdfe29`.
 - Rejected integrated probe `macos-metal-affine-target-lookup-gpu-persistent`:
   tested reusing the Metal tag32 target table and pipeline in the integrated
   affine-scan target-lookup path while allocating fresh query/output buffers
