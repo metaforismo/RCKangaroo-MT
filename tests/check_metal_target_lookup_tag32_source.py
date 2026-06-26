@@ -51,7 +51,7 @@ for marker in (
     "RCKCpuTargetLookupTag32BenchJson",
     "kDefaultMetalTargetLookupThreadgroupLimit = 64",
     "kDefaultMetalPersistentTargetLookupLargeThreadgroupLimit = 1024",
-    "kDefaultMetalPersistentTargetLookupFilterLargeThreadgroupLimit = 512",
+    "kDefaultMetalPersistentTargetLookupFilterLargeThreadgroupLimit = 256",
     "kDefaultMetalPersistentTargetLookupLargeTargetThreshold = 16777216",
     "PersistentTargetLookupDefaultThreadgroupLimit",
     "PersistentTargetLookupFilterDefaultThreadgroupLimit",
@@ -244,6 +244,23 @@ if tag16_hash_filter_persistent_payload.get("metric") != "lookups_per_sec":
     raise SystemExit("persistent tag16 hash-filter experiment should optimize lookups_per_sec")
 if int(tag16_hash_filter_persistent_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("persistent tag16 hash-filter experiment should keep sample_runs >= 3")
+
+tag16_hash_filter_tg256_experiment = Path("autoresearch/experiments/metal_target_lookup_tag16_hash_filter_persistent_tg256_default.json")
+if not tag16_hash_filter_tg256_experiment.exists():
+    raise SystemExit("missing persistent tag16 hash-filter tg256 target lookup autoresearch experiment")
+tag16_hash_filter_tg256_payload = json.loads(tag16_hash_filter_tg256_experiment.read_text(encoding="utf-8"))
+if tag16_hash_filter_tg256_payload.get("bench_command") != tag16_hash_filter_persistent_command:
+    raise SystemExit("persistent tag16 hash-filter tg256 experiment should run the default persistent CLI")
+if tag16_hash_filter_tg256_payload.get("paired_baseline_command", [])[:-2] != tag16_hash_filter_persistent_command:
+    raise SystemExit("persistent tag16 hash-filter tg256 experiment should compare the same CLI")
+if tag16_hash_filter_tg256_payload.get("paired_baseline_command", [])[-2:] != ["--tg-limit", "512"]:
+    raise SystemExit("persistent tag16 hash-filter tg256 experiment should compare against old tg512 default")
+if tag16_hash_filter_tg256_payload.get("metric") != "lookups_per_sec":
+    raise SystemExit("persistent tag16 hash-filter tg256 experiment should optimize lookups_per_sec")
+if int(tag16_hash_filter_tg256_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("persistent tag16 hash-filter tg256 experiment should keep sample_runs >= 3")
+if float(tag16_hash_filter_tg256_payload.get("cooldown_sec", 0.0)) < 10.0:
+    raise SystemExit("persistent tag16 hash-filter tg256 experiment should cool down between paired samples")
 
 persistent_experiment = Path("autoresearch/experiments/metal_target_lookup_tag32_persistent_tg1024.json")
 if not persistent_experiment.exists():
