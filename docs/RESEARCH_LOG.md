@@ -3983,6 +3983,18 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `--min-ms` window on dispatch plus exact CPU verification; the next harness
   change should make the timing window dispatch-bound before promoting
   prehashed queries as a durable GPU win.
+- Accepted the follow-up harness fix at commit `af8096c`: persistent tag32,
+  tag16, and tag16-hash filter lookup benches now keep their `--min-ms` timing
+  window bounded by accumulated Metal dispatch time, while still reporting
+  exact CPU verification separately. Re-running the GPU-only prehash gate after
+  this fix kept the tag16 hash-filter path over in-kernel hashing with much
+  more realistic paired speedups: `40,407,764.739561` versus
+  `39,265,863.585433` (`1.029081x`), then `44,839,716.146274` versus
+  `36,432,369.467395` (`1.230766x`). Both rows preserved
+  `correctness=true`, `target_lookup_checksum=0x9b23e560b9fdfe29`,
+  `hit_count=64`, and `filter_positive_count=311`. Treat this as a real
+  GPU-filter diagnostic win for prehashed query input, not yet as an
+  end-to-end kangaroo solver speedup.
 - Rejected changing the long XYZZ 512-step packet default threadgroup cap from
   128 to 512. A local scout sometimes showed higher lookup-free packet
   throughput at 384/512, but paired autoresearch on commit `d8f05f4` against
