@@ -3899,6 +3899,24 @@ These did not pass the performance gate or had a correctness/architecture issue:
   checksum. Conclusion: keep `--lookup-engine gpu-filter` and the standalone
   filter benchmark, but do not route `--lookup-engine auto` to the filter on
   this shape until a future paired gate keeps across confirmations.
+- Kept explicit integrated `gpu-filter16-hash` for the same 25,005,000-target,
+  `lookup_repeat=1024`, distinct-miss affine-scan gate. This imports the
+  accepted standalone tag16 hash filter into the final DP target join: the
+  walk, affine scan, injected hits, target key, and final CPU exact
+  `x256 + y_parity` equality are unchanged, while the lookup filter table drops
+  from 134,217,728 bytes to 67,108,864 bytes and Metal reads precomputed
+  `hash64` query input (`target_query_hash_bytes=8658944`). False positives are
+  expected and explicit: the kept rows reported `filter_positive_count=280`,
+  `filter_false_positive_count=216`, `hit_count=64`, `correctness=true`, and
+  `target_lookup_checksum=0x8b2568562837af7f`. Clean paired autoresearch on
+  commit `f19bf60` against `main^`, using `--lookup-tg-limit 512` for both
+  candidate and tag32-filter baseline, kept across two confirmations.
+  Confirmation 1 recorded median `110,796,227.320140` ops/sec versus
+  `97,896,085.677205` (`1.131774x`); confirmation 2 recorded
+  `97,927,206.806094` versus `90,575,505.666126` (`1.081167x`). Conclusion:
+  keep `gpu-filter16-hash` as an explicit integrated engine, but keep
+  `--lookup-engine auto` conservative until more target counts and DP densities
+  pass paired gates.
 
 ## Next Research Targets
 
