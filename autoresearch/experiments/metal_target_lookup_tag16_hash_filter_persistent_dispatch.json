@@ -1,6 +1,6 @@
 {
   "name": "metal_target_lookup_tag16_hash_filter_persistent_dispatch",
-  "description": "Dispatch-only persistent Metal tag16 hash-filter lookup using prehashed query input versus in-kernel query hashing",
+  "description": "GPU-dispatch-only persistent Metal tag16 hash-filter lookup using prehashed query input versus in-kernel query hashing",
   "build_target": "macos-build",
   "bench_command": [
     "./macos/rck_macos",
@@ -26,7 +26,7 @@
     "--min-ms",
     "700"
   ],
-  "metric": "dispatch_lookups_per_sec",
+  "metric": "gpu_dispatch_lookups_per_sec",
   "min_improvement_ratio": 0.01,
   "sample_runs": 3,
   "cooldown_sec": 10

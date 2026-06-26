@@ -968,6 +968,7 @@ static std::string MetalTargetLookupTag32FilterPersistentBenchJson(const char* o
 	uint64_t exact_host_table_bytes = target_key_bytes + target_bucket_bytes;
 	uint64_t target_table_bytes = target_filter_bucket_bytes;
 	double bytes_per_target = target_count ? (double)target_table_bytes / (double)target_count : 0.0;
+	double gpu_dispatch_lookups_per_sec = dispatch_seconds > 0.0 ? (double)iterations / dispatch_seconds : 0.0;
 	std::ostringstream oss;
 	oss << std::fixed << std::setprecision(6);
 	oss << "{\"backend\":\"metal\",\"operation\":\"" << operation << "\",";
@@ -1000,6 +1001,7 @@ static std::string MetalTargetLookupTag32FilterPersistentBenchJson(const char* o
 	oss << "\"dispatch_seconds\":" << dispatch_seconds << ",";
 	oss << "\"exact_verify_seconds\":" << exact_verify_seconds << ",";
 	oss << "\"seconds\":" << total_seconds << ",";
+	oss << "\"gpu_dispatch_lookups_per_sec\":" << gpu_dispatch_lookups_per_sec << ",";
 	oss << "\"dispatch_lookups_per_sec\":" << dispatch_lookups_per_sec << ",";
 	oss << "\"lookups_per_sec\":" << lookups_per_sec << ",";
 	oss << "\"ops_per_sec\":" << lookups_per_sec << ",";
@@ -1041,6 +1043,7 @@ static std::string MetalTargetLookupTag16FilterPersistentBenchJson(const char* o
 	uint64_t exact_host_table_bytes = target_key_bytes + target_bucket_bytes;
 	uint64_t target_table_bytes = target_filter_bucket_bytes;
 	double bytes_per_target = target_count ? (double)target_table_bytes / (double)target_count : 0.0;
+	double gpu_dispatch_lookups_per_sec = dispatch_seconds > 0.0 ? (double)iterations / dispatch_seconds : 0.0;
 	std::ostringstream oss;
 	oss << std::fixed << std::setprecision(6);
 	oss << "{\"backend\":\"metal\",\"operation\":\"" << operation << "\",";
@@ -1073,6 +1076,7 @@ static std::string MetalTargetLookupTag16FilterPersistentBenchJson(const char* o
 	oss << "\"dispatch_seconds\":" << dispatch_seconds << ",";
 	oss << "\"exact_verify_seconds\":" << exact_verify_seconds << ",";
 	oss << "\"seconds\":" << total_seconds << ",";
+	oss << "\"gpu_dispatch_lookups_per_sec\":" << gpu_dispatch_lookups_per_sec << ",";
 	oss << "\"dispatch_lookups_per_sec\":" << dispatch_lookups_per_sec << ",";
 	oss << "\"lookups_per_sec\":" << lookups_per_sec << ",";
 	oss << "\"ops_per_sec\":" << lookups_per_sec << ",";
@@ -1115,6 +1119,7 @@ static std::string MetalTargetLookupTag16HashFilterPersistentBenchJson(const cha
 	uint64_t exact_host_table_bytes = target_key_bytes + target_bucket_bytes;
 	uint64_t target_table_bytes = target_filter_bucket_bytes;
 	double bytes_per_target = target_count ? (double)target_table_bytes / (double)target_count : 0.0;
+	double gpu_dispatch_lookups_per_sec = dispatch_seconds > 0.0 ? (double)iterations / dispatch_seconds : 0.0;
 	std::ostringstream oss;
 	oss << std::fixed << std::setprecision(6);
 	oss << "{\"backend\":\"metal\",\"operation\":\"" << operation << "\",";
@@ -1149,6 +1154,7 @@ static std::string MetalTargetLookupTag16HashFilterPersistentBenchJson(const cha
 	oss << "\"dispatch_seconds\":" << dispatch_seconds << ",";
 	oss << "\"exact_verify_seconds\":" << exact_verify_seconds << ",";
 	oss << "\"seconds\":" << total_seconds << ",";
+	oss << "\"gpu_dispatch_lookups_per_sec\":" << gpu_dispatch_lookups_per_sec << ",";
 	oss << "\"dispatch_lookups_per_sec\":" << dispatch_lookups_per_sec << ",";
 	oss << "\"lookups_per_sec\":" << lookups_per_sec << ",";
 	oss << "\"ops_per_sec\":" << lookups_per_sec << ",";

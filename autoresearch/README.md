@@ -93,8 +93,9 @@ throughput gate.
 The `metal_target_lookup_tag16_hash_filter_persistent_dispatch` gate is a
 diagnostic multi-target GPU metric. It compares prehashed query input against
 in-kernel query hashing with the same exact CPU verification path, but scores
-`dispatch_lookups_per_sec` so setup allocation noise does not decide whether
-the Metal filter kernel itself is worth further work.
+`gpu_dispatch_lookups_per_sec` so setup allocation and CPU exact-verification
+noise do not decide whether the Metal filter kernel itself is worth further
+work.
 
 ```sh
 make macos-check

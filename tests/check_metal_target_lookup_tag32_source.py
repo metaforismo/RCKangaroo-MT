@@ -77,6 +77,7 @@ for marker in (
     "\\\"buffer_lifetime\\\":\\\"persistent\\\"",
     "\\\"metal_setup_seconds\\\":",
     "\\\"dispatch_lookups_per_sec\\\":",
+    "\\\"gpu_dispatch_lookups_per_sec\\\":",
     "\\\"lookup_layout\\\":\\\"open_address_tag32_index_exact256\\\"",
     "\\\"lookup_engine\\\":\\\"cpu\\\"",
     "\\\"candidate_verification\\\":\\\"tag32_prefilter_then_exact_key_equality\\\"",
@@ -253,8 +254,8 @@ if tag16_hash_dispatch_payload.get("bench_command") != tag16_hash_filter_persist
     raise SystemExit("persistent tag16 hash-filter dispatch experiment should run the prehashed persistent CLI")
 if tag16_hash_dispatch_payload.get("paired_baseline_command", [])[:2] != ["./macos/rck_macos", "metal-target-lookup-tag16-filter-persistent-bench"]:
     raise SystemExit("persistent tag16 hash-filter dispatch experiment should compare against persistent tag16 filter baseline")
-if tag16_hash_dispatch_payload.get("metric") != "dispatch_lookups_per_sec":
-    raise SystemExit("persistent tag16 hash-filter dispatch experiment should optimize dispatch_lookups_per_sec")
+if tag16_hash_dispatch_payload.get("metric") != "gpu_dispatch_lookups_per_sec":
+    raise SystemExit("persistent tag16 hash-filter dispatch experiment should optimize gpu_dispatch_lookups_per_sec")
 if int(tag16_hash_dispatch_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("persistent tag16 hash-filter dispatch experiment should keep sample_runs >= 3")
 if float(tag16_hash_dispatch_payload.get("cooldown_sec", 0.0)) < 10.0:
