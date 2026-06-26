@@ -2149,8 +2149,7 @@ static uint32_t TargetLookupFilterTag32(uint64_t hash)
 
 static uint16_t TargetLookupFilterTag16(uint64_t hash)
 {
-	uint16_t tag = (uint16_t)(hash >> 48);
-	return tag ? tag : (uint16_t)1U;
+	return (uint16_t)(((uint16_t)(hash >> 48)) | (uint16_t)1U);
 }
 
 static unsigned int TargetLookupBucketCount(unsigned int target_count)
