@@ -3947,6 +3947,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   preserved `correctness=true` and `target_lookup_checksum=0x8b2568562837af7f`.
   Conclusion: keep the 512-thread default for now; revisit 128 only with a
   lookup-metric-specific gate or a less noisy lookup-isolated benchmark.
+- Rejected changing the long XYZZ 512-step packet default threadgroup cap from
+  128 to 512. A local scout sometimes showed higher lookup-free packet
+  throughput at 384/512, but paired autoresearch on commit `d8f05f4` against
+  the old default was mixed and discarded: confirmation 1 was a raw keep
+  (`54,922,712.642899` versus `48,229,183.416788`, `1.138786x`), while
+  confirmation 2 regressed (`41,442,869.888584` versus `47,356,402.122712`,
+  `0.875127x`). Both rows preserved `correctness=true` and
+  `dp_checksum=0x390f891179fdcbea`. Conclusion: keep the 128-thread long
+  packet default; any future occupancy tuning needs either a less noisy Metal
+  timing harness or a different metric than end-to-end `ops_per_sec`.
 
 ## Next Research Targets
 
