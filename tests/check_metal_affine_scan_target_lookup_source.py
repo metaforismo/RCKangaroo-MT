@@ -15,6 +15,8 @@ markers = [
     "lookup_repeat",
     "lookup_query_mode",
     "lookup_engine",
+    "lookup_engine_effective",
+    "ChooseAffineLookupEngine",
     "dp_query_count",
     "target_lookup_checksum",
     "RunTargetLookupTag32Kernel",

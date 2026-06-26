@@ -3601,7 +3601,28 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `105,302,699.290370` ops/sec and `5,860,746.294648` lookups/sec in the
   current binary. Keep the default engine as `gpu` for continuity, but use
   `--lookup-engine cpu` for large target tables and small or moderate DP query
-  batches on Apple Silicon until an auto policy is benchmarked.
+  batches on Apple Silicon.
+- Kept `macos-affine-target-lookup-auto-engine`: added optional
+  `--lookup-engine auto` for the integrated affine-scan target-lookup
+  benchmark. The JSON keeps the requested value in `lookup_engine` and reports
+  the selected path as `lookup_engine_effective`, so the policy remains
+  auditable. The current conservative rule chooses CPU only for target tables
+  at or above 1,048,576 entries with at most 4,194,304 lookup queries; otherwise
+  it keeps the GPU path. Same-binary MacBook Air M3 16GB checks on the
+  25,005,000-target shape preserved `dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `dp_checksum=0x9dba4a07ebbb8e14`, and the exact target lookup checksums. For
+  `lookup_repeat=1`, `auto` selected CPU and measured
+  `125,323,517.815323` ops/sec with
+  `target_lookup_checksum=0x25249bb63bf646d9`; explicit CPU measured
+  `125,234,973.039893` ops/sec, while explicit GPU measured
+  `110,527,752.815878` ops/sec. For `lookup_repeat=1024` with distinct misses,
+  `auto` selected CPU and measured `109,918,547.568889` ops/sec and
+  `7,490,893.889728` lookups/sec with
+  `target_lookup_checksum=0x8b2568562837af7f`; explicit GPU measured
+  `102,166,231.452873` ops/sec and `4,679,826.418619` lookups/sec. This is a
+  pragmatic routing improvement, not a new discrete-log algorithm: it preserves
+  the GPU walk and affine scan, then avoids Metal dispatch/random-memory cost
+  for large multi-target joins where the host lookup is already faster.
 - Kept diagnostic benchmark `macos-metal-target-lookup-tag32-persistent`:
   added `metal-target-lookup-tag32-persistent-bench` to separate Metal setup
   cost from repeated dispatch cost for the exact tag32 target lookup. It
@@ -3678,9 +3699,9 @@ These did not pass the performance gate or had a correctness/architecture issue:
   distinguished-point table work on GPU.
 - Keep multi-target CPU architecture unchanged unless a candidate beats the
   paired autoresearch gate and preserves full collision verification.
-- Add a benchmark-gated `--lookup-engine auto` policy once enough paired data
-  exists across target counts, DP density, and `lookup_repeat`; do not make CPU
-  the default globally from one hardware class.
+- Broaden the benchmark-gated `--lookup-engine auto` policy only with paired
+  data across more target counts, DP density, and `lookup_repeat`; do not make
+  CPU the default globally from one hardware class.
 - Revisit GPU persistent lookup only as a long-lived solver-level design: keep
   the target table resident across many fresh packet-boundary DP batches, avoid
   rebuilding query/output resources where possible, and score setup-inclusive
