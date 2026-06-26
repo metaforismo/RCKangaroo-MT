@@ -257,4 +257,10 @@ check_experiment(
     "ops_per_sec",
 )
 
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_cpu_gate.json",
+    gpu_filter16_hash25m_command,
+    "ops_per_sec",
+)
+
 print("metal affine-scan target lookup source ok")
