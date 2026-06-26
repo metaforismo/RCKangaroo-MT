@@ -3636,10 +3636,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `20,822,511.200607` at 256, and `32,476,723.426600` at 512 in the first
   sweep. A second pass kept 512 high on lookup throughput
   (`29,861,242.368694` and `30,914,421.587039` lookups/sec), while 1024 did
-  not improve end-to-end stability. Do not make 512 the global default yet:
-  walk timing and thermals still dominate total `ops_per_sec`, so this is a
-  benchmark-gated GPU lookup tuning knob plus an autoresearch experiment, not
-  an automatic policy change.
+  not improve end-to-end stability. The clean autoresearch gate
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_lookup_tg512`
+  then kept the one-million-target benchmark with median
+  `263,692,100.648384` lookups/sec, min `236,813,978.914094`, max
+  `294,625,404.461812`, and the same
+  `target_lookup_checksum=0x8b2568562837af7f`. Do not make 512 the global
+  default yet: walk timing and thermals still dominate total `ops_per_sec`, so
+  this is a benchmark-gated GPU lookup tuning knob plus an autoresearch
+  experiment, not an automatic policy change.
 - Rejected `macos-cpu-tag32-bucket-prefetch`: tested a one-bucket-ahead
   `__builtin_prefetch` inside the host CPU tag32 open-addressing probe loop.
   The oracle stayed exact on the 25,005,000-target, 1,082,368-query mostly-miss
