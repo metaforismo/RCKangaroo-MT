@@ -3623,6 +3623,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   pragmatic routing improvement, not a new discrete-log algorithm: it preserves
   the GPU walk and affine scan, then avoids Metal dispatch/random-memory cost
   for large multi-target joins where the host lookup is already faster.
+- Rejected `macos-cpu-tag32-bucket-prefetch`: tested a one-bucket-ahead
+  `__builtin_prefetch` inside the host CPU tag32 open-addressing probe loop.
+  The oracle stayed exact on the 25,005,000-target, 1,082,368-query mostly-miss
+  benchmark (`target_lookup_checksum=0x9b23e560b9fdfe29`), but throughput
+  dropped from baseline samples of `8,011,398.668428` and
+  `8,385,287.330512` lookups/sec to `6,584,104.078200` and
+  `7,068,039.110085` lookups/sec. Conclusion: Apple Silicon hardware
+  prefetching and the short probe chains already handle this pattern better
+  than explicit prefetch hints; do not add bucket prefetch to the CPU tag32
+  lookup loop.
 - Kept diagnostic benchmark `macos-metal-target-lookup-tag32-persistent`:
   added `metal-target-lookup-tag32-persistent-bench` to separate Metal setup
   cost from repeated dispatch cost for the exact tag32 target lookup. It
