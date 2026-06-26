@@ -18,6 +18,7 @@ markers = [
     "lookup_engine_effective",
     "ChooseAffineLookupEngine",
     "lookup_threadgroup_limit",
+    "ChooseAffineLookupThreadgroupLimit",
     "dp_query_count",
     "target_lookup_checksum",
     "RunTargetLookupTag32Kernel",

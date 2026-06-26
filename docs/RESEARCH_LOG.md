@@ -3645,6 +3645,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   default yet: walk timing and thermals still dominate total `ops_per_sec`, so
   this is a benchmark-gated GPU lookup tuning knob plus an autoresearch
   experiment, not an automatic policy change.
+- Kept follow-up `macos-affine-target-lookup-auto-bulk-gpu`: after the
+  lookup-only threadgroup split, the original `--lookup-engine auto` policy was
+  too conservative for cache-friendly target tables with large accumulated
+  query batches. It chose CPU on the one-million-target,
+  `lookup_repeat=1024` distinct-miss gate and measured only about
+  `19,964,824.421849` lookups/sec in the target join. The policy now sends
+  target tables up to 4,194,304 entries with at least 1,048,576 lookup queries
+  to GPU and, when no explicit `--lookup-tg-limit` is supplied, uses a
+  512-thread lookup cap. A direct verification run selected
+  `lookup_engine_effective=gpu`, reported `lookup_threadgroup_limit=512`,
+  preserved `target_lookup_checksum=0x8b2568562837af7f`, and measured
+  `333,853,890.188310` lookups/sec on the one-million-target gate. The
+  25,005,000-target bulk gate still selected CPU and preserved the same
+  checksum, keeping the large-table host routing from the earlier auto policy.
 - Rejected `macos-cpu-tag32-bucket-prefetch`: tested a one-bucket-ahead
   `__builtin_prefetch` inside the host CPU tag32 open-addressing probe loop.
   The oracle stayed exact on the 25,005,000-target, 1,082,368-query mostly-miss

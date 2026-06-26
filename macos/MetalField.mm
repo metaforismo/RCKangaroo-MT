@@ -5095,9 +5095,28 @@ static const char* ChooseAffineLookupEngine(const char* lookup_engine, unsigned 
 {
 	if (strcmp(lookup_engine, "auto") != 0)
 		return lookup_engine;
+	if (target_count <= 4194304U && query_count >= 1048576ULL)
+		return "gpu";
 	if (target_count >= 1048576U && query_count <= 4194304ULL)
 		return "cpu";
 	return "gpu";
+}
+
+static unsigned int ChooseAffineLookupThreadgroupLimit(const char* lookup_engine,
+	const char* effective_lookup_engine,
+	unsigned int target_count,
+	uint64_t query_count,
+	unsigned int threadgroup_limit,
+	unsigned int lookup_threadgroup_limit)
+{
+	if (lookup_threadgroup_limit)
+		return lookup_threadgroup_limit;
+	if (strcmp(lookup_engine, "auto") == 0 &&
+		strcmp(effective_lookup_engine, "gpu") == 0 &&
+		target_count <= 4194304U &&
+		query_count >= 1048576ULL)
+		return 512;
+	return threadgroup_limit;
 }
 
 static FieldElement FieldFromEcInt(const EcInt& value)
@@ -7605,6 +7624,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 		}
 
 		effective_lookup_engine_name = ChooseAffineLookupEngine(lookup_engine_name, target_count, lookup_queries.size());
+		effective_lookup_threadgroup_limit = ChooseAffineLookupThreadgroupLimit(lookup_engine_name, effective_lookup_engine_name, target_count, lookup_queries.size(), threadgroup_limit, lookup_threadgroup_limit);
 		std::vector<uint32_t> out_indices;
 		double lookup_dispatch_seconds = 0.0;
 		bool lookup_ok = false;
