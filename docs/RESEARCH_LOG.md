@@ -3769,7 +3769,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   (`1,628,976.934645` then `11,962,461.472999` lookups/sec), which reinforces
   the conclusion that the breakthrough is fewer random bytes per probe, not a
   threadgroup scheduling tweak. Keep the standalone `metal-target-lookup-tag32-filter-bench`
-  gate and use paired confirmation before promoting future variants.
+  gate as an accepted lookup-only improvement. Clean paired autoresearch on
+  commit `feb9db3` against `main^` with two confirmation decisions kept the
+  gate: confirmation 1 recorded median `81,824,789.519815` lookups/sec versus
+  paired exact Metal baseline `7,906,908.934311` (`10.348518x`), and
+  confirmation 2 recorded median `90,535,388.113438` versus
+  `12,925,222.416170` (`7.004552x`). Both rows preserved
+  `target_lookup_checksum=0x9b23e560b9fdfe29`, `correctness=true`,
+  `filter_positive_count=64`, `filter_false_positive_count=0`, and
+  `confirmation_status=keep`.
 - Kept explicit engine but rejected auto promotion
   `macos-metal-affine-target-lookup-gpu-filter25m`: added
   `--lookup-engine gpu-filter` for the 25,005,000-target, `lookup_repeat=1024`,
