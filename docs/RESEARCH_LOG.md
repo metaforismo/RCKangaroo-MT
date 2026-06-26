@@ -3817,6 +3817,24 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `480,486,002.881186` versus `381,489,141.634999` (`1.259501x`). The
   no-cheat boundary is unchanged: tag16 is only a memory filter, and every
   reported hit is still decided by full target-key equality.
+- Kept `macos-metal-target-lookup-tag16-hash-filter-persistent`: kept the
+  accepted tag16 resident filter but changed the GPU query input from full
+  `TargetLookupKey` rows to precomputed `hash64` values. The Metal filter still
+  only emits compact positive query indices; final correctness still comes from
+  CPU exact `x256 + y_parity` equality against the full target table. On the
+  same 25,005,000-target, 1,082,368-query, `hits=64` shape, the gate preserved
+  `target_lookup_checksum=0x9b23e560b9fdfe29`, `correctness=true`,
+  `filter_positive_count=311`, `filter_false_positive_count=247`,
+  `target_filter_bucket_bytes=67108864`, and added
+  `target_query_hash_bytes=8658944`. Clean paired autoresearch on commit
+  `1a29d64` against `main^` tag16 baseline with two confirmation decisions
+  kept the gate. Confirmation 1 had a noisy low outlier but median candidate
+  still recorded `587,549,574.555683` lookups/sec versus paired baseline
+  `413,622,377.497074` (`1.420498x`); confirmation 2 recorded
+  `679,964,381.462716` versus `509,095,163.925694` (`1.335633x`). Conclusion:
+  after tag16 found the useful filter-width knee, the next durable win is
+  reducing query-side GPU bandwidth and hash work without changing candidate
+  semantics.
 - Rejected `macos-metal-target-lookup-tag8-filter-persistent`: a local
   25,005,000-target, 1,082,368-query scout kept exact correctness and the same
   `target_lookup_checksum=0x9b23e560b9fdfe29`, but the 1-byte filter created
