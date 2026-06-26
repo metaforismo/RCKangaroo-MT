@@ -2421,7 +2421,7 @@ static inline uint target_lookup_filter_tag(ulong hash) {
 
 static inline ushort target_lookup_filter_tag16(ulong hash) {
   ushort tag = (ushort)(hash >> 48);
-  return tag | (ushort)(tag == (ushort)0U);
+  return tag ? tag : (ushort)1U;
 }
 
 static inline bool target_lookup_key_equals(thread const TargetLookupKey& a, thread const TargetLookupKey& b) {
