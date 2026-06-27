@@ -31,6 +31,8 @@ markers = [
     "\"gpu_filter16_hash\"",
     "BuildTargetLookupTag32FilterTable",
     "BuildTargetLookupTag16FilterTable",
+    "BuildTargetLookupTag32FilterTableFromTag32Buckets",
+    "BuildTargetLookupTag16FilterTableFromTag32Buckets",
     "BuildTargetLookupQueryHashes",
     "BuildTargetLookupQueryHashesParallel",
     "kMinParallelTargetLookupHashQueries",

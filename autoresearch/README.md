@@ -73,6 +73,7 @@ python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exa
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_persistent --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag16_hash_filter_persistent_dispatch --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_exact256 --budget-sec 10
+python3 autoresearch/runner.py --experiment target_lookup_filter_build_from_tag32_buckets --budget-sec 180 --confirm-runs 2
 ```
 
 The affine-scan experiment is a solver-facing bridge: Metal writes final XYZZ
@@ -92,6 +93,14 @@ runner also aliases the median custom metric into `ops_per_sec` for ledger
 compatibility, but comparisons should read the explicit
 `lookups_per_sec_min/max` fields because this is not a kangaroo walk-step
 throughput gate.
+
+The `target_lookup_filter_build_from_tag32_buckets` experiment measures the
+host setup path for multi-target filter tables. It compares the legacy
+rehash/probe builders with the derived builders in the same process, requires
+byte-identical tag32 and tag16 filter tables, and records the internal
+old-vs-derived `speedup` as the selected metric. It does not claim a Metal
+dispatch speedup; it isolates target-filter construction before buffers are
+handed to Metal.
 
 The `metal_target_lookup_tag16_hash_filter_persistent_dispatch` gate is a
 diagnostic multi-target GPU metric. It compares prehashed query input against

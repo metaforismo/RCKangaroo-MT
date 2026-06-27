@@ -34,6 +34,18 @@ for marker in (
     "static_assert(sizeof(TargetLookupTag32BucketHost) == 8",
     "BuildTargetLookupTag32FilterTable",
     "BuildTargetLookupTag16FilterTable",
+    "BuildTargetLookupTag32FilterTableFromTag32Buckets",
+    "BuildTargetLookupTag16FilterTableFromTag32Buckets",
+    "bucket.tag >> 16",
+    "TargetLookupFilterChecksum",
+    "RCKTargetLookupFilterBuildBenchJson",
+    "\\\"candidate_verification\\\":\\\"legacy_rehash_filter_byte_equality\\\"",
+    "\\\"tag32_legacy_seconds\\\":",
+    "\\\"tag32_derived_seconds\\\":",
+    "\\\"tag16_legacy_seconds\\\":",
+    "\\\"tag16_derived_seconds\\\":",
+    "\\\"tag32_byte_equal\\\":",
+    "\\\"tag16_byte_equal\\\":",
     "BuildTargetLookupQueryHashes",
     "BuildTargetLookupTag32Table",
     "RunTargetLookupTag32FilterKernel",
@@ -92,6 +104,13 @@ if "((total_dispatch_seconds + total_exact_verify_seconds) * 1000.0 < (double)mi
 if host_source.count("(total_dispatch_seconds * 1000.0 < (double)min_ms)") < 3:
     raise SystemExit("persistent filter lookup kernels should keep GPU dispatch-bound min-ms windows")
 
+for marker in (
+    "RCKMetalTargetLookupTag32BenchJson",
+    "RCKTargetLookupFilterBuildBenchJson",
+):
+    if marker not in header_source:
+        raise SystemExit("missing tag32 target lookup header declaration: " + marker)
+
 if "RCKMetalTargetLookupTag32BenchJson" not in header_source:
     raise SystemExit("missing tag32 target lookup header declaration")
 
@@ -103,6 +122,7 @@ for marker in (
     "metal-target-lookup-tag16-hash-filter-persistent-bench",
     "metal-target-lookup-tag32-persistent-bench",
     "target-lookup-tag32-cpu-bench",
+    "target-lookup-filter-build-bench",
     "RCKMetalTargetLookupTag32BenchJson",
     "RCKMetalTargetLookupTag32FilterBenchJson",
     "RCKMetalTargetLookupTag32FilterPersistentBenchJson",
@@ -110,6 +130,7 @@ for marker in (
     "RCKMetalTargetLookupTag16HashFilterPersistentBenchJson",
     "RCKMetalTargetLookupTag32PersistentBenchJson",
     "RCKCpuTargetLookupTag32BenchJson",
+    "RCKTargetLookupFilterBuildBenchJson",
 ):
     if marker not in cli_source:
         raise SystemExit("missing tag32 target lookup CLI marker: " + marker)
@@ -265,6 +286,25 @@ if int(tag16_hash_dispatch_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("persistent tag16 hash-filter dispatch experiment should keep sample_runs >= 3")
 if float(tag16_hash_dispatch_payload.get("cooldown_sec", 0.0)) < 10.0:
     raise SystemExit("persistent tag16 hash-filter dispatch experiment should cool down between paired samples")
+
+filter_build_experiment = Path("autoresearch/experiments/target_lookup_filter_build_from_tag32_buckets.json")
+if not filter_build_experiment.exists():
+    raise SystemExit("missing target lookup filter-build autoresearch experiment")
+filter_build_payload = json.loads(filter_build_experiment.read_text(encoding="utf-8"))
+filter_build_command = [
+    "./macos/rck_macos",
+    "target-lookup-filter-build-bench",
+    "--target-count",
+    "25005000",
+    "--iterations",
+    "1",
+]
+if filter_build_payload.get("bench_command") != filter_build_command:
+    raise SystemExit("filter-build experiment should run the host filter-build CLI")
+if filter_build_payload.get("metric") != "speedup":
+    raise SystemExit("filter-build experiment should optimize internal old-vs-derived speedup")
+if int(filter_build_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("filter-build experiment should keep sample_runs >= 3")
 
 persistent_experiment = Path("autoresearch/experiments/metal_target_lookup_tag32_persistent_tg1024.json")
 if not persistent_experiment.exists():

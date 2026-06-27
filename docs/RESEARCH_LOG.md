@@ -4286,6 +4286,26 @@ These did not pass the performance gate or had a correctness/architecture issue:
   filter table (`134,217,728` bytes, `5.367636` bytes/target); future lookup
   work should reduce traffic/residency cost or reuse device-resident state,
   rather than widening the filter tag alone.
+- Promoted host-side derivation of tag32/tag16 filter tables from the
+  already-built exact tag32 bucket table. The old path rebuilt each filter by
+  rehashing every `x256+y_parity` target and replaying the same open-address
+  probe sequence; the new path copies the exact table's slot geometry, stores
+  `bucket.tag | 1` for tag32, and stores `(bucket.tag >> 16) | 1` for tag16.
+  This changes setup only: Metal still receives the same filter bytes, and CPU
+  exact verification of compact positives is unchanged. A dedicated host setup
+  benchmark now compares the legacy rehash/probe builders against the derived
+  builders in the same process and fails unless both filter tables are
+  byte-identical. On the 25,005,000-target gate it preserved
+  `tag32_byte_equal=true`, `tag16_byte_equal=true`,
+  `tag32_filter_checksum=0x42b1584566f30df0`, and
+  `tag16_filter_checksum=0x8ba16d0e4799e611`. Autoresearch kept both
+  confirmations with `metric=speedup`: confirmation 1 median `15.982389x`
+  (`legacy_seconds=4.023798`, `derived_seconds=0.251764`), and confirmation 2
+  median `15.456900x` (`legacy_seconds=6.699196`,
+  `derived_seconds=0.433411`). The small integrated Metal smoke still preserved
+  `target_lookup_checksum=0xf5b847eb31e6644b`, `hit_count=12`,
+  `miss_count=3`, `filter_positive_count=12`, and
+  `filter_false_positive_count=0`.
 
 ## Next Research Targets
 

@@ -1,0 +1,16 @@
+{
+  "name": "target_lookup_filter_build_from_tag32_buckets",
+  "description": "Host setup benchmark comparing legacy rehash/probe filter construction against deriving tag32/tag16 filters from the already-built exact tag32 table",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "target-lookup-filter-build-bench",
+    "--target-count",
+    "25005000",
+    "--iterations",
+    "1"
+  ],
+  "metric": "speedup",
+  "min_improvement_ratio": 0.0,
+  "sample_runs": 3
+}

@@ -136,3 +136,24 @@ case "$cpu_output" in
 		exit 1
 		;;
 esac
+
+set +e
+filter_build_output="$(./macos/rck_macos target-lookup-filter-build-bench --target-count 64 --iterations 1 2>&1)"
+filter_build_status=$?
+set -e
+
+if [ "$filter_build_status" -ne 0 ]; then
+	printf 'target-lookup-filter-build-bench returned status %s\n' "$filter_build_status"
+	printf '%s\n' "$filter_build_output"
+	exit 1
+fi
+
+case "$filter_build_output" in
+	*"\"backend\":\"macos_cpu\""*"\"operation\":\"target_lookup_filter_build_from_tag32_buckets\""*"\"setup_phase\":\"host_filter_build\""*"\"lookup_layout\":\"open_address_tag32_tag16_filter_exact256\""*"\"candidate_verification\":\"legacy_rehash_filter_byte_equality\""*"\"iterations\":1"*"\"target_count\":64"*"\"target_table_buckets\":128"*"\"target_key_bytes\":2560"*"\"target_bucket_bytes\":1024"*"\"target_filter32_bucket_bytes\":512"*"\"target_filter16_bucket_bytes\":256"*"\"tag32_legacy_seconds\":"*"\"tag32_derived_seconds\":"*"\"tag32_speedup\":"*"\"tag16_legacy_seconds\":"*"\"tag16_derived_seconds\":"*"\"tag16_speedup\":"*"\"speedup\":"*"\"ops_per_sec\":"*"\"tag32_filter_checksum\":\"0x"*"\"tag16_filter_checksum\":\"0x"*"\"tag32_byte_equal\":true"*"\"tag16_byte_equal\":true"*"\"correctness\":true"*)
+		;;
+	*)
+		printf '%s\n' "$filter_build_output"
+		printf '%s\n' "unexpected target-lookup-filter-build-bench output"
+		exit 1
+		;;
+esac

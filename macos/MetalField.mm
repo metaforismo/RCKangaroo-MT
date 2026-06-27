@@ -1282,6 +1282,74 @@ static std::string CpuTargetLookupTag32BenchJson(const char* operation,
 	return oss.str();
 }
 
+static std::string TargetLookupFilterBuildBenchJson(const char* operation,
+	unsigned int target_count,
+	uint64_t iterations,
+	uint64_t target_table_buckets,
+	uint64_t target_key_bytes,
+	uint64_t target_bucket_bytes,
+	uint64_t target_filter32_bucket_bytes,
+	uint64_t target_filter16_bucket_bytes,
+	double tag32_legacy_seconds,
+	double tag32_derived_seconds,
+	double tag16_legacy_seconds,
+	double tag16_derived_seconds,
+	uint64_t tag32_filter_checksum,
+	uint64_t tag16_filter_checksum,
+	bool tag32_byte_equal,
+	bool tag16_byte_equal,
+	bool correctness,
+	const std::string& reason)
+{
+	double legacy_seconds = tag32_legacy_seconds + tag16_legacy_seconds;
+	double derived_seconds = tag32_derived_seconds + tag16_derived_seconds;
+	double speedup = derived_seconds > 0.0 ? legacy_seconds / derived_seconds : 0.0;
+	double tag32_speedup = tag32_derived_seconds > 0.0 ? tag32_legacy_seconds / tag32_derived_seconds : 0.0;
+	double tag16_speedup = tag16_derived_seconds > 0.0 ? tag16_legacy_seconds / tag16_derived_seconds : 0.0;
+	double legacy_targets_per_sec = legacy_seconds > 0.0 ? ((double)target_count * (double)iterations * 2.0) / legacy_seconds : 0.0;
+	double derived_targets_per_sec = derived_seconds > 0.0 ? ((double)target_count * (double)iterations * 2.0) / derived_seconds : 0.0;
+	std::ostringstream oss;
+	oss << std::fixed << std::setprecision(6);
+	oss << "{\"backend\":\"macos_cpu\",\"operation\":\"" << operation << "\",";
+	oss << "\"setup_phase\":\"host_filter_build\",";
+	oss << "\"lookup_layout\":\"open_address_tag32_tag16_filter_exact256\",";
+	oss << "\"target_key\":\"x256_y_parity\",";
+	oss << "\"candidate_verification\":\"legacy_rehash_filter_byte_equality\",";
+	oss << "\"iterations\":" << iterations << ",";
+	oss << "\"sample_count\":" << target_count << ",";
+	oss << "\"target_count\":" << target_count << ",";
+	oss << "\"target_table_buckets\":" << target_table_buckets << ",";
+	oss << "\"target_key_bytes\":" << target_key_bytes << ",";
+	oss << "\"target_bucket_bytes\":" << target_bucket_bytes << ",";
+	oss << "\"target_filter32_bucket_bytes\":" << target_filter32_bucket_bytes << ",";
+	oss << "\"target_filter16_bucket_bytes\":" << target_filter16_bucket_bytes << ",";
+	oss << "\"target_table_bytes\":" << (target_filter32_bucket_bytes + target_filter16_bucket_bytes) << ",";
+	oss << "\"min_ms\":0,";
+	oss << "\"tag32_legacy_seconds\":" << tag32_legacy_seconds << ",";
+	oss << "\"tag32_derived_seconds\":" << tag32_derived_seconds << ",";
+	oss << "\"tag32_speedup\":" << tag32_speedup << ",";
+	oss << "\"tag16_legacy_seconds\":" << tag16_legacy_seconds << ",";
+	oss << "\"tag16_derived_seconds\":" << tag16_derived_seconds << ",";
+	oss << "\"tag16_speedup\":" << tag16_speedup << ",";
+	oss << "\"legacy_seconds\":" << legacy_seconds << ",";
+	oss << "\"derived_seconds\":" << derived_seconds << ",";
+	oss << "\"seconds\":" << derived_seconds << ",";
+	oss << "\"speedup\":" << speedup << ",";
+	oss << "\"legacy_targets_per_sec\":" << legacy_targets_per_sec << ",";
+	oss << "\"derived_targets_per_sec\":" << derived_targets_per_sec << ",";
+	oss << "\"ops_per_sec\":" << derived_targets_per_sec << ",";
+	oss << "\"tag32_filter_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << tag32_filter_checksum << std::dec << std::setfill(' ') << "\",";
+	oss << "\"tag16_filter_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << tag16_filter_checksum << std::dec << std::setfill(' ') << "\",";
+	oss << "\"tag32_byte_equal\":" << (tag32_byte_equal ? "true" : "false") << ",";
+	oss << "\"tag16_byte_equal\":" << (tag16_byte_equal ? "true" : "false") << ",";
+	oss << "\"correctness\":" << (correctness ? "true" : "false") << ",";
+	oss << "\"skipped\":false";
+	if (!reason.empty())
+		oss << ",\"reason\":\"" << JsonEscape(reason) << "\"";
+	oss << "}";
+	return oss.str();
+}
+
 static std::string MetalAffineScanTargetLookupTag32BenchJson(const char* operation,
 	uint64_t iterations,
 	unsigned int sample_count,
@@ -2482,6 +2550,74 @@ static bool BuildTargetLookupTag16FilterTable(const std::vector<TargetLookupKeyH
 		}
 	}
 	return true;
+}
+
+static bool BuildTargetLookupTag32FilterTableFromTag32Buckets(const std::vector<TargetLookupTag32BucketHost>& tag32_buckets,
+	unsigned int target_count,
+	std::vector<uint32_t>& filter_buckets,
+	std::string& error)
+{
+	unsigned int bucket_count = TargetLookupBucketCount(target_count);
+	if (!bucket_count || tag32_buckets.size() != bucket_count)
+	{
+		error = "tag32 filter source table shape mismatch";
+		return false;
+	}
+
+	filter_buckets.assign(tag32_buckets.size(), 0U);
+	for (size_t slot = 0; slot < tag32_buckets.size(); ++slot)
+	{
+		const TargetLookupTag32BucketHost& bucket = tag32_buckets[slot];
+		if (bucket.target_index == kTargetLookupEmptyIndex)
+			continue;
+		if (bucket.target_index >= target_count)
+		{
+			error = "tag32 filter source table index out of range";
+			return false;
+		}
+		filter_buckets[slot] = bucket.tag | 1U;
+	}
+	return true;
+}
+
+static bool BuildTargetLookupTag16FilterTableFromTag32Buckets(const std::vector<TargetLookupTag32BucketHost>& tag32_buckets,
+	unsigned int target_count,
+	std::vector<uint16_t>& filter_buckets,
+	std::string& error)
+{
+	unsigned int bucket_count = TargetLookupBucketCount(target_count);
+	if (!bucket_count || tag32_buckets.size() != bucket_count)
+	{
+		error = "tag16 filter source table shape mismatch";
+		return false;
+	}
+
+	filter_buckets.assign(tag32_buckets.size(), 0U);
+	for (size_t slot = 0; slot < tag32_buckets.size(); ++slot)
+	{
+		const TargetLookupTag32BucketHost& bucket = tag32_buckets[slot];
+		if (bucket.target_index == kTargetLookupEmptyIndex)
+			continue;
+		if (bucket.target_index >= target_count)
+		{
+			error = "tag16 filter source table index out of range";
+			return false;
+		}
+		filter_buckets[slot] = (uint16_t)(((uint16_t)(bucket.tag >> 16)) | (uint16_t)1U);
+	}
+	return true;
+}
+
+template <typename Bucket>
+static uint64_t TargetLookupFilterChecksum(const std::vector<Bucket>& buckets)
+{
+	uint64_t checksum = 0xA47D1B5EED1234A5ULL;
+	for (size_t slot = 0; slot < buckets.size(); ++slot)
+	{
+		uint64_t value = (uint64_t)buckets[slot];
+		checksum = TargetLookupMix(checksum ^ TargetLookupMix(value + 0x9E3779B97F4A7C15ULL + (uint64_t)slot));
+	}
+	return checksum;
 }
 
 static void BuildTargetLookupQueryHashes(const std::vector<TargetLookupKeyHost>& queries,
@@ -8990,7 +9126,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 		{
 			if (target_filter_buckets.empty())
 			{
-				if (!BuildTargetLookupTag32FilterTable(target_keys, target_filter_buckets, error))
+				if (!BuildTargetLookupTag32FilterTableFromTag32Buckets(target_buckets, target_count, target_filter_buckets, error))
 					return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name, effective_lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes);
 				target_filter_bucket_bytes = target_filter_buckets.size() * sizeof(uint32_t);
 			}
@@ -9024,7 +9160,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 		{
 			if (target_filter16_buckets.empty())
 			{
-				if (!BuildTargetLookupTag16FilterTable(target_keys, target_filter16_buckets, error))
+				if (!BuildTargetLookupTag16FilterTableFromTag32Buckets(target_buckets, target_count, target_filter16_buckets, error))
 					return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name, effective_lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes);
 				target_filter_bucket_bytes = target_filter16_buckets.size() * sizeof(uint16_t);
 			}
@@ -9375,7 +9511,7 @@ std::string RCKMetalTargetLookupTag32FilterBenchJson(unsigned int target_count, 
 		return MetalTargetLookupTag32FilterBenchJson("target_lookup_tag32_filter_exact256", 0, target_count, query_count, expected_hits, 0, 0, 0, 0, 0, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, 0.0, 0.0, 0, false, false, error);
 
 	std::vector<uint32_t> filter_buckets;
-	if (!BuildTargetLookupTag32FilterTable(target_keys, filter_buckets, error))
+	if (!BuildTargetLookupTag32FilterTableFromTag32Buckets(buckets, target_count, filter_buckets, error))
 		return MetalTargetLookupTag32FilterBenchJson("target_lookup_tag32_filter_exact256", 0, target_count, query_count, expected_hits, 0, 0, 0, buckets.size(), target_keys.size() * sizeof(TargetLookupKeyHost), buckets.size() * sizeof(TargetLookupTag32BucketHost), 0, min_ms, dispatch_stats, 0.0, 0.0, 0.0, 0.0, 0, false, false, error);
 
 	std::vector<TargetLookupKeyHost> queries;
@@ -9458,7 +9594,7 @@ std::string RCKMetalTargetLookupTag32FilterPersistentBenchJson(unsigned int targ
 		return MetalTargetLookupTag32FilterPersistentBenchJson("target_lookup_tag32_filter_persistent_exact256", 0, target_count, query_count, expected_hits, 0, 0, 0, 0, 0, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, false, false, error);
 
 	std::vector<uint32_t> filter_buckets;
-	if (!BuildTargetLookupTag32FilterTable(target_keys, filter_buckets, error))
+	if (!BuildTargetLookupTag32FilterTableFromTag32Buckets(buckets, target_count, filter_buckets, error))
 		return MetalTargetLookupTag32FilterPersistentBenchJson("target_lookup_tag32_filter_persistent_exact256", 0, target_count, query_count, expected_hits, 0, 0, 0, buckets.size(), target_keys.size() * sizeof(TargetLookupKeyHost), buckets.size() * sizeof(TargetLookupTag32BucketHost), 0, min_ms, dispatch_stats, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, false, false, error);
 
 	std::vector<TargetLookupKeyHost> queries;
@@ -9519,7 +9655,7 @@ std::string RCKMetalTargetLookupTag16FilterPersistentBenchJson(unsigned int targ
 		return MetalTargetLookupTag16FilterPersistentBenchJson("target_lookup_tag16_filter_persistent_exact256", 0, target_count, query_count, expected_hits, 0, 0, 0, 0, 0, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, false, false, error);
 
 	std::vector<uint16_t> filter_buckets;
-	if (!BuildTargetLookupTag16FilterTable(target_keys, filter_buckets, error))
+	if (!BuildTargetLookupTag16FilterTableFromTag32Buckets(buckets, target_count, filter_buckets, error))
 		return MetalTargetLookupTag16FilterPersistentBenchJson("target_lookup_tag16_filter_persistent_exact256", 0, target_count, query_count, expected_hits, 0, 0, 0, buckets.size(), target_keys.size() * sizeof(TargetLookupKeyHost), buckets.size() * sizeof(TargetLookupTag32BucketHost), 0, min_ms, dispatch_stats, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, false, false, error);
 
 	std::vector<TargetLookupKeyHost> queries;
@@ -9580,7 +9716,7 @@ std::string RCKMetalTargetLookupTag16HashFilterPersistentBenchJson(unsigned int 
 		return MetalTargetLookupTag16HashFilterPersistentBenchJson("target_lookup_tag16_hash_filter_persistent_exact256", 0, target_count, query_count, expected_hits, 0, 0, 0, 0, 0, 0, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, false, false, error);
 
 	std::vector<uint16_t> filter_buckets;
-	if (!BuildTargetLookupTag16FilterTable(target_keys, filter_buckets, error))
+	if (!BuildTargetLookupTag16FilterTableFromTag32Buckets(buckets, target_count, filter_buckets, error))
 		return MetalTargetLookupTag16HashFilterPersistentBenchJson("target_lookup_tag16_hash_filter_persistent_exact256", 0, target_count, query_count, expected_hits, 0, 0, 0, buckets.size(), target_keys.size() * sizeof(TargetLookupKeyHost), buckets.size() * sizeof(TargetLookupTag32BucketHost), 0, 0, min_ms, dispatch_stats, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, false, false, error);
 
 	std::vector<TargetLookupKeyHost> queries;
@@ -9721,6 +9857,76 @@ std::string RCKCpuTargetLookupTag32BenchJson(unsigned int target_count, unsigned
 
 	double lookups_per_sec = seconds > 0.0 ? (double)operations / seconds : 0.0;
 	return CpuTargetLookupTag32BenchJson("target_lookup_tag32_cpu_exact256", operations, target_count, query_count, expected_hits, hit_count, buckets.size(), target_keys.size() * sizeof(TargetLookupKeyHost), buckets.size() * sizeof(TargetLookupTag32BucketHost), min_ms, seconds, lookups_per_sec, checksum, true, "");
+}
+
+std::string RCKTargetLookupFilterBuildBenchJson(unsigned int target_count, unsigned int iterations)
+{
+	if (target_count == 0)
+		target_count = 1;
+	if (iterations == 0)
+		iterations = 1;
+	if (target_count > 32000000U)
+	{
+		std::string reason = "target lookup benchmark target_count limit is 32000000 for host memory safety";
+		return TargetLookupFilterBuildBenchJson("target_lookup_filter_build_from_tag32_buckets", target_count, iterations, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0, 0, false, false, false, reason);
+	}
+
+	std::vector<TargetLookupKeyHost> target_keys;
+	std::vector<TargetLookupTag32BucketHost> buckets;
+	std::string error;
+	if (!BuildTargetLookupTag32Table(target_count, target_keys, buckets, error))
+		return TargetLookupFilterBuildBenchJson("target_lookup_filter_build_from_tag32_buckets", target_count, iterations, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0, 0, false, false, false, error);
+
+	std::vector<uint32_t> legacy32;
+	std::vector<uint32_t> derived32;
+	std::vector<uint16_t> legacy16;
+	std::vector<uint16_t> derived16;
+	double tag32_legacy_seconds = 0.0;
+	double tag32_derived_seconds = 0.0;
+	double tag16_legacy_seconds = 0.0;
+	double tag16_derived_seconds = 0.0;
+	bool tag32_equal = true;
+	bool tag16_equal = true;
+
+	for (unsigned int iteration = 0; iteration < iterations; ++iteration)
+	{
+		auto start = std::chrono::steady_clock::now();
+		if (!BuildTargetLookupTag32FilterTable(target_keys, legacy32, error))
+			return TargetLookupFilterBuildBenchJson("target_lookup_filter_build_from_tag32_buckets", target_count, iterations, buckets.size(), target_keys.size() * sizeof(TargetLookupKeyHost), buckets.size() * sizeof(TargetLookupTag32BucketHost), 0, 0, tag32_legacy_seconds, tag32_derived_seconds, tag16_legacy_seconds, tag16_derived_seconds, 0, 0, false, false, false, error);
+		tag32_legacy_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+
+		start = std::chrono::steady_clock::now();
+		if (!BuildTargetLookupTag32FilterTableFromTag32Buckets(buckets, target_count, derived32, error))
+			return TargetLookupFilterBuildBenchJson("target_lookup_filter_build_from_tag32_buckets", target_count, iterations, buckets.size(), target_keys.size() * sizeof(TargetLookupKeyHost), buckets.size() * sizeof(TargetLookupTag32BucketHost), legacy32.size() * sizeof(uint32_t), 0, tag32_legacy_seconds, tag32_derived_seconds, tag16_legacy_seconds, tag16_derived_seconds, 0, 0, false, false, false, error);
+		tag32_derived_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+		if (legacy32 != derived32)
+		{
+			tag32_equal = false;
+			error = "derived tag32 filter table differs from legacy rehash table";
+			break;
+		}
+
+		start = std::chrono::steady_clock::now();
+		if (!BuildTargetLookupTag16FilterTable(target_keys, legacy16, error))
+			return TargetLookupFilterBuildBenchJson("target_lookup_filter_build_from_tag32_buckets", target_count, iterations, buckets.size(), target_keys.size() * sizeof(TargetLookupKeyHost), buckets.size() * sizeof(TargetLookupTag32BucketHost), derived32.size() * sizeof(uint32_t), 0, tag32_legacy_seconds, tag32_derived_seconds, tag16_legacy_seconds, tag16_derived_seconds, TargetLookupFilterChecksum(derived32), 0, tag32_equal, false, false, error);
+		tag16_legacy_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+
+		start = std::chrono::steady_clock::now();
+		if (!BuildTargetLookupTag16FilterTableFromTag32Buckets(buckets, target_count, derived16, error))
+			return TargetLookupFilterBuildBenchJson("target_lookup_filter_build_from_tag32_buckets", target_count, iterations, buckets.size(), target_keys.size() * sizeof(TargetLookupKeyHost), buckets.size() * sizeof(TargetLookupTag32BucketHost), derived32.size() * sizeof(uint32_t), legacy16.size() * sizeof(uint16_t), tag32_legacy_seconds, tag32_derived_seconds, tag16_legacy_seconds, tag16_derived_seconds, TargetLookupFilterChecksum(derived32), 0, tag32_equal, false, false, error);
+		tag16_derived_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+		if (legacy16 != derived16)
+		{
+			tag16_equal = false;
+			error = "derived tag16 filter table differs from legacy rehash table";
+			break;
+		}
+	}
+
+	uint64_t tag32_checksum = derived32.empty() ? 0 : TargetLookupFilterChecksum(derived32);
+	uint64_t tag16_checksum = derived16.empty() ? 0 : TargetLookupFilterChecksum(derived16);
+	bool correctness = tag32_equal && tag16_equal;
+	return TargetLookupFilterBuildBenchJson("target_lookup_filter_build_from_tag32_buckets", target_count, iterations, buckets.size(), target_keys.size() * sizeof(TargetLookupKeyHost), buckets.size() * sizeof(TargetLookupTag32BucketHost), derived32.size() * sizeof(uint32_t), derived16.size() * sizeof(uint16_t), tag32_legacy_seconds, tag32_derived_seconds, tag16_legacy_seconds, tag16_derived_seconds, tag32_checksum, tag16_checksum, tag32_equal, tag16_equal, correctness, correctness ? "" : error);
 }
 
 static std::string RunMetalFieldBenchJson(const char* operation,
