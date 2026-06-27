@@ -4355,6 +4355,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   correctly marked the experiment `confirmation_status=discard`. Conclusion:
   do not add repeat-only exact-resolution caching unless a future gate can
   reduce variance or prove a durable wall-clock benefit.
+- Rejected `--lookup-tg-limit 768` for the 25M-target repeat-mode integrated
+  tag16 hash-filter lookup. A single sweep looked promising (`tg=768` measured
+  `91,586,723.001839` lookups/sec and `202,675,625.803370` GPU-only
+  lookups/sec versus a same-sweep `tg=512` at `57,469,278.459948` and
+  `154,846,591.975965`), but paired confirmation against the accepted 512 cap
+  failed. Confirmation 1 measured candidate GPU-only
+  `89,231,127.530542` versus baseline `123,208,709.647144` (`0.724227x`);
+  confirmation 2 measured `167,726,637.169006` versus `79,346,311.916685`
+  (`2.113855x`). Correctness and
+  `target_lookup_checksum=0x5b746bd07e35a252` held throughout, but the
+  confirmation policy correctly discarded the knob. Conclusion: keep the
+  repeat-mode integrated lookup gate at `--lookup-tg-limit 512`; do not chase
+  isolated high `768` samples without a stronger cooled protocol.
 
 ## Next Research Targets
 
