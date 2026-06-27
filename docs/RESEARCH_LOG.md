@@ -4388,6 +4388,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `103,616,298.999303` (`1.105579x`). Candidate `affine_scan_seconds` medians
   landed around `0.008168s` and `0.010773s`, versus baseline medians around
   `0.019359s` and `0.032114s`.
+- Rejected split `ZZ` plus sparse-`ZZZ` affine normalization. The idea was to
+  batch-invert `ZZ` for all active packet outputs, test the affine-`x` DP
+  predicate, then batch-invert `ZZZ` only for the sparse DP subset to recover
+  `y`/parity. This preserved correctness in smoke tests
+  (`dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `dp_checksum=0x9dba4a07ebbb8e14`, and the large repeat lookup
+  `target_lookup_checksum=0x5b746bd07e35a252`), but paired autoresearch on
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_steps512` discarded it
+  against the accepted parallel `ZZ*ZZZ` path. Confirmation 1 looked positive
+  (`125,438,897.308717` versus `123,189,340.961610`, `1.018259x`), but
+  confirmation 2 reversed under thermal/noise pressure
+  (`99,779,103.449835` versus `102,551,705.591218`, `0.972964x`). Conclusion:
+  do not keep the split host path; the extra pass and second inversion do not
+  beat the current chunked single-inversion design reliably on this M3 gate.
 
 ## Next Research Targets
 
