@@ -4368,6 +4368,26 @@ These did not pass the performance gate or had a correctness/architecture issue:
   confirmation policy correctly discarded the knob. Conclusion: keep the
   repeat-mode integrated lookup gate at `--lookup-tg-limit 512`; do not chase
   isolated high `768` samples without a stronger cooled protocol.
+- Kept chunked parallel CPU batch-affine scan for large XYZZ packet outputs.
+  The math is still Montgomery batch inversion with one field inversion over
+  all `ZZ*ZZZ` products, but large scans now split the product chain into CPU
+  worker chunks: each worker builds local prefixes/products, the host batch
+  inverts the chunk products once, workers recover per-point `1/(ZZ*ZZZ)` in
+  parallel, and a final serial pass preserves the previous reverse-order
+  checksum and `dp_keys` order. Small scans keep the old serial path. Smoke
+  checks preserved the small repeat target lookup
+  `target_lookup_checksum=0xf5b847eb31e6644b`; the large repeat-mode lookup
+  preserved `dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `dp_checksum=0x9dba4a07ebbb8e14`,
+  `target_lookup_checksum=0x5b746bd07e35a252`, `dp_count=1057`, and
+  `hit_count=131072`. Paired autoresearch on
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_steps512` kept both
+  confirmations while scoring end-to-end `ops_per_sec`: confirmation 1
+  measured `123,103,088.658516` versus baseline `119,589,154.173552`
+  (`1.029383x`), and confirmation 2 measured `114,555,979.282060` versus
+  `103,616,298.999303` (`1.105579x`). Candidate `affine_scan_seconds` medians
+  landed around `0.008168s` and `0.010773s`, versus baseline medians around
+  `0.019359s` and `0.032114s`.
 
 ## Next Research Targets
 

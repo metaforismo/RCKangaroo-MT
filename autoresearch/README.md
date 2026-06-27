@@ -85,6 +85,10 @@ one inversion over `ZZ*ZZZ` products and scans affine `x` low bits. It reports
 into the exact tag32 multi-target lookup gate, reporting `dp_query_count`,
 `injected_hits`, `lookup_seconds`, `lookups_per_sec`, and
 `target_lookup_checksum` separately from walk throughput.
+Large affine scans chunk the `ZZ*ZZZ` product chain across CPU workers while
+keeping one global inversion and the same reverse-order checksum/key output.
+This is still the same affine DP oracle; `affine_scan_seconds` makes the host
+normalization cost visible for future GPU-side batch-normalization work.
 
 The target-lookup experiment is an exact multi-target join gate for the output
 of an affine DP scan. It builds a deterministic open-addressed Metal table of

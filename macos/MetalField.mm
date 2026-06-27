@@ -6919,6 +6919,148 @@ static uint64_t MixCompactDpChecksum(uint64_t checksum, uint64_t dp_term, uint32
 	return checksum ^ dp_term ^ ((uint64_t)sample_index * 0x9E3779B97F4A7C15ULL);
 }
 
+static bool CpuXyzzBatchAffineDpScanParallel(const std::vector<CpuXyzzPoint>& points,
+	const std::vector<uint64_t>& distances,
+	unsigned int dp_bits,
+	uint64_t* dp_distance_checksum_out,
+	uint64_t* dp_checksum_out,
+	unsigned int* dp_count_out,
+	std::string& reason,
+	std::vector<TargetLookupKeyHost>* dp_keys_out,
+	std::vector<uint64_t>* dp_distances_out)
+{
+	if (points.size() != distances.size())
+	{
+		reason = "parallel XYZZ affine scan state/distance size mismatch";
+		return false;
+	}
+	if (dp_keys_out)
+		dp_keys_out->clear();
+	if (dp_distances_out)
+		dp_distances_out->clear();
+
+	unsigned int worker_count = ValidationWorkerCount(points.size());
+	if (worker_count <= 1 || points.empty())
+	{
+		reason = "parallel XYZZ affine scan needs multiple workers";
+		return false;
+	}
+
+	const uint64_t dp_mask = ProjectiveDpMask(dp_bits);
+	const FieldElement one = CpuFieldOne();
+	std::vector<FieldElement> prefixes(points.size());
+	std::vector<FieldElement> products(points.size());
+	std::vector<uint8_t> active(points.size(), 0);
+	std::vector<FieldElement> chunk_products(worker_count, one);
+	std::vector<unsigned int> chunk_active_counts(worker_count, 0);
+
+	ParallelForSamples(points.size(), [&](size_t begin, size_t end, unsigned int worker_index) {
+		FieldElement local_acc = one;
+		unsigned int local_active_count = 0;
+		for (size_t i = begin; i < end; ++i)
+		{
+			const CpuXyzzPoint& p = points[i];
+			if (p.infinity || CpuFieldIsZero(p.zz) || CpuFieldIsZero(p.zzz))
+				continue;
+			prefixes[i] = local_acc;
+			products[i] = CpuFieldMul(p.zz, p.zzz);
+			local_acc = CpuFieldMul(local_acc, products[i]);
+			active[i] = 1;
+			local_active_count++;
+		}
+		chunk_products[worker_index] = local_acc;
+		chunk_active_counts[worker_index] = local_active_count;
+	});
+
+	unsigned int active_count = 0;
+	for (unsigned int count : chunk_active_counts)
+		active_count += count;
+
+	std::vector<uint8_t> dp_flags(points.size(), 0);
+	std::vector<uint64_t> dp_terms(points.size(), 0);
+	std::vector<TargetLookupKeyHost> dp_keys_by_index;
+	if (dp_keys_out)
+		dp_keys_by_index.resize(points.size());
+
+	if (active_count)
+	{
+		std::vector<FieldElement> chunk_prefixes(worker_count, one);
+		std::vector<FieldElement> chunk_inv_products(worker_count, one);
+		FieldElement total_product = one;
+		for (unsigned int worker = 0; worker < worker_count; ++worker)
+		{
+			chunk_prefixes[worker] = total_product;
+			total_product = CpuFieldMul(total_product, chunk_products[worker]);
+		}
+
+		FieldElement inv_chunk_suffix = CpuFieldInv(total_product);
+		for (unsigned int remaining = worker_count; remaining > 0; --remaining)
+		{
+			unsigned int worker = remaining - 1;
+			chunk_inv_products[worker] = CpuFieldMul(inv_chunk_suffix, chunk_prefixes[worker]);
+			inv_chunk_suffix = CpuFieldMul(inv_chunk_suffix, chunk_products[worker]);
+		}
+
+		ParallelForSamples(points.size(), [&](size_t begin, size_t end, unsigned int worker_index) {
+			FieldElement local_inv_suffix = chunk_inv_products[worker_index];
+			for (size_t remaining = end; remaining > begin; --remaining)
+			{
+				size_t i = remaining - 1;
+				const CpuXyzzPoint& p = points[i];
+				if (!active[i])
+					continue;
+
+				FieldElement inv_product = CpuFieldMul(local_inv_suffix, prefixes[i]);
+				local_inv_suffix = CpuFieldMul(local_inv_suffix, products[i]);
+				FieldElement inv_zz = CpuFieldMul(p.zzz, inv_product);
+				FieldElement affine_x = CpuFieldMul(p.x, inv_zz);
+				uint32_t dp_flag = (affine_x[0] & dp_mask) == 0 ? 1U : 0U;
+				if (!dp_flag)
+					continue;
+
+				FieldElement inv_zzz = CpuFieldMul(p.zz, inv_product);
+				FieldElement affine_y = CpuFieldMul(p.y, inv_zzz);
+				dp_flags[i] = 1;
+				dp_terms[i] = affine_x[0] ^ (affine_y[0] << 1);
+				if (dp_keys_out)
+				{
+					TargetLookupKeyHost key;
+					for (size_t limb = 0; limb < 4; ++limb)
+						key.x[limb] = affine_x[limb];
+					key.parity = (uint32_t)(affine_y[0] & 1ULL);
+					dp_keys_by_index[i] = key;
+				}
+			}
+		});
+	}
+
+	uint64_t dp_distance_checksum = 0;
+	uint64_t dp_checksum = 0;
+	unsigned int dp_count = 0;
+	for (size_t remaining = points.size(); remaining > 0; --remaining)
+	{
+		size_t i = remaining - 1;
+		if (dp_flags[i])
+		{
+			dp_distance_checksum = MixDistanceChecksum(dp_distance_checksum, distances[i], i);
+			dp_count++;
+			if (dp_keys_out)
+				dp_keys_out->push_back(dp_keys_by_index[i]);
+			if (dp_distances_out)
+				dp_distances_out->push_back(distances[i]);
+		}
+		dp_checksum = MixCompactDpChecksum(dp_checksum, dp_terms[i], dp_flags[i], i);
+	}
+
+	if (dp_distance_checksum_out)
+		*dp_distance_checksum_out = dp_distance_checksum;
+	if (dp_checksum_out)
+		*dp_checksum_out = dp_checksum;
+	if (dp_count_out)
+		*dp_count_out = dp_count;
+	return true;
+}
+
 static bool CpuXyzzBatchAffineDpScan(const std::vector<CpuXyzzPoint>& points,
 	const std::vector<uint64_t>& distances,
 	unsigned int dp_bits,
@@ -6929,6 +7071,9 @@ static bool CpuXyzzBatchAffineDpScan(const std::vector<CpuXyzzPoint>& points,
 	std::vector<TargetLookupKeyHost>* dp_keys_out = NULL,
 	std::vector<uint64_t>* dp_distances_out = NULL)
 {
+	if (points.size() >= 8192 && ValidationWorkerCount(points.size()) > 1)
+		return CpuXyzzBatchAffineDpScanParallel(points, distances, dp_bits, dp_distance_checksum_out, dp_checksum_out, dp_count_out, reason, dp_keys_out, dp_distances_out);
+
 	if (points.size() != distances.size())
 	{
 		reason = "XYZZ affine scan state/distance size mismatch";
