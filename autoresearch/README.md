@@ -66,6 +66,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_lookup_tg512 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_gpu_filter25m --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_tg256_gpu_lookup --budget-sec 120 --paired-baseline-ref HEAD --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat4096 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_persistent_tg1024 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_persistent --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
@@ -537,7 +538,10 @@ This keeps the accepted tag16 resident filter and final CPU exact
 Metal instead of full query keys. The gate records `query_input=hash64`,
 `target_query_hash_bytes`, `filter_positive_count`, false positives, exact
 verification time, and checksum, so a query-bandwidth win cannot hide changed
-candidate semantics.
+candidate semantics. Integrated tag16 hash-filter lookup keeps the serial hash
+builder for smaller batches and switches to a thresholded parallel host hash
+builder once the accumulated query batch reaches at least 2,097,152 rows; the
+JSON keeps `lookup_hash_seconds` visible.
 
 Run the integrated large-table explicit GPU-filter gate:
 
@@ -550,6 +554,19 @@ records `metric=ops_per_sec`. The paired baseline is the same integrated
 benchmark routed through `--lookup-engine cpu`; the candidate uses explicit
 `--lookup-engine gpu-filter`. Treat this as the promotion gate before changing
 `--lookup-engine auto`, not as a standalone lookup-only microbenchmark.
+
+Run the large-batch integrated tag16 hash-filter host-hash gate:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat4096 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
+```
+
+This uses the 25,005,000-target, mostly-miss, `lookup_repeat=4096` shape and
+scores `lookups_per_sec`. The candidate uses the thresholded parallel host
+query-hash builder; the paired baseline uses the same explicit
+`gpu-filter16-hash` command on the reference build, which keeps the old serial
+hash builder. Correctness still depends on exact CPU `x256+y_parity` equality
+over compact positives.
 
 Run the CPU field multiplication experiment:
 

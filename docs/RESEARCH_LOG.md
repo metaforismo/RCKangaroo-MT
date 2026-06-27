@@ -4092,6 +4092,25 @@ These did not pass the performance gate or had a correctness/architecture issue:
   counts. Conclusion: keep `auto` unchanged; larger accumulated DP batches are
   a promising multi-target axis, but the current M3 timing is too noisy for an
   automatic policy without a more stable resident-table or dispatch-only gate.
+- Kept thresholded parallel host query-hash building for explicit integrated
+  `gpu-filter16-hash` on large accumulated batches. The implementation keeps
+  the old serial builder below `kMinParallelTargetLookupHashQueries=2097152`
+  query rows, then fills the precomputed `hash64` query buffer with
+  `ParallelForSamples` above that threshold. It does not change the tag16
+  filter table, Metal lookup kernel, compact-positive resolver, exact CPU
+  `x256 + y_parity` equality oracle, or `--lookup-engine auto` policy. The
+  accepted gate used the 25,005,000-target `lookup_repeat=4096` distinct-miss
+  shape (`query_count=4,329,472`, `target_query_hash_bytes=34,635,776`) and
+  scored `lookups_per_sec` against the old serial builder at `HEAD`. Both
+  confirmations preserved `correctness=true`,
+  `target_lookup_checksum=0x78c54b7ab782db0e`, `hit_count=64`,
+  `filter_positive_count=964`, and `filter_false_positive_count=900`.
+  Confirmation 1 kept with candidate median `21,675,244.226311` lookups/sec
+  versus baseline `10,124,044.254344` (`2.140967x`); confirmation 2 kept with
+  candidate median `45,893,820.612292` versus baseline `29,851,024.943759`
+  (`1.537429x`). Conclusion: keep the thresholded parallel hash builder for
+  large explicit tag16 hash-filter lookup batches, but keep smaller
+  `lookup_repeat=1024` batches on the serial path that was previously faster.
 
 ## Next Research Targets
 

@@ -26,6 +26,7 @@ static constexpr unsigned int kDefaultMetalTargetLookupThreadgroupLimit = 64;
 static constexpr unsigned int kDefaultMetalPersistentTargetLookupLargeThreadgroupLimit = 1024;
 static constexpr unsigned int kDefaultMetalPersistentTargetLookupFilterLargeThreadgroupLimit = 512;
 static constexpr size_t kDefaultMetalPersistentTargetLookupLargeTargetThreshold = 16777216;
+static constexpr size_t kMinParallelTargetLookupHashQueries = 2097152;
 static constexpr size_t kMinValidationSamplesPerWorker = 1024;
 
 struct MetalDispatchStats
@@ -2490,6 +2491,23 @@ static void BuildTargetLookupQueryHashes(const std::vector<TargetLookupKeyHost>&
 	query_hashes.reserve(queries.size());
 	for (const TargetLookupKeyHost& query : queries)
 		query_hashes.push_back(TargetLookupHash(query));
+}
+
+static void BuildTargetLookupQueryHashesParallel(const std::vector<TargetLookupKeyHost>& queries,
+	std::vector<uint64_t>& query_hashes)
+{
+	if (queries.size() < kMinParallelTargetLookupHashQueries)
+	{
+		BuildTargetLookupQueryHashes(queries, query_hashes);
+		return;
+	}
+
+	query_hashes.assign(queries.size(), 0);
+	ParallelForSamples(queries.size(), [&](size_t begin, size_t end, unsigned int worker) {
+		(void)worker;
+		for (size_t i = begin; i < end; ++i)
+			query_hashes[i] = TargetLookupHash(queries[i]);
+	});
 }
 
 static bool BuildTargetLookupTag32TableFromKeys(const std::vector<TargetLookupKeyHost>& injected_keys,
@@ -8974,7 +8992,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 			}
 			std::vector<uint64_t> lookup_query_hashes;
 			auto hash_start = std::chrono::steady_clock::now();
-			BuildTargetLookupQueryHashes(lookup_queries, lookup_query_hashes);
+			BuildTargetLookupQueryHashesParallel(lookup_queries, lookup_query_hashes);
 			double hash_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - hash_start).count();
 			target_query_hash_bytes = lookup_query_hashes.size() * sizeof(uint64_t);
 
@@ -9540,7 +9558,7 @@ std::string RCKMetalTargetLookupTag16HashFilterPersistentBenchJson(unsigned int 
 	std::vector<uint32_t> expected_indices;
 	BuildTargetLookupTag32Queries(target_keys, buckets, query_count, expected_hits, queries, expected_indices);
 	std::vector<uint64_t> query_hashes;
-	BuildTargetLookupQueryHashes(queries, query_hashes);
+	BuildTargetLookupQueryHashesParallel(queries, query_hashes);
 
 	std::vector<uint32_t> out_indices;
 	uint32_t hit_count = 0;
