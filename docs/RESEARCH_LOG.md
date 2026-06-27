@@ -4177,6 +4177,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_distance_checksum=0xf0dc88ed68b2ff64`,
   `target_lookup_checksum=0x8b2568562837af7f`, `hit_count=64`,
   `miss_count=1082304`, and full-key exact verification.
+- Rejected a follow-up `CpuXyzzBatchAffineDpScan` DP-output reserve estimate.
+  The prototype reserved DP key/distance output capacity from
+  `active_count / 2^dp_bits` plus a small floor before the reverse affine scan,
+  aiming to reduce `push_back` reallocations for the integrated target-lookup
+  path. Correctness and full-key exact verification stayed intact
+  (`dp_count=1057`, `dp_checksum=0x9dba4a07ebbb8e14`,
+  `target_lookup_checksum=0x8b2568562837af7f`, `hit_count=64`), but paired
+  confirmation against commit `46f7054` discarded it: confirmation 1 regressed
+  to `39,470,130.649849` versus baseline `62,278,431.485371` (`0.633769x`),
+  while confirmation 2 was only a raw keep at `50,170,407.826926` versus
+  `31,241,567.175757` (`1.605886x`). Conclusion: keep the simpler no-reserve
+  DP-output path; the allocation change is not a reproducible win on this
+  thermally noisy target-lookup gate.
 
 ## Next Research Targets
 
