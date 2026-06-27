@@ -4208,6 +4208,29 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_distance_checksum=0xf0dc88ed68b2ff64`,
   `target_lookup_checksum=0x8b2568562837af7f`, `hit_count=64`,
   `miss_count=1082304`, and full-key exact verification.
+- Kept single-pass measured exact-output fill for integrated GPU-filter lookup
+  engines. The `gpu_filter` and `gpu_filter16_hash` branches previously called
+  `ResolveTargetLookupTag32FilterCandidates` once without filling outputs and
+  then a second time to fill `out_indices` for the checksum oracle; the second
+  pass was outside the measured `lookup_exact_seconds`. The new path resolves
+  positives once with output fill enabled, so exact CPU verification and
+  checksum output generation are part of the same measured pass. Source gates
+  prevent reintroducing `fill_reason` or an unmeasured `resolve(..., false)`
+  pass in the integrated target-lookup body. Small smokes covered both
+  `gpu-filter` and `gpu-filter16-hash`, preserving
+  `target_lookup_checksum=0x1689e4cefc1763b8`, `hit_count=8`, and
+  `miss_count=48`. The large paired gate
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat2048`
+  against `HEAD` kept across both confirmations while scoring
+  `lookups_per_sec`: confirmation 1 measured `71,075,351.161621` versus
+  baseline `47,898,394.694751` (`1.483878x`), and confirmation 2 measured
+  `92,529,528.533838` versus `65,946,694.802480` (`1.403096x`). Both
+  confirmations preserved `correctness=true`, `dp_count=1057`,
+  `dp_checksum=0x9dba4a07ebbb8e14`,
+  `dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `target_lookup_checksum=0x90b9fdeac531859a`, `hit_count=64`,
+  `miss_count=2164672`, `filter_positive_count=508`, and
+  `filter_false_positive_count=444`.
 - Rejected x-first exact target-key equality ordering in the Metal target
   lookup helper. The candidate compared `x[0..3]` before `parity`, based on the
   hypothesis that after a tag32 hit the x limbs are the more discriminating

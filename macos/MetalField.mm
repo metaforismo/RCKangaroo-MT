@@ -9005,7 +9005,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 				uint32_t local_false_positive_count = 0;
 				std::string resolve_reason;
 				auto exact_start = std::chrono::steady_clock::now();
-				lookup_ok = ResolveTargetLookupTag32FilterCandidates(target_buckets, target_keys, lookup_queries, positive_query_indices, local_filter_positive_count, out_indices, local_hit_count, local_false_positive_count, resolve_reason, false);
+				lookup_ok = ResolveTargetLookupTag32FilterCandidates(target_buckets, target_keys, lookup_queries, positive_query_indices, local_filter_positive_count, out_indices, local_hit_count, local_false_positive_count, resolve_reason, true);
 				double exact_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - exact_start).count();
 				lookup_dispatch_seconds += exact_seconds;
 				if (!lookup_ok)
@@ -9015,17 +9015,8 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 					filter_positive_count = local_filter_positive_count;
 					filter_false_positive_count = local_false_positive_count;
 					hit_count = local_hit_count;
-					std::string fill_reason;
-					if (!ResolveTargetLookupTag32FilterCandidates(target_buckets, target_keys, lookup_queries, positive_query_indices, local_filter_positive_count, out_indices, local_hit_count, local_false_positive_count, fill_reason, true))
-					{
-						lookup_ok = false;
-						error = fill_reason;
-					}
-					else
-					{
-						lookup_gpu_seconds += filter_seconds;
-						lookup_exact_seconds += exact_seconds;
-					}
+					lookup_gpu_seconds += filter_seconds;
+					lookup_exact_seconds += exact_seconds;
 				}
 			}
 		}
@@ -9054,7 +9045,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 				uint32_t local_false_positive_count = 0;
 				std::string resolve_reason;
 				auto exact_start = std::chrono::steady_clock::now();
-				lookup_ok = ResolveTargetLookupTag32FilterCandidates(target_buckets, target_keys, lookup_queries, positive_query_indices, local_filter_positive_count, out_indices, local_hit_count, local_false_positive_count, resolve_reason, false);
+				lookup_ok = ResolveTargetLookupTag32FilterCandidates(target_buckets, target_keys, lookup_queries, positive_query_indices, local_filter_positive_count, out_indices, local_hit_count, local_false_positive_count, resolve_reason, true);
 				double exact_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - exact_start).count();
 				lookup_dispatch_seconds += exact_seconds;
 				if (!lookup_ok)
@@ -9064,18 +9055,9 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 					filter_positive_count = local_filter_positive_count;
 					filter_false_positive_count = local_false_positive_count;
 					hit_count = local_hit_count;
-					std::string fill_reason;
-					if (!ResolveTargetLookupTag32FilterCandidates(target_buckets, target_keys, lookup_queries, positive_query_indices, local_filter_positive_count, out_indices, local_hit_count, local_false_positive_count, fill_reason, true))
-					{
-						lookup_ok = false;
-						error = fill_reason;
-					}
-					else
-					{
-						lookup_hash_seconds += hash_seconds;
-						lookup_gpu_seconds += filter_seconds;
-						lookup_exact_seconds += exact_seconds;
-					}
+					lookup_hash_seconds += hash_seconds;
+					lookup_gpu_seconds += filter_seconds;
+					lookup_exact_seconds += exact_seconds;
 				}
 			}
 		}

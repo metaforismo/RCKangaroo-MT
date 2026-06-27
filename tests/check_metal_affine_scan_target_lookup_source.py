@@ -65,6 +65,20 @@ if "scan_reason, &dp_keys)" not in target_lookup_body:
     raise SystemExit("integrated affine-scan target lookup should request only DP keys from the affine scan")
 if "lookup_expected_indices" in target_lookup_body:
     raise SystemExit("integrated affine-scan target lookup should validate expected indices on the fly")
+if "fill_reason" in target_lookup_body:
+    raise SystemExit("integrated filter lookup should not run a second unmeasured exact-output fill pass")
+integrated_filter_resolve_false = (
+    "ResolveTargetLookupTag32FilterCandidates(target_buckets, target_keys, "
+    "lookup_queries, positive_query_indices, local_filter_positive_count, "
+    "out_indices, local_hit_count, local_false_positive_count, resolve_reason, false)"
+)
+integrated_filter_resolve_true = integrated_filter_resolve_false.replace(
+    "resolve_reason, false)", "resolve_reason, true)"
+)
+if integrated_filter_resolve_false in target_lookup_body:
+    raise SystemExit("integrated filter lookup should resolve exact positives with output fill in one measured pass")
+if target_lookup_body.count(integrated_filter_resolve_true) < 2:
+    raise SystemExit("integrated filter lookup should use one measured exact-output fill pass per filter engine")
 
 choose_start = kernels.index("static const char* ChooseAffineLookupEngine")
 choose_end = kernels.index("static unsigned int ChooseAffineLookupThreadgroupLimit", choose_start)
