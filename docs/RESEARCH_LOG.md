@@ -4118,6 +4118,24 @@ These did not pass the performance gate or had a correctness/architecture issue:
   Conclusion: keep the thresholded parallel hash builder for large explicit
   tag16 hash-filter lookup batches, but keep smaller `lookup_repeat=1024`
   batches on the serial path that was previously faster.
+- Rejected an integrated `gpu-filter16` full-key in-kernel hash candidate for
+  the 25,005,000-target `lookup_repeat=2048` distinct-miss shape. The idea was
+  to remove host `lookup_hash_seconds` and `target_query_hash_bytes` by sending
+  full `x256+y_parity` query rows to the existing Metal tag16 filter kernel,
+  while keeping the same tag16 table and exact CPU positive resolver. The
+  smoke test preserved exactness (`target_query_hash_bytes=0`,
+  `lookup_hash_seconds=0`, expected hit/miss counts), but paired confirmation
+  against the accepted prehashed `gpu-filter16-hash` path was unstable and
+  failed the gate. Confirmation 1 discarded with candidate median
+  `82,195,149.234095` lookups/sec versus baseline `95,111,599.063584`
+  (`0.864205x`); confirmation 2 was only a raw keep at
+  `79,706,397.253435` versus `76,693,431.864349` (`1.039286x`). Both rows
+  preserved `target_lookup_checksum=0x90b9fdeac531859a`, `hit_count=64`,
+  `filter_positive_count=508`, and `filter_false_positive_count=444`, but
+  `confirmation_status=discard`. Conclusion: do not add an integrated
+  full-key tag16 filter engine yet; keep the prehashed path plus visible
+  `lookup_hash_seconds`, and only revisit if a resident solver design can avoid
+  the full-query traffic without hiding exact verification.
 
 ## Next Research Targets
 
