@@ -4076,6 +4076,22 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `confirmation_status=discard`. Conclusion: do not keep the engine, do not
   promote `auto`, and treat this as evidence that query-hash placement is a
   promising but very noisy axis requiring a more stable kernel/timing design.
+- Rejected promoting `--lookup-engine auto` to `gpu_filter16_hash` for the
+  25,005,000-target `lookup_repeat=4096` distinct-miss shape. Direct scouts
+  looked promising: explicit `gpu-filter16-hash` preserved
+  `correctness=true`, `target_lookup_checksum=0x78c54b7ab782db0e`,
+  `hit_count=64`, `filter_positive_count=964`, and
+  `filter_false_positive_count=900`, while measuring `114,501,711.697336`
+  ops/sec versus explicit CPU at `81,511,342.555743` and old auto exact-GPU at
+  `104,387,015.748636`. The paired auto-vs-auto gate still discarded the
+  policy change. Confirmation 1 was a raw keep: candidate auto routed to
+  `gpu_filter16_hash` and scored `116,490,697.814699` ops/sec versus old auto
+  routed to exact GPU at `91,841,252.102085` (`1.268392x`). Confirmation 2
+  regressed: candidate median `76,155,652.639750` versus baseline
+  `82,761,070.389746` (`0.920187x`). All rows preserved the checksum and hit
+  counts. Conclusion: keep `auto` unchanged; larger accumulated DP batches are
+  a promising multi-target axis, but the current M3 timing is too noisy for an
+  automatic policy without a more stable resident-table or dispatch-only gate.
 
 ## Next Research Targets
 
