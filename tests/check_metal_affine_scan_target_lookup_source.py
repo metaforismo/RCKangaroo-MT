@@ -35,6 +35,8 @@ markers = [
     "BuildTargetLookupTag16FilterTableFromTag32Buckets",
     "BuildTargetLookupQueryHashes",
     "BuildTargetLookupQueryHashesParallel",
+    "BuildRepeatedTargetLookupQueryHashes",
+    "base_query_hashes",
     "kMinParallelTargetLookupHashQueries",
     "ParallelForSamples(queries.size()",
     "\\\"lookup_layout\\\":\\\"open_address_tag16_hash_filter_exact256\\\"",
@@ -81,6 +83,14 @@ if integrated_filter_resolve_false in target_lookup_body:
     raise SystemExit("integrated filter lookup should resolve exact positives with output fill in one measured pass")
 if target_lookup_body.count(integrated_filter_resolve_true) < 2:
     raise SystemExit("integrated filter lookup should use one measured exact-output fill pass per filter engine")
+repeat_hash_branch = (
+    'if (strcmp(lookup_query_mode_name, "repeat") == 0)\n'
+    '\t\t\t\tBuildRepeatedTargetLookupQueryHashes(dp_keys, lookup_repeat, lookup_query_hashes);\n'
+    "\t\t\telse\n"
+    "\t\t\t\tBuildTargetLookupQueryHashesParallel(lookup_queries, lookup_query_hashes);"
+)
+if repeat_hash_branch not in target_lookup_body:
+    raise SystemExit("repeat-mode gpu-filter16-hash should reuse base DP query hashes and keep other modes on full query hashing")
 
 choose_start = kernels.index("static const char* ChooseAffineLookupEngine")
 choose_end = kernels.index("static unsigned int ChooseAffineLookupThreadgroupLimit", choose_start)
@@ -364,6 +374,38 @@ gpu_filter16_hash25m_repeat2048_command = [
 check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat2048.json",
     gpu_filter16_hash25m_repeat2048_command,
+    "lookups_per_sec",
+)
+
+gpu_filter16_hash25m_repeat_mode2048_command = [
+    "./macos/rck_macos",
+    command,
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--target-count",
+    "25005000",
+    "--hits",
+    "64",
+    "--lookup-repeat",
+    "2048",
+    "--lookup-query-mode",
+    "repeat",
+    "--lookup-engine",
+    "gpu-filter16-hash",
+    "--lookup-tg-limit",
+    "512",
+    "--min-ms",
+    "500",
+]
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_repeat_mode2048.json",
+    gpu_filter16_hash25m_repeat_mode2048_command,
     "lookups_per_sec",
 )
 

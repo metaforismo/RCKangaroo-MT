@@ -68,6 +68,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_tg256_gpu_lookup --budget-sec 120 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat2048 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat4096 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_repeat_mode2048 --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_persistent_tg1024 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_persistent --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
@@ -570,6 +571,7 @@ Run the large-batch integrated tag16 hash-filter host-hash gate:
 ```sh
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat4096 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat2048 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_repeat_mode2048 --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 ```
 
 These use the 25,005,000-target mostly-miss shapes and score
@@ -579,6 +581,13 @@ rows. The candidate uses the thresholded parallel host query-hash builder; the
 paired baseline uses the same explicit `gpu-filter16-hash` command on the
 reference build, which keeps the old serial hash builder. Correctness still
 depends on exact CPU `x256+y_parity` equality over compact positives.
+
+The repeat-mode 2048 gate is intentionally separate from the mostly-miss
+gates. It passes `--lookup-query-mode repeat`, hashes the base affine DP key
+batch once, then repeats the hash stream in the same order before the Metal
+tag16 filter dispatch. Full `lookup_queries` remain materialized for the CPU
+exact positive resolver and checksum oracle, so the optimization only removes
+redundant host prehashing from an explicitly repeated query batch.
 
 Run the CPU field multiplication experiment:
 

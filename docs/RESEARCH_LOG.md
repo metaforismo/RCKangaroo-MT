@@ -4317,6 +4317,30 @@ These did not pass the performance gate or had a correctness/architecture issue:
   derived builders; Apple libc++/allocator behavior and contiguous indexed
   stores beat the attempted one-pass push path under noisy 25M-target setup
   runs.
+- Kept repeat-mode query-hash reuse for the integrated
+  `gpu-filter16-hash` affine-DP target lookup. In `lookup_query_mode=repeat`,
+  the benchmark intentionally duplicates the same affine DP key batch
+  `lookup_repeat` times; the old path also recomputed `TargetLookupHash` for
+  every duplicate query. The new path hashes the base `dp_keys` once, repeats
+  the 64-bit hash stream in the same order, and leaves the full
+  `lookup_queries` vector in place for exact CPU positive verification and the
+  checksum oracle. Other query modes still use the full parallel hash builder.
+  A small repeat smoke preserved
+  `target_lookup_checksum=0xf5b847eb31e6644b`, `hit_count=12`,
+  `miss_count=3`, `filter_positive_count=12`, and
+  `filter_false_positive_count=0`; a distinct-misses smoke stayed exact with
+  `target_lookup_checksum=0xe2b5e9f9599b0da4`, `hit_count=4`, and
+  `miss_count=11`. Paired autoresearch on the 25,005,000-target repeat-mode
+  2048 gate kept both confirmations while scoring `lookups_per_sec`:
+  confirmation 1 measured `62,891,277.208879` versus baseline
+  `54,985,101.284367` (`1.143788x`), and confirmation 2 measured
+  `87,016,838.867127` versus `76,126,484.968390` (`1.143056x`). Both
+  confirmations preserved `correctness=true`,
+  `target_lookup_checksum=0x5b746bd07e35a252`, `hit_count=131072`,
+  `miss_count=2033664`, `filter_positive_count=133120`, and
+  `filter_false_positive_count=2048`. A separate accidental
+  `distinct-misses` control run of the previous repeat2048 gate was discarded;
+  that is expected because this helper is not used outside repeat mode.
 
 ## Next Research Targets
 

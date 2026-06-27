@@ -2646,6 +2646,21 @@ static void BuildTargetLookupQueryHashesParallel(const std::vector<TargetLookupK
 	});
 }
 
+static void BuildRepeatedTargetLookupQueryHashes(const std::vector<TargetLookupKeyHost>& base_queries,
+	unsigned int repeat_count,
+	std::vector<uint64_t>& query_hashes)
+{
+	query_hashes.clear();
+	if (base_queries.empty() || repeat_count == 0)
+		return;
+
+	std::vector<uint64_t> base_query_hashes;
+	BuildTargetLookupQueryHashesParallel(base_queries, base_query_hashes);
+	query_hashes.reserve(base_query_hashes.size() * (size_t)repeat_count);
+	for (unsigned int repeat = 0; repeat < repeat_count; ++repeat)
+		query_hashes.insert(query_hashes.end(), base_query_hashes.begin(), base_query_hashes.end());
+}
+
 static bool BuildTargetLookupTag32TableFromKeys(const std::vector<TargetLookupKeyHost>& injected_keys,
 	unsigned int target_count,
 	std::vector<TargetLookupKeyHost>& target_keys,
@@ -9166,7 +9181,10 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 			}
 			std::vector<uint64_t> lookup_query_hashes;
 			auto hash_start = std::chrono::steady_clock::now();
-			BuildTargetLookupQueryHashesParallel(lookup_queries, lookup_query_hashes);
+			if (strcmp(lookup_query_mode_name, "repeat") == 0)
+				BuildRepeatedTargetLookupQueryHashes(dp_keys, lookup_repeat, lookup_query_hashes);
+			else
+				BuildTargetLookupQueryHashesParallel(lookup_queries, lookup_query_hashes);
 			double hash_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - hash_start).count();
 			target_query_hash_bytes = lookup_query_hashes.size() * sizeof(uint64_t);
 
