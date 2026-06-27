@@ -26,6 +26,7 @@ markers = [
     "RunTargetLookupTag16HashFilterKernel",
     "ResolveTargetLookupTag32FilterCandidates",
     "RunTargetLookupTag32Cpu",
+    "ValidateAffineTargetLookupOutputs",
     "\"gpu_filter\"",
     "\"gpu_filter16_hash\"",
     "BuildTargetLookupTag32FilterTable",
@@ -62,6 +63,8 @@ if "dp_distances" in target_lookup_body:
     raise SystemExit("integrated affine-scan target lookup should not materialize unused DP distances")
 if "scan_reason, &dp_keys)" not in target_lookup_body:
     raise SystemExit("integrated affine-scan target lookup should request only DP keys from the affine scan")
+if "lookup_expected_indices" in target_lookup_body:
+    raise SystemExit("integrated affine-scan target lookup should validate expected indices on the fly")
 
 choose_start = kernels.index("static const char* ChooseAffineLookupEngine")
 choose_end = kernels.index("static unsigned int ChooseAffineLookupThreadgroupLimit", choose_start)

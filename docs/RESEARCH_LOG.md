@@ -4190,6 +4190,24 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `31,241,567.175757` (`1.605886x`). Conclusion: keep the simpler no-reserve
   DP-output path; the allocation change is not a reproducible win on this
   thermally noisy target-lookup gate.
+- Kept formula-based expected-index validation for integrated affine-scan target
+  lookup. The previous integrated gate materialized `lookup_expected_indices`
+  for every repeated query even though the expected target index is
+  deterministic: in `distinct_misses`, only the first DP batch can contain the
+  injected hits; in repeat mode, it is `query_index % dp_query_count` for the
+  injected prefix and empty otherwise. The new `ValidateAffineTargetLookupOutputs`
+  computes this oracle on the fly and preserves the same checksum mixer, full
+  `x256 + y_parity` exactness, hit counts, and query-count guard. Smoke tests
+  covered both `distinct_misses` and `repeat`. Paired confirmation on
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_distinct_misses1024`
+  against `HEAD` kept twice while scoring `lookups_per_sec`: confirmation 1
+  measured `44,495,886.454849` versus baseline `33,843,081.152192`
+  (`1.314771x`), and confirmation 2 measured `51,322,297.101063` versus
+  `28,022,533.434118` (`1.831465x`). Both confirmations preserved
+  `correctness=true`, `dp_count=1057`, `dp_checksum=0x9dba4a07ebbb8e14`,
+  `dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `target_lookup_checksum=0x8b2568562837af7f`, `hit_count=64`,
+  `miss_count=1082304`, and full-key exact verification.
 
 ## Next Research Targets
 
