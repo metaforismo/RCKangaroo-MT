@@ -265,6 +265,12 @@ check_experiment(
     "ops_per_sec",
 )
 
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash.json",
+    gpu_filter16_hash25m_command,
+    "lookups_per_sec",
+)
+
 gpu_filter16_hash25m_tg256_command = [
     "./macos/rck_macos",
     command,

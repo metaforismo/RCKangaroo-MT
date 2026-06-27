@@ -4046,6 +4046,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `hit_count=64`, and `filter_positive_count=280`. Conclusion: keep the
   explicit 25M tag16 hash-filter gate on tg512 for now, and do not change the
   integrated default or `auto` routing from the unpaired tg256 scouts.
+- Rejected parallelizing the host query-hash builder for the integrated 25M
+  tag16 hash-filter path. A dirty paired run against serial commit `e7a52db`
+  used the same tg512 command on both sides and scored inclusive
+  `lookups_per_sec`; the candidate median was `12,982,593.203088` versus
+  baseline `28,929,781.596945` (`0.448762x`). The candidate preserved
+  `correctness=true`, `target_lookup_checksum=0x8b2568562837af7f`,
+  `hit_count=64`, and `filter_positive_count=280`, but the thread overhead and
+  memory traffic did not pay for this batch shape. The production hash builder
+  remains serial; the experiment descriptor is kept only as a future
+  code-vs-code gate for different hash-build designs.
 
 ## Next Research Targets
 
