@@ -306,6 +306,38 @@ check_experiment(
     "lookups_per_sec",
 )
 
+gpu_filter16_hash25m_repeat2048_command = [
+    "./macos/rck_macos",
+    command,
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--target-count",
+    "25005000",
+    "--hits",
+    "64",
+    "--lookup-repeat",
+    "2048",
+    "--lookup-query-mode",
+    "distinct-misses",
+    "--lookup-engine",
+    "gpu-filter16-hash",
+    "--lookup-tg-limit",
+    "512",
+    "--min-ms",
+    "500",
+]
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat2048.json",
+    gpu_filter16_hash25m_repeat2048_command,
+    "lookups_per_sec",
+)
+
 gpu_filter16_hash25m_tg256_command = [
     "./macos/rck_macos",
     command,

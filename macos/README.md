@@ -268,6 +268,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_bulk1024 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_distinct_misses1024 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_gpu_filter25m --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat2048 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat4096 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
 ```
 

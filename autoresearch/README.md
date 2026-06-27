@@ -66,6 +66,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_lookup_tg512 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_gpu_filter25m --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_tg256_gpu_lookup --budget-sec 120 --paired-baseline-ref HEAD --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat2048 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat4096 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_persistent_tg1024 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
@@ -559,14 +560,16 @@ Run the large-batch integrated tag16 hash-filter host-hash gate:
 
 ```sh
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat4096 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat2048 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
 ```
 
-This uses the 25,005,000-target, mostly-miss, `lookup_repeat=4096` shape and
-scores `lookups_per_sec`. The candidate uses the thresholded parallel host
-query-hash builder; the paired baseline uses the same explicit
-`gpu-filter16-hash` command on the reference build, which keeps the old serial
-hash builder. Correctness still depends on exact CPU `x256+y_parity` equality
-over compact positives.
+These use the 25,005,000-target mostly-miss shapes and score
+`lookups_per_sec`. The repeat4096 gate validates the large accumulated batch;
+the repeat2048 gate validates the threshold edge just above 2,097,152 query
+rows. The candidate uses the thresholded parallel host query-hash builder; the
+paired baseline uses the same explicit `gpu-filter16-hash` command on the
+reference build, which keeps the old serial hash builder. Correctness still
+depends on exact CPU `x256+y_parity` equality over compact positives.
 
 Run the CPU field multiplication experiment:
 

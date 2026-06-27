@@ -4099,18 +4099,25 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `ParallelForSamples` above that threshold. It does not change the tag16
   filter table, Metal lookup kernel, compact-positive resolver, exact CPU
   `x256 + y_parity` equality oracle, or `--lookup-engine auto` policy. The
-  accepted gate used the 25,005,000-target `lookup_repeat=4096` distinct-miss
-  shape (`query_count=4,329,472`, `target_query_hash_bytes=34,635,776`) and
-  scored `lookups_per_sec` against the old serial builder at `HEAD`. Both
-  confirmations preserved `correctness=true`,
+  first accepted gate used the 25,005,000-target `lookup_repeat=4096`
+  distinct-miss shape (`query_count=4,329,472`,
+  `target_query_hash_bytes=34,635,776`) and scored `lookups_per_sec` against
+  the old serial builder at `HEAD`. Both confirmations preserved
+  `correctness=true`,
   `target_lookup_checksum=0x78c54b7ab782db0e`, `hit_count=64`,
   `filter_positive_count=964`, and `filter_false_positive_count=900`.
   Confirmation 1 kept with candidate median `21,675,244.226311` lookups/sec
   versus baseline `10,124,044.254344` (`2.140967x`); confirmation 2 kept with
   candidate median `45,893,820.612292` versus baseline `29,851,024.943759`
-  (`1.537429x`). Conclusion: keep the thresholded parallel hash builder for
-  large explicit tag16 hash-filter lookup batches, but keep smaller
-  `lookup_repeat=1024` batches on the serial path that was previously faster.
+  (`1.537429x`). A threshold-edge repeat2048 gate also kept against serial
+  commit `040bed7`: confirmation 1 measured `56,763,210.855813` versus
+  `46,262,580.174655` (`1.226979x`), and confirmation 2 measured
+  `71,661,607.645005` versus `57,162,103.373041` (`1.253656x`), preserving
+  `target_lookup_checksum=0x90b9fdeac531859a`, `hit_count=64`,
+  `filter_positive_count=508`, and `filter_false_positive_count=444`.
+  Conclusion: keep the thresholded parallel hash builder for large explicit
+  tag16 hash-filter lookup batches, but keep smaller `lookup_repeat=1024`
+  batches on the serial path that was previously faster.
 
 ## Next Research Targets
 
