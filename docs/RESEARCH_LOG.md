@@ -4147,6 +4147,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `108,253,765.898680` (`0.961657x`). Conclusion: keep the local vector
   allocation shape for the affine scan; the dominant plateau remains GPU walk
   timing and batch-normalization arithmetic, not host vector capacity reuse.
+- Rejected `CpuXyzzBatchAffineDpScan` all-active fast path for the same
+  affine-scan gate. The prototype avoided allocating/writing the `active`
+  bitmap and skipped the reverse-loop `active[i]` branch when every GPU-returned
+  XYZZ point had nonzero `ZZ/ZZZ`, falling back to the original bitmap path for
+  invalid points. The source gate, `make macos-check`, and a specific
+  affine-scan smoke run preserved correctness (`dp_count=1057`,
+  `dp_checksum=0x9dba4a07ebbb8e14`,
+  `dp_distance_checksum=0xf0dc88ed68b2ff64`). Paired confirmation against
+  `HEAD` was mixed and therefore discarded: confirmation 1 measured candidate
+  `65,169,523.543836` versus baseline `64,876,935.235559` (`1.004510x`, raw
+  discard below the 1% gate), while confirmation 2 measured candidate
+  `32,371,999.861737` versus baseline `27,156,148.855221` (`1.192069x`, raw
+  keep). Conclusion: do not keep the branchy duplicated host scan shape; the
+  apparent gain is not reproducible enough to justify larger code surface.
 
 ## Next Research Targets
 
