@@ -4231,6 +4231,26 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `target_lookup_checksum=0x90b9fdeac531859a`, `hit_count=64`,
   `miss_count=2164672`, `filter_positive_count=508`, and
   `filter_false_positive_count=444`.
+- Rejected narrow `--lookup-engine auto` promotion of the 25M-target
+  repeat2048 corridor to `gpu_filter16_hash`. The policy was deliberately
+  scoped to `target_count >= 16,777,216` and
+  `2,097,152 <= query_count <= 4,194,304`, so it would catch the accepted
+  explicit repeat2048 shape while leaving smaller batches and the previously
+  rejected repeat4096 shape alone. The red source gate, policy branch, and
+  temporary autoresearch experiment were reverted after the confirmation gate
+  discarded the candidate: confirmation 1 measured candidate
+  `67,074,784.442296` versus baseline `73,749,600.661159` (`0.909494x`),
+  and confirmation 2 measured `63,533,516.652801` versus
+  `54,927,320.816796` (`1.156683x`; raw keep but confirmation discard).
+  Both confirmations preserved `correctness=true`, `dp_count=1057`,
+  `dp_checksum=0x9dba4a07ebbb8e14`,
+  `dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `target_lookup_checksum=0x90b9fdeac531859a`, `hit_count=64`,
+  `miss_count=2164672`, `filter_positive_count=508`, and
+  `filter_false_positive_count=444`. Conclusion: keep the explicit
+  `gpu-filter16-hash` path for proven large batches, but do not route `auto`
+  there until the end-to-end policy beats CPU under paired confirmation rather
+  than only under lookup-focused or favorable samples.
 - Rejected x-first exact target-key equality ordering in the Metal target
   lookup helper. The candidate compared `x[0..3]` before `parity`, based on the
   hypothesis that after a tag32 hit the x limbs are the more discriminating
