@@ -1325,7 +1325,11 @@ static std::string MetalAffineScanTargetLookupTag32BenchJson(const char* operati
 	unsigned int filter_positive_count = 0,
 	unsigned int filter_false_positive_count = 0,
 	uint64_t target_filter_bucket_bytes = 0,
-	uint64_t target_query_hash_bytes = 0)
+	uint64_t target_query_hash_bytes = 0,
+	double lookup_hash_seconds = 0.0,
+	double lookup_gpu_seconds = 0.0,
+	double lookup_exact_seconds = 0.0,
+	double gpu_lookup_lookups_per_sec = 0.0)
 {
 	if (!lookup_engine_effective)
 		lookup_engine_effective = lookup_engine;
@@ -1409,9 +1413,13 @@ static std::string MetalAffineScanTargetLookupTag32BenchJson(const char* operati
 	oss << "\"seconds\":" << walk_seconds << ",";
 	oss << "\"affine_scan_seconds\":" << affine_scan_seconds << ",";
 	oss << "\"lookup_seconds\":" << lookup_seconds << ",";
+	oss << "\"lookup_hash_seconds\":" << lookup_hash_seconds << ",";
+	oss << "\"lookup_gpu_seconds\":" << lookup_gpu_seconds << ",";
+	oss << "\"lookup_exact_seconds\":" << lookup_exact_seconds << ",";
 	oss << "\"validation_workers\":" << ValidationWorkerCount(sample_count) << ",";
 	oss << "\"validation_seconds\":" << validation_seconds << ",";
 	oss << "\"gpu_ops_per_sec\":" << gpu_ops_per_sec << ",";
+	oss << "\"gpu_lookup_lookups_per_sec\":" << gpu_lookup_lookups_per_sec << ",";
 	oss << "\"lookups_per_sec\":" << lookups_per_sec << ",";
 	oss << "\"ops_per_sec\":" << ops_per_sec << ",";
 	oss << "\"target_lookup_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << target_lookup_checksum << std::dec << std::setfill(' ') << "\",";
@@ -8786,6 +8794,9 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 	double walk_seconds = 0.0;
 	double affine_scan_seconds = 0.0;
 	double lookup_seconds = 0.0;
+	double lookup_hash_seconds = 0.0;
+	double lookup_gpu_seconds = 0.0;
+	double lookup_exact_seconds = 0.0;
 	uint64_t operations = 0;
 	uint64_t lookup_operations = 0;
 	uint64_t dp_distance_checksum = 0;
@@ -8907,6 +8918,8 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 			lookup_stats.max_threads_per_threadgroup = 0;
 			lookup_stats.threads_per_threadgroup = 0;
 			lookup_ok = RunTargetLookupTag32Cpu(target_buckets, target_keys, lookup_queries, out_indices, hit_count, error, &lookup_dispatch_seconds);
+			if (lookup_ok)
+				lookup_exact_seconds += lookup_dispatch_seconds;
 		}
 		else if (strcmp(effective_lookup_engine_name, "gpu_filter") == 0)
 		{
@@ -8918,7 +8931,9 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 			}
 			std::vector<uint32_t> positive_query_indices;
 			uint32_t local_filter_positive_count = 0;
-			lookup_ok = RunTargetLookupTag32FilterKernel(target_filter_buckets, lookup_queries, positive_query_indices, local_filter_positive_count, error, &lookup_dispatch_seconds, effective_lookup_threadgroup_limit, &lookup_stats);
+			double filter_seconds = 0.0;
+			lookup_ok = RunTargetLookupTag32FilterKernel(target_filter_buckets, lookup_queries, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats);
+			lookup_dispatch_seconds = filter_seconds;
 			if (lookup_ok)
 			{
 				uint32_t local_hit_count = 0;
@@ -8926,7 +8941,8 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 				std::string resolve_reason;
 				auto exact_start = std::chrono::steady_clock::now();
 				lookup_ok = ResolveTargetLookupTag32FilterCandidates(target_buckets, target_keys, lookup_queries, positive_query_indices, local_filter_positive_count, out_indices, local_hit_count, local_false_positive_count, resolve_reason, false);
-				lookup_dispatch_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - exact_start).count();
+				double exact_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - exact_start).count();
+				lookup_dispatch_seconds += exact_seconds;
 				if (!lookup_ok)
 					error = resolve_reason;
 				else
@@ -8939,6 +8955,11 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 					{
 						lookup_ok = false;
 						error = fill_reason;
+					}
+					else
+					{
+						lookup_gpu_seconds += filter_seconds;
+						lookup_exact_seconds += exact_seconds;
 					}
 				}
 			}
@@ -8969,7 +8990,8 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 				std::string resolve_reason;
 				auto exact_start = std::chrono::steady_clock::now();
 				lookup_ok = ResolveTargetLookupTag32FilterCandidates(target_buckets, target_keys, lookup_queries, positive_query_indices, local_filter_positive_count, out_indices, local_hit_count, local_false_positive_count, resolve_reason, false);
-				lookup_dispatch_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - exact_start).count();
+				double exact_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - exact_start).count();
+				lookup_dispatch_seconds += exact_seconds;
 				if (!lookup_ok)
 					error = resolve_reason;
 				else
@@ -8983,11 +9005,21 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 						lookup_ok = false;
 						error = fill_reason;
 					}
+					else
+					{
+						lookup_hash_seconds += hash_seconds;
+						lookup_gpu_seconds += filter_seconds;
+						lookup_exact_seconds += exact_seconds;
+					}
 				}
 			}
 		}
 		else
+		{
 			lookup_ok = RunTargetLookupTag32Kernel(target_buckets, target_keys, lookup_queries, out_indices, hit_count, error, &lookup_dispatch_seconds, effective_lookup_threadgroup_limit, &lookup_stats);
+			if (lookup_ok)
+				lookup_gpu_seconds += lookup_dispatch_seconds;
+		}
 		if (!lookup_ok)
 		{
 			if (error == "no Metal device available")
@@ -9021,10 +9053,11 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 	double ops_per_sec = total_seconds > 0.0 ? (double)operations / total_seconds : 0.0;
 	double gpu_ops_per_sec = walk_seconds > 0.0 ? (double)operations / walk_seconds : 0.0;
 	double lookups_per_sec = lookup_seconds > 0.0 ? (double)lookup_operations / lookup_seconds : 0.0;
+	double lookup_gpu_lookups_per_sec = lookup_gpu_seconds > 0.0 ? (double)lookup_operations / lookup_gpu_seconds : 0.0;
 	uint64_t jump_histogram_min_bucket = JumpHistogramMinBucket(jump_histogram);
 	uint64_t jump_histogram_max_bucket = JumpHistogramMaxBucket(jump_histogram);
 	uint64_t jump_histogram_max_deviation_ppm = JumpHistogramMaxDeviationPpm(jump_histogram);
-	return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, jump_histogram_min_bucket, jump_histogram_max_bucket, jump_histogram_max_deviation_ppm, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, validation_seconds, ops_per_sec, gpu_ops_per_sec, lookups_per_sec, target_lookup_checksum, true, false, "", lookup_repeat, lookup_query_mode_name, lookup_engine_name, effective_lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes);
+	return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, jump_histogram_min_bucket, jump_histogram_max_bucket, jump_histogram_max_deviation_ppm, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, validation_seconds, ops_per_sec, gpu_ops_per_sec, lookups_per_sec, target_lookup_checksum, true, false, "", lookup_repeat, lookup_query_mode_name, lookup_engine_name, effective_lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes, lookup_hash_seconds, lookup_gpu_seconds, lookup_exact_seconds, lookup_gpu_lookups_per_sec);
 }
 
 std::string RCKMetalJacobianDynamicDpCountBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int jump_count, unsigned int min_ms, unsigned int threadgroup_limit, unsigned int dp_bits)

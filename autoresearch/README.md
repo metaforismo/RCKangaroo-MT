@@ -65,6 +65,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_lookup_tg512 --budget-sec 10
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_gpu_filter25m --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_tg256_gpu_lookup --budget-sec 120 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_persistent_tg1024 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_persistent --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
@@ -98,6 +99,14 @@ noise do not decide whether the Metal filter kernel itself is worth further
 work. Persistent filter lookup commands keep exact verification visible in
 `exact_verify_seconds` and `dispatch_lookups_per_sec`, while their `--min-ms`
 window is bounded by Metal dispatch time for the GPU-only metric.
+
+The integrated affine-scan target-lookup command also separates
+`lookup_hash_seconds`, `lookup_gpu_seconds`, and `lookup_exact_seconds`.
+`gpu_lookup_lookups_per_sec` is diagnostic only: it scores the final Metal
+lookup dispatch without pretending that host prehash, affine scan, or exact
+positive verification disappeared. Use the tg256 experiment above to compare
+the large 25M-target tag16 hash-filter lookup kernel against the prior tg512
+setting before changing any default policy.
 
 ```sh
 make macos-check

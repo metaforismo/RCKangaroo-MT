@@ -35,8 +35,16 @@ markers = [
     "\\\"candidate_verification\\\":\\\"tag16_hash_filter_then_cpu_exact_key_equality\\\"",
     "\\\"query_input\\\":\\\"hash64\\\"",
     "\\\"target_query_hash_bytes\\\":",
+    "\\\"lookup_hash_seconds\\\":",
+    "\\\"lookup_gpu_seconds\\\":",
+    "\\\"lookup_exact_seconds\\\":",
+    "\\\"gpu_lookup_lookups_per_sec\\\":",
     "filter_positive_count",
     "filter_false_positive_count",
+    "lookup_hash_seconds += hash_seconds",
+    "lookup_gpu_seconds += filter_seconds",
+    "lookup_exact_seconds += exact_seconds",
+    "lookup_gpu_lookups_per_sec",
 ]
 for marker in markers:
     if marker not in kernels:
@@ -255,6 +263,38 @@ check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m.json",
     gpu_filter16_hash25m_command,
     "ops_per_sec",
+)
+
+gpu_filter16_hash25m_tg256_command = [
+    "./macos/rck_macos",
+    command,
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--target-count",
+    "25005000",
+    "--hits",
+    "64",
+    "--lookup-repeat",
+    "1024",
+    "--lookup-query-mode",
+    "distinct-misses",
+    "--lookup-engine",
+    "gpu-filter16-hash",
+    "--lookup-tg-limit",
+    "256",
+    "--min-ms",
+    "500",
+]
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_tg256_gpu_lookup.json",
+    gpu_filter16_hash25m_tg256_command,
+    "gpu_lookup_lookups_per_sec",
 )
 
 check_experiment(

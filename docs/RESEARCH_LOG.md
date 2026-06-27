@@ -4005,6 +4005,37 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0x390f891179fdcbea`. Conclusion: keep the 128-thread long
   packet default; any future occupancy tuning needs either a less noisy Metal
   timing harness or a different metric than end-to-end `ops_per_sec`.
+- Added solver-facing lookup diagnostics to the integrated affine-scan
+  target-lookup JSON. The command now reports `lookup_hash_seconds`,
+  `lookup_gpu_seconds`, `lookup_exact_seconds`, and
+  `gpu_lookup_lookups_per_sec` in addition to the existing inclusive
+  `lookup_seconds` and end-to-end `ops_per_sec`. The fields do not change
+  lookup routing or the oracle; they expose whether a candidate is spending
+  time in host prehash, Metal filter dispatch, or exact CPU positive
+  verification. A small smoke run with `gpu-filter16-hash` preserved
+  `correctness=true` and `target_lookup_checksum=0x012a6e4dc9194ecd`.
+- Ran unpaired 25M-target scouts with the new diagnostics. The explicit
+  tag16 hash-filter at `--lookup-tg-limit 512` preserved
+  `target_lookup_checksum=0x8b2568562837af7f`, with
+  `lookup_seconds=0.055200`, split into `lookup_hash_seconds=0.009200`,
+  `lookup_gpu_seconds=0.045851`, and `lookup_exact_seconds=0.000149`;
+  end-to-end throughput was `93,194,798.792308 ops/sec`. The matching CPU
+  lookup control preserved the same checksum with `lookup_seconds=0.135615`
+  and `81,088,040.074308 ops/sec`. This single comparison is encouraging but
+  not enough to promote `--lookup-engine auto`, because earlier paired
+  confirmations for the same large class were mixed.
+- Added
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_tg256_gpu_lookup`
+  as a diagnostic autoresearch gate comparing explicit lookup threadgroup 256
+  against 512 on the 25M-target tag16 hash-filter shape. Dirty local scouts
+  suggested 256 may be better (`gpu_lookup_lookups_per_sec=134,544,100.295499`,
+  `ops_per_sec=115,559,189.799480`) than 384
+  (`54,027,452.887182`, `105,784,276.376713`) or later thermal-affected
+  512/128 controls (`43,589,238.536233` / `30,113,247.967282` GPU lookup/s).
+  All runs preserved `correctness=true`, `target_lookup_checksum=0x8b2568562837af7f`,
+  `hit_count=64`, and `filter_positive_count=280`. Treat this as a candidate
+  for paired confirmation only; no default threadgroup or `auto` routing policy
+  has been changed.
 
 ## Next Research Targets
 
