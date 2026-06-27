@@ -4136,6 +4136,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   full-key tag16 filter engine yet; keep the prehashed path plus visible
   `lookup_hash_seconds`, and only revisit if a resident solver design can avoid
   the full-query traffic without hiding exact verification.
+- Rejected `CpuXyzzBatchAffineDpScan` thread-local scratch reuse for the
+  262,144-walker `steps=512` affine-scan gate. The candidate reused the
+  `prefixes`, `products`, and `active` vector capacity across dispatches while
+  preserving the same batch-inversion math and DP checksum. Correctness stayed
+  intact (`dp_count=1057`, `dp_checksum=0x9dba4a07ebbb8e14`), but paired
+  confirmation against the previous local baseline failed: confirmation 1 was
+  a raw discard at `116,679,627.739438` versus `116,980,249.552503`
+  (`0.997430x`), and confirmation 2 regressed to `104,102,988.908292` versus
+  `108,253,765.898680` (`0.961657x`). Conclusion: keep the local vector
+  allocation shape for the affine scan; the dominant plateau remains GPU walk
+  timing and batch-normalization arithmetic, not host vector capacity reuse.
 
 ## Next Research Targets
 
