@@ -53,6 +53,16 @@ for marker in markers:
     if marker not in kernels:
         raise SystemExit("missing affine-scan target-lookup host marker: " + marker)
 
+target_lookup_start = kernels.index(
+    "std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJson"
+)
+target_lookup_end = kernels.index("std::string RCKMetalJacobianDynamicDpCountBenchJson", target_lookup_start)
+target_lookup_body = kernels[target_lookup_start:target_lookup_end]
+if "dp_distances" in target_lookup_body:
+    raise SystemExit("integrated affine-scan target lookup should not materialize unused DP distances")
+if "scan_reason, &dp_keys)" not in target_lookup_body:
+    raise SystemExit("integrated affine-scan target lookup should request only DP keys from the affine scan")
+
 choose_start = kernels.index("static const char* ChooseAffineLookupEngine")
 choose_end = kernels.index("static unsigned int ChooseAffineLookupThreadgroupLimit", choose_start)
 choose_body = kernels[choose_start:choose_end]

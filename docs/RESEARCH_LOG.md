@@ -4161,6 +4161,22 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `32,371,999.861737` versus baseline `27,156,148.855221` (`1.192069x`, raw
   keep). Conclusion: do not keep the branchy duplicated host scan shape; the
   apparent gain is not reproducible enough to justify larger code surface.
+- Kept integrated affine-scan target lookup without materializing unused DP
+  distances. The target-lookup path only needs affine `x256 + y_parity` DP
+  keys; the previous call also asked `CpuXyzzBatchAffineDpScan` to append
+  matching DP distances, but those distances were never consumed by the exact
+  tag32 lookup or checksum oracle. A source gate now prevents this regression by
+  requiring the integrated target lookup to request only `dp_keys`. `make
+  macos-check` and a smoke run preserved exactness. Paired confirmation on
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_distinct_misses1024`
+  against `HEAD` kept twice while scoring `lookups_per_sec`: confirmation 1
+  measured `67,643,945.591011` versus baseline `61,035,360.390512`
+  (`1.108275x`), and confirmation 2 measured `61,105,278.350280` versus
+  `42,658,539.548974` (`1.432428x`). Both confirmations preserved
+  `correctness=true`, `dp_count=1057`, `dp_checksum=0x9dba4a07ebbb8e14`,
+  `dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `target_lookup_checksum=0x8b2568562837af7f`, `hit_count=64`,
+  `miss_count=1082304`, and full-key exact verification.
 
 ## Next Research Targets
 

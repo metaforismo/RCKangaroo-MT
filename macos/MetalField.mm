@@ -8845,10 +8845,9 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 		walk_seconds += dispatch_seconds;
 
 		std::vector<TargetLookupKeyHost> dp_keys;
-		std::vector<uint64_t> dp_distances;
 		auto scan_start = std::chrono::steady_clock::now();
 		std::string scan_reason;
-		if (!CpuXyzzBatchAffineDpScan(state_out, distances_out, dp_bits, &dp_distance_checksum, &dp_checksum, &dp_count, scan_reason, &dp_keys, &dp_distances))
+		if (!CpuXyzzBatchAffineDpScan(state_out, distances_out, dp_bits, &dp_distance_checksum, &dp_checksum, &dp_count, scan_reason, &dp_keys))
 		{
 			affine_scan_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - scan_start).count();
 			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, scan_reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name);
