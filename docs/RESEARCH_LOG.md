@@ -4208,6 +4208,24 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_distance_checksum=0xf0dc88ed68b2ff64`,
   `target_lookup_checksum=0x8b2568562837af7f`, `hit_count=64`,
   `miss_count=1082304`, and full-key exact verification.
+- Rejected x-first exact target-key equality ordering in the Metal target
+  lookup helper. The candidate compared `x[0..3]` before `parity`, based on the
+  hypothesis that after a tag32 hit the x limbs are the more discriminating
+  fields and begin at offset zero. The red source gate and kernel change were
+  reverted after the paired gate failed. Smoke checks preserved exactness
+  (`target_lookup_tag32_exact256` small case: `hit_count=32`, `miss_count=224`,
+  `target_lookup_checksum=0xe5b07eeeadaf6670`; integrated small case:
+  `hit_count=8`, `miss_count=48`,
+  `target_lookup_checksum=0x1689e4cefc1763b8`). The real integrated gate
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag32_distinct_misses1024`
+  against `HEAD` discarded both confirmations while preserving
+  `correctness=true`, `dp_count=1057`, `dp_checksum=0x9dba4a07ebbb8e14`,
+  `dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `target_lookup_checksum=0x8b2568562837af7f`, `hit_count=64`, and
+  `miss_count=1082304`: confirmation 1 measured `142,566,912.539515` versus
+  baseline `194,717,221.721902` (`0.732174x`), and confirmation 2 measured
+  `112,839,230.097606` versus `139,371,914.209570` (`0.809627x`). Conclusion:
+  keep the current parity-first equality order for Apple M3 Metal tag32 lookup.
 
 ## Next Research Targets
 
