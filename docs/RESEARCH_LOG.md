@@ -4269,6 +4269,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   baseline `194,717,221.721902` (`0.732174x`), and confirmation 2 measured
   `112,839,230.097606` versus `139,371,914.209570` (`0.809627x`). Conclusion:
   keep the current parity-first equality order for Apple M3 Metal tag32 lookup.
+- Rejected a `gpu-filter32-hash` target-lookup engine for the 25M-target
+  repeat2048 gate. The candidate reused the prehashed query stream from the
+  accepted tag16 hash-filter path, but stored full 32-bit filter tags in the
+  open-addressed filter table. It achieved the intended correctness shape:
+  both confirmations preserved `correctness=true`, `dp_count=1057`,
+  `dp_checksum=0x9dba4a07ebbb8e14`,
+  `dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `target_lookup_checksum=0x90b9fdeac531859a`, `hit_count=64`,
+  `miss_count=2164672`, `filter_positive_count=64`, and
+  `filter_false_positive_count=0`. It still lost to the accepted tag16
+  hash-filter baseline: confirmation 1 measured `32,732,057.537667` versus
+  `40,842,245.276745` (`0.801426x`), and confirmation 2 measured
+  `17,326,534.079118` versus `50,197,164.421003` (`0.345170x`). Conclusion:
+  eliminating 444 tag16 false positives is not enough to pay for the doubled
+  filter table (`134,217,728` bytes, `5.367636` bytes/target); future lookup
+  work should reduce traffic/residency cost or reuse device-resident state,
+  rather than widening the filter tag alone.
 
 ## Next Research Targets
 
