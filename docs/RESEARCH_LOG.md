@@ -4036,6 +4036,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `hit_count=64`, and `filter_positive_count=280`. Treat this as a candidate
   for paired confirmation only; no default threadgroup or `auto` routing policy
   has been changed.
+- Paired autoresearch rejected that tg256 candidate on commit `f74a2c5`
+  against the same code at `HEAD`, using tg512 as `paired_baseline_command` and
+  scoring `gpu_lookup_lookups_per_sec`. Confirmation 1 had candidate median
+  `72,371,560.585994` versus baseline `116,195,207.278346` (`0.622845x`);
+  confirmation 2 had candidate median `32,413,870.036723` versus baseline
+  `63,839,412.471301` (`0.507741x`). Both confirmations preserved
+  `correctness=true`, `target_lookup_checksum=0x8b2568562837af7f`,
+  `hit_count=64`, and `filter_positive_count=280`. Conclusion: keep the
+  explicit 25M tag16 hash-filter gate on tg512 for now, and do not change the
+  integrated default or `auto` routing from the unpaired tg256 scouts.
 
 ## Next Research Targets
 
