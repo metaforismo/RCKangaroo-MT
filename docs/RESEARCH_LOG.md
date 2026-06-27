@@ -4341,6 +4341,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `filter_false_positive_count=2048`. A separate accidental
   `distinct-misses` control run of the previous repeat2048 gate was discarded;
   that is expected because this helper is not used outside repeat mode.
+- Rejected repeat-mode exact-positive cache for integrated
+  `gpu-filter16-hash`. The idea was to resolve each positive base DP query once
+  and reuse the exact full-key result across repeated query copies, while still
+  filling the complete `out_indices` array and preserving the checksum oracle.
+  Correctness held in smoke runs and paired autoresearch preserved
+  `target_lookup_checksum=0x5b746bd07e35a252`, `hit_count=131072`,
+  `miss_count=2033664`, `filter_positive_count=133120`, and
+  `filter_false_positive_count=2048`, but confirmation was not stable:
+  confirmation 1 regressed to `64,783,036.996344` versus baseline
+  `78,322,500.113066` (`0.827132x`), while confirmation 2 improved to
+  `100,152,806.017785` versus `57,097,018.715837` (`1.754081x`). The runner
+  correctly marked the experiment `confirmation_status=discard`. Conclusion:
+  do not add repeat-only exact-resolution caching unless a future gate can
+  reduce variance or prove a durable wall-clock benefit.
 
 ## Next Research Targets
 
