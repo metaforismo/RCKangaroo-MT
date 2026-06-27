@@ -4306,6 +4306,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `target_lookup_checksum=0xf5b847eb31e6644b`, `hit_count=12`,
   `miss_count=3`, `filter_positive_count=12`, and
   `filter_false_positive_count=0`.
+- Rejected one-pass `reserve` + `push_back` construction for the derived
+  tag32/tag16 filter builders. The idea was to avoid zero-filling the whole
+  filter vector before rewriting occupied slots, but paired autoresearch
+  against the accepted derived-builder baseline discarded it despite preserving
+  byte equality and the same filter checksums. Confirmation 1 measured
+  candidate `speedup=13.313918` versus baseline `17.005541`
+  (`0.782916x`), and confirmation 2 measured `9.860456` versus `12.887176`
+  (`0.765137x`). Conclusion: keep the simpler `assign` + indexed-write
+  derived builders; Apple libc++/allocator behavior and contiguous indexed
+  stores beat the attempted one-pass push path under noisy 25M-target setup
+  runs.
 
 ## Next Research Targets
 
