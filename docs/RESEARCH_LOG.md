@@ -4056,6 +4056,26 @@ These did not pass the performance gate or had a correctness/architecture issue:
   memory traffic did not pay for this batch shape. The production hash builder
   remains serial; the experiment descriptor is kept only as a future
   code-vs-code gate for different hash-build designs.
+- Rejected `gpu-filter16-fast`, an integrated affine-scan lookup candidate
+  that kept full `x256 + y_parity` query rows on the GPU side, computed a
+  lightweight `key40_fast_hash` inside the Metal kernel, probed a 2-byte tag16
+  filter, and still accepted candidates only through the unchanged CPU exact
+  equality resolver over compact positives. The prototype preserved
+  `correctness=true`, `target_lookup_checksum=0x8b2568562837af7f`,
+  `hit_count=64`, `filter_positive_count=313`, and
+  `filter_false_positive_count=249`, but did not pass the paired gates.
+  Dirty paired end-to-end autoresearch scored `52,920,937.138620`
+  `ops_per_sec` versus the explicit `gpu-filter16-hash` baseline at
+  `59,441,584.434450` (`0.890302x`). A follow-up lookup-only gate was highly
+  unstable: an earlier single confirmation kept it at `88,517,644.638092`
+  versus `26,851,353.739957` `lookups_per_sec` (`3.296580x`), but the stricter
+  two-confirmation run discarded it. Confirmation 1 had candidate median
+  `23,354,516.791140` versus baseline `26,384,687.341231` (`0.885155x`);
+  confirmation 2 had candidate median `78,110,309.682183` versus baseline
+  `12,251,668.020419` (`6.375484x`), producing
+  `confirmation_status=discard`. Conclusion: do not keep the engine, do not
+  promote `auto`, and treat this as evidence that query-hash placement is a
+  promising but very noisy axis requiring a more stable kernel/timing design.
 
 ## Next Research Targets
 
