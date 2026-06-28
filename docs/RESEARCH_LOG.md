@@ -4355,6 +4355,29 @@ These did not pass the performance gate or had a correctness/architecture issue:
   correctly marked the experiment `confirmation_status=discard`. Conclusion:
   do not add repeat-only exact-resolution caching unless a future gate can
   reduce variance or prove a durable wall-clock benefit.
+- Kept explicit repeat-indexed GPU hash input for the 25M-target repeat-mode
+  integrated tag16 hash-filter lookup. The accepted engine is deliberately
+  named `gpu_filter16_hash_repeat` and is rejected outside
+  `lookup_query_mode=repeat`; it is not an `auto` routing change. A first 1D
+  kernel variant read `base_query_hashes[id % base_query_count]` and preserved
+  `target_lookup_checksum=0x5b746bd07e35a252`, `hit_count=131072`,
+  `miss_count=2033664`, `filter_positive_count=133120`, and
+  `filter_false_positive_count=2048`, but paired confirmation was mixed:
+  confirmation 1 regressed to `84,374,198.785846` lookups/sec versus
+  `99,307,597.127335` (`0.849625x`), while confirmation 2 improved to
+  `105,466,757.793263` versus `51,790,678.320998` (`2.036404x`). The kept
+  version removes that non-power-of-two modulo and dispatches a 2D Metal grid
+  over `(base_query, repeat)`, reconstructing the full logical query index for
+  exact-output filling. Small repeat smokes preserved
+  `target_lookup_checksum=0x10dfe66a4c7bbd2f`, `hit_count=12`, and
+  `filter_false_positive_count=0`; the 25,005,000-target scout preserved
+  `target_lookup_checksum=0x5b746bd07e35a252`, `hit_count=131072`, and reduced
+  `target_query_hash_bytes` from `17,317,888` to `8,456`. Paired autoresearch
+  with alternate order and two confirmations kept the 2D candidate: confirmation
+  1 measured `102,783,898.346530` versus baseline `72,816,861.692210`
+  (`1.411540x`), and confirmation 2 measured `104,205,982.345402` versus
+  `52,019,102.782842` (`2.003225x`). Correctness stayed true throughout, with
+  exact CPU `x256 + y_parity` verification over compact positives unchanged.
 - Rejected `--lookup-tg-limit 768` for the 25M-target repeat-mode integrated
   tag16 hash-filter lookup. A single sweep looked promising (`tg=768` measured
   `91,586,723.001839` lookups/sec and `202,675,625.803370` GPU-only

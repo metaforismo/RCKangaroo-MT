@@ -24,11 +24,14 @@ markers = [
     "RunTargetLookupTag32Kernel",
     "RunTargetLookupTag32FilterKernel",
     "RunTargetLookupTag16HashFilterKernel",
+    "RunTargetLookupTag16HashFilterRepeatKernel",
     "ResolveTargetLookupTag32FilterCandidates",
+    "ResolveTargetLookupTag32FilterRepeatCandidates",
     "RunTargetLookupTag32Cpu",
     "ValidateAffineTargetLookupOutputs",
     "\"gpu_filter\"",
     "\"gpu_filter16_hash\"",
+    "\"gpu_filter16_hash_repeat\"",
     "BuildTargetLookupTag32FilterTable",
     "BuildTargetLookupTag16FilterTable",
     "BuildTargetLookupTag32FilterTableFromTag32Buckets",
@@ -36,6 +39,7 @@ markers = [
     "BuildTargetLookupQueryHashes",
     "BuildTargetLookupQueryHashesParallel",
     "BuildRepeatedTargetLookupQueryHashes",
+    "target_lookup_tag16_hash_filter_repeat2d256",
     "base_query_hashes",
     "kMinParallelTargetLookupHashQueries",
     "ParallelForSamples(queries.size()",
@@ -71,6 +75,8 @@ if "lookup_expected_indices" in target_lookup_body:
     raise SystemExit("integrated affine-scan target lookup should validate expected indices on the fly")
 if "fill_reason" in target_lookup_body:
     raise SystemExit("integrated filter lookup should not run a second unmeasured exact-output fill pass")
+if "id % base_query_count" in kernels:
+    raise SystemExit("repeat-indexed tag16 hash lookup should use the 2D grid instead of per-thread modulo")
 integrated_filter_resolve_false = (
     "ResolveTargetLookupTag32FilterCandidates(target_buckets, target_keys, "
     "lookup_queries, positive_query_indices, local_filter_positive_count, "
@@ -406,6 +412,38 @@ gpu_filter16_hash25m_repeat_mode2048_command = [
 check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_repeat_mode2048.json",
     gpu_filter16_hash25m_repeat_mode2048_command,
+    "lookups_per_sec",
+)
+
+gpu_filter16_hash25m_repeat_indexed2048_command = [
+    "./macos/rck_macos",
+    command,
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--target-count",
+    "25005000",
+    "--hits",
+    "64",
+    "--lookup-repeat",
+    "2048",
+    "--lookup-query-mode",
+    "repeat",
+    "--lookup-engine",
+    "gpu-filter16-hash-repeat",
+    "--lookup-tg-limit",
+    "512",
+    "--min-ms",
+    "500",
+]
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_repeat_indexed2048.json",
+    gpu_filter16_hash25m_repeat_indexed2048_command,
     "lookups_per_sec",
 )
 

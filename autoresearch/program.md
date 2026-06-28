@@ -74,6 +74,12 @@ python3 autoresearch/runner.py --experiment metal_jacobian_jump_walk_dp --budget
 
 With confirmation enabled, a keep is accepted only if every full decision keeps it. Rows are appended after the confirmation policy runs; non-confirmed provisional keeps are recorded as `discard` and keep their original decision in `raw_status`.
 
+Lookup-focused Metal candidates are especially noisy when the surrounding walk
+stage dominates the `--min-ms` window. Keep them behind explicit engine names
+until paired confirmations pass; use `lookups_per_sec_min/max`,
+`lookup_gpu_seconds`, and `lookup_exact_seconds` to understand variance before
+changing routing defaults.
+
 For Metal DP candidates that look close or noisy, use the stable long-window gate
 before promotion:
 

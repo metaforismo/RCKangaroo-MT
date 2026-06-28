@@ -1403,7 +1403,8 @@ static std::string MetalAffineScanTargetLookupTag32BenchJson(const char* operati
 	if (!lookup_engine_effective)
 		lookup_engine_effective = lookup_engine;
 	bool lookup_uses_tag32_filter = strcmp(lookup_engine_effective, "gpu_filter") == 0;
-	bool lookup_uses_tag16_hash_filter = strcmp(lookup_engine_effective, "gpu_filter16_hash") == 0;
+	bool lookup_uses_tag16_hash_filter = strcmp(lookup_engine_effective, "gpu_filter16_hash") == 0 ||
+		strcmp(lookup_engine_effective, "gpu_filter16_hash_repeat") == 0;
 	bool lookup_uses_filter = lookup_uses_tag32_filter || lookup_uses_tag16_hash_filter;
 	const char* lookup_layout = "open_address_tag32_index_exact256";
 	const char* candidate_verification = "tag32_prefilter_then_exact_key_equality";
@@ -1430,7 +1431,7 @@ static std::string MetalAffineScanTargetLookupTag32BenchJson(const char* operati
 	oss << "\"affine_scan_mode\":\"cpu_batch_prod_zz_zzz\",";
 	oss << "\"lookup_layout\":\"" << lookup_layout << "\",";
 	if (lookup_uses_tag16_hash_filter)
-		oss << "\"query_input\":\"hash64\",";
+		oss << "\"query_input\":\"" << (strcmp(lookup_engine_effective, "gpu_filter16_hash_repeat") == 0 ? "hash64_repeat_indexed" : "hash64") << "\",";
 	oss << "\"target_key\":\"x256_y_parity\",";
 	oss << "\"candidate_verification\":\"" << candidate_verification << "\",";
 	oss << "\"iterations\":" << iterations << ",";
@@ -2957,6 +2958,56 @@ static bool ResolveTargetLookupTag32FilterCandidates(const std::vector<TargetLoo
 	return true;
 }
 
+static bool ResolveTargetLookupTag32FilterRepeatCandidates(const std::vector<TargetLookupTag32BucketHost>& buckets,
+	const std::vector<TargetLookupKeyHost>& target_keys,
+	const std::vector<TargetLookupKeyHost>& base_queries,
+	const std::vector<uint32_t>& positive_query_indices,
+	uint32_t filter_positive_count,
+	uint32_t query_count,
+	std::vector<uint32_t>& out_indices,
+	uint32_t& hit_count,
+	uint32_t& false_positive_count,
+	std::string& reason,
+	bool fill_outputs = true)
+{
+	if (base_queries.empty())
+	{
+		reason = "repeat filter resolver needs base queries";
+		return false;
+	}
+	if (filter_positive_count > positive_query_indices.size())
+	{
+		reason = "repeat tag16 filter positive count exceeds output capacity";
+		return false;
+	}
+
+	if (fill_outputs)
+		out_indices.assign(query_count, kTargetLookupEmptyIndex);
+	hit_count = 0;
+	false_positive_count = 0;
+	for (uint32_t i = 0; i < filter_positive_count; ++i)
+	{
+		uint32_t query_index = positive_query_indices[i];
+		if (query_index >= query_count)
+		{
+			reason = "repeat tag16 filter emitted invalid query index";
+			return false;
+		}
+
+		const TargetLookupKeyHost& query = base_queries[query_index % base_queries.size()];
+		uint32_t found = kTargetLookupEmptyIndex;
+		if (TargetLookupTag32Find(target_keys, buckets, query, &found))
+		{
+			if (fill_outputs)
+				out_indices[query_index] = found;
+			hit_count++;
+		}
+		else
+			false_positive_count++;
+	}
+	return true;
+}
+
 static bool RunTargetLookupTag32Cpu(const std::vector<TargetLookupTag32BucketHost>& buckets,
 	const std::vector<TargetLookupKeyHost>& target_keys,
 	const std::vector<TargetLookupKeyHost>& queries,
@@ -3564,6 +3615,134 @@ static bool RunTargetLookupTag16HashFilterKernel(const std::vector<uint16_t>& fi
 		if (filter_positive_count > query_hashes.size())
 		{
 			error = "tag16 hash-filter positive count overflow";
+			return false;
+		}
+		positive_query_indices.resize(filter_positive_count);
+		if (filter_positive_count)
+			memcpy(positive_query_indices.data(), [positive_buffer contents], (size_t)filter_positive_count * sizeof(uint32_t));
+		return true;
+	}
+}
+
+static bool RunTargetLookupTag16HashFilterRepeatKernel(const std::vector<uint16_t>& filter_buckets,
+	const std::vector<uint64_t>& base_query_hashes,
+	uint32_t query_count,
+	std::vector<uint32_t>& positive_query_indices,
+	uint32_t& filter_positive_count,
+	std::string& error,
+	double* seconds,
+	unsigned int threadgroup_limit = 0,
+	MetalDispatchStats* dispatch_stats = NULL)
+{
+	if (dispatch_stats)
+		dispatch_stats->threadgroup_limit = (unsigned int)EffectiveTargetLookupThreadgroupLimit(threadgroup_limit);
+	if (filter_buckets.empty() || base_query_hashes.empty() || query_count == 0 || base_query_hashes.size() > 0xFFFFFFFFULL)
+	{
+		error = "invalid repeat tag16 hash-filter target lookup input";
+		return false;
+	}
+	uint32_t base_query_count = (uint32_t)base_query_hashes.size();
+	if (query_count % base_query_count != 0)
+	{
+		error = "repeat tag16 hash-filter query count is not a multiple of base query count";
+		return false;
+	}
+	uint32_t repeat_count = query_count / base_query_count;
+
+	@autoreleasepool
+	{
+		id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+		if (!device)
+		{
+			error = "no Metal device available";
+			return false;
+		}
+
+		NSError* ns_error = nil;
+		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		if (!library)
+		{
+			error = NSErrorToString(ns_error);
+			return false;
+		}
+
+		id<MTLFunction> function = [library newFunctionWithName:@"target_lookup_tag16_hash_filter_repeat2d256"];
+		if (!function)
+		{
+			error = "failed to load target_lookup_tag16_hash_filter_repeat2d256 function";
+			return false;
+		}
+
+		id<MTLComputePipelineState> pipeline = [device newComputePipelineStateWithFunction:function error:&ns_error];
+		if (!pipeline)
+		{
+			error = NSErrorToString(ns_error);
+			return false;
+		}
+		NSUInteger execution_width = [pipeline threadExecutionWidth] ? [pipeline threadExecutionWidth] : 1;
+		NSUInteger max_threads = [pipeline maxTotalThreadsPerThreadgroup] ? [pipeline maxTotalThreadsPerThreadgroup] : execution_width;
+		NSUInteger threads_per_threadgroup = PreferredTargetLookupThreadgroupWidth(pipeline, threadgroup_limit);
+		if (dispatch_stats)
+		{
+			dispatch_stats->thread_execution_width = (unsigned int)execution_width;
+			dispatch_stats->max_threads_per_threadgroup = (unsigned int)max_threads;
+			dispatch_stats->threads_per_threadgroup = (unsigned int)threads_per_threadgroup;
+		}
+
+		size_t bucket_bytes = filter_buckets.size() * sizeof(uint16_t);
+		size_t hash_bytes = base_query_hashes.size() * sizeof(uint64_t);
+		size_t positive_bytes = (size_t)query_count * sizeof(uint32_t);
+		uint32_t zero = 0;
+		uint32_t bucket_count = (uint32_t)filter_buckets.size();
+		id<MTLBuffer> buckets_buffer = [device newBufferWithBytes:filter_buckets.data() length:bucket_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> query_hashes_buffer = [device newBufferWithBytes:base_query_hashes.data() length:hash_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> positive_buffer = [device newBufferWithLength:positive_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> positive_count_buffer = [device newBufferWithBytes:&zero length:sizeof(zero) options:MTLResourceStorageModeShared];
+		id<MTLBuffer> bucket_count_buffer = [device newBufferWithBytes:&bucket_count length:sizeof(bucket_count) options:MTLResourceStorageModeShared];
+		id<MTLBuffer> base_query_count_buffer = [device newBufferWithBytes:&base_query_count length:sizeof(base_query_count) options:MTLResourceStorageModeShared];
+		id<MTLBuffer> repeat_count_buffer = [device newBufferWithBytes:&repeat_count length:sizeof(repeat_count) options:MTLResourceStorageModeShared];
+		if (!buckets_buffer || !query_hashes_buffer || !positive_buffer || !positive_count_buffer || !bucket_count_buffer || !base_query_count_buffer || !repeat_count_buffer)
+		{
+			error = "failed to allocate Metal repeat tag16 hash-filter target lookup buffers";
+			return false;
+		}
+
+		id<MTLCommandQueue> queue = [device newCommandQueue];
+		if (!queue)
+		{
+			error = "failed to create Metal command queue";
+			return false;
+		}
+
+		id<MTLCommandBuffer> command_buffer = [queue commandBuffer];
+		id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+		[encoder setComputePipelineState:pipeline];
+		[encoder setBuffer:buckets_buffer offset:0 atIndex:0];
+		[encoder setBuffer:query_hashes_buffer offset:0 atIndex:1];
+		[encoder setBuffer:positive_buffer offset:0 atIndex:2];
+		[encoder setBuffer:positive_count_buffer offset:0 atIndex:3];
+		[encoder setBuffer:bucket_count_buffer offset:0 atIndex:4];
+		[encoder setBuffer:base_query_count_buffer offset:0 atIndex:5];
+		[encoder setBuffer:repeat_count_buffer offset:0 atIndex:6];
+		[encoder dispatchThreads:MTLSizeMake(base_query_count, repeat_count, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
+		[encoder endEncoding];
+		auto start = std::chrono::steady_clock::now();
+		[command_buffer commit];
+		[command_buffer waitUntilCompleted];
+		auto end = std::chrono::steady_clock::now();
+		if (seconds)
+			*seconds = std::chrono::duration<double>(end - start).count();
+
+		if ([command_buffer status] != MTLCommandBufferStatusCompleted)
+		{
+			error = NSErrorToString([command_buffer error]);
+			return false;
+		}
+
+		memcpy(&filter_positive_count, [positive_count_buffer contents], sizeof(filter_positive_count));
+		if (filter_positive_count > query_count)
+		{
+			error = "repeat tag16 hash-filter positive count overflow";
 			return false;
 		}
 		positive_query_indices.resize(filter_positive_count);
@@ -6574,6 +6753,8 @@ static const char* NormalizeAffineLookupEngineName(const char* lookup_engine)
 		return "gpu_filter";
 	if (strcmp(lookup_engine, "gpu-filter16-hash") == 0 || strcmp(lookup_engine, "gpu_filter16_hash") == 0 || strcmp(lookup_engine, "filter16-hash") == 0)
 		return "gpu_filter16_hash";
+	if (strcmp(lookup_engine, "gpu-filter16-hash-repeat") == 0 || strcmp(lookup_engine, "gpu_filter16_hash_repeat") == 0 || strcmp(lookup_engine, "filter16-hash-repeat") == 0)
+		return "gpu_filter16_hash_repeat";
 	if (strcmp(lookup_engine, "cpu") == 0 || strcmp(lookup_engine, "host") == 0)
 		return "cpu";
 	if (strcmp(lookup_engine, "auto") == 0)
@@ -6584,7 +6765,7 @@ static const char* NormalizeAffineLookupEngineName(const char* lookup_engine)
 static bool ValidateAffineLookupEngine(const char* lookup_engine, std::string& reason)
 {
 	const char* normalized = NormalizeAffineLookupEngineName(lookup_engine);
-	if (strcmp(normalized, "gpu") == 0 || strcmp(normalized, "gpu_filter") == 0 || strcmp(normalized, "gpu_filter16_hash") == 0 || strcmp(normalized, "cpu") == 0 || strcmp(normalized, "auto") == 0)
+	if (strcmp(normalized, "gpu") == 0 || strcmp(normalized, "gpu_filter") == 0 || strcmp(normalized, "gpu_filter16_hash") == 0 || strcmp(normalized, "gpu_filter16_hash_repeat") == 0 || strcmp(normalized, "cpu") == 0 || strcmp(normalized, "auto") == 0)
 		return true;
 	reason = "unknown affine lookup engine";
 	return false;
@@ -6610,7 +6791,8 @@ static unsigned int ChooseAffineLookupThreadgroupLimit(const char* lookup_engine
 {
 	if (lookup_threadgroup_limit)
 		return lookup_threadgroup_limit;
-	if (strcmp(effective_lookup_engine, "gpu_filter16_hash") == 0 &&
+	if ((strcmp(effective_lookup_engine, "gpu_filter16_hash") == 0 ||
+		strcmp(effective_lookup_engine, "gpu_filter16_hash_repeat") == 0) &&
 		target_count >= kDefaultMetalPersistentTargetLookupLargeTargetThreshold)
 		return kDefaultMetalPersistentTargetLookupFilterLargeThreadgroupLimit;
 	if (strcmp(lookup_engine, "auto") == 0 &&
@@ -9139,6 +9321,11 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 	{
 		return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, 0, dp_bits, 0, 0, target_count, requested_hits, 0, 0, 0, 0, 0, 0, min_ms, walk_stats, lookup_stats, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, false, false, lookup_engine_reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name);
 	}
+	if (strcmp(lookup_engine_name, "gpu_filter16_hash_repeat") == 0 && strcmp(lookup_query_mode_name, "repeat") != 0)
+	{
+		std::string reason = "repeat-indexed hash filter requires repeat lookup query mode";
+		return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, 0, dp_bits, 0, 0, target_count, requested_hits, 0, 0, 0, 0, 0, 0, min_ms, walk_stats, lookup_stats, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, false, false, reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name);
+	}
 	std::string schedule_reason;
 	if (!ValidateMetalJumpSchedule(jump_schedule, jump_count, schedule_reason))
 	{
@@ -9244,16 +9431,20 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 			std::string reason = "affine DP target lookup repeated query count limit is 32000000 for host memory safety";
 			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name);
 		}
-		std::vector<TargetLookupKeyHost> lookup_queries;
-		lookup_queries.reserve((size_t)repeated_query_count);
-		unsigned int expected_lookup_hits = 0;
-		if (strcmp(lookup_query_mode_name, "distinct_misses") == 0)
-		{
-			lookup_queries.insert(lookup_queries.end(), dp_keys.begin(), dp_keys.end());
-			expected_lookup_hits = injected_hits;
+			uint64_t logical_query_count = repeated_query_count;
+			effective_lookup_engine_name = ChooseAffineLookupEngine(lookup_engine_name, target_count, logical_query_count);
+			bool repeat_indexed_hash_lookup = strcmp(effective_lookup_engine_name, "gpu_filter16_hash_repeat") == 0;
+			effective_lookup_threadgroup_limit = ChooseAffineLookupThreadgroupLimit(lookup_engine_name, effective_lookup_engine_name, target_count, logical_query_count, threadgroup_limit, lookup_threadgroup_limit);
+			std::vector<TargetLookupKeyHost> lookup_queries;
+			unsigned int expected_lookup_hits = 0;
+			if (strcmp(lookup_query_mode_name, "distinct_misses") == 0)
+			{
+				lookup_queries.reserve((size_t)repeated_query_count);
+				lookup_queries.insert(lookup_queries.end(), dp_keys.begin(), dp_keys.end());
+				expected_lookup_hits = injected_hits;
 
-			uint64_t miss_nonce = 0;
-			uint32_t ignored = 0;
+				uint64_t miss_nonce = 0;
+				uint32_t ignored = 0;
 			while (lookup_queries.size() < (size_t)repeated_query_count)
 			{
 				TargetLookupKeyHost miss_key = DeterministicTargetLookupKey(miss_nonce++, 0xD1571A57BEEFULL);
@@ -9261,21 +9452,23 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 					miss_key = DeterministicTargetLookupKey(miss_nonce++, 0xBADC0FFEE0DDF00DULL);
 				lookup_queries.push_back(miss_key);
 			}
-		}
-		else
-		{
-			for (unsigned int repeat = 0; repeat < lookup_repeat; ++repeat)
-				lookup_queries.insert(lookup_queries.end(), dp_keys.begin(), dp_keys.end());
-			expected_lookup_hits = injected_hits * lookup_repeat;
-		}
+			}
+			else
+			{
+				expected_lookup_hits = injected_hits * lookup_repeat;
+				if (!repeat_indexed_hash_lookup)
+				{
+					lookup_queries.reserve((size_t)repeated_query_count);
+					for (unsigned int repeat = 0; repeat < lookup_repeat; ++repeat)
+						lookup_queries.insert(lookup_queries.end(), dp_keys.begin(), dp_keys.end());
+				}
+			}
 
-		effective_lookup_engine_name = ChooseAffineLookupEngine(lookup_engine_name, target_count, lookup_queries.size());
-		effective_lookup_threadgroup_limit = ChooseAffineLookupThreadgroupLimit(lookup_engine_name, effective_lookup_engine_name, target_count, lookup_queries.size(), threadgroup_limit, lookup_threadgroup_limit);
-		std::vector<uint32_t> out_indices;
-		double lookup_dispatch_seconds = 0.0;
-		bool lookup_ok = false;
-		if (strcmp(effective_lookup_engine_name, "cpu") == 0)
-		{
+			std::vector<uint32_t> out_indices;
+			double lookup_dispatch_seconds = 0.0;
+			bool lookup_ok = false;
+			if (strcmp(effective_lookup_engine_name, "cpu") == 0)
+			{
 			lookup_stats.threadgroup_limit = 0;
 			lookup_stats.thread_execution_width = 0;
 			lookup_stats.max_threads_per_threadgroup = 0;
@@ -9359,25 +9552,66 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 					lookup_hash_seconds += hash_seconds;
 					lookup_gpu_seconds += filter_seconds;
 					lookup_exact_seconds += exact_seconds;
+					}
 				}
 			}
-		}
-		else
-		{
-			lookup_ok = RunTargetLookupTag32Kernel(target_buckets, target_keys, lookup_queries, out_indices, hit_count, error, &lookup_dispatch_seconds, effective_lookup_threadgroup_limit, &lookup_stats);
-			if (lookup_ok)
-				lookup_gpu_seconds += lookup_dispatch_seconds;
+			else if (strcmp(effective_lookup_engine_name, "gpu_filter16_hash_repeat") == 0)
+			{
+				if (target_filter16_buckets.empty())
+				{
+					if (!BuildTargetLookupTag16FilterTableFromTag32Buckets(target_buckets, target_count, target_filter16_buckets, error))
+						return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name, effective_lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes);
+					target_filter_bucket_bytes = target_filter16_buckets.size() * sizeof(uint16_t);
+				}
+				std::vector<uint64_t> lookup_query_hashes;
+				auto hash_start = std::chrono::steady_clock::now();
+				BuildTargetLookupQueryHashesParallel(dp_keys, lookup_query_hashes);
+				double hash_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - hash_start).count();
+				target_query_hash_bytes = lookup_query_hashes.size() * sizeof(uint64_t);
+
+				std::vector<uint32_t> positive_query_indices;
+				uint32_t local_filter_positive_count = 0;
+				double filter_seconds = 0.0;
+				lookup_ok = RunTargetLookupTag16HashFilterRepeatKernel(target_filter16_buckets, lookup_query_hashes, (uint32_t)logical_query_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats);
+				lookup_dispatch_seconds = hash_seconds + filter_seconds;
+				if (lookup_ok)
+				{
+					uint32_t local_hit_count = 0;
+					uint32_t local_false_positive_count = 0;
+					std::string resolve_reason;
+					auto exact_start = std::chrono::steady_clock::now();
+					lookup_ok = ResolveTargetLookupTag32FilterRepeatCandidates(target_buckets, target_keys, dp_keys, positive_query_indices, local_filter_positive_count, (uint32_t)logical_query_count, out_indices, local_hit_count, local_false_positive_count, resolve_reason, true);
+					double exact_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - exact_start).count();
+					lookup_dispatch_seconds += exact_seconds;
+					if (!lookup_ok)
+						error = resolve_reason;
+					else
+					{
+						filter_positive_count = local_filter_positive_count;
+						filter_false_positive_count = local_false_positive_count;
+						hit_count = local_hit_count;
+						lookup_hash_seconds += hash_seconds;
+						lookup_gpu_seconds += filter_seconds;
+						lookup_exact_seconds += exact_seconds;
+					}
+				}
+			}
+			else
+			{
+				lookup_ok = RunTargetLookupTag32Kernel(target_buckets, target_keys, lookup_queries, out_indices, hit_count, error, &lookup_dispatch_seconds, effective_lookup_threadgroup_limit, &lookup_stats);
+				if (lookup_ok)
+					lookup_gpu_seconds += lookup_dispatch_seconds;
 		}
 		if (!lookup_ok)
 		{
 			if (error == "no Metal device available")
 				return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", 0, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, 0, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, 0, false, true, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name, effective_lookup_engine_name);
 			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name, effective_lookup_engine_name);
-		}
-		lookup_seconds += lookup_dispatch_seconds;
-		lookup_operations += lookup_queries.size();
+			}
+			lookup_seconds += lookup_dispatch_seconds;
+			lookup_operations += logical_query_count;
 
-		std::string lookup_reason;
+			std::string lookup_reason;
 		if (!ValidateAffineTargetLookupOutputs(out_indices, dp_keys.size(), injected_hits, lookup_repeat, lookup_query_mode_name, hit_count, expected_lookup_hits, &target_lookup_checksum, lookup_reason))
 			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, lookup_reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name, effective_lookup_engine_name);
 

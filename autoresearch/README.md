@@ -69,6 +69,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat2048 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat4096 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_repeat_mode2048 --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_repeat_indexed2048 --budget-sec 300 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_steps1024_dp7 --budget-sec 240 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_persistent_tg1024 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
@@ -127,7 +128,10 @@ The integrated affine-scan target-lookup command also separates
 lookup dispatch without pretending that host prehash, affine scan, or exact
 positive verification disappeared. Use the tg256 experiment above to compare
 the large 25M-target tag16 hash-filter lookup kernel against the prior tg512
-setting before changing any default policy.
+setting before changing any default policy. The repeat-indexed 2048 gate is
+explicitly repeat-mode-only: it sends one base DP hash batch to Metal and uses a
+2D `(base_query, repeat)` dispatch to preserve logical query positions without
+materializing repeated query hashes.
 
 ```sh
 make macos-check
@@ -581,6 +585,7 @@ Run the large-batch integrated tag16 hash-filter host-hash gate:
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat4096 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat2048 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_repeat_mode2048 --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_repeat_indexed2048 --budget-sec 300 --paired-baseline-ref HEAD --confirm-runs 2
 ```
 
 These use the 25,005,000-target mostly-miss shapes and score
@@ -597,6 +602,13 @@ batch once, then repeats the hash stream in the same order before the Metal
 tag16 filter dispatch. Full `lookup_queries` remain materialized for the CPU
 exact positive resolver and checksum oracle, so the optimization only removes
 redundant host prehashing from an explicitly repeated query batch.
+
+The repeat-indexed 2048 gate goes one step further but stays explicit. It uses
+`--lookup-engine gpu-filter16-hash-repeat`, keeps the exact same compact-positive
+CPU verification and checksum oracle, and reports `query_input=hash64_repeat_indexed`.
+The Metal kernel dispatches a 2D grid over base DP query and repeat index, so the
+GPU reads each base hash stream once and reconstructs the full logical query
+index for output filling.
 
 Run the CPU field multiplication experiment:
 
