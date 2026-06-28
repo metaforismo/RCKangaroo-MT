@@ -4423,6 +4423,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   measured only `102,979,586.897959` end-to-end ops/sec because lookup time
   dominated. Conclusion: keep 1024/dp7 as an explicit affine-scan cadence
   option, not as a blanket target-lookup or solver default.
+- Rejected changing the 1024/dp7 affine-scan threadgroup default from `128` to
+  `64`. A direct sweep made `tg=64` look plausible, but paired confirmation
+  against the accepted default discarded it. Confirmation 1 was already below
+  the gate (`99,625,768.379018` versus `124,916,919.058623`, `0.797554x`),
+  and confirmation 2 collapsed under thermal pressure (`60,161,520.073026`
+  versus `105,542,058.430188`, `0.570024x`). All rows preserved
+  `dp_distance_checksum=0x33b34eda684bc0e5`,
+  `dp_checksum=0x08b06faea04109e6`, and `dp_count=1999`. Conclusion: keep the
+  inherited `128` threadgroup default for the 1024/dp7 affine-scan path; use
+  explicit `--tg-limit` only for local diagnostics.
 
 ## Next Research Targets
 
