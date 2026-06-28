@@ -4406,6 +4406,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   confirmation policy correctly discarded the knob. Conclusion: keep the
   repeat-mode integrated lookup gate at `--lookup-tg-limit 512`; do not chase
   isolated high `768` samples without a stronger cooled protocol.
+- Rejected a compressed repeat-mode GPU filter probe on top of the accepted
+  repeat-indexed engine. The idea was to launch the tag16 hash-filter once per
+  base DP hash and expand positive base hits across the repeated logical query
+  slots, reducing duplicate GPU probes while keeping exact CPU full-key
+  verification and the full checksum oracle. Small repeat smokes preserved
+  `target_lookup_checksum=0x10dfe66a4c7bbd2f`, `hit_count=12`, and
+  `filter_false_positive_count=0`; the 25,005,000-target scout also preserved
+  `target_lookup_checksum=0x5b746bd07e35a252`, `hit_count=131072`,
+  `miss_count=2033664`, `filter_positive_count=133120`, and
+  `filter_false_positive_count=2048`. It was slower than the accepted 2D
+  repeat-indexed kernel: direct scout `lookups_per_sec=46,024,265.463599`
+  with `lookup_gpu_seconds=0.034567` and
+  `lookup_exact_seconds=0.012455`, while same-session accepted-engine scouts at
+  `--lookup-tg-limit 512` reached `97,515,207.695785` lookup-only and
+  `152,161,793.931497` in the integrated control. Conclusion: do not keep the
+  compressed repeat engine; expansion and positive-output traffic are costlier
+  than the saved duplicate probes on the M3 gate.
 - Kept chunked parallel CPU batch-affine scan for large XYZZ packet outputs.
   The math is still Montgomery batch inversion with one field inversion over
   all `ZZ*ZZZ` products, but large scans now split the product chain into CPU
