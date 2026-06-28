@@ -69,6 +69,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat2048 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat4096 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_repeat_mode2048 --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_steps1024_dp7 --budget-sec 240 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_persistent_tg1024 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_persistent --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
@@ -89,6 +90,10 @@ Large affine scans chunk the `ZZ*ZZZ` product chain across CPU workers while
 keeping one global inversion and the same reverse-order checksum/key output.
 This is still the same affine DP oracle; `affine_scan_seconds` makes the host
 normalization cost visible for future GPU-side batch-normalization work.
+The `steps1024_dp7` affine-scan experiment compares a longer packet with one
+less DP bit against the accepted `steps512/dp8` cadence. That keeps the
+packet-boundary DP check frequency roughly comparable per walked step; plain
+`steps1024/dp8` should not be treated as an honest solver-equivalent speedup.
 
 The target-lookup experiment is an exact multi-target join gate for the output
 of an affine DP scan. It builds a deterministic open-addressed Metal table of

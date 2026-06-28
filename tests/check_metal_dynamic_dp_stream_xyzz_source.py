@@ -28,6 +28,7 @@ required_kernel_markers = (
     "kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_pow2_u32_distance",
     "kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_pow2_u32_distance",
     "kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_pow2_u32_distance",
+    "kernel void jacobian_affine_walk_dynamic_xyzz_steps1024_pow2_u32_distance",
     "if (!out.inf && ((out.x0 & 0xFFFUL) == 0))",
     "if (!out.inf && ((out.x0 & 0xFFFFUL) == 0))",
     "constant ulong& dp_mask [[buffer(14)]]",
@@ -98,6 +99,7 @@ required_host_markers = (
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps256_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_chain_steps512_pow2_u32_distance\"",
+    "\"jacobian_affine_walk_dynamic_xyzz_steps1024_pow2_u32_distance\"",
     "use_xyzz_dp8_specialization",
     "use_xyzz_dp12_specialization",
     "use_xyzz_dp16_specialization",
@@ -112,6 +114,7 @@ required_host_markers = (
     "\\\"setup_mode\\\":\\\"reuse_pipeline_buffers\\\"",
     "\\\"state_persistence\\\":\\\"round_cumulative_xyzz\\\"",
     "steps_per_sample != 256 && steps_per_sample != 512",
+    "steps_per_sample != 256 && steps_per_sample != 512 && steps_per_sample != 1024",
     "CanAccumulateDistanceU32(jump_distances, steps_per_sample)",
     "XYZZ dynamic dp stream packet distance exceeds uint32 accumulator",
     "dp_stream_cumulative_uint64",
@@ -314,6 +317,45 @@ if affine_scan_payload.get("bench_command") != expected_affine_scan_command:
     raise SystemExit("XYZZ affine-scan experiment should run the affine packet-boundary CLI")
 if int(affine_scan_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("XYZZ affine-scan experiment should keep sample_runs >= 3")
+
+affine_scan_1024_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_steps1024_dp7.json")
+if not affine_scan_1024_experiment.exists():
+    raise SystemExit("missing XYZZ affine-scan steps1024 dp7 autoresearch experiment")
+affine_scan_1024_payload = json.loads(affine_scan_1024_experiment.read_text(encoding="utf-8"))
+expected_affine_scan_1024_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-bench",
+    "--iterations",
+    "262144",
+    "--steps",
+    "1024",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "7",
+    "--min-ms",
+    "500",
+]
+expected_affine_scan_1024_baseline_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-bench",
+    "--iterations",
+    "262144",
+    "--steps",
+    "512",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "8",
+    "--min-ms",
+    "500",
+]
+if affine_scan_1024_payload.get("bench_command") != expected_affine_scan_1024_command:
+    raise SystemExit("XYZZ affine-scan steps1024 experiment should run the dp7 packet-boundary CLI")
+if affine_scan_1024_payload.get("paired_baseline_command") != expected_affine_scan_1024_baseline_command:
+    raise SystemExit("XYZZ affine-scan steps1024 experiment should compare against the accepted steps512 dp8 cadence")
+if int(affine_scan_1024_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("XYZZ affine-scan steps1024 experiment should keep sample_runs >= 3")
 
 chain_experiment = Path("autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_chain_steps512.json")
 if not chain_experiment.exists():

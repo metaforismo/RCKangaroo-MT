@@ -1955,6 +1955,26 @@ kernel void jacobian_affine_walk_dynamic_xyzz_steps512_pow2_u32_distance(device 
   out_distances[id] = (ulong)out.distance;
 }
 
+kernel void jacobian_affine_walk_dynamic_xyzz_steps1024_pow2_u32_distance(device ulong* p_xyzz [[buffer(0)]],
+                                                                          constant AffineJumpValue* q_xy [[buffer(1)]],
+                                                                          device uchar* p_infinity [[buffer(2)]],
+                                                                          device ulong* out_distances [[buffer(4)]],
+                                                                          constant uint& count [[buffer(6)]],
+                                                                          constant ulong* jump_distances [[buffer(8)]],
+                                                                          constant uint& jump_mask [[buffer(11)]],
+                                                                          uint id [[thread_position_in_grid]]) {
+  if (id >= count) return;
+  uint p_base = id << 4;
+  XyzzDistanceValue out = xyzz_walk_pow2_u32_distance(p_xyzz[p_base + 0], p_xyzz[p_base + 1], p_xyzz[p_base + 2], p_xyzz[p_base + 3],
+                                                     p_xyzz[p_base + 4], p_xyzz[p_base + 5], p_xyzz[p_base + 6], p_xyzz[p_base + 7],
+                                                     p_xyzz[p_base + 8], p_xyzz[p_base + 9], p_xyzz[p_base + 10], p_xyzz[p_base + 11],
+                                                     p_xyzz[p_base + 12], p_xyzz[p_base + 13], p_xyzz[p_base + 14], p_xyzz[p_base + 15],
+                                                     p_infinity[id], q_xy, jump_distances, jump_mask, 1024);
+  store_xyzz_distance_value(p_xyzz, p_base, out);
+  p_infinity[id] = out.inf ? 1 : 0;
+  out_distances[id] = (ulong)out.distance;
+}
+
 kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_pow2_u32_distance(device ulong* p_xyzz [[buffer(0)]],
                                                                                    constant AffineJumpValue* q_xy [[buffer(1)]],
                                                                                    device uchar* p_infinity [[buffer(2)]],

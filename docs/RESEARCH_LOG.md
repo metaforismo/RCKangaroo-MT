@@ -4402,6 +4402,27 @@ These did not pass the performance gate or had a correctness/architecture issue:
   (`99,779,103.449835` versus `102,551,705.591218`, `0.972964x`). Conclusion:
   do not keep the split host path; the extra pass and second inversion do not
   beat the current chunked single-inversion design reliably on this M3 gate.
+- Kept the affine-scan-only `steps=1024, dp_bits=7` packet cadence. This adds
+  a distance-only XYZZ Metal packet kernel for 1024 steps and enables it for
+  affine-scan and affine-scan target-lookup benches, while leaving the DP stream
+  kernels and defaults at their accepted 256/512 shapes. The comparison uses
+  `dp_bits=7` rather than `dp_bits=8` so the packet-boundary DP check cadence
+  stays roughly comparable per walked step to the accepted `steps=512,
+  dp_bits=8` affine-scan gate. Paired autoresearch on
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_steps1024_dp7` kept both
+  confirmations against the 512/dp8 cadence: confirmation 1 measured
+  `128,058,444.947777` versus `125,609,000.001448` (`1.019500x`), and
+  confirmation 2 measured `127,715,945.975739` versus `124,991,147.125391`
+  (`1.021800x`). All candidate rows preserved `correctness=true`,
+  `dp_distance_checksum=0x33b34eda684bc0e5`,
+  `dp_checksum=0x08b06faea04109e6`, `dp_count=1999`, and the same jump
+  histogram bounds for the candidate. A 25,005,000-target repeat1024 smoke with
+  `gpu-filter16-hash` also preserved exact lookup
+  `target_lookup_checksum=0x4bfc0bfe896fe3ad`, `hit_count=65536`,
+  `filter_positive_count=65536`, and `filter_false_positive_count=0`, but
+  measured only `102,979,586.897959` end-to-end ops/sec because lookup time
+  dominated. Conclusion: keep 1024/dp7 as an explicit affine-scan cadence
+  option, not as a blanket target-lookup or solver default.
 
 ## Next Research Targets
 

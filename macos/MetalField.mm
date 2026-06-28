@@ -5634,7 +5634,7 @@ static bool RunJacobianDynamicXyzzDistanceKernel(const std::vector<CpuJacobianPo
 	if (dispatch_stats)
 		dispatch_stats->threadgroup_limit = (unsigned int)effective_threadgroup_limit;
 
-	if (p.empty() || jumps.empty() || jumps.size() != jump_distances.size() || (steps_per_sample != 256 && steps_per_sample != 512) || !IsMetalPowerOfTwo((unsigned int)jumps.size()) || jumps.size() > 32 || p.size() > 0xFFFFFFFFULL)
+	if (p.empty() || jumps.empty() || jumps.size() != jump_distances.size() || (steps_per_sample != 256 && steps_per_sample != 512 && steps_per_sample != 1024) || !IsMetalPowerOfTwo((unsigned int)jumps.size()) || jumps.size() > 32 || p.size() > 0xFFFFFFFFULL)
 	{
 		error = "invalid jacobian dynamic XYZZ distance input";
 		return false;
@@ -5674,9 +5674,11 @@ static bool RunJacobianDynamicXyzzDistanceKernel(const std::vector<CpuJacobianPo
 			return false;
 		}
 
-		const char* function_name = steps_per_sample == 512
-			? "jacobian_affine_walk_dynamic_xyzz_steps512_pow2_u32_distance"
-			: "jacobian_affine_walk_dynamic_xyzz_steps256_pow2_u32_distance";
+		const char* function_name = steps_per_sample == 1024
+			? "jacobian_affine_walk_dynamic_xyzz_steps1024_pow2_u32_distance"
+			: (steps_per_sample == 512
+				? "jacobian_affine_walk_dynamic_xyzz_steps512_pow2_u32_distance"
+				: "jacobian_affine_walk_dynamic_xyzz_steps256_pow2_u32_distance");
 		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{
@@ -9013,9 +9015,9 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanBenchJson(unsigned int 
 	MetalDispatchStats dispatch_stats;
 	dispatch_stats.threadgroup_limit = (unsigned int)EffectiveDynamicDpStreamInplaceThreadgroupLimit(threadgroup_limit, dp_bits, steps_per_sample);
 	uint64_t requested_operations = (uint64_t)sample_count * steps_per_sample;
-	if ((steps_per_sample != 256 && steps_per_sample != 512) || !IsMetalPowerOfTwo(jump_count))
+	if ((steps_per_sample != 256 && steps_per_sample != 512 && steps_per_sample != 1024) || !IsMetalPowerOfTwo(jump_count))
 	{
-		std::string reason = "XYZZ affine scan supports steps=256 or steps=512, power-of-two jumps, and dp_bits<=32";
+		std::string reason = "XYZZ affine scan supports steps=256, steps=512, or steps=1024, power-of-two jumps, and dp_bits<=32";
 		return MetalJacobianDynamicDpStreamXyzzAffineScanBenchJson("jacobian_affine_walk_dynamic_dp_stream_xyzz_affine_scan", requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, 0, dp_bits, 0, 0, min_ms, dispatch_stats, 0.0, 0.0, 0.0, 0.0, 0.0, false, false, reason);
 	}
 	std::string schedule_reason;
@@ -9112,9 +9114,9 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 	MetalDispatchStats lookup_stats;
 	lookup_stats.threadgroup_limit = (unsigned int)EffectiveTargetLookupThreadgroupLimit(effective_lookup_threadgroup_limit);
 	uint64_t requested_operations = (uint64_t)sample_count * steps_per_sample;
-	if ((steps_per_sample != 256 && steps_per_sample != 512) || !IsMetalPowerOfTwo(jump_count))
+	if ((steps_per_sample != 256 && steps_per_sample != 512 && steps_per_sample != 1024) || !IsMetalPowerOfTwo(jump_count))
 	{
-		std::string reason = "affine scan target lookup supports steps=256 or steps=512, power-of-two jumps, and dp_bits<=32";
+		std::string reason = "affine scan target lookup supports steps=256, steps=512, or steps=1024, power-of-two jumps, and dp_bits<=32";
 		return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, 0, dp_bits, 0, 0, target_count, requested_hits, 0, 0, 0, 0, 0, 0, min_ms, walk_stats, lookup_stats, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, false, false, reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name);
 	}
 	if (target_count == 0 || target_count > 32000000U)
