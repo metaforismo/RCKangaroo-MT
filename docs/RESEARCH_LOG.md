@@ -4433,6 +4433,16 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0x08b06faea04109e6`, and `dp_count=1999`. Conclusion: keep the
   inherited `128` threadgroup default for the 1024/dp7 affine-scan path; use
   explicit `--tg-limit` only for local diagnostics.
+- Rejected changing the 1024/dp7 repeat-mode tag16 hash-filter 25M-target lookup
+  cap from `--lookup-tg-limit 512` to `256`. A direct scout showed `256` could
+  look faster in isolation, but paired confirmation using `metric=lookups_per_sec`
+  was unstable: confirmation 1 barely passed raw scoring (`78,033,668.777845`
+  versus `73,736,777.295463`, `1.058273x`), then confirmation 2 failed hard
+  (`25,905,527.445064` versus `147,194,749.421910`, `0.175995x`). All rows
+  preserved `dp_distance_checksum=0x33b34eda684bc0e5`,
+  `dp_checksum=0x08b06faea04109e6`, `dp_count=1999`, and
+  `target_lookup_checksum=0x4bfc0bfe896fe3ad`. Conclusion: keep `512` as the
+  lookup cap for this large repeat-mode path.
 
 ## Next Research Targets
 
