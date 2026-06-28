@@ -4440,6 +4440,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   downgraded by `confirmation_status=discard`. Conclusion: keep the eager
   logical-index arithmetic; the compiler/scheduler and lookup variance erase
   this micro-optimization.
+- Rejected removing the exact-grid bounds check from
+  `target_lookup_tag16_hash_filter_repeat2d256`. The hypothesis was that
+  `dispatchThreads` launches exactly the `(base_query_count, repeat_count)`
+  grid, making the in-kernel
+  `base_query_id >= base_query_count || repeat_id >= repeat_count` guard
+  redundant. A small non-multiple-x smoke preserved correctness, and the
+  25,005,000-target paired gate preserved
+  `target_lookup_checksum=0x5b746bd07e35a252`, `hit_count=131072`,
+  `miss_count=2033664`, `filter_positive_count=133120`, and
+  `filter_false_positive_count=2048`. Confirmation still discarded it:
+  confirmation 1 measured candidate `48,365,567.273739` lookups/sec versus
+  baseline `119,687,116.861217` (`0.404091x`), while confirmation 2 measured
+  `102,910,335.958366` versus `70,879,864.899926` (`1.451898x`) and was
+  downgraded by `confirmation_status=discard`. Conclusion: keep the explicit
+  guard; removing it is not a stable M3 win and weakens the safety shape.
 - Kept chunked parallel CPU batch-affine scan for large XYZZ packet outputs.
   The math is still Montgomery batch inversion with one field inversion over
   all `ZZ*ZZZ` products, but large scans now split the product chain into CPU
