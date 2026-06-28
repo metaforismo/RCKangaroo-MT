@@ -3297,6 +3297,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   runtime `ProjectiveDpMask(dp_bits)` path unless a different specialization
   changes register pressure or instruction scheduling enough to beat this
   negative gate.
+- Rejected follow-up `macos-metal-xyzz-dp14-hardcoded-mask`: adding DP14
+  hardcoded `0x3FFF` XYZZ packet and chain kernels preserved the persistent
+  chain oracle but did not reproduce as a speedup. A small smoke on
+  `2048 x 512 x 4` returned `correctness=true`, `dp_count=2`,
+  `dp_distance_checksum=0xcd94bf3eb529e946`, and
+  `dp_checksum=0xd286f3bac8ebdb4a`. The paired autoresearch gate against
+  clean `main` then kept identical `131072 x 512 x 4` DP14 checksums
+  (`dp_count=34`, `dp_distance_checksum=0x5cb70f4effb5ad6f`,
+  `dp_checksum=0xc662777588781698`) but discarded both confirmation runs:
+  candidate `51,417,088.435783` vs baseline `116,310,256.764624`
+  steps/sec (`paired_speedup=0.442068`) and candidate
+  `52,570,949.918239` vs baseline `119,890,117.177222`
+  (`paired_speedup=0.438493`). Keep DP14 on the runtime
+  `ProjectiveDpMask(dp_bits)` path; the accepted sparse-mask hardcodes remain
+  DP12 and DP16 only.
 - Rejected follow-up `macos-metal-xyzz-dp16-scaled4-persistent`: the
   `scaled4-balanced` four-jump schedule remained correct for the hardcoded
   DP16 persistent-chain path and produced a very balanced jump histogram
