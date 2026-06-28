@@ -4378,6 +4378,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   (`1.411540x`), and confirmation 2 measured `104,205,982.345402` versus
   `52,019,102.782842` (`2.003225x`). Correctness stayed true throughout, with
   exact CPU `x256 + y_parity` verification over compact positives unchanged.
+- Rejected exact-positive caching on top of the accepted repeat-indexed engine.
+  The cache resolved each positive base DP query once and reused that exact
+  tag32 result across repeated logical query slots, preserving full output
+  filling and exact checksum validation. It reduced some `lookup_exact_seconds`
+  samples, and all paired runs preserved `correctness=true`,
+  `target_lookup_checksum=0x5b746bd07e35a252`, `hit_count=131072`,
+  `miss_count=2033664`, `filter_positive_count=133120`, and
+  `filter_false_positive_count=2048`; however total `lookups_per_sec` did not
+  survive confirmation against the accepted repeat-indexed baseline. Confirmation
+  1 measured candidate `99,367,810.533474` versus baseline
+  `108,781,840.533811` (`0.913460x`), while confirmation 2 measured
+  `73,292,478.204763` versus `56,780,394.048385` (`1.290806x`) and was
+  recorded as a discarded provisional keep. Conclusion: keep exact verification
+  simple until a lookup-timing harness with lower variance proves this cache
+  matters to wall-clock throughput.
 - Rejected `--lookup-tg-limit 768` for the 25M-target repeat-mode integrated
   tag16 hash-filter lookup. A single sweep looked promising (`tg=768` measured
   `91,586,723.001839` lookups/sec and `202,675,625.803370` GPU-only
