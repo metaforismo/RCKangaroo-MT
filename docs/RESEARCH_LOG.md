@@ -4443,6 +4443,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0x08b06faea04109e6`, `dp_count=1999`, and
   `target_lookup_checksum=0x4bfc0bfe896fe3ad`. Conclusion: keep `512` as the
   lookup cap for this large repeat-mode path.
+- Rejected adding a `2048`-step XYZZ affine-scan packet cadence with `dp_bits=6`
+  against the accepted `1024`/`dp_bits=7` cadence. The idea preserved roughly
+  the same packet-boundary DP density per operation and passed small runtime
+  smoke tests, but paired confirmation discarded it: confirmation 1 median was
+  `73,816,871.471887` versus baseline `124,567,872.702391` (`0.592584x`), and
+  confirmation 2 median was `66,896,871.301844` versus `123,864,112.622089`
+  (`0.540083x`). Correctness stayed true with `dp_count=4121`,
+  `dp_distance_checksum=0xc92fd9a5364bd81c`, and
+  `dp_checksum=0x53bb3a95a8af1270`, but the longer per-thread packet increased
+  thermal/register-pressure risk instead of improving throughput. Conclusion:
+  keep `1024`/`dp_bits=7` as the longest accepted affine-scan cadence.
 
 ## Next Research Targets
 
