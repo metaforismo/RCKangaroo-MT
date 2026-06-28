@@ -4571,6 +4571,24 @@ These did not pass the performance gate or had a correctness/architecture issue:
   (`2.644894x`). Treat this as a lookup/resolver efficiency win for
   repeat-mode accumulated multi-target batches, not as a new discrete-log
   algorithm or a per-step kangaroo throughput claim.
+- Rejected repeat-mode base-once GPU filtering on top of the accepted packed
+  positive path. The candidate exploited the synthetic `repeat` query mode more
+  aggressively: it probed the Metal tag16 hash filter only once per base DP
+  query, then expanded exact positives across all repeats on the host while
+  preserving full `x256 + y_parity` equality, complete output filling, and the
+  checksum oracle. It stayed correct with
+  `target_lookup_checksum=0x5b746bd07e35a252`, `hit_count=131072`,
+  `miss_count=2033664`, `filter_positive_count=133120`,
+  `filter_false_positive_count=2048`, and
+  `repeat_positive_index_encoding=base_once_logical_expand`, but paired
+  confirmation did not keep. Confirmation 1 was a raw keep:
+  `79,812,067.404552` lookups/sec versus packed-positive baseline
+  `36,303,815.503278` (`2.198448x`). Confirmation 2 rejected it:
+  `127,166,925.799653` versus `157,742,708.556192` (`0.806167x`), so the
+  runner marked both rows with `confirmation_status=discard`. The code and
+  experiment descriptor were reverted. Conclusion: reducing repeated GPU
+  probes is a plausible idea, but this base-once host expansion is too noisy on
+  the current 25M-target M3 gate to replace the accepted packed 2D repeat path.
 
 ## Next Research Targets
 
