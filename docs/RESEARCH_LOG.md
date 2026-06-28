@@ -4332,6 +4332,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   derived builders; Apple libc++/allocator behavior and contiguous indexed
   stores beat the attempted one-pass push path under noisy 25M-target setup
   runs.
+- Kept parallel bucket scans for the derived tag32/tag16 filter builders. The
+  change keeps the accepted `assign` + indexed-write table layout, but splits
+  the already-built tag32 bucket table across CPU workers for large 25M-target
+  setup runs. It does not change filter semantics: both derived tables are
+  still byte-compared against the legacy rehash/probe builders, and every
+  measured row preserved `tag32_byte_equal=true`, `tag16_byte_equal=true`,
+  `tag32_filter_checksum=0x42b1584566f30df0`, and
+  `tag16_filter_checksum=0x8ba16d0e4799e611`. A direct 25,005,000-target
+  smoke measured derived build time `0.129628s` versus legacy `2.297284s`
+  (`speedup=17.722170`). Paired autoresearch against clean `main` kept both
+  confirmations with `metric=speedup`: confirmation 1 measured candidate
+  `38.214781` versus baseline `15.140577` (`2.523998x`), and confirmation 2
+  measured `32.164942` versus `15.875932` (`2.026019x`). This improves
+  multi-target setup throughput for the tag32/tag16 filter path without
+  changing GPU lookup kernels or exact target-key verification.
 - Kept repeat-mode query-hash reuse for the integrated
   `gpu-filter16-hash` affine-DP target lookup. In `lookup_query_mode=repeat`,
   the benchmark intentionally duplicates the same affine DP key batch

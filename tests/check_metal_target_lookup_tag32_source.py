@@ -36,6 +36,7 @@ for marker in (
     "BuildTargetLookupTag16FilterTable",
     "BuildTargetLookupTag32FilterTableFromTag32Buckets",
     "BuildTargetLookupTag16FilterTableFromTag32Buckets",
+    "kMinParallelTargetLookupFilterBuckets",
     "bucket.tag >> 16",
     "TargetLookupFilterChecksum",
     "RCKTargetLookupFilterBuildBenchJson",
@@ -98,6 +99,11 @@ for marker in (
 ):
     if marker not in host_source:
         raise SystemExit("missing tag32 target lookup host marker: " + marker)
+
+if host_source.count("ParallelForSamples(tag32_buckets.size()") < 2:
+    raise SystemExit("derived tag32/tag16 filter builders should parallelize large bucket scans")
+if host_source.count("std::atomic<bool> index_out_of_range(false)") < 2:
+    raise SystemExit("parallel derived filter builders should preserve index-range error detection")
 
 if "((total_dispatch_seconds + total_exact_verify_seconds) * 1000.0 < (double)min_ms)" in host_source:
     raise SystemExit("persistent filter lookup min-ms window should be bounded by GPU dispatch time, not exact CPU verification")

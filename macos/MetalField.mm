@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cstring>
 #include <iomanip>
@@ -27,6 +28,7 @@ static constexpr unsigned int kDefaultMetalPersistentTargetLookupLargeThreadgrou
 static constexpr unsigned int kDefaultMetalPersistentTargetLookupFilterLargeThreadgroupLimit = 512;
 static constexpr size_t kDefaultMetalPersistentTargetLookupLargeTargetThreshold = 16777216;
 static constexpr size_t kMinParallelTargetLookupHashQueries = 2097152;
+static constexpr size_t kMinParallelTargetLookupFilterBuckets = 2097152;
 static constexpr size_t kMinValidationSamplesPerWorker = 1024;
 
 struct MetalDispatchStats
@@ -2569,17 +2571,36 @@ static bool BuildTargetLookupTag32FilterTableFromTag32Buckets(const std::vector<
 	}
 
 	filter_buckets.assign(tag32_buckets.size(), 0U);
-	for (size_t slot = 0; slot < tag32_buckets.size(); ++slot)
-	{
-		const TargetLookupTag32BucketHost& bucket = tag32_buckets[slot];
-		if (bucket.target_index == kTargetLookupEmptyIndex)
-			continue;
-		if (bucket.target_index >= target_count)
+	std::atomic<bool> index_out_of_range(false);
+	auto fill_range = [&](size_t begin, size_t end) {
+		for (size_t slot = begin; slot < end; ++slot)
 		{
-			error = "tag32 filter source table index out of range";
-			return false;
+			const TargetLookupTag32BucketHost& bucket = tag32_buckets[slot];
+			if (bucket.target_index == kTargetLookupEmptyIndex)
+				continue;
+			if (bucket.target_index >= target_count)
+			{
+				index_out_of_range.store(true, std::memory_order_relaxed);
+				continue;
+			}
+			filter_buckets[slot] = bucket.tag | 1U;
 		}
-		filter_buckets[slot] = bucket.tag | 1U;
+	};
+	if (tag32_buckets.size() >= kMinParallelTargetLookupFilterBuckets && ValidationWorkerCount(tag32_buckets.size()) > 1)
+	{
+		ParallelForSamples(tag32_buckets.size(), [&](size_t begin, size_t end, unsigned int worker) {
+			(void)worker;
+			fill_range(begin, end);
+		});
+	}
+	else
+	{
+		fill_range(0, tag32_buckets.size());
+	}
+	if (index_out_of_range.load(std::memory_order_relaxed))
+	{
+		error = "tag32 filter source table index out of range";
+		return false;
 	}
 	return true;
 }
@@ -2597,17 +2618,36 @@ static bool BuildTargetLookupTag16FilterTableFromTag32Buckets(const std::vector<
 	}
 
 	filter_buckets.assign(tag32_buckets.size(), 0U);
-	for (size_t slot = 0; slot < tag32_buckets.size(); ++slot)
-	{
-		const TargetLookupTag32BucketHost& bucket = tag32_buckets[slot];
-		if (bucket.target_index == kTargetLookupEmptyIndex)
-			continue;
-		if (bucket.target_index >= target_count)
+	std::atomic<bool> index_out_of_range(false);
+	auto fill_range = [&](size_t begin, size_t end) {
+		for (size_t slot = begin; slot < end; ++slot)
 		{
-			error = "tag16 filter source table index out of range";
-			return false;
+			const TargetLookupTag32BucketHost& bucket = tag32_buckets[slot];
+			if (bucket.target_index == kTargetLookupEmptyIndex)
+				continue;
+			if (bucket.target_index >= target_count)
+			{
+				index_out_of_range.store(true, std::memory_order_relaxed);
+				continue;
+			}
+			filter_buckets[slot] = (uint16_t)(((uint16_t)(bucket.tag >> 16)) | (uint16_t)1U);
 		}
-		filter_buckets[slot] = (uint16_t)(((uint16_t)(bucket.tag >> 16)) | (uint16_t)1U);
+	};
+	if (tag32_buckets.size() >= kMinParallelTargetLookupFilterBuckets && ValidationWorkerCount(tag32_buckets.size()) > 1)
+	{
+		ParallelForSamples(tag32_buckets.size(), [&](size_t begin, size_t end, unsigned int worker) {
+			(void)worker;
+			fill_range(begin, end);
+		});
+	}
+	else
+	{
+		fill_range(0, tag32_buckets.size());
+	}
+	if (index_out_of_range.load(std::memory_order_relaxed))
+	{
+		error = "tag16 filter source table index out of range";
+		return false;
 	}
 	return true;
 }
