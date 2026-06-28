@@ -4454,6 +4454,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0x53bb3a95a8af1270`, but the longer per-thread packet increased
   thermal/register-pressure risk instead of improving throughput. Conclusion:
   keep `1024`/`dp_bits=7` as the longest accepted affine-scan cadence.
+- Accepted an autoresearch methodology improvement for thermally sensitive
+  Metal experiments: paired benchmark rows now record `paired_order`, and
+  experiments may set `paired_order: "alternate"` to run odd samples
+  candidate-first. The default remains `baseline_first` so old experiments keep
+  their exact behavior, but future close M3 GPU decisions can reduce systematic
+  second-run heat bias without changing benchmark commands, correctness
+  oracles, or keep/discard thresholds.
 
 ## Next Research Targets
 

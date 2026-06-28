@@ -223,6 +223,7 @@ def build_benchmark_row(
         row.update(
             {
                 "paired_baseline_ref": paired_baseline_ref,
+                "paired_order": paired_order(experiment),
                 "paired_baseline_ops_per_sec": paired_ops or 0.0,
                 "paired_speedup": (ops_per_sec / paired_ops) if paired_ops else 0.0,
             }
@@ -248,6 +249,13 @@ def experiment_bench_command(experiment: dict, key: str = "bench_command") -> li
 
 def cooldown_seconds(experiment: dict) -> float:
     return max(0.0, float(experiment.get("cooldown_sec", 0.0) or 0.0))
+
+
+def paired_order(experiment: dict) -> str:
+    order = str(experiment.get("paired_order", "baseline_first"))
+    if order not in {"baseline_first", "alternate"}:
+        raise ValueError("paired_order must be baseline_first or alternate")
+    return order
 
 
 def cooldown_between_samples(experiment: dict, sample_index: int, sample_runs: int) -> None:
@@ -296,18 +304,29 @@ def run_experiment_samples(experiment: dict, timeout: int, cwd: Path) -> dict:
 def run_paired_experiment_samples(experiment: dict, timeout: int, baseline_cwd: Path, candidate_cwd: Path, *, build: bool = True) -> tuple[dict, dict]:
     sample_runs = max(1, int(experiment.get("sample_runs", 1)))
     metric_name = str(experiment.get("metric", "ops_per_sec"))
+    order = paired_order(experiment)
     baseline_samples: list[dict] = []
     candidate_samples: list[dict] = []
     if build:
         build_experiment(experiment, timeout, baseline_cwd)
         build_experiment(experiment, timeout, candidate_cwd)
     for sample_index in range(sample_runs):
-        if sample_runs > 1:
-            print(f"paired sample {sample_index + 1}/{sample_runs} baseline:")
-        baseline_samples.append(run_experiment_sample(experiment, timeout, baseline_cwd, build=False, command_key="paired_baseline_command"))
-        if sample_runs > 1:
-            print(f"paired sample {sample_index + 1}/{sample_runs} candidate:")
-        candidate_samples.append(run_experiment_sample(experiment, timeout, candidate_cwd, build=False))
+        def run_baseline_sample() -> None:
+            if sample_runs > 1:
+                print(f"paired sample {sample_index + 1}/{sample_runs} baseline:")
+            baseline_samples.append(run_experiment_sample(experiment, timeout, baseline_cwd, build=False, command_key="paired_baseline_command"))
+
+        def run_candidate_sample() -> None:
+            if sample_runs > 1:
+                print(f"paired sample {sample_index + 1}/{sample_runs} candidate:")
+            candidate_samples.append(run_experiment_sample(experiment, timeout, candidate_cwd, build=False))
+
+        if order == "alternate" and sample_index % 2 == 1:
+            run_candidate_sample()
+            run_baseline_sample()
+        else:
+            run_baseline_sample()
+            run_candidate_sample()
         cooldown_between_samples(experiment, sample_index, sample_runs)
 
     return aggregate_metric_samples(baseline_samples, metric_name=metric_name), aggregate_metric_samples(candidate_samples, metric_name=metric_name)

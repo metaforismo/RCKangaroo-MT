@@ -18,14 +18,14 @@ Use a paired baseline when local CPU load is noisy and a candidate should be com
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5 --paired-baseline-ref main
 ```
 
-With `--paired-baseline-ref`, the runner creates a temporary detached worktree for that ref, runs the same correctness checks, then alternates each baseline benchmark sample with the matching candidate sample. The JSON row records `paired_baseline_ref`, `paired_baseline_ops_per_sec`, and `paired_speedup`; keep/discard uses the paired baseline when it is correct and not skipped, otherwise it falls back to previous kept rows.
+With `--paired-baseline-ref`, the runner creates a temporary detached worktree for that ref, runs the same correctness checks, and by default runs each pair as baseline then candidate. Set `paired_order: "alternate"` in an experiment to run odd samples candidate-first; use this for thermal-sensitive Metal probes where always heating the candidate after the baseline could bias a close decision. The JSON row records `paired_baseline_ref`, `paired_order`, `paired_baseline_ops_per_sec`, and `paired_speedup`; keep/discard uses the paired baseline when it is correct and not skipped, otherwise it falls back to previous kept rows.
 
 Experiments usually name a Make target with `bench_target`. For parameterized
 probes that should not grow the Makefile, an experiment may instead set
 `build_target` plus `bench_command`; the runner builds once per sample set with
 `make <build_target>`, then runs the explicit command for each sample and parses
-its final JSON line. Paired runs build each side once, then alternate the same
-benchmark command in the baseline and candidate worktrees. The core CPU
+its final JSON line. Paired runs build each side once, then run the same
+benchmark command in both worktrees using the experiment's `paired_order`. The core CPU
 kangaroo walk gates and the Metal field add, multiply, square, fused
 square-mul, and stable DP8 stream gates use this form so experiments do not
 pay a phony Make rebuild before every timing sample.

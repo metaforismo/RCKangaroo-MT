@@ -93,6 +93,7 @@ paired_row = runner.build_benchmark_row(
 )
 assert paired_row["status"] == "keep"
 assert paired_row["paired_baseline_ref"] == "main"
+assert paired_row["paired_order"] == "baseline_first"
 assert paired_row["paired_baseline_ops_per_sec"] == 80.0
 assert paired_row["paired_speedup"] == 1.05
 assert paired_row["cooldown_sec"] == 3.0
@@ -227,6 +228,47 @@ finally:
 assert call_order == ["baseline", "candidate", "baseline", "candidate", "baseline", "candidate"]
 assert paired_baseline_metrics["ops_per_sec"] == 100.0
 assert paired_candidate_metrics["ops_per_sec"] == 105.0
+
+alternate_call_order: list[str] = []
+alternate_sample_ops = {
+    "baseline": [80.0, 100.0, 120.0, 140.0],
+    "candidate": [84.0, 105.0, 126.0, 147.0],
+}
+
+
+def fake_alternate_run_command(args: list[str], timeout: int, cwd: Path = runner.ROOT) -> subprocess.CompletedProcess[str]:
+    assert args == ["make", "fake-bench"]
+    label = "baseline" if cwd == baseline_cwd else "candidate"
+    alternate_call_order.append(label)
+    ops = alternate_sample_ops[label].pop(0)
+    payload = dict(metrics, ops_per_sec=ops, iterations=int(ops))
+    return subprocess.CompletedProcess(args, 0, stdout=f"{runner.json.dumps(payload)}\n")
+
+
+runner.run_command = fake_alternate_run_command
+try:
+    with contextlib.redirect_stdout(io.StringIO()):
+        alternate_baseline_metrics, alternate_candidate_metrics = runner.run_paired_experiment_samples(
+            dict(experiment, bench_target="fake-bench", sample_runs=4, paired_order="alternate"),
+            timeout=10,
+            baseline_cwd=baseline_cwd,
+            candidate_cwd=candidate_cwd,
+        )
+finally:
+    runner.run_command = original_run_command
+
+assert alternate_call_order == [
+    "baseline",
+    "candidate",
+    "candidate",
+    "baseline",
+    "baseline",
+    "candidate",
+    "candidate",
+    "baseline",
+]
+assert alternate_baseline_metrics["ops_per_sec"] == 110.0
+assert alternate_candidate_metrics["ops_per_sec"] == 115.5
 
 command_calls: list[tuple[Path, list[str]]] = []
 

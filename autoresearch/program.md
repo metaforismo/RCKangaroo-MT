@@ -64,7 +64,7 @@ For noisy local performance work, run with a paired ref:
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5 --paired-baseline-ref main
 ```
 
-When the paired baseline is correct, keep/discard compares against that fresh same-run baseline and records `paired_baseline_ops_per_sec`, `paired_speedup`, and `cooldown_sec` in `benchmarks.jsonl`. Paired runs alternate baseline and candidate samples so CPU load and thermal drift affect both sides more evenly. For command-backed experiments, paired confirmation runs create the baseline worktree once and build baseline plus candidate once for the whole confirmation series. Experiments may set `cooldown_sec` to sleep between samples; use it for long Metal runs on passively cooled machines where thermal throttling can swamp small code changes.
+When the paired baseline is correct, keep/discard compares against that fresh same-run baseline and records `paired_order`, `paired_baseline_ops_per_sec`, `paired_speedup`, and `cooldown_sec` in `benchmarks.jsonl`. The default paired order is `baseline_first` for backward reproducibility. Experiments may set `paired_order: "alternate"` to run odd samples candidate-first, which is useful for long Metal runs on passively cooled machines where always measuring the candidate second could bias close decisions. For command-backed experiments, paired confirmation runs create the baseline worktree once and build baseline plus candidate once for the whole confirmation series. Experiments may set `cooldown_sec` to sleep between samples when thermal throttling can swamp small code changes.
 
 For candidates with high variance, add confirmation:
 
