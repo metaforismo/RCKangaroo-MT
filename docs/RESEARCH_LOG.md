@@ -4423,6 +4423,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `152,161,793.931497` in the integrated control. Conclusion: do not keep the
   compressed repeat engine; expansion and positive-output traffic are costlier
   than the saved duplicate probes on the M3 gate.
+- Rejected lazy logical-index materialization inside
+  `target_lookup_tag16_hash_filter_repeat2d256`. The candidate moved
+  `query_count = base_query_count * repeat_count` and
+  `query_id = repeat_id * base_query_count + base_query_id` from the top of the
+  repeat-indexed kernel into the positive tag-match branch, hoping to remove
+  multiplications from the miss-heavy path. Correctness held in the small smoke
+  and in the 25,005,000-target paired gate:
+  `target_lookup_checksum=0x5b746bd07e35a252`, `hit_count=131072`,
+  `miss_count=2033664`, `filter_positive_count=133120`, and
+  `filter_false_positive_count=2048`. Same-command paired confirmation against
+  `main` discarded it: confirmation 1 measured candidate
+  `115,218,567.003350` lookups/sec versus baseline
+  `155,764,888.801967` (`0.739695x`), while confirmation 2 measured
+  `89,733,396.716742` versus `79,942,366.526497` (`1.122476x`) and was
+  downgraded by `confirmation_status=discard`. Conclusion: keep the eager
+  logical-index arithmetic; the compiler/scheduler and lookup variance erase
+  this micro-optimization.
 - Kept chunked parallel CPU batch-affine scan for large XYZZ packet outputs.
   The math is still Montgomery batch inversion with one field inversion over
   all `ZZ*ZZZ` products, but large scans now split the product chain into CPU
