@@ -4548,6 +4548,29 @@ These did not pass the performance gate or had a correctness/architecture issue:
   their exact behavior, but future close M3 GPU decisions can reduce systematic
   second-run heat bias without changing benchmark commands, correctness
   oracles, or keep/discard thresholds.
+- Kept `macos-metal-affine-target-lookup-tag16-repeat-packed-positive`: the
+  repeat-mode tag16 hash-filter path now emits packed positive indices as
+  `(repeat_id, base_query_id)` when both dimensions fit in 16 bits, then the
+  host exact resolver reconstructs the logical query index only after a compact
+  positive survives the Metal tag16 filter. This removes resolver-side
+  division/modulo over the repeated logical query index while leaving the
+  correctness boundary unchanged: every reported hit still requires exact CPU
+  `x256 + y_parity` equality against the full target table, and larger shapes
+  automatically fall back to the old logical-index output. Runtime JSON reports
+  the selected path as `repeat_positive_index_encoding`. The accepted
+  25,005,000-target, `lookup_repeat=2048`, `--lookup-query-mode repeat`,
+  `--lookup-engine gpu-filter16-hash-repeat`, `--lookup-tg-limit 512` paired
+  gate preserved `dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `dp_checksum=0x9dba4a07ebbb8e14`,
+  `target_lookup_checksum=0x5b746bd07e35a252`, `hit_count=131072`,
+  `miss_count=2033664`, `filter_positive_count=133120`,
+  `filter_false_positive_count=2048`, `target_query_hash_bytes=8456`, and
+  `correctness=true`. Confirmation 1 measured `83,647,823.749505`
+  lookups/sec versus paired baseline `41,714,940.175022` (`2.005225x`);
+  confirmation 2 measured `185,840,186.793453` versus `70,263,768.598678`
+  (`2.644894x`). Treat this as a lookup/resolver efficiency win for
+  repeat-mode accumulated multi-target batches, not as a new discrete-log
+  algorithm or a per-step kangaroo throughput claim.
 
 ## Next Research Targets
 

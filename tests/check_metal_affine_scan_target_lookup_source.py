@@ -27,6 +27,7 @@ markers = [
     "RunTargetLookupTag16HashFilterRepeatKernel",
     "ResolveTargetLookupTag32FilterCandidates",
     "ResolveTargetLookupTag32FilterRepeatCandidates",
+    "ResolveTargetLookupTag32FilterRepeatPackedCandidates",
     "RunTargetLookupTag32Cpu",
     "ValidateAffineTargetLookupOutputs",
     "\"gpu_filter\"",
@@ -40,7 +41,12 @@ markers = [
     "BuildTargetLookupQueryHashesParallel",
     "BuildRepeatedTargetLookupQueryHashes",
     "target_lookup_tag16_hash_filter_repeat2d256",
+    "target_lookup_tag16_hash_filter_repeat_packed2d256",
     "base_query_hashes",
+    "pack_repeat_positive_indices",
+    "repeat_positive_index_encoding",
+    "packed16_base_repeat",
+    "packed repeat tag16 hash-filter dimensions exceed 16-bit encoding",
     "kMinParallelTargetLookupHashQueries",
     "ParallelForSamples(queries.size()",
     "\\\"lookup_layout\\\":\\\"open_address_tag16_hash_filter_exact256\\\"",
@@ -443,6 +449,12 @@ gpu_filter16_hash25m_repeat_indexed2048_command = [
 ]
 check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_repeat_indexed2048.json",
+    gpu_filter16_hash25m_repeat_indexed2048_command,
+    "lookups_per_sec",
+)
+
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_repeat_packed_positive2048.json",
     gpu_filter16_hash25m_repeat_indexed2048_command,
     "lookups_per_sec",
 )

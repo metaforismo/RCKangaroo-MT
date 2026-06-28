@@ -1398,7 +1398,8 @@ static std::string MetalAffineScanTargetLookupTag32BenchJson(const char* operati
 	double lookup_hash_seconds = 0.0,
 	double lookup_gpu_seconds = 0.0,
 	double lookup_exact_seconds = 0.0,
-	double gpu_lookup_lookups_per_sec = 0.0)
+	double gpu_lookup_lookups_per_sec = 0.0,
+	const char* repeat_positive_index_encoding = NULL)
 {
 	if (!lookup_engine_effective)
 		lookup_engine_effective = lookup_engine;
@@ -1432,6 +1433,8 @@ static std::string MetalAffineScanTargetLookupTag32BenchJson(const char* operati
 	oss << "\"lookup_layout\":\"" << lookup_layout << "\",";
 	if (lookup_uses_tag16_hash_filter)
 		oss << "\"query_input\":\"" << (strcmp(lookup_engine_effective, "gpu_filter16_hash_repeat") == 0 ? "hash64_repeat_indexed" : "hash64") << "\",";
+	if (strcmp(lookup_engine_effective, "gpu_filter16_hash_repeat") == 0)
+		oss << "\"repeat_positive_index_encoding\":\"" << (repeat_positive_index_encoding ? repeat_positive_index_encoding : "logical_query_index") << "\",";
 	oss << "\"target_key\":\"x256_y_parity\",";
 	oss << "\"candidate_verification\":\"" << candidate_verification << "\",";
 	oss << "\"iterations\":" << iterations << ",";
@@ -3008,6 +3011,67 @@ static bool ResolveTargetLookupTag32FilterRepeatCandidates(const std::vector<Tar
 	return true;
 }
 
+static bool ResolveTargetLookupTag32FilterRepeatPackedCandidates(const std::vector<TargetLookupTag32BucketHost>& buckets,
+	const std::vector<TargetLookupKeyHost>& target_keys,
+	const std::vector<TargetLookupKeyHost>& base_queries,
+	const std::vector<uint32_t>& positive_query_indices,
+	uint32_t filter_positive_count,
+	uint32_t repeat_count,
+	uint32_t query_count,
+	std::vector<uint32_t>& out_indices,
+	uint32_t& hit_count,
+	uint32_t& false_positive_count,
+	std::string& reason,
+	bool fill_outputs = true)
+{
+	if (base_queries.empty() || base_queries.size() > 0xFFFFULL || repeat_count > 0xFFFFU)
+	{
+		reason = "packed repeat filter resolver needs 16-bit base and repeat dimensions";
+		return false;
+	}
+	if (filter_positive_count > positive_query_indices.size())
+	{
+		reason = "packed repeat tag16 filter positive count exceeds output capacity";
+		return false;
+	}
+
+	uint32_t base_query_count = (uint32_t)base_queries.size();
+	if ((uint64_t)base_query_count * (uint64_t)repeat_count != (uint64_t)query_count)
+	{
+		reason = "packed repeat tag16 filter query count mismatch";
+		return false;
+	}
+
+	if (fill_outputs)
+		out_indices.assign(query_count, kTargetLookupEmptyIndex);
+	hit_count = 0;
+	false_positive_count = 0;
+	for (uint32_t i = 0; i < filter_positive_count; ++i)
+	{
+		uint32_t packed = positive_query_indices[i];
+		uint32_t base_query_index = packed & 0xFFFFU;
+		uint32_t repeat_index = packed >> 16U;
+		if (base_query_index >= base_query_count || repeat_index >= repeat_count)
+		{
+			reason = "packed repeat tag16 filter emitted invalid query index";
+			return false;
+		}
+
+		uint32_t query_index = repeat_index * base_query_count + base_query_index;
+		const TargetLookupKeyHost& query = base_queries[base_query_index];
+		uint32_t found = kTargetLookupEmptyIndex;
+		if (TargetLookupTag32Find(target_keys, buckets, query, &found))
+		{
+			if (fill_outputs)
+				out_indices[query_index] = found;
+			hit_count++;
+		}
+		else
+			false_positive_count++;
+	}
+	return true;
+}
+
 static bool RunTargetLookupTag32Cpu(const std::vector<TargetLookupTag32BucketHost>& buckets,
 	const std::vector<TargetLookupKeyHost>& target_keys,
 	const std::vector<TargetLookupKeyHost>& queries,
@@ -3632,7 +3696,8 @@ static bool RunTargetLookupTag16HashFilterRepeatKernel(const std::vector<uint16_
 	std::string& error,
 	double* seconds,
 	unsigned int threadgroup_limit = 0,
-	MetalDispatchStats* dispatch_stats = NULL)
+	MetalDispatchStats* dispatch_stats = NULL,
+	bool packed_positive_indices = false)
 {
 	if (dispatch_stats)
 		dispatch_stats->threadgroup_limit = (unsigned int)EffectiveTargetLookupThreadgroupLimit(threadgroup_limit);
@@ -3648,6 +3713,11 @@ static bool RunTargetLookupTag16HashFilterRepeatKernel(const std::vector<uint16_
 		return false;
 	}
 	uint32_t repeat_count = query_count / base_query_count;
+	if (packed_positive_indices && (base_query_count > 0xFFFFU || repeat_count > 0xFFFFU))
+	{
+		error = "packed repeat tag16 hash-filter dimensions exceed 16-bit encoding";
+		return false;
+	}
 
 	@autoreleasepool
 	{
@@ -3666,10 +3736,13 @@ static bool RunTargetLookupTag16HashFilterRepeatKernel(const std::vector<uint16_
 			return false;
 		}
 
-		id<MTLFunction> function = [library newFunctionWithName:@"target_lookup_tag16_hash_filter_repeat2d256"];
+		NSString* function_name = packed_positive_indices ? @"target_lookup_tag16_hash_filter_repeat_packed2d256" : @"target_lookup_tag16_hash_filter_repeat2d256";
+		id<MTLFunction> function = [library newFunctionWithName:function_name];
 		if (!function)
 		{
-			error = "failed to load target_lookup_tag16_hash_filter_repeat2d256 function";
+			error = packed_positive_indices ?
+				"failed to load target_lookup_tag16_hash_filter_repeat_packed2d256 function" :
+				"failed to load target_lookup_tag16_hash_filter_repeat2d256 function";
 			return false;
 		}
 
@@ -9375,6 +9448,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 	uint64_t target_query_hash_bytes = 0;
 	bool target_table_ready = false;
 	const char* effective_lookup_engine_name = lookup_engine_name;
+	const char* repeat_positive_index_encoding = "logical_query_index";
 	do
 	{
 		double dispatch_seconds = 0.0;
@@ -9572,7 +9646,9 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 				std::vector<uint32_t> positive_query_indices;
 				uint32_t local_filter_positive_count = 0;
 				double filter_seconds = 0.0;
-				lookup_ok = RunTargetLookupTag16HashFilterRepeatKernel(target_filter16_buckets, lookup_query_hashes, (uint32_t)logical_query_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats);
+				bool pack_repeat_positive_indices = dp_keys.size() <= 0xFFFFULL && lookup_repeat <= 0xFFFFU;
+				repeat_positive_index_encoding = pack_repeat_positive_indices ? "packed16_base_repeat" : "logical_query_index";
+				lookup_ok = RunTargetLookupTag16HashFilterRepeatKernel(target_filter16_buckets, lookup_query_hashes, (uint32_t)logical_query_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, pack_repeat_positive_indices);
 				lookup_dispatch_seconds = hash_seconds + filter_seconds;
 				if (lookup_ok)
 				{
@@ -9580,7 +9656,10 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 					uint32_t local_false_positive_count = 0;
 					std::string resolve_reason;
 					auto exact_start = std::chrono::steady_clock::now();
-					lookup_ok = ResolveTargetLookupTag32FilterRepeatCandidates(target_buckets, target_keys, dp_keys, positive_query_indices, local_filter_positive_count, (uint32_t)logical_query_count, out_indices, local_hit_count, local_false_positive_count, resolve_reason, true);
+					if (pack_repeat_positive_indices)
+						lookup_ok = ResolveTargetLookupTag32FilterRepeatPackedCandidates(target_buckets, target_keys, dp_keys, positive_query_indices, local_filter_positive_count, lookup_repeat, (uint32_t)logical_query_count, out_indices, local_hit_count, local_false_positive_count, resolve_reason, true);
+					else
+						lookup_ok = ResolveTargetLookupTag32FilterRepeatCandidates(target_buckets, target_keys, dp_keys, positive_query_indices, local_filter_positive_count, (uint32_t)logical_query_count, out_indices, local_hit_count, local_false_positive_count, resolve_reason, true);
 					double exact_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - exact_start).count();
 					lookup_dispatch_seconds += exact_seconds;
 					if (!lookup_ok)
@@ -9639,7 +9718,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 	uint64_t jump_histogram_min_bucket = JumpHistogramMinBucket(jump_histogram);
 	uint64_t jump_histogram_max_bucket = JumpHistogramMaxBucket(jump_histogram);
 	uint64_t jump_histogram_max_deviation_ppm = JumpHistogramMaxDeviationPpm(jump_histogram);
-	return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, jump_histogram_min_bucket, jump_histogram_max_bucket, jump_histogram_max_deviation_ppm, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, validation_seconds, ops_per_sec, gpu_ops_per_sec, lookups_per_sec, target_lookup_checksum, true, false, "", lookup_repeat, lookup_query_mode_name, lookup_engine_name, effective_lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes, lookup_hash_seconds, lookup_gpu_seconds, lookup_exact_seconds, lookup_gpu_lookups_per_sec);
+	return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, jump_histogram_min_bucket, jump_histogram_max_bucket, jump_histogram_max_deviation_ppm, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, validation_seconds, ops_per_sec, gpu_ops_per_sec, lookups_per_sec, target_lookup_checksum, true, false, "", lookup_repeat, lookup_query_mode_name, lookup_engine_name, effective_lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes, lookup_hash_seconds, lookup_gpu_seconds, lookup_exact_seconds, lookup_gpu_lookups_per_sec, repeat_positive_index_encoding);
 }
 
 std::string RCKMetalJacobianDynamicDpCountBenchJson(unsigned int iterations, unsigned int steps_per_sample, unsigned int jump_count, unsigned int min_ms, unsigned int threadgroup_limit, unsigned int dp_bits)
