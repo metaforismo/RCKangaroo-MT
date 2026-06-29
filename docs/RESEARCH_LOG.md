@@ -5002,6 +5002,26 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `1.128035`; final `confirmation_status=discard`). Conclusion: the
   average-preserving 8-jump idea is mathematically plausible but too noisy to
   keep. Do not expose `scaled8-balanced` without a stronger setup-stable gate.
+- Ran direct hardware/parameter scouts on the accepted `scaled4_j4` command
+  without promoting any new experiment. Walk `--tg-limit 256` preserved
+  correctness but was slower than `128` (`gpu_ops_per_sec=115346559.848742`
+  versus `123958184.280779`, setup-inclusive `87738450.303711` versus
+  `89022237.700288`). Smaller/nonstandard walk groups were also worse:
+  `--tg-limit 64` reached setup-inclusive `80677722.372601`, and
+  `--tg-limit 96` reached `76093263.819737`. Lookup threadgroup changes did
+  not produce an integrated win: `--lookup-tg-limit 256` reached
+  setup-inclusive `86703397.380656`, while `1024` improved lookup-only rates
+  but collapsed total walk throughput (setup-inclusive `40579960.698937`).
+  Doubling the batch to `--iterations 262144` slightly beat a throttled
+  immediate 131k setup-inclusive scout (`58289789.201938` versus
+  `57243594.194233`) but lowered `gpu_ops_per_sec` and introduced
+  `filter_false_positive_count=1024`, so it was not promoted. CPU/auto exact
+  lookup on the same profile preserved the checksum
+  (`target_lookup_checksum=0x52efac244f7b11f3`) but was slower than
+  `gpu-filter16-hash-repeat`: `cpu` setup-inclusive `54653921.809506`, `auto`
+  setup-inclusive `67531812.211342`, versus the immediate GPU-filter scout at
+  `74366891.303314`. Conclusion: keep the accepted walk group 128,
+  lookup group 512, 131k-sample, GPU-filter repeat profile as the local base.
 
 ## Cleanup Policy
 
