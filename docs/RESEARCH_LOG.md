@@ -5096,6 +5096,28 @@ These did not pass the performance gate or had a correctness/architecture issue:
   was also mixed: `--lookup-tg-limit 256` improved isolated lookup seconds in
   some runs, but did not beat `512` on total/setup-inclusive throughput, so the
   default remains unchanged.
+- Added an explicit `--lookup-filter-mode tag16|tag16-mix|tag32` diagnostic.
+  The `tag16-mix` mode keeps the same 2-byte-per-bucket memory footprint as the
+  default tag16 filter, but uses `low16(tag32 ^ (tag32 >> 16)) | 1` instead of
+  only the top 16 hash bits. It is still only a prefilter: every positive is
+  resolved by the existing exact CPU `x256 + y_parity` equality. Small smoke
+  remained exact (`hit_count=9`, `filter_false_positive_count=0`,
+  `target_lookup_checksum=0x4d668f8d29797461`). On the 25,005,000-target
+  `scaled4_j4` gate, tag16-mix preserved the checksum
+  (`0x6aaec4659e60b735`) and removed the default tag16 false positives
+  (`0` versus `1024`) with the same 67,108,864-byte filter. The paired scout
+  showed better lookup-only medians for tag16-mix
+  (`lookup_seconds=0.0435815`, `gpu_lookup_lookups_per_sec=176542772.553031`)
+  than tag16 (`lookup_seconds=0.0666645`,
+  `gpu_lookup_lookups_per_sec=110574403.365121`), while total throughput stayed
+  noisy (`ops_per_sec` median `59781157.750603` versus `57968854.063746`, but
+  setup-inclusive median `45869560.032271` versus `49352291.469171`). A
+  power2/j16 guardrail run was exact with zero false positives and the same
+  checksum (`0x923b46f156f9d59b`), with better lookup-only numbers
+  (`lookup_seconds=0.024841` versus `0.034691`). Conclusion: keep tag16-mix as
+  a promising same-memory lookup mode, but do not change the default until a
+  lower-noise confirmation shows end-to-end improvement, not only lookup-stage
+  improvement.
 
 ## Cleanup Policy
 
