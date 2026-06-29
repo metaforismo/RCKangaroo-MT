@@ -85,6 +85,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_steps1024_dp7 --budget-sec 240 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps1024_dp7_setup --budget-sec 420 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps1024_dp7_setup_workers6 --budget-sec 480 --paired-baseline-ref main --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps2048_dp6_setup --budget-sec 540 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_persistent_tg1024 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_persistent --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
@@ -112,9 +113,12 @@ packet-boundary DP check frequency roughly comparable per walked step; plain
 `steps1024/dp8` should not be treated as an honest solver-equivalent speedup.
 The `steps1024_dp7_setup` target-lookup experiment uses the same cadence inside
 the 25M-target repeat-mode join and scores `setup_inclusive_ops_per_sec`
-against the accepted `steps512/dp8/repeat2048` path. This gate is for
+against the accepted `steps512/dp8/repeat2048` path. The promoted
+`steps2048_dp6_setup` gate repeats the same first-principles cadence step:
+twice the packet length, one fewer DP bit, and the same repeat-mode target
+join, scored against `steps1024/dp7/repeat1024`. These gates are for
 accumulated repeat-mode multi-target batches where target setup and lookup
-batching matter; it is not a generic per-step kangaroo default.
+batching matter; they are not generic per-step kangaroo defaults.
 
 The target-lookup experiment is an exact multi-target join gate for the output
 of an affine DP scan. It builds a deterministic open-addressed Metal table of
@@ -534,11 +538,11 @@ keeping exact hit-count, miss-count, and output-index validation.
 Run the setup-inclusive 25M repeat-mode tag16 hash-filter target-lookup gate:
 
 ```sh
-python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps1024_dp7_setup --budget-sec 420 --paired-baseline-ref main --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps2048_dp6_setup --budget-sec 540 --paired-baseline-ref main --confirm-runs 2
 ```
 
-This compares `steps=1024, dp_bits=7, lookup_repeat=1024` against the accepted
-`steps=512, dp_bits=8, lookup_repeat=2048` repeat path with
+This compares `steps=2048, dp_bits=6, lookup_repeat=1024` against the accepted
+`steps=1024, dp_bits=7, lookup_repeat=1024` repeat path with
 `metric=setup_inclusive_ops_per_sec`. It keeps the exact `x256+y_parity`
 target-lookup oracle and checksum, so a faster setup-inclusive score cannot
 hide a changed hit count, false-positive count, or lookup result.

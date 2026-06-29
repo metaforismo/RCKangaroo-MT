@@ -4811,6 +4811,27 @@ These did not pass the performance gate or had a correctness/architecture issue:
   (`paired_speedup=0.927306`). Keep `RCK_VALIDATION_WORKERS=6` as an isolated
   target-table setup recipe only; leave the integrated gate on the default
   worker count until a new end-to-end paired gate proves otherwise.
+- Kept `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps2048_dp6_setup`:
+  added a 2048-step XYZZ distance packet specialization for the affine-scan
+  path and used the same cadence rule as the prior keep: double packet length,
+  reduce DP bits by one, and keep the repeat-mode target join visible in
+  `setup_inclusive_ops_per_sec`. The candidate runs `--iterations 131072
+  --steps 2048 --dp-bits 6 --lookup-repeat 1024` against the accepted
+  `--iterations 262144 --steps 1024 --dp-bits 7 --lookup-repeat 1024` gate.
+  Correctness held in the small smoke and all 25M rows with
+  `dp_distance_checksum=0xf31d7766e1607041`,
+  `dp_checksum=0x54ccada61fd1edbc`,
+  `target_lookup_checksum=0x197ac7fed54a4156`, `dp_count=2087`,
+  `query_count=2137088`, `hit_count=65536`,
+  `filter_positive_count=65536`, `filter_false_positive_count=0`, and
+  `correctness=true`. The first paired keep measured
+  `setup_inclusive_ops_per_sec=89036615.161581` versus baseline
+  `80299073.391548` (`paired_speedup=1.108812`). Two confirmation rows then
+  kept it at `75814186.065546` versus `67936112.806331`
+  (`paired_speedup=1.115963`) and `70379199.180135` versus
+  `62540628.754942` (`paired_speedup=1.125336`). Promote 2048/dp6 as the new
+  local 25M repeat-mode setup-inclusive plateau, but keep the exact affine DP
+  key and CPU exact-positive verification gates unchanged.
 
 ## Next Research Targets
 
