@@ -4782,6 +4782,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   bookkeeping did not remove the real bottleneck. The code was reverted; keep
   the full-output validation path until a lower-level checksum design can prove
   an actual win.
+- Kept `target_lookup_tag32_parallel_insert_workers6`: on the local Apple
+  Silicon track, running the 25M tag32 parallel-insert setup gate with
+  `RCK_VALIDATION_WORKERS=6` beat the default worker count in two paired
+  confirmations while preserving the semantic table oracle. Candidate command
+  is `env RCK_VALIDATION_WORKERS=6 ./macos/rck_macos
+  target-lookup-tag32-parallel-insert-bench --target-count 25005000
+  --injected-count 64 --iterations 1`. Confirmation 1 measured
+  `parallel_targets_per_sec=39543696.391783` versus baseline
+  `29517720.814066` (`paired_speedup=1.339660`); confirmation 2 measured
+  `26108366.758003` versus `17709310.747145`
+  (`paired_speedup=1.474273`). All rows preserved `target_keys_equal=true`,
+  `all_keys_found=true`, and `correctness=true`. Treat this as an Apple
+  Silicon host setup tuning knob, not as a global default yet; use the explicit
+  env var when reproducing M3 Air setup-heavy gates.
 
 ## Next Research Targets
 

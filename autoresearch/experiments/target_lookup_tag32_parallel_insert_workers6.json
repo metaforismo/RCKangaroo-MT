@@ -1,0 +1,32 @@
+{
+  "name": "target_lookup_tag32_parallel_insert_workers6",
+  "description": "Host setup benchmark testing RCK_VALIDATION_WORKERS=6 for 25M tag32 parallel insert on Apple Silicon",
+  "build_target": "macos-build",
+  "bench_command": [
+    "env",
+    "RCK_VALIDATION_WORKERS=6",
+    "./macos/rck_macos",
+    "target-lookup-tag32-parallel-insert-bench",
+    "--target-count",
+    "25005000",
+    "--injected-count",
+    "64",
+    "--iterations",
+    "1"
+  ],
+  "paired_baseline_command": [
+    "./macos/rck_macos",
+    "target-lookup-tag32-parallel-insert-bench",
+    "--target-count",
+    "25005000",
+    "--injected-count",
+    "64",
+    "--iterations",
+    "1"
+  ],
+  "metric": "parallel_targets_per_sec",
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3,
+  "paired_order": "alternate",
+  "cooldown_sec": 5
+}

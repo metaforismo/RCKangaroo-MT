@@ -51,6 +51,15 @@ count used by the replay oracle. By default this follows
 experiments; it never changes the Metal dispatch timing window or the
 correctness oracle.
 
+The 25M tag32 parallel-insert host setup gate also has an Apple Silicon
+worker-count recipe. It uses `env RCK_VALIDATION_WORKERS=6 ...` and records
+`target_keys_equal` plus `all_keys_found`, so the table builder must preserve
+the same semantic oracle:
+
+```sh
+python3 autoresearch/runner.py --experiment target_lookup_tag32_parallel_insert_workers6 --budget-sec 240 --paired-baseline-ref main --confirm-runs 2
+```
+
 Sparse-DP XYZZ probes keep the promoted DP8 packet specialization intact,
 specialize DP12/DP16 with hardcoded masks, and leave other DP densities on the
 runtime `ProjectiveDpMask(dp_bits)` path on the same replay oracle:
@@ -78,6 +87,7 @@ python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_per
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag16_hash_filter_persistent_dispatch --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_exact256 --budget-sec 10
 python3 autoresearch/runner.py --experiment target_lookup_filter_build_from_tag32_buckets --budget-sec 180 --confirm-runs 2
+python3 autoresearch/runner.py --experiment target_lookup_tag32_parallel_insert_workers6 --budget-sec 240 --paired-baseline-ref main --confirm-runs 2
 ```
 
 The affine-scan experiment is a solver-facing bridge: Metal writes final XYZZ
