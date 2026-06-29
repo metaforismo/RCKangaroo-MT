@@ -32,6 +32,10 @@ for marker in (
 for marker in (
     "TargetLookupTag32BucketHost",
     "static_assert(sizeof(TargetLookupTag32BucketHost) == 8",
+    "struct alignas(uint64_t) TargetLookupTag32BucketHost",
+    "static_assert(alignof(TargetLookupTag32BucketHost) >= alignof(uint64_t)",
+    "offsetof(TargetLookupTag32BucketHost, tag) == 0",
+    "offsetof(TargetLookupTag32BucketHost, target_index) == 4",
     "BuildTargetLookupTag32FilterTable",
     "BuildTargetLookupTag16FilterTable",
     "BuildTargetLookupTag32FilterTableFromTag32Buckets",
@@ -49,8 +53,8 @@ for marker in (
     "TargetLookupHashMatchesInjected",
     "TargetLookupTag32TablesEqual",
     "TargetLookupTag32TableFindsAllKeys",
-    "PackTargetLookupTag32Bucket",
-    "__atomic_compare_exchange_n",
+    "target_count < kMinParallelTargetLookupHashQueries || ValidationWorkerCount(target_count) <= 1",
+    "__atomic_compare_exchange(&buckets[slot]",
     "\\\"setup_phase\\\":\\\"host_tag32_build_from_injected_keys\\\"",
     "\\\"setup_phase\\\":\\\"host_tag32_parallel_insert_probe\\\"",
     "\\\"candidate_verification\\\":\\\"legacy_tag32_table_field_equality\\\"",
@@ -376,10 +380,12 @@ parallel_insert_command = [
 ]
 if parallel_insert_payload.get("bench_command") != parallel_insert_command:
     raise SystemExit("parallel-insert experiment should run the host tag32 parallel-insert CLI")
-if parallel_insert_payload.get("metric") != "speedup":
-    raise SystemExit("parallel-insert experiment should optimize internal serial-vs-parallel speedup")
+if parallel_insert_payload.get("metric") != "parallel_targets_per_sec":
+    raise SystemExit("parallel-insert experiment should optimize absolute parallel insert throughput")
 if int(parallel_insert_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("parallel-insert experiment should keep sample_runs >= 3")
+if parallel_insert_payload.get("paired_order") != "alternate":
+    raise SystemExit("parallel-insert paired experiment should alternate baseline/candidate order")
 
 persistent_experiment = Path("autoresearch/experiments/metal_target_lookup_tag32_persistent_tg1024.json")
 if not persistent_experiment.exists():

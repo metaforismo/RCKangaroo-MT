@@ -11,6 +11,7 @@
 #include <atomic>
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <cstring>
 #include <iomanip>
 #include <sstream>
@@ -61,7 +62,7 @@ struct TargetLookupCompactBucketHost
 	uint32_t occupied;
 };
 
-struct TargetLookupTag32BucketHost
+struct alignas(uint64_t) TargetLookupTag32BucketHost
 {
 	uint32_t tag;
 	uint32_t target_index;
@@ -73,6 +74,9 @@ static_assert(sizeof(TargetLookupKeyHost) == 40, "Metal target lookup key layout
 static_assert(sizeof(TargetLookupBucketHost) == 48, "Metal target lookup bucket layout drifted");
 static_assert(sizeof(TargetLookupCompactBucketHost) == 16, "Metal compact target lookup bucket layout drifted");
 static_assert(sizeof(TargetLookupTag32BucketHost) == 8, "Metal tag32 target lookup bucket layout drifted");
+static_assert(alignof(TargetLookupTag32BucketHost) >= alignof(uint64_t), "Metal tag32 target lookup bucket alignment drifted");
+static_assert(offsetof(TargetLookupTag32BucketHost, tag) == 0, "Metal tag32 target lookup tag offset drifted");
+static_assert(offsetof(TargetLookupTag32BucketHost, target_index) == 4, "Metal tag32 target lookup index offset drifted");
 
 static unsigned int ValidationWorkerOverride()
 {
@@ -2998,19 +3002,6 @@ static bool TargetLookupHashMatchesInjected(const TargetLookupKeyHost& key,
 	return false;
 }
 
-static uint64_t PackTargetLookupTag32Bucket(uint32_t tag, uint32_t target_index)
-{
-	return ((uint64_t)target_index << 32) | (uint64_t)tag;
-}
-
-static TargetLookupTag32BucketHost UnpackTargetLookupTag32Bucket(uint64_t packed)
-{
-	TargetLookupTag32BucketHost bucket;
-	bucket.tag = (uint32_t)packed;
-	bucket.target_index = (uint32_t)(packed >> 32);
-	return bucket;
-}
-
 static bool InsertTargetLookupTag32PrehashedTable(const std::vector<TargetLookupKeyHost>& target_keys,
 	const std::vector<uint64_t>& target_hashes,
 	unsigned int bucket_count,
@@ -3061,8 +3052,8 @@ static bool InsertTargetLookupTag32PrehashedTableParallel(const std::vector<Targ
 		return false;
 	}
 
-	uint64_t empty_bucket = PackTargetLookupTag32Bucket(0, kTargetLookupEmptyIndex);
-	std::vector<uint64_t> packed_buckets(bucket_count, empty_bucket);
+	TargetLookupTag32BucketHost empty_bucket{0, kTargetLookupEmptyIndex};
+	buckets.assign(bucket_count, TargetLookupTag32BucketHost{0, kTargetLookupEmptyIndex});
 	uint32_t mask = bucket_count - 1U;
 	std::atomic<bool> insertion_failed(false);
 	ParallelForSamples(target_keys.size(), [&](size_t begin, size_t end, unsigned int worker) {
@@ -3070,13 +3061,13 @@ static bool InsertTargetLookupTag32PrehashedTableParallel(const std::vector<Targ
 		for (size_t i = begin; i < end; ++i)
 		{
 			uint64_t hash = target_hashes[i];
-			uint64_t packed = PackTargetLookupTag32Bucket(TargetLookupTag32(hash), (uint32_t)i);
+			TargetLookupTag32BucketHost desired{TargetLookupTag32(hash), (uint32_t)i};
 			uint32_t slot = (uint32_t)(hash & (uint64_t)mask);
 			bool inserted = false;
 			for (unsigned int probe = 0; probe < bucket_count; ++probe)
 			{
-				uint64_t expected = empty_bucket;
-				if (__atomic_compare_exchange_n(&packed_buckets[slot], &expected, packed, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
+				TargetLookupTag32BucketHost expected = empty_bucket;
+				if (__atomic_compare_exchange(&buckets[slot], &expected, &desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
 				{
 					inserted = true;
 					break;
@@ -3095,23 +3086,6 @@ static bool InsertTargetLookupTag32PrehashedTableParallel(const std::vector<Targ
 		error = "parallel prehashed affine DP tag32 target lookup table insertion failed";
 		return false;
 	}
-
-	buckets.resize(bucket_count);
-	auto unpack_range = [&](size_t begin, size_t end) {
-		for (size_t slot = begin; slot < end; ++slot)
-			buckets[slot] = UnpackTargetLookupTag32Bucket(packed_buckets[slot]);
-	};
-	if (bucket_count >= kMinParallelTargetLookupFilterBuckets && ValidationWorkerCount(bucket_count) > 1)
-	{
-		ParallelForSamples(bucket_count, [&](size_t begin, size_t end, unsigned int worker) {
-			(void)worker;
-			unpack_range(begin, end);
-		});
-	}
-	else
-	{
-		unpack_range(0, bucket_count);
-	}
 	return true;
 }
 
@@ -3127,7 +3101,6 @@ static bool BuildTargetLookupTag32TableFromKeysPrehashed(const std::vector<Targe
 		error = "invalid affine DP target lookup table shape";
 		return false;
 	}
-
 	std::vector<uint64_t> target_hashes(target_count);
 	target_keys.resize(target_count);
 	for (size_t i = 0; i < injected_keys.size(); ++i)
@@ -3192,6 +3165,8 @@ static bool BuildTargetLookupTag32TableFromKeysParallelInsert(const std::vector<
 		error = "invalid affine DP target lookup table shape";
 		return false;
 	}
+	if (target_count < kMinParallelTargetLookupHashQueries || ValidationWorkerCount(target_count) <= 1)
+		return BuildTargetLookupTag32TableFromKeysPrehashed(injected_keys, target_count, target_keys, buckets, error);
 
 	std::vector<uint64_t> target_hashes(target_count);
 	target_keys.resize(target_count);

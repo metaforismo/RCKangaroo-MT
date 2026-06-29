@@ -4688,8 +4688,10 @@ These did not pass the performance gate or had a correctness/architecture issue:
   kangaroo step-throughput claim.
 - Kept `target_lookup_tag32_parallel_insert`: after prehashing, the tag32
   target table insertion now uses parallel 64-bit CAS over packed
-  `(target_index, tag32)` buckets, then unpacks into the existing host/GPU
-  bucket layout. This deliberately changes the bucket collision order, so the
+  `(target_index, tag32)` buckets. The first accepted version unpacked a
+  temporary packed bucket vector back into the existing host/GPU bucket layout;
+  the in-place follow-up below removes that extra pass. This deliberately
+  changes the bucket collision order, so the
   oracle is semantic rather than field-for-field: target-key order must match
   the serial builder and every target key must be found at its own index through
   the normal `TargetLookupTag32Find` path. The 25,005,000-target gate with
@@ -4700,6 +4702,29 @@ These did not pass the performance gate or had a correctness/architecture issue:
   The parallel table checksum varies across runs because successful CAS order
   inside collision clusters is scheduler-dependent; exact lookup semantics and
   downstream target-lookup checksums remain the correctness boundary.
+- Kept the in-place tag32 parallel insert follow-up: `TargetLookupTag32BucketHost`
+  is now 8-byte aligned with offset assertions for `{tag, target_index}`, so
+  the 8-byte CAS writes directly into the final bucket vector and skips the
+  temporary packed-vector unpack pass. Small target counts fall back to the
+  prehashed serial builder instead of paying parallel CAS overhead. The first
+  paired autoresearch run
+  exposed a protocol issue: using `speedup = serial_seconds / parallel_seconds`
+  as the experiment metric discarded the candidate because serial timing noise
+  moved the ratio. The experiment gate now optimizes
+  `parallel_targets_per_sec` and alternates paired baseline/candidate order.
+  With that corrected gate, paired autoresearch against `main` kept the change
+  across two confirmations: median candidate `parallel_targets_per_sec`
+  `15828741.937858` versus paired baseline `14350653.726053`
+  (`paired_speedup=1.102998`), then `23960212.926636` versus
+  `20969760.948071` (`paired_speedup=1.142608`). All samples reported
+  `target_keys_equal=true`, `all_keys_found=true`, and `correctness=true`.
+  Integrated 25,005,000-target affine-scan lookup confirmations preserved
+  `dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `dp_checksum=0x9dba4a07ebbb8e14`,
+  `target_lookup_checksum=0x5b746bd07e35a252`, and `correctness=true`, with
+  observed `target_build_seconds` dropping from the pre-change accounting
+  sample `1.835799` to `0.659700`, `0.890003`, and `0.902095` on follow-up
+  runs.
 
 ## Next Research Targets
 
