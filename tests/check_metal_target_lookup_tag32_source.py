@@ -25,6 +25,9 @@ for marker in (
     "target_lookup_tag16_hash_filter256",
     "device const ulong* query_hashes [[buffer(1)]]",
     "ulong hash = query_hashes[id]",
+    "target_lookup_tag32_hash_filter_repeat2d256",
+    "target_lookup_tag32_hash_filter_repeat_packed2d256",
+    "device const ulong* base_query_hashes [[buffer(1)]]",
 ):
     if marker not in kernel_source:
         raise SystemExit("missing tag32 target lookup kernel marker: " + marker)

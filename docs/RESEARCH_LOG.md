@@ -5071,6 +5071,31 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `filter_false_positive_count=1024`. Conclusion: keep the aggregate lookup
   architecture because it is the fairer steady-state multi-round shape, but do
   not claim a speedup for `scaled4_j4`.
+- Added an explicit `--lookup-filter-bits 16|32` diagnostic to the fixed-round
+  target lookup probe. The new `gpu_filter32_hash_repeat` path reuses the same
+  base-query hash repeat grid and exact CPU `x256 + y_parity` resolver, but
+  stores a 4-byte tag32 filter instead of the default 2-byte tag16 filter. The
+  small two-round smoke was exact and matched the tag16 checksum
+  (`hit_count=9`, `filter_false_positive_count=0`,
+  `target_lookup_checksum=0x4d668f8d29797461`). On the 25,005,000-target
+  `scaled4_j4` gate, tag32 removed the tag16 false positives
+  (`0` versus `1024`) and preserved the checksum
+  (`0x6aaec4659e60b735`), but was slower: tag16 median
+  `ops_per_sec=120614034.655459`, setup-inclusive
+  `97949282.064089`, `gpu_lookup_lookups_per_sec=167449478.360079`;
+  tag32 median `ops_per_sec=117565011.784014`, setup-inclusive
+  `92242659.552484`, `gpu_lookup_lookups_per_sec=104405254.787158`.
+  Conclusion: keep tag32 as a collision diagnostic and do not promote it as the
+  default; the 1024 tag16 false positives are too cheap compared with doubling
+  filter bandwidth. A fresh 25,005,000-target two-pair schedule check again
+  rejected `scaled4_j4` versus `power2_j16`: power2 median
+  `ops_per_sec=105210079.585389`, setup-inclusive `85064945.004492`, checksum
+  `0x923b46f156f9d59b`, zero false positives; scaled4 median
+  `ops_per_sec=88225563.491974`, setup-inclusive `71299666.505170`, checksum
+  `0x6aaec4659e60b735`, and `1024` false positives. A lookup-threadgroup scout
+  was also mixed: `--lookup-tg-limit 256` improved isolated lookup seconds in
+  some runs, but did not beat `512` on total/setup-inclusive throughput, so the
+  default remains unchanged.
 
 ## Cleanup Policy
 

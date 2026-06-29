@@ -2722,6 +2722,75 @@ kernel void target_lookup_tag16_hash_filter_repeat_packed2d256(device const usho
   }
 }
 
+kernel void target_lookup_tag32_hash_filter_repeat2d256(device const uint* target_filter_buckets [[buffer(0)]],
+                                                        device const ulong* base_query_hashes [[buffer(1)]],
+                                                        device uint* out_positive_query_indices [[buffer(2)]],
+                                                        device atomic_uint* out_filter_positive_count [[buffer(3)]],
+                                                        constant uint& bucket_count [[buffer(4)]],
+                                                        constant uint& base_query_count [[buffer(5)]],
+                                                        constant uint& repeat_count [[buffer(6)]],
+                                                        uint2 id [[thread_position_in_grid]]) {
+  uint base_query_id = id.x;
+  uint repeat_id = id.y;
+  if (base_query_id >= base_query_count || repeat_id >= repeat_count || base_query_count == 0) return;
+  uint query_count = base_query_count * repeat_count;
+  uint query_id = repeat_id * base_query_count + base_query_id;
+  ulong hash = base_query_hashes[base_query_id];
+  uint filter_tag = target_lookup_filter_tag(hash);
+  uint slot = (uint)(hash & (ulong)(bucket_count - 1));
+  uint probes = 0;
+
+  while (probes < bucket_count) {
+    uint bucket_tag = target_filter_buckets[slot];
+    if (bucket_tag == 0U) {
+      break;
+    }
+    if (bucket_tag == filter_tag) {
+      uint out_slot = atomic_fetch_add_explicit(out_filter_positive_count, 1U, memory_order_relaxed);
+      if (out_slot < query_count) {
+        out_positive_query_indices[out_slot] = query_id;
+      }
+      break;
+    }
+    slot = (slot + 1U) & (bucket_count - 1U);
+    probes++;
+  }
+}
+
+kernel void target_lookup_tag32_hash_filter_repeat_packed2d256(device const uint* target_filter_buckets [[buffer(0)]],
+                                                               device const ulong* base_query_hashes [[buffer(1)]],
+                                                               device uint* out_positive_query_indices [[buffer(2)]],
+                                                               device atomic_uint* out_filter_positive_count [[buffer(3)]],
+                                                               constant uint& bucket_count [[buffer(4)]],
+                                                               constant uint& base_query_count [[buffer(5)]],
+                                                               constant uint& repeat_count [[buffer(6)]],
+                                                               uint2 id [[thread_position_in_grid]]) {
+  uint base_query_id = id.x;
+  uint repeat_id = id.y;
+  if (base_query_id >= base_query_count || repeat_id >= repeat_count || base_query_count == 0) return;
+  uint query_count = base_query_count * repeat_count;
+  ulong hash = base_query_hashes[base_query_id];
+  uint filter_tag = target_lookup_filter_tag(hash);
+  uint slot = (uint)(hash & (ulong)(bucket_count - 1));
+  uint probes = 0;
+
+  while (probes < bucket_count) {
+    uint bucket_tag = target_filter_buckets[slot];
+    if (bucket_tag == 0U) {
+      break;
+    }
+    if (bucket_tag == filter_tag) {
+      uint out_slot = atomic_fetch_add_explicit(out_filter_positive_count, 1U, memory_order_relaxed);
+      if (out_slot < query_count) {
+        out_positive_query_indices[out_slot] = (repeat_id << 16U) | base_query_id;
+      }
+      break;
+    }
+    slot = (slot + 1U) & (bucket_count - 1U);
+    probes++;
+  }
+}
+
 kernel void target_lookup_tag32_exact256(device const TargetLookupTag32Bucket* target_buckets [[buffer(0)]],
                                          device const TargetLookupKey* target_keys [[buffer(1)]],
                                          device const TargetLookupKey* query_keys [[buffer(2)]],
