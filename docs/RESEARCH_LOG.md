@@ -4734,6 +4734,24 @@ These did not pass the performance gate or had a correctness/architecture issue:
   true (`target_keys_equal=true`, `all_keys_found=true`), so this was a real
   performance rejection, likely from worse CAS scheduling/cache behavior rather
   than an oracle failure. Keep the staged hash stream plus in-place bucket CAS.
+- Kept
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps1024_dp7_setup`:
+  for the 25M-target repeat-mode tag16 hash-filter integrated gate, the
+  explicit `steps=1024, dp_bits=7, lookup_repeat=1024` cadence now has a
+  setup-inclusive paired gate against the accepted
+  `steps=512, dp_bits=8, lookup_repeat=2048` path. This is a target-lookup
+  regime gate, not a universal default. It preserves
+  `dp_distance_checksum=0x33b34eda684bc0e5`,
+  `dp_checksum=0x08b06faea04109e6`,
+  `target_lookup_checksum=0x4bfc0bfe896fe3ad`, `hit_count=65536`,
+  `filter_positive_count=65536`, `filter_false_positive_count=0`, and
+  `correctness=true`. Paired autoresearch with
+  `metric=setup_inclusive_ops_per_sec` kept both confirmations:
+  `91131253.131533` versus baseline `60597677.652709`
+  (`paired_speedup=1.503874`), then `83374247.889218` versus
+  `63081803.186278` (`paired_speedup=1.321685`). Keep it as the promoted
+  explicit 25M setup-inclusive gate for accumulated repeat-mode multi-target
+  batches.
 
 ## Next Research Targets
 
