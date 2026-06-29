@@ -4912,6 +4912,14 @@ These did not pass the performance gate or had a correctness/architecture issue:
   patch was not kept. Raw rows remain in `autoresearch/benchmarks.jsonl` and
   `autoresearch/results.tsv` under the dirty experiment names
   `repeat_resolver_cache` and `repeat4096_resolver_cache`.
+- Rejected a dirty fused target-builder attempt that generated filler keys and
+  atomically inserted tag32 buckets in one pass to avoid the 25M-entry
+  `target_hashes` vector. The semantic oracle held (`target_keys_equal=true`,
+  `all_keys_found=true`, `correctness=true`), but the decisive 25,005,000-target
+  scout slowed the parallel builder from `1.384983` seconds to `1.568174`
+  seconds. Conclusion: the existing prehash-then-parallel-insert path is still
+  better on the local M3 for this load factor; the fused code patch was not
+  kept.
 
 ## Cleanup Policy
 
