@@ -39,6 +39,7 @@ static void PrintUsage()
 	printf("  rck_macos target-lookup-tag32-cpu-bench --target-count N --query-count N [--hits N] [--min-ms N]\n");
 	printf("  rck_macos target-lookup-filter-build-bench --target-count N [--iterations N]\n");
 	printf("  rck_macos target-lookup-tag32-build-from-keys-bench --target-count N [--injected-count N] [--iterations N]\n");
+	printf("  rck_macos target-lookup-tag32-parallel-insert-bench --target-count N [--injected-count N] [--iterations N]\n");
 	printf("  rck_macos metal-field-test\n");
 	printf("  rck_macos metal-field-bench --iterations N [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-field-sub-test\n");
@@ -1110,6 +1111,35 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 		printf("%s\n", RCKTargetLookupTag32BuildFromKeysBenchJson(target_count, injected_count, iterations).c_str());
+	}
+	else if (strcmp(argv[1], "target-lookup-tag32-parallel-insert-bench") == 0)
+	{
+		const char* target_count_s = NULL;
+		const char* injected_count_s = NULL;
+		const char* iter_s = NULL;
+		unsigned int target_count = 0;
+		unsigned int injected_count = 64;
+		unsigned int iterations = 1;
+		if (!ReadOption(argc, argv, "--target-count", &target_count_s) ||
+			!ParseU32(target_count_s, &target_count))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--injected-count", &injected_count_s) && !ParseU32(injected_count_s, &injected_count))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--iterations", &iter_s) && !ParseU32(iter_s, &iterations))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		printf("%s\n", RCKTargetLookupTag32ParallelInsertBenchJson(target_count, injected_count, iterations).c_str());
 	}
 	else if (strcmp(argv[1], "metal-field-test") == 0)
 	{

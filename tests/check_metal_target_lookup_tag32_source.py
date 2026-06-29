@@ -41,15 +41,26 @@ for marker in (
     "TargetLookupFilterChecksum",
     "RCKTargetLookupFilterBuildBenchJson",
     "RCKTargetLookupTag32BuildFromKeysBenchJson",
+    "RCKTargetLookupTag32ParallelInsertBenchJson",
     "BuildTargetLookupTag32TableFromKeysLegacy",
     "BuildTargetLookupTag32TableFromKeysPrehashed",
+    "BuildTargetLookupTag32TableFromKeysParallelInsert",
+    "InsertTargetLookupTag32PrehashedTableParallel",
     "TargetLookupHashMatchesInjected",
     "TargetLookupTag32TablesEqual",
+    "TargetLookupTag32TableFindsAllKeys",
+    "PackTargetLookupTag32Bucket",
+    "__atomic_compare_exchange_n",
     "\\\"setup_phase\\\":\\\"host_tag32_build_from_injected_keys\\\"",
+    "\\\"setup_phase\\\":\\\"host_tag32_parallel_insert_probe\\\"",
     "\\\"candidate_verification\\\":\\\"legacy_tag32_table_field_equality\\\"",
+    "\\\"candidate_verification\\\":\\\"prehashed_serial_vs_parallel_semantic_find_all_keys\\\"",
     "\\\"prehashed_seconds\\\":",
+    "\\\"parallel_seconds\\\":",
     "\\\"prehashed_checksum\\\":",
+    "\\\"parallel_checksum\\\":",
     "\\\"table_equal\\\":",
+    "\\\"all_keys_found\\\":",
     "\\\"candidate_verification\\\":\\\"legacy_rehash_filter_byte_equality\\\"",
     "\\\"tag32_legacy_seconds\\\":",
     "\\\"tag32_derived_seconds\\\":",
@@ -124,6 +135,7 @@ for marker in (
     "RCKMetalTargetLookupTag32BenchJson",
     "RCKTargetLookupFilterBuildBenchJson",
     "RCKTargetLookupTag32BuildFromKeysBenchJson",
+    "RCKTargetLookupTag32ParallelInsertBenchJson",
 ):
     if marker not in header_source:
         raise SystemExit("missing tag32 target lookup header declaration: " + marker)
@@ -141,6 +153,7 @@ for marker in (
     "target-lookup-tag32-cpu-bench",
     "target-lookup-filter-build-bench",
     "target-lookup-tag32-build-from-keys-bench",
+    "target-lookup-tag32-parallel-insert-bench",
     "RCKMetalTargetLookupTag32BenchJson",
     "RCKMetalTargetLookupTag32FilterBenchJson",
     "RCKMetalTargetLookupTag32FilterPersistentBenchJson",
@@ -150,6 +163,7 @@ for marker in (
     "RCKCpuTargetLookupTag32BenchJson",
     "RCKTargetLookupFilterBuildBenchJson",
     "RCKTargetLookupTag32BuildFromKeysBenchJson",
+    "RCKTargetLookupTag32ParallelInsertBenchJson",
 ):
     if marker not in cli_source:
         raise SystemExit("missing tag32 target lookup CLI marker: " + marker)
@@ -345,6 +359,27 @@ if build_from_keys_payload.get("metric") != "speedup":
     raise SystemExit("build-from-keys experiment should optimize internal legacy-vs-prehashed speedup")
 if int(build_from_keys_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("build-from-keys experiment should keep sample_runs >= 3")
+
+parallel_insert_experiment = Path("autoresearch/experiments/target_lookup_tag32_parallel_insert.json")
+if not parallel_insert_experiment.exists():
+    raise SystemExit("missing target lookup tag32 parallel-insert autoresearch experiment")
+parallel_insert_payload = json.loads(parallel_insert_experiment.read_text(encoding="utf-8"))
+parallel_insert_command = [
+    "./macos/rck_macos",
+    "target-lookup-tag32-parallel-insert-bench",
+    "--target-count",
+    "25005000",
+    "--injected-count",
+    "64",
+    "--iterations",
+    "1",
+]
+if parallel_insert_payload.get("bench_command") != parallel_insert_command:
+    raise SystemExit("parallel-insert experiment should run the host tag32 parallel-insert CLI")
+if parallel_insert_payload.get("metric") != "speedup":
+    raise SystemExit("parallel-insert experiment should optimize internal serial-vs-parallel speedup")
+if int(parallel_insert_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("parallel-insert experiment should keep sample_runs >= 3")
 
 persistent_experiment = Path("autoresearch/experiments/metal_target_lookup_tag32_persistent_tg1024.json")
 if not persistent_experiment.exists():

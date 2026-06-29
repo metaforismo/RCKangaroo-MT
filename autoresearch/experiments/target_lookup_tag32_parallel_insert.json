@@ -1,0 +1,19 @@
+{
+  "name": "target_lookup_tag32_parallel_insert",
+  "description": "Host setup benchmark comparing prehashed serial tag32 insertion against parallel CAS insertion with semantic find-all verification",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "target-lookup-tag32-parallel-insert-bench",
+    "--target-count",
+    "25005000",
+    "--injected-count",
+    "64",
+    "--iterations",
+    "1"
+  ],
+  "metric": "speedup",
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3,
+  "cooldown_sec": 5
+}

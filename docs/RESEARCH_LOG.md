@@ -4665,6 +4665,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   with `table_equal=true` and `correctness=true` throughout. Treat this as a
   25M-target host setup/mapping win for multi-target runs, not as a new
   kangaroo step-throughput claim.
+- Kept `target_lookup_tag32_parallel_insert`: after prehashing, the tag32
+  target table insertion now uses parallel 64-bit CAS over packed
+  `(target_index, tag32)` buckets, then unpacks into the existing host/GPU
+  bucket layout. This deliberately changes the bucket collision order, so the
+  oracle is semantic rather than field-for-field: target-key order must match
+  the serial builder and every target key must be found at its own index through
+  the normal `TargetLookupTag32Find` path. The 25,005,000-target gate with
+  `--injected-count 64` kept across two confirmations. Confirmation 1 samples
+  measured speedups `0.928064`, `0.880974`, and `1.496382`; confirmation 2
+  measured `1.252302`, `2.044074`, and `1.883752`. All samples reported
+  `target_keys_equal=true`, `all_keys_found=true`, and `correctness=true`.
+  The parallel table checksum varies across runs because successful CAS order
+  inside collision clusters is scheduler-dependent; exact lookup semantics and
+  downstream target-lookup checksums remain the correctness boundary.
 
 ## Next Research Targets
 

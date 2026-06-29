@@ -178,3 +178,24 @@ case "$build_from_keys_output" in
 		exit 1
 		;;
 esac
+
+set +e
+parallel_insert_output="$(./macos/rck_macos target-lookup-tag32-parallel-insert-bench --target-count 64 --injected-count 8 --iterations 1 2>&1)"
+parallel_insert_status=$?
+set -e
+
+if [ "$parallel_insert_status" -ne 0 ]; then
+	printf 'target-lookup-tag32-parallel-insert-bench returned status %s\n' "$parallel_insert_status"
+	printf '%s\n' "$parallel_insert_output"
+	exit 1
+fi
+
+case "$parallel_insert_output" in
+	*"\"backend\":\"macos_cpu\""*"\"operation\":\"target_lookup_tag32_parallel_insert_probe\""*"\"setup_phase\":\"host_tag32_parallel_insert_probe\""*"\"lookup_layout\":\"open_address_tag32_index_exact256\""*"\"target_key\":\"x256_y_parity\""*"\"candidate_verification\":\"prehashed_serial_vs_parallel_semantic_find_all_keys\""*"\"iterations\":1"*"\"target_count\":64"*"\"injected_count\":8"*"\"target_table_buckets\":128"*"\"target_key_bytes\":2560"*"\"target_bucket_bytes\":1024"*"\"target_table_bytes\":3584"*"\"serial_seconds\":"*"\"parallel_seconds\":"*"\"speedup\":"*"\"serial_targets_per_sec\":"*"\"parallel_targets_per_sec\":"*"\"serial_checksum\":\"0x"*"\"parallel_checksum\":\"0x"*"\"target_keys_equal\":true"*"\"all_keys_found\":true"*"\"correctness\":true"*)
+		;;
+	*)
+		printf '%s\n' "$parallel_insert_output"
+		printf '%s\n' "unexpected target-lookup-tag32-parallel-insert-bench output"
+		exit 1
+		;;
+esac
