@@ -4752,6 +4752,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `63081803.186278` (`paired_speedup=1.321685`). Keep it as the promoted
   explicit 25M setup-inclusive gate for accumulated repeat-mode multi-target
   batches.
+- Rejected the adjacent
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps1024_dp6_repeat512_setup`
+  density tradeoff. The candidate kept the same `steps=1024` packet but used
+  `dp_bits=6` and `lookup_repeat=512`, producing a similar logical query count
+  while doubling base DP density and halving repeat positives. Correctness held
+  with `dp_distance_checksum=0xf69a64423518f298`,
+  `dp_checksum=0xbc67ab38fa84d2de`,
+  `target_lookup_checksum=0x23977ac85d5ac9f0`, `dp_count=4005`,
+  `hit_count=32768`, `filter_positive_count=33280`,
+  `filter_false_positive_count=512`, and `correctness=true`, but paired
+  autoresearch against the accepted `1024/dp7/repeat1024` setup gate discarded
+  it: median setup-inclusive throughput was `84162048.224048` versus baseline
+  `85400915.406033` (`paired_speedup=0.985494`). Keep `1024/dp7/repeat1024`
+  as the 25M setup-inclusive gate; lower DP bits only make sense if a future
+  solver-level collision-latency metric justifies the extra DP pressure.
 
 ## Next Research Targets
 
