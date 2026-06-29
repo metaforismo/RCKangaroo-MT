@@ -5056,6 +5056,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `filter_false_positive_count=1024` versus baseline zero. Conclusion: distinct
   rounds are the right anti-cheat benchmark shape, but `scaled4_j4` is not a
   steady-compute win under this stricter two-round oracle.
+- Reworked the fixed-round target lookup probe to concatenate all round DP
+  keys and launch one aggregate `gpu_filter16_hash_repeat` lookup dispatch
+  against the shared target table/filter, with a per-query expected target-index
+  vector preserving exact round offsets. The small two-round oracle remained
+  exact (`hit_count=9`, `filter_false_positive_count=0`,
+  `target_lookup_checksum=0x4d668f8d29797461`). A 25,005,000-target three-pair
+  scout still did not promote `scaled4_j4`: aggregate 16-jump power2 baseline
+  median `ops_per_sec=87877738.630874`, setup-inclusive median
+  `69269242.521751`, `target_lookup_checksum=0x923b46f156f9d59b`, zero false
+  positives; aggregate `scaled4_j4` median `ops_per_sec=76438848.057118`,
+  setup-inclusive median `54043838.855151`,
+  `target_lookup_checksum=0x6aaec4659e60b735`, and
+  `filter_false_positive_count=1024`. Conclusion: keep the aggregate lookup
+  architecture because it is the fairer steady-state multi-round shape, but do
+  not claim a speedup for `scaled4_j4`.
 
 ## Cleanup Policy
 
