@@ -5022,6 +5022,40 @@ These did not pass the performance gate or had a correctness/architecture issue:
   setup-inclusive `67531812.211342`, versus the immediate GPU-filter scout at
   `74366891.303314`. Conclusion: keep the accepted walk group 128,
   lookup group 512, 131k-sample, GPU-filter repeat profile as the local base.
+- Rejected a `min_ms=5000` steady-state follow-up on the accepted `scaled4_j4`
+  command. A direct scout looked attractive because the command reused the
+  target table/filter across repeated dispatches and measured
+  `setup_inclusive_ops_per_sec=113355099.742690` with
+  `target_lookup_checksum=0x52efac244f7b11f3` and zero false positives, versus
+  an immediate cold `min_ms=500` scout at `82833667.486211`. The paired gate
+  against the same `min_ms=5000` 16-jump power2 baseline did not confirm:
+  confirmation 1 was a raw keep (`103992785.327127` versus `45963566.197120`,
+  speedup `2.262505`), while confirmation 2 discarded it (`56480003.605877`
+  versus `64994848.031781`, speedup `0.868992`; final
+  `confirmation_status=discard`). The candidate remained semantically exact
+  (`dp_distance_checksum=0xad580a14bfda5cf8`,
+  `dp_checksum=0x58d7138663a105aa`,
+  `target_lookup_checksum=0x52efac244f7b11f3`, `hit_count=65536`,
+  `filter_false_positive_count=0`). Conclusion: target-table amortization is a
+  real direction, but the existing `min_ms` loop is too noisy and repeats the
+  same batch; do not promote it. A fair next benchmark needs fixed explicit
+  rounds with distinct walk batches and one reused target table.
+- Added a dirty fixed-round target lookup benchmark prototype to remove that
+  `min_ms` ambiguity: `metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-rounds-bench`
+  runs deterministic distinct walk batches, injects hits from every round,
+  builds one target table/filter, and validates each round with exact target
+  offsets. A small smoke was correct (`round_count=2`, `hit_count=16`,
+  `target_lookup_checksum=0x2648544e2748f45e`) and rejected schedule mismatch
+  as expected. The decisive 25,005,000-target, two-round manual paired scout
+  did not support a speed claim: the `scaled4_j4` candidate remained exact
+  (`dp_distance_checksum=0x4b7a8e04a1b34c9e`,
+  `dp_checksum=0x23ddf9863ade346f`,
+  `target_lookup_checksum=0x9d6f1e5663211884`, `hit_count=131072`) but had
+  median `ops_per_sec=68007451.764749` versus the 16-jump power2 baseline at
+  `87996887.228211` (manual paired speedup `0.772839`). It also carried
+  `filter_false_positive_count=1024` versus baseline zero. Conclusion: distinct
+  rounds are the right anti-cheat benchmark shape, but `scaled4_j4` is not a
+  steady-compute win under this stricter two-round oracle.
 
 ## Cleanup Policy
 

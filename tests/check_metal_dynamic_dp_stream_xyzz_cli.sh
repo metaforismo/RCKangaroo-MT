@@ -297,6 +297,37 @@ case "$affine_lookup_output" in
 		;;
 esac
 
+affine_lookup_rounds_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-rounds-bench --iterations 64 --steps 256 --jumps 4 --dp-bits 4 --target-count 128 --hits 4 --lookup-repeat 3 --rounds 2 --lookup-tg-limit 128 --jump-schedule scaled4-balanced 2>&1)"
+affine_lookup_rounds_status=$?
+if [ "$affine_lookup_rounds_status" -ne 0 ]; then
+	printf 'metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-rounds-bench returned status %s\n' "$affine_lookup_rounds_status"
+	printf '%s\n' "$affine_lookup_rounds_output"
+	exit 1
+fi
+
+case "$affine_lookup_rounds_output" in
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32_rounds\""*"\"output_layout\":\"affine_dp_scan_target_lookup\""*"\"lookup_layout\":\"open_address_tag16_hash_filter_exact256\""*"\"query_input\":\"hash64_repeat_indexed\""*"\"repeat_positive_index_encoding\":\"packed16_base_repeat\""*"\"iterations\":32768"*"\"sample_count\":64"*"\"round_count\":2"*"\"steps_per_sample\":256"*"\"jump_count\":4"*"\"jump_schedule\":\"scaled4_balanced\""*"\"dp_bits\":4"*"\"target_count\":128"*"\"requested_hits\":4"*"\"injected_hits\":3"*"\"lookup_repeat\":3"*"\"lookup_query_mode\":\"repeat\""*"\"lookup_engine\":\"gpu_filter16_hash_repeat\""*"\"lookup_engine_effective\":\"gpu_filter16_hash_repeat\""*"\"dp_query_count\":3"*"\"query_count\":9"*"\"hit_count\":9"*"\"miss_count\":0"*"\"filter_positive_count\":9"*"\"filter_false_positive_count\":0"*"\"lookup_threadgroup_limit\":128"*"\"target_lookup_checksum\":\"0x"*"\"correctness\":true"*)
+		;;
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32_rounds\""*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-rounds-bench output"
+		printf '%s\n' "$affine_lookup_rounds_output"
+		exit 1
+		;;
+esac
+
+affine_lookup_rounds_invalid_schedule_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-rounds-bench --iterations 64 --steps 256 --jumps 8 --dp-bits 4 --target-count 128 --hits 4 --lookup-repeat 3 --rounds 2 --jump-schedule scaled4-balanced 2>&1)"
+case "$affine_lookup_rounds_invalid_schedule_output" in
+	*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32_rounds\""*"\"jump_schedule\":\"scaled4_balanced\""*"\"correctness\":false"*"\"reason\":\"scaled4-balanced jump schedule requires --jumps 4\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected invalid rounds jump schedule output"
+		printf '%s\n' "$affine_lookup_rounds_invalid_schedule_output"
+		exit 1
+		;;
+esac
+
 affine_lookup_tg_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench --iterations 64 --steps 256 --jumps 8 --dp-bits 4 --target-count 128 --hits 4 --lookup-repeat 3 --lookup-engine gpu --lookup-tg-limit 256 --min-ms 0 2>&1)"
 affine_lookup_tg_status=$?
 if [ "$affine_lookup_tg_status" -ne 0 ]; then
