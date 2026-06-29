@@ -4560,6 +4560,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0x08b06faea04109e6`, `dp_count=1999`, and
   `target_lookup_checksum=0x4bfc0bfe896fe3ad`. Conclusion: keep `512` as the
   lookup cap for this large repeat-mode path.
+- Rejected splitting the accepted `1024`/`dp_bits=7` affine-scan GPU packet
+  into two in-kernel 512-step loop segments. The candidate preserved the same
+  state transition, summed the two packet distances, and kept the same CPU
+  affine-scan oracle. All paired rows preserved `correctness=true`,
+  `dp_distance_checksum=0x33b34eda684bc0e5`,
+  `dp_checksum=0x08b06faea04109e6`, `dp_count=1999`, and identical jump
+  histograms, but it did not beat the monolithic 1024-step helper reliably.
+  Confirmation 1 measured candidate `108,854,143.391471` ops/sec versus
+  baseline `114,291,668.491710` (`0.952424x`), while confirmation 2 was only
+  a raw keep at `99,513,137.154800` versus `91,527,877.090034`
+  (`1.087244x`), so the runner marked the experiment
+  `confirmation_status=discard`. Keep the single 1024-step helper call; the
+  split loop shape adds scheduling/register-pressure variance instead of a
+  durable M3 GPU win.
 - Rejected adding a `2048`-step XYZZ affine-scan packet cadence with `dp_bits=6`
   against the accepted `1024`/`dp_bits=7` cadence. The idea preserved roughly
   the same packet-boundary DP density per operation and passed small runtime
