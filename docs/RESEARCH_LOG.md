@@ -4633,6 +4633,27 @@ These did not pass the performance gate or had a correctness/architecture issue:
   experiment descriptor were reverted. Conclusion: reducing repeated GPU
   probes is a plausible idea, but this base-once host expansion is too noisy on
   the current 25M-target M3 gate to replace the accepted packed 2D repeat path.
+- Rejected changing the accepted repeat-indexed tag16 hash-filter threadgroup
+  from the current `512 x 1` shape to 2D threadgroup shapes inside the already
+  2D `(base_query, repeat)` dispatch. Direct dirty scouts tried `64 x 8`,
+  `128 x 4`, and `256 x 2` while preserving the full oracle:
+  `dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `dp_checksum=0x9dba4a07ebbb8e14`,
+  `target_lookup_checksum=0x5b746bd07e35a252`, `hit_count=131072`,
+  `filter_positive_count=133120`, `filter_false_positive_count=2048`, and
+  `correctness=true`. All three variants were slower on the 25M-target
+  repeat2048 gate; representative `lookups_per_sec` values were about
+  `126.7M`, `92.4M`, and `49.7M`, below the accepted packed-positive corridor.
+  Keep the 1D threadgroup shape for this repeat-indexed kernel.
+- Rejected a targeted Metal library/pipeline cache scout for the integrated
+  XYZZ distance walk plus repeat-indexed tag16 hash-filter helpers. The idea
+  was to reduce real wall-clock setup that is mostly outside JSON
+  `dispatch_seconds`; correctness stayed intact on small and 25M target smokes
+  with the same DP and target-lookup checksums. The direct 25M scout did not
+  improve observed real time or lookup timing, and added global Objective-C
+  object lifetime complexity, so the code was reverted. Revisit only with a
+  setup-inclusive benchmark that isolates library compile, pipeline creation,
+  buffer allocation, validation, and dispatch time separately.
 - Rejected `macos-metal-xyzz-finite-wrapper-split`: split the Metal XYZZ
   mixed-add helper into a finite-input hot helper plus the existing
   infinity-aware wrapper, then routed the DP8 `steps256`/`steps512`, chain, and
