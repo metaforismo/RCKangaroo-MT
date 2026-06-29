@@ -4767,6 +4767,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `85400915.406033` (`paired_speedup=0.985494`). Keep `1024/dp7/repeat1024`
   as the 25M setup-inclusive gate; lower DP bits only make sense if a future
   solver-level collision-latency metric justifies the extra DP pressure.
+- Rejected a dirty sparse cached repeat-output validation prototype. The idea
+  was to avoid materializing the full repeated `out_indices` vector for the
+  packed repeat tag16 path, verify each compact positive exactly, cache exact
+  finds per base DP query, and compute the same full-query checksum from the
+  expected repeat pattern. Small repeat smoke preserved
+  `target_lookup_checksum=0xf5b847eb31e6644b`, and the 25M
+  `1024/dp7/repeat1024` scout preserved
+  `target_lookup_checksum=0x4bfc0bfe896fe3ad`, `hit_count=65536`,
+  `filter_positive_count=65536`, `filter_false_positive_count=0`, and
+  `correctness=true`. It was much slower in the dirty scout
+  (`setup_inclusive_ops_per_sec=24658320.224050`,
+  `lookup_exact_seconds=0.019804`), likely because the checksum loop and cache
+  bookkeeping did not remove the real bottleneck. The code was reverted; keep
+  the full-output validation path until a lower-level checksum design can prove
+  an actual win.
 
 ## Next Research Targets
 
