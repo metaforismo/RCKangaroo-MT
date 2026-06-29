@@ -4933,6 +4933,22 @@ These did not pass the performance gate or had a correctness/architecture issue:
   while the immediate `steps=2048`, `lookup_repeat=1024`, `hits=64` baseline
   measured `86083133.409830` with zero false positives. Conclusion: do not add
   a 1536-step wrapper unless a future gate finds a stronger cadence.
+- Kept `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_scaled4_j4_setup`:
+  the 25,005,000-target, `steps=2048`, `dp_bits=6`, repeat-mode
+  `gpu-filter16-hash-repeat` gate now has a paired schedule probe comparing
+  `--jumps 4 --jump-schedule scaled4-balanced` against the accepted 16-jump
+  `power2` baseline. Correctness stayed exact in both confirmations:
+  `dp_distance_checksum=0xad580a14bfda5cf8`,
+  `dp_checksum=0x58d7138663a105aa`,
+  `target_lookup_checksum=0x52efac244f7b11f3`, `hit_count=65536`,
+  `filter_false_positive_count=0`, and `jump_histogram_max_deviation_ppm=68`
+  for the candidate. Paired confirmation kept the candidate on
+  `setup_inclusive_ops_per_sec`: confirmation 1 median `93508028.064667`
+  versus baseline `59826653.984800`; confirmation 2 median `57402367.574511`
+  versus baseline `46863993.301787` (final paired speedup `1.224871`,
+  `confirmation_status=keep`). Conclusion: promote this as a local
+  reproducible schedule gate, but do not make it a universal default until
+  other Apple Silicon machines confirm the same behavior.
 
 ## Cleanup Policy
 

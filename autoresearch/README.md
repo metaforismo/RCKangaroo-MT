@@ -87,6 +87,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps1024_dp7_setup_workers6 --budget-sec 480 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps2048_dp6_setup --budget-sec 540 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps4096_dp5_setup --budget-sec 540 --paired-baseline-ref main --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_scaled4_j4_setup --budget-sec 540 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_persistent_tg1024 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_persistent --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
@@ -122,7 +123,12 @@ accumulated repeat-mode multi-target batches where target setup and lookup
 batching matter; they are not generic per-step kangaroo defaults. The
 `steps4096_dp5_setup` probe is available for reproduction, but paired
 confirmation discarded it against `steps2048/dp6/repeat1024`, so keep 2048/dp6
-as the local plateau.
+as the local plateau. The `scaled4_j4_setup` gate keeps the same 2048/dp6
+repeat-mode target join, but compares a 4-jump `scaled4-balanced` schedule
+against the accepted 16-jump `power2` schedule. It passed local paired
+confirmation on setup-inclusive throughput while preserving the exact target
+checksum and zero false positives, so it is an accepted local schedule probe
+rather than a cross-hardware default.
 
 The target-lookup experiment is an exact multi-target join gate for the output
 of an affine DP scan. It builds a deterministic open-addressed Metal table of
@@ -543,6 +549,7 @@ Run the setup-inclusive 25M repeat-mode tag16 hash-filter target-lookup gate:
 
 ```sh
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps2048_dp6_setup --budget-sec 540 --paired-baseline-ref main --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_scaled4_j4_setup --budget-sec 540 --paired-baseline-ref main --confirm-runs 2
 ```
 
 This compares `steps=2048, dp_bits=6, lookup_repeat=1024` against the accepted
@@ -550,6 +557,9 @@ This compares `steps=2048, dp_bits=6, lookup_repeat=1024` against the accepted
 `metric=setup_inclusive_ops_per_sec`. It keeps the exact `x256+y_parity`
 target-lookup oracle and checksum, so a faster setup-inclusive score cannot
 hide a changed hit count, false-positive count, or lookup result.
+The `scaled4_j4_setup` variant keeps the same 2048/dp6 target-lookup shape and
+scores `--jumps 4 --jump-schedule scaled4-balanced` against the 16-jump
+`power2` baseline with the same setup-inclusive metric.
 
 Run the large-table tag32 GPU filter lookup gate:
 
