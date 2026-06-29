@@ -40,6 +40,16 @@ for marker in (
     "bucket.tag >> 16",
     "TargetLookupFilterChecksum",
     "RCKTargetLookupFilterBuildBenchJson",
+    "RCKTargetLookupTag32BuildFromKeysBenchJson",
+    "BuildTargetLookupTag32TableFromKeysLegacy",
+    "BuildTargetLookupTag32TableFromKeysPrehashed",
+    "TargetLookupHashMatchesInjected",
+    "TargetLookupTag32TablesEqual",
+    "\\\"setup_phase\\\":\\\"host_tag32_build_from_injected_keys\\\"",
+    "\\\"candidate_verification\\\":\\\"legacy_tag32_table_field_equality\\\"",
+    "\\\"prehashed_seconds\\\":",
+    "\\\"prehashed_checksum\\\":",
+    "\\\"table_equal\\\":",
     "\\\"candidate_verification\\\":\\\"legacy_rehash_filter_byte_equality\\\"",
     "\\\"tag32_legacy_seconds\\\":",
     "\\\"tag32_derived_seconds\\\":",
@@ -113,6 +123,7 @@ if host_source.count("(total_dispatch_seconds * 1000.0 < (double)min_ms)") < 3:
 for marker in (
     "RCKMetalTargetLookupTag32BenchJson",
     "RCKTargetLookupFilterBuildBenchJson",
+    "RCKTargetLookupTag32BuildFromKeysBenchJson",
 ):
     if marker not in header_source:
         raise SystemExit("missing tag32 target lookup header declaration: " + marker)
@@ -129,6 +140,7 @@ for marker in (
     "metal-target-lookup-tag32-persistent-bench",
     "target-lookup-tag32-cpu-bench",
     "target-lookup-filter-build-bench",
+    "target-lookup-tag32-build-from-keys-bench",
     "RCKMetalTargetLookupTag32BenchJson",
     "RCKMetalTargetLookupTag32FilterBenchJson",
     "RCKMetalTargetLookupTag32FilterPersistentBenchJson",
@@ -137,6 +149,7 @@ for marker in (
     "RCKMetalTargetLookupTag32PersistentBenchJson",
     "RCKCpuTargetLookupTag32BenchJson",
     "RCKTargetLookupFilterBuildBenchJson",
+    "RCKTargetLookupTag32BuildFromKeysBenchJson",
 ):
     if marker not in cli_source:
         raise SystemExit("missing tag32 target lookup CLI marker: " + marker)
@@ -311,6 +324,27 @@ if filter_build_payload.get("metric") != "speedup":
     raise SystemExit("filter-build experiment should optimize internal old-vs-derived speedup")
 if int(filter_build_payload.get("sample_runs", 0)) < 3:
     raise SystemExit("filter-build experiment should keep sample_runs >= 3")
+
+build_from_keys_experiment = Path("autoresearch/experiments/target_lookup_tag32_build_from_keys.json")
+if not build_from_keys_experiment.exists():
+    raise SystemExit("missing target lookup tag32 build-from-keys autoresearch experiment")
+build_from_keys_payload = json.loads(build_from_keys_experiment.read_text(encoding="utf-8"))
+build_from_keys_command = [
+    "./macos/rck_macos",
+    "target-lookup-tag32-build-from-keys-bench",
+    "--target-count",
+    "25005000",
+    "--injected-count",
+    "64",
+    "--iterations",
+    "1",
+]
+if build_from_keys_payload.get("bench_command") != build_from_keys_command:
+    raise SystemExit("build-from-keys experiment should run the host tag32 build CLI")
+if build_from_keys_payload.get("metric") != "speedup":
+    raise SystemExit("build-from-keys experiment should optimize internal legacy-vs-prehashed speedup")
+if int(build_from_keys_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("build-from-keys experiment should keep sample_runs >= 3")
 
 persistent_experiment = Path("autoresearch/experiments/metal_target_lookup_tag32_persistent_tg1024.json")
 if not persistent_experiment.exists():

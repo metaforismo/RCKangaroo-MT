@@ -157,3 +157,24 @@ case "$filter_build_output" in
 		exit 1
 		;;
 esac
+
+set +e
+build_from_keys_output="$(./macos/rck_macos target-lookup-tag32-build-from-keys-bench --target-count 64 --injected-count 8 --iterations 1 2>&1)"
+build_from_keys_status=$?
+set -e
+
+if [ "$build_from_keys_status" -ne 0 ]; then
+	printf 'target-lookup-tag32-build-from-keys-bench returned status %s\n' "$build_from_keys_status"
+	printf '%s\n' "$build_from_keys_output"
+	exit 1
+fi
+
+case "$build_from_keys_output" in
+	*"\"backend\":\"macos_cpu\""*"\"operation\":\"target_lookup_tag32_build_from_injected_keys\""*"\"setup_phase\":\"host_tag32_build_from_injected_keys\""*"\"lookup_layout\":\"open_address_tag32_index_exact256\""*"\"target_key\":\"x256_y_parity\""*"\"candidate_verification\":\"legacy_tag32_table_field_equality\""*"\"iterations\":1"*"\"target_count\":64"*"\"injected_count\":8"*"\"target_table_buckets\":128"*"\"target_key_bytes\":2560"*"\"target_bucket_bytes\":1024"*"\"target_table_bytes\":3584"*"\"legacy_seconds\":"*"\"prehashed_seconds\":"*"\"speedup\":"*"\"legacy_targets_per_sec\":"*"\"prehashed_targets_per_sec\":"*"\"legacy_checksum\":\"0x"*"\"prehashed_checksum\":\"0x"*"\"table_equal\":true"*"\"correctness\":true"*)
+		;;
+	*)
+		printf '%s\n' "$build_from_keys_output"
+		printf '%s\n' "unexpected target-lookup-tag32-build-from-keys-bench output"
+		exit 1
+		;;
+esac

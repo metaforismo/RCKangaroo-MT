@@ -1,0 +1,19 @@
+{
+  "name": "target_lookup_tag32_build_from_keys",
+  "description": "Host setup benchmark comparing legacy injected-key tag32 table construction against prehashed duplicate checks and prehashed table insertion",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "target-lookup-tag32-build-from-keys-bench",
+    "--target-count",
+    "25005000",
+    "--injected-count",
+    "64",
+    "--iterations",
+    "1"
+  ],
+  "metric": "speedup",
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3,
+  "cooldown_sec": 5
+}

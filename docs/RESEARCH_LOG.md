@@ -4633,6 +4633,38 @@ These did not pass the performance gate or had a correctness/architecture issue:
   experiment descriptor were reverted. Conclusion: reducing repeated GPU
   probes is a plausible idea, but this base-once host expansion is too noisy on
   the current 25M-target M3 gate to replace the accepted packed 2D repeat path.
+- Rejected `macos-metal-xyzz-finite-wrapper-split`: split the Metal XYZZ
+  mixed-add helper into a finite-input hot helper plus the existing
+  infinity-aware wrapper, then routed the DP8 `steps256`/`steps512`, chain, and
+  affine-scan distance loops through the finite helper whenever the current
+  accumulator was not infinity. Correctness and checksums were preserved on
+  small smokes and on the paired `262144 x 512` affine-scan gate:
+  `dp_distance_checksum=0xf0dc88ed68b2ff64`,
+  `dp_checksum=0x9dba4a07ebbb8e14`, and `dp_count=1057`. Confirmation 1
+  measured candidate `86,880,043.232946` ops/sec versus baseline
+  `86,441,247.177342` (`1.005076x`), below the 1% keep threshold.
+  Confirmation 2 measured `87,343,594.418012` versus `86,177,005.971957`
+  (`1.013537x`), but the two-run policy marked the result
+  `confirmation_status=discard`. The code was reverted. Conclusion: pulling
+  the infinity wrapper out of the normal XYZZ loop is mathematically safe but
+  not a stable M3 speedup; future kernel work should remove arithmetic,
+  memory traffic, or CPU replay rather than reshuffle this branch.
+- Kept `target_lookup_tag32_build_from_keys`: the host builder for injected
+  multi-target tag32 tables now precomputes target hashes, fills deterministic
+  non-injected targets in parallel, and inserts from the prehashed stream while
+  retaining the legacy builder as an exact oracle. If a generated filler key
+  actually duplicates an injected key, the implementation falls back to the
+  legacy path, preserving the old target-key order and table semantics. The new
+  CLI gate
+  `target-lookup-tag32-build-from-keys-bench --target-count 25005000
+  --injected-count 64 --iterations 1` compares legacy versus prehashed tables
+  field-for-field and reports matching checksum `0x0875f90b516f7503`.
+  Autoresearch kept the candidate across two confirmations:
+  confirmation 1 samples measured speedups `1.722704`, `1.674158`, and
+  `2.202740`; confirmation 2 measured `1.815670`, `1.410222`, and `1.435882`,
+  with `table_equal=true` and `correctness=true` throughout. Treat this as a
+  25M-target host setup/mapping win for multi-target runs, not as a new
+  kangaroo step-throughput claim.
 
 ## Next Research Targets
 

@@ -9,11 +9,13 @@
 
 #include <array>
 #include <atomic>
+#include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <iomanip>
 #include <sstream>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "Ec.h"
@@ -1344,6 +1346,58 @@ static std::string TargetLookupFilterBuildBenchJson(const char* operation,
 	oss << "\"tag16_filter_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << tag16_filter_checksum << std::dec << std::setfill(' ') << "\",";
 	oss << "\"tag32_byte_equal\":" << (tag32_byte_equal ? "true" : "false") << ",";
 	oss << "\"tag16_byte_equal\":" << (tag16_byte_equal ? "true" : "false") << ",";
+	oss << "\"correctness\":" << (correctness ? "true" : "false") << ",";
+	oss << "\"skipped\":false";
+	if (!reason.empty())
+		oss << ",\"reason\":\"" << JsonEscape(reason) << "\"";
+	oss << "}";
+	return oss.str();
+}
+
+static std::string TargetLookupTag32BuildFromKeysBenchJson(const char* operation,
+	unsigned int target_count,
+	unsigned int injected_count,
+	uint64_t iterations,
+	uint64_t target_table_buckets,
+	uint64_t target_key_bytes,
+	uint64_t target_bucket_bytes,
+	double legacy_seconds,
+	double prehashed_seconds,
+	uint64_t legacy_checksum,
+	uint64_t prehashed_checksum,
+	bool table_equal,
+	bool correctness,
+	const std::string& reason)
+{
+	double speedup = prehashed_seconds > 0.0 ? legacy_seconds / prehashed_seconds : 0.0;
+	double legacy_targets_per_sec = legacy_seconds > 0.0 ? ((double)target_count * (double)iterations) / legacy_seconds : 0.0;
+	double prehashed_targets_per_sec = prehashed_seconds > 0.0 ? ((double)target_count * (double)iterations) / prehashed_seconds : 0.0;
+	std::ostringstream oss;
+	oss << std::fixed << std::setprecision(6);
+	oss << "{\"backend\":\"macos_cpu\",\"operation\":\"" << operation << "\",";
+	oss << "\"setup_phase\":\"host_tag32_build_from_injected_keys\",";
+	oss << "\"lookup_layout\":\"open_address_tag32_index_exact256\",";
+	oss << "\"target_key\":\"x256_y_parity\",";
+	oss << "\"candidate_verification\":\"legacy_tag32_table_field_equality\",";
+	oss << "\"iterations\":" << iterations << ",";
+	oss << "\"sample_count\":" << target_count << ",";
+	oss << "\"target_count\":" << target_count << ",";
+	oss << "\"injected_count\":" << injected_count << ",";
+	oss << "\"target_table_buckets\":" << target_table_buckets << ",";
+	oss << "\"target_key_bytes\":" << target_key_bytes << ",";
+	oss << "\"target_bucket_bytes\":" << target_bucket_bytes << ",";
+	oss << "\"target_table_bytes\":" << (target_key_bytes + target_bucket_bytes) << ",";
+	oss << "\"min_ms\":0,";
+	oss << "\"legacy_seconds\":" << legacy_seconds << ",";
+	oss << "\"prehashed_seconds\":" << prehashed_seconds << ",";
+	oss << "\"seconds\":" << prehashed_seconds << ",";
+	oss << "\"speedup\":" << speedup << ",";
+	oss << "\"legacy_targets_per_sec\":" << legacy_targets_per_sec << ",";
+	oss << "\"prehashed_targets_per_sec\":" << prehashed_targets_per_sec << ",";
+	oss << "\"ops_per_sec\":" << speedup << ",";
+	oss << "\"legacy_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << legacy_checksum << std::dec << std::setfill(' ') << "\",";
+	oss << "\"prehashed_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << prehashed_checksum << std::dec << std::setfill(' ') << "\",";
+	oss << "\"table_equal\":" << (table_equal ? "true" : "false") << ",";
 	oss << "\"correctness\":" << (correctness ? "true" : "false") << ",";
 	oss << "\"skipped\":false";
 	if (!reason.empty())
@@ -2705,7 +2759,7 @@ static void BuildRepeatedTargetLookupQueryHashes(const std::vector<TargetLookupK
 		query_hashes.insert(query_hashes.end(), base_query_hashes.begin(), base_query_hashes.end());
 }
 
-static bool BuildTargetLookupTag32TableFromKeys(const std::vector<TargetLookupKeyHost>& injected_keys,
+static bool BuildTargetLookupTag32TableFromKeysLegacy(const std::vector<TargetLookupKeyHost>& injected_keys,
 	unsigned int target_count,
 	std::vector<TargetLookupKeyHost>& target_keys,
 	std::vector<TargetLookupTag32BucketHost>& buckets,
@@ -2765,6 +2819,176 @@ static bool BuildTargetLookupTag32TableFromKeys(const std::vector<TargetLookupKe
 		}
 	}
 	return true;
+}
+
+static uint64_t TargetLookupTag32TableChecksum(const std::vector<TargetLookupKeyHost>& target_keys,
+	const std::vector<TargetLookupTag32BucketHost>& buckets)
+{
+	uint64_t checksum = 0x6D2B79F5D34A5E91ULL;
+	for (size_t i = 0; i < target_keys.size(); ++i)
+	{
+		const TargetLookupKeyHost& key = target_keys[i];
+		uint64_t key_hash = TargetLookupHash(key);
+		checksum = TargetLookupMix(checksum ^ TargetLookupMix(key_hash + ((uint64_t)key.parity << 32) + (uint64_t)i));
+	}
+	for (size_t slot = 0; slot < buckets.size(); ++slot)
+	{
+		const TargetLookupTag32BucketHost& bucket = buckets[slot];
+		uint64_t packed = ((uint64_t)bucket.tag << 32) ^ (uint64_t)bucket.target_index;
+		checksum = TargetLookupMix(checksum ^ TargetLookupMix(packed + 0x9E3779B97F4A7C15ULL + (uint64_t)slot));
+	}
+	return checksum;
+}
+
+static bool TargetLookupTag32TablesEqual(const std::vector<TargetLookupKeyHost>& a_keys,
+	const std::vector<TargetLookupTag32BucketHost>& a_buckets,
+	const std::vector<TargetLookupKeyHost>& b_keys,
+	const std::vector<TargetLookupTag32BucketHost>& b_buckets)
+{
+	if (a_keys.size() != b_keys.size() || a_buckets.size() != b_buckets.size())
+		return false;
+	for (size_t i = 0; i < a_keys.size(); ++i)
+	{
+		if (!TargetLookupKeyEquals(a_keys[i], b_keys[i]))
+			return false;
+	}
+	for (size_t slot = 0; slot < a_buckets.size(); ++slot)
+	{
+		if (a_buckets[slot].tag != b_buckets[slot].tag ||
+			a_buckets[slot].target_index != b_buckets[slot].target_index)
+			return false;
+	}
+	return true;
+}
+
+static bool TargetLookupHashMatchesInjected(const TargetLookupKeyHost& key,
+	uint64_t hash,
+	const std::vector<TargetLookupKeyHost>& injected_keys,
+	const std::vector<std::pair<uint64_t, uint32_t> >& injected_hashes)
+{
+	auto range = std::equal_range(injected_hashes.begin(), injected_hashes.end(), std::make_pair(hash, 0U),
+		[](const std::pair<uint64_t, uint32_t>& lhs, const std::pair<uint64_t, uint32_t>& rhs) {
+			return lhs.first < rhs.first;
+		});
+	for (auto it = range.first; it != range.second; ++it)
+	{
+		uint32_t index = it->second;
+		if (index < injected_keys.size() && TargetLookupKeyEquals(key, injected_keys[index]))
+			return true;
+	}
+	return false;
+}
+
+static bool InsertTargetLookupTag32PrehashedTable(const std::vector<TargetLookupKeyHost>& target_keys,
+	const std::vector<uint64_t>& target_hashes,
+	unsigned int bucket_count,
+	std::vector<TargetLookupTag32BucketHost>& buckets,
+	std::string& error)
+{
+	if (target_keys.size() != target_hashes.size() || target_keys.size() > 0xFFFFFFFFULL)
+	{
+		error = "prehashed tag32 target lookup table shape mismatch";
+		return false;
+	}
+
+	buckets.assign(bucket_count, TargetLookupTag32BucketHost{0, kTargetLookupEmptyIndex});
+	uint32_t mask = bucket_count - 1U;
+	for (uint32_t i = 0; i < (uint32_t)target_keys.size(); ++i)
+	{
+		uint64_t hash = target_hashes[i];
+		uint32_t slot = (uint32_t)(hash & (uint64_t)mask);
+		for (unsigned int probe = 0; probe < bucket_count; ++probe)
+		{
+			TargetLookupTag32BucketHost& bucket = buckets[slot];
+			if (bucket.target_index == kTargetLookupEmptyIndex)
+			{
+				bucket.tag = TargetLookupTag32(hash);
+				bucket.target_index = i;
+				break;
+			}
+			slot = (slot + 1U) & mask;
+			if (probe + 1U == bucket_count)
+			{
+				error = "prehashed affine DP tag32 target lookup table insertion failed";
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+static bool BuildTargetLookupTag32TableFromKeysPrehashed(const std::vector<TargetLookupKeyHost>& injected_keys,
+	unsigned int target_count,
+	std::vector<TargetLookupKeyHost>& target_keys,
+	std::vector<TargetLookupTag32BucketHost>& buckets,
+	std::string& error)
+{
+	unsigned int bucket_count = TargetLookupBucketCount(target_count);
+	if (!bucket_count || target_count < injected_keys.size())
+	{
+		error = "invalid affine DP target lookup table shape";
+		return false;
+	}
+
+	std::vector<uint64_t> target_hashes(target_count);
+	target_keys.resize(target_count);
+	for (size_t i = 0; i < injected_keys.size(); ++i)
+	{
+		target_keys[i] = injected_keys[i];
+		target_hashes[i] = TargetLookupHash(injected_keys[i]);
+	}
+
+	std::vector<std::pair<uint64_t, uint32_t> > injected_hashes;
+	injected_hashes.reserve(injected_keys.size());
+	for (uint32_t i = 0; i < (uint32_t)injected_keys.size(); ++i)
+		injected_hashes.push_back(std::make_pair(target_hashes[i], i));
+	std::sort(injected_hashes.begin(), injected_hashes.end(),
+		[](const std::pair<uint64_t, uint32_t>& lhs, const std::pair<uint64_t, uint32_t>& rhs) {
+			if (lhs.first != rhs.first)
+				return lhs.first < rhs.first;
+			return lhs.second < rhs.second;
+		});
+
+	size_t injected_count = injected_keys.size();
+	size_t filler_count = (size_t)target_count - injected_count;
+	std::atomic<bool> duplicate_filler(false);
+	auto fill_range = [&](size_t begin, size_t end) {
+		for (size_t offset = begin; offset < end; ++offset)
+		{
+			TargetLookupKeyHost key = DeterministicTargetLookupKey((uint64_t)offset, 0xA1171E5CAFULL);
+			uint64_t hash = TargetLookupHash(key);
+			if (!injected_hashes.empty() && TargetLookupHashMatchesInjected(key, hash, injected_keys, injected_hashes))
+				duplicate_filler.store(true, std::memory_order_relaxed);
+			size_t out_index = injected_count + offset;
+			target_keys[out_index] = key;
+			target_hashes[out_index] = hash;
+		}
+	};
+	if (filler_count >= kMinParallelTargetLookupHashQueries && ValidationWorkerCount(filler_count) > 1)
+	{
+		ParallelForSamples(filler_count, [&](size_t begin, size_t end, unsigned int worker) {
+			(void)worker;
+			fill_range(begin, end);
+		});
+	}
+	else
+	{
+		fill_range(0, filler_count);
+	}
+
+	if (duplicate_filler.load(std::memory_order_relaxed))
+		return BuildTargetLookupTag32TableFromKeysLegacy(injected_keys, target_count, target_keys, buckets, error);
+
+	return InsertTargetLookupTag32PrehashedTable(target_keys, target_hashes, bucket_count, buckets, error);
+}
+
+static bool BuildTargetLookupTag32TableFromKeys(const std::vector<TargetLookupKeyHost>& injected_keys,
+	unsigned int target_count,
+	std::vector<TargetLookupKeyHost>& target_keys,
+	std::vector<TargetLookupTag32BucketHost>& buckets,
+	std::string& error)
+{
+	return BuildTargetLookupTag32TableFromKeysPrehashed(injected_keys, target_count, target_keys, buckets, error);
 }
 
 static void BuildTargetLookupQueries(const std::vector<TargetLookupKeyHost>& target_keys,
@@ -10445,6 +10669,64 @@ std::string RCKTargetLookupFilterBuildBenchJson(unsigned int target_count, unsig
 	uint64_t tag16_checksum = derived16.empty() ? 0 : TargetLookupFilterChecksum(derived16);
 	bool correctness = tag32_equal && tag16_equal;
 	return TargetLookupFilterBuildBenchJson("target_lookup_filter_build_from_tag32_buckets", target_count, iterations, buckets.size(), target_keys.size() * sizeof(TargetLookupKeyHost), buckets.size() * sizeof(TargetLookupTag32BucketHost), derived32.size() * sizeof(uint32_t), derived16.size() * sizeof(uint16_t), tag32_legacy_seconds, tag32_derived_seconds, tag16_legacy_seconds, tag16_derived_seconds, tag32_checksum, tag16_checksum, tag32_equal, tag16_equal, correctness, correctness ? "" : error);
+}
+
+std::string RCKTargetLookupTag32BuildFromKeysBenchJson(unsigned int target_count,
+	unsigned int injected_count,
+	unsigned int iterations)
+{
+	if (target_count == 0)
+		target_count = 1;
+	if (iterations == 0)
+		iterations = 1;
+	if (injected_count == 0)
+		injected_count = 1;
+	if (injected_count > target_count)
+		injected_count = target_count;
+	if (target_count > 32000000U)
+	{
+		std::string reason = "target lookup benchmark target_count limit is 32000000 for host memory safety";
+		return TargetLookupTag32BuildFromKeysBenchJson("target_lookup_tag32_build_from_injected_keys", target_count, injected_count, iterations, 0, 0, 0, 0.0, 0.0, 0, 0, false, false, reason);
+	}
+
+	std::vector<TargetLookupKeyHost> injected_keys;
+	injected_keys.reserve(injected_count);
+	for (uint32_t i = 0; i < injected_count; ++i)
+		injected_keys.push_back(DeterministicTargetLookupKey((uint64_t)i, 0xD97E7C4B3A219845ULL));
+
+	std::vector<TargetLookupKeyHost> legacy_keys;
+	std::vector<TargetLookupKeyHost> prehashed_keys;
+	std::vector<TargetLookupTag32BucketHost> legacy_buckets;
+	std::vector<TargetLookupTag32BucketHost> prehashed_buckets;
+	double legacy_seconds = 0.0;
+	double prehashed_seconds = 0.0;
+	bool table_equal = true;
+	std::string error;
+
+	for (unsigned int iteration = 0; iteration < iterations; ++iteration)
+	{
+		auto start = std::chrono::steady_clock::now();
+		if (!BuildTargetLookupTag32TableFromKeysLegacy(injected_keys, target_count, legacy_keys, legacy_buckets, error))
+			return TargetLookupTag32BuildFromKeysBenchJson("target_lookup_tag32_build_from_injected_keys", target_count, injected_count, iterations, 0, 0, 0, legacy_seconds, prehashed_seconds, 0, 0, false, false, error);
+		legacy_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+
+		start = std::chrono::steady_clock::now();
+		if (!BuildTargetLookupTag32TableFromKeysPrehashed(injected_keys, target_count, prehashed_keys, prehashed_buckets, error))
+			return TargetLookupTag32BuildFromKeysBenchJson("target_lookup_tag32_build_from_injected_keys", target_count, injected_count, iterations, legacy_buckets.size(), legacy_keys.size() * sizeof(TargetLookupKeyHost), legacy_buckets.size() * sizeof(TargetLookupTag32BucketHost), legacy_seconds, prehashed_seconds, TargetLookupTag32TableChecksum(legacy_keys, legacy_buckets), 0, false, false, error);
+		prehashed_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+
+		if (!TargetLookupTag32TablesEqual(legacy_keys, legacy_buckets, prehashed_keys, prehashed_buckets))
+		{
+			table_equal = false;
+			error = "prehashed tag32 table differs from legacy table";
+			break;
+		}
+	}
+
+	uint64_t legacy_checksum = legacy_keys.empty() ? 0 : TargetLookupTag32TableChecksum(legacy_keys, legacy_buckets);
+	uint64_t prehashed_checksum = prehashed_keys.empty() ? 0 : TargetLookupTag32TableChecksum(prehashed_keys, prehashed_buckets);
+	bool correctness = table_equal && legacy_checksum == prehashed_checksum;
+	return TargetLookupTag32BuildFromKeysBenchJson("target_lookup_tag32_build_from_injected_keys", target_count, injected_count, iterations, legacy_buckets.size(), legacy_keys.size() * sizeof(TargetLookupKeyHost), legacy_buckets.size() * sizeof(TargetLookupTag32BucketHost), legacy_seconds, prehashed_seconds, legacy_checksum, prehashed_checksum, table_equal, correctness, correctness ? "" : error);
 }
 
 static std::string RunMetalFieldBenchJson(const char* operation,

@@ -49,3 +49,4 @@ std::string RCKMetalTargetLookupTag16HashFilterPersistentBenchJson(unsigned int 
 std::string RCKMetalTargetLookupTag32PersistentBenchJson(unsigned int target_count, unsigned int query_count, unsigned int expected_hits, unsigned int min_ms = 0, unsigned int threadgroup_limit = 0);
 std::string RCKCpuTargetLookupTag32BenchJson(unsigned int target_count, unsigned int query_count, unsigned int expected_hits, unsigned int min_ms = 0);
 std::string RCKTargetLookupFilterBuildBenchJson(unsigned int target_count, unsigned int iterations = 1);
+std::string RCKTargetLookupTag32BuildFromKeysBenchJson(unsigned int target_count, unsigned int injected_count = 64, unsigned int iterations = 1);
