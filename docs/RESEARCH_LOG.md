@@ -4949,6 +4949,59 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `confirmation_status=keep`). Conclusion: promote this as a local
   reproducible schedule gate, but do not make it a universal default until
   other Apple Silicon machines confirm the same behavior.
+- Rejected the follow-up 4-jump schedule-isolation gate comparing
+  `--jumps 4 --jump-schedule scaled4-balanced` against
+  `--jumps 4 --jump-schedule power2` on the same 25,005,000-target,
+  `steps=2048`, `dp_bits=6`, repeat-mode `gpu-filter16-hash-repeat` command.
+  Correctness stayed exact for `scaled4-balanced`
+  (`dp_distance_checksum=0xad580a14bfda5cf8`,
+  `dp_checksum=0x58d7138663a105aa`,
+  `target_lookup_checksum=0x52efac244f7b11f3`, `hit_count=65536`,
+  `filter_false_positive_count=0`, `jump_histogram_max_deviation_ppm=68`), but
+  the paired confirmation discarded it on `setup_inclusive_ops_per_sec`.
+  Confirmation 1 was only a marginal raw keep before the two-run policy
+  (`89145487.327852` versus `87022562.367405`, speedup `1.024395`), and
+  confirmation 2 was a clear discard (`55752350.612289` versus
+  `75648578.254959`, speedup `0.736991`; final
+  `confirmation_status=discard`). Conclusion: the accepted local win is more
+  likely from reducing the jump table from 16 entries to 4 than from a stable
+  standalone advantage of the `{1, 2, 8192, 8193}` distance schedule. Keep the
+  4-jump idea alive, but do not claim the scaled4 distance distribution itself
+  is a reproducible breakthrough.
+- Rejected a second 4-jump isolation gate comparing `--jumps 4
+  --jump-schedule power2` against the accepted `--jumps 16
+  --jump-schedule power2` baseline on the same 25,005,000-target,
+  `steps=2048`, `dp_bits=6`, repeat-mode `gpu-filter16-hash-repeat` command.
+  Correctness stayed exact for the 4-jump power2 candidate
+  (`dp_distance_checksum=0x271ee73d4839b420`,
+  `dp_checksum=0x444def74a8413f00`,
+  `target_lookup_checksum=0x7b006ccd0f00dc3b`, `hit_count=65536`,
+  `filter_false_positive_count=1024`, `jump_histogram_max_deviation_ppm=116`),
+  but both confirmations discarded it on `setup_inclusive_ops_per_sec`:
+  `63460011.180716` versus `72944791.530690` (speedup `0.869973`), then
+  `44460373.620674` versus `47576894.508189` (speedup `0.934495`; final
+  `confirmation_status=discard`). Conclusion: the accepted `scaled4_j4` gate is
+  not explained by jump-table size alone. Future 4-jump work should test
+  distance schedules as first-class candidates and must track DP density,
+  false positives, and setup-inclusive timing together.
+- Rejected a dirty `scaled8-balanced` Metal-only schedule with distances
+  `{1, 2, 4, 8, 8192, 8193, 8194, 8196}`. The intent was to preserve roughly
+  the 16-jump `power2` mean jump distance while halving the jump table and
+  giving more index entropy than `scaled4-balanced`. A small smoke confirmed
+  the Metal path was correct and that `scaled8-balanced` was rejected unless
+  `--jumps 8`; the CPU tiny-range kangaroo solver path was intentionally not
+  kept because those large jumps are inappropriate for its small oracle ranges.
+  The 25,005,000-target paired gate stayed semantically correct for the
+  candidate (`dp_distance_checksum=0x616e355d19541c00`,
+  `dp_checksum=0x2b7aeff167cc0692`,
+  `target_lookup_checksum=0x356d2bd0a459b4a1`, `hit_count=65536`,
+  `filter_false_positive_count=0`, `jump_histogram_max_deviation_ppm=356`),
+  but the two-run confirmation discarded it: confirmation 1 lost
+  (`83880983.784617` versus `90987263.956026`, speedup `0.921898`), while
+  confirmation 2 won (`41081001.458294` versus `36418203.819580`, speedup
+  `1.128035`; final `confirmation_status=discard`). Conclusion: the
+  average-preserving 8-jump idea is mathematically plausible but too noisy to
+  keep. Do not expose `scaled8-balanced` without a stronger setup-stable gate.
 
 ## Cleanup Policy
 
