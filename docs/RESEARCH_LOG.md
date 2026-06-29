@@ -4832,6 +4832,24 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `62540628.754942` (`paired_speedup=1.125336`). Promote 2048/dp6 as the new
   local 25M repeat-mode setup-inclusive plateau, but keep the exact affine DP
   key and CPU exact-positive verification gates unchanged.
+- Rejected `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps4096_dp5_setup`:
+  added a 4096-step XYZZ distance packet specialization to test the next
+  cadence-preserving point after 2048/dp6. The candidate used `--iterations
+  65536 --steps 4096 --dp-bits 5 --lookup-repeat 1024` against the accepted
+  `--iterations 131072 --steps 2048 --dp-bits 6 --lookup-repeat 1024`. Small
+  smokes and both 25M confirmations preserved
+  `dp_distance_checksum=0xb75d72c71a05e4ad`,
+  `dp_checksum=0x1277ccb107e05a36`,
+  `target_lookup_checksum=0x7714f2accdb9fd49`, `dp_count=2112`,
+  `query_count=2162688`, `hit_count=65536`,
+  `filter_positive_count=65536`, `filter_false_positive_count=0`, and
+  `correctness=true`. Confirmation 1 discarded it at
+  `setup_inclusive_ops_per_sec=75314077.842822` versus baseline
+  `78564303.900017` (`paired_speedup=0.958630`). Confirmation 2 was a narrow
+  keep at `64790787.951621` versus `63073497.832969`
+  (`paired_speedup=1.027227`), but confirmation policy requires every run to
+  keep, so the overall result is discard. Keep 4096/dp5 as a reproducible
+  boundary probe only; 2048/dp6 remains the promoted local plateau.
 
 ## Next Research Targets
 

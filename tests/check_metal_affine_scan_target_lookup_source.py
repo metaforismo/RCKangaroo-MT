@@ -47,6 +47,7 @@ markers = [
     "repeat_positive_index_encoding",
     "packed16_base_repeat",
     "jacobian_affine_walk_dynamic_xyzz_steps2048_pow2_u32_distance",
+    "jacobian_affine_walk_dynamic_xyzz_steps4096_pow2_u32_distance",
     "packed repeat tag16 hash-filter dimensions exceed 16-bit encoding",
     "kMinParallelTargetLookupHashQueries",
     "ParallelForSamples(queries.size()",
@@ -527,6 +528,38 @@ gpu_filter16_hash25m_steps2048_dp6_setup_command = [
 check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps2048_dp6_setup.json",
     gpu_filter16_hash25m_steps2048_dp6_setup_command,
+    "setup_inclusive_ops_per_sec",
+)
+
+gpu_filter16_hash25m_steps4096_dp5_setup_command = [
+    "./macos/rck_macos",
+    command,
+    "--iterations",
+    "65536",
+    "--steps",
+    "4096",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "5",
+    "--target-count",
+    "25005000",
+    "--hits",
+    "64",
+    "--lookup-repeat",
+    "1024",
+    "--lookup-query-mode",
+    "repeat",
+    "--lookup-engine",
+    "gpu-filter16-hash-repeat",
+    "--lookup-tg-limit",
+    "512",
+    "--min-ms",
+    "500",
+]
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps4096_dp5_setup.json",
+    gpu_filter16_hash25m_steps4096_dp5_setup_command,
     "setup_inclusive_ops_per_sec",
 )
 

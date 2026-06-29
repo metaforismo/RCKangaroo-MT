@@ -86,6 +86,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps1024_dp7_setup --budget-sec 420 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps1024_dp7_setup_workers6 --budget-sec 480 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps2048_dp6_setup --budget-sec 540 --paired-baseline-ref main --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps4096_dp5_setup --budget-sec 540 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_persistent_tg1024 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_persistent --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
@@ -118,7 +119,10 @@ against the accepted `steps512/dp8/repeat2048` path. The promoted
 twice the packet length, one fewer DP bit, and the same repeat-mode target
 join, scored against `steps1024/dp7/repeat1024`. These gates are for
 accumulated repeat-mode multi-target batches where target setup and lookup
-batching matter; they are not generic per-step kangaroo defaults.
+batching matter; they are not generic per-step kangaroo defaults. The
+`steps4096_dp5_setup` probe is available for reproduction, but paired
+confirmation discarded it against `steps2048/dp6/repeat1024`, so keep 2048/dp6
+as the local plateau.
 
 The target-lookup experiment is an exact multi-target join gate for the output
 of an affine DP scan. It builds a deterministic open-addressed Metal table of
