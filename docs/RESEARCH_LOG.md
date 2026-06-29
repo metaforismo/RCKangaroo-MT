@@ -4920,6 +4920,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   seconds. Conclusion: the existing prehash-then-parallel-insert path is still
   better on the local M3 for this load factor; the fused code patch was not
   kept.
+- Rejected a dirty `steps=1536` XYZZ affine-scan specialization. The wrapper
+  was mathematically valid and preserved the CPU oracle in smoke tests
+  (`dp_distance_checksum=0x58792af1132a1b59`,
+  `target_lookup_checksum=0xdba3b6a52770ca15` on the small target lookup), but
+  same-operation walk scouts were mixed: `1536` first measured
+  `127796822.007213` ops/sec versus `2048` at `126371371.617911`, then fell to
+  `126252505.609474` versus `126545796.756480`. The integrated 25M scout was
+  worse than the 2048 plateau even with roughly matched query volume:
+  `steps=1536`, `dp_bits=6`, `lookup_repeat=768`, `hits=85` measured
+  `72798970.094865` setup-inclusive ops/sec with `filter_false_positive_count=768`,
+  while the immediate `steps=2048`, `lookup_repeat=1024`, `hits=64` baseline
+  measured `86083133.409830` with zero false positives. Conclusion: do not add
+  a 1536-step wrapper unless a future gate finds a stronger cadence.
 
 ## Cleanup Policy
 
