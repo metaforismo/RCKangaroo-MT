@@ -4725,6 +4725,15 @@ These did not pass the performance gate or had a correctness/architecture issue:
   observed `target_build_seconds` dropping from the pre-change accounting
   sample `1.835799` to `0.659700`, `0.890003`, and `0.902095` on follow-up
   runs.
+- Rejected a fused target-key generation/hash/final-bucket CAS variant for
+  `target_lookup_tag32_parallel_insert`. The candidate removed the
+  `target_hashes` staging vector and inserted each generated key directly into
+  the final bucket table, but paired autoresearch against `main` discarded it:
+  median candidate `parallel_targets_per_sec=25595577.431431` versus paired
+  baseline `28562957.937294` (`paired_speedup=0.896111`). Correctness stayed
+  true (`target_keys_equal=true`, `all_keys_found=true`), so this was a real
+  performance rejection, likely from worse CAS scheduling/cache behavior rather
+  than an oracle failure. Keep the staged hash stream plus in-place bucket CAS.
 
 ## Next Research Targets
 
