@@ -172,7 +172,10 @@ The in-place DP8 stream path also has `steps=16`, `steps=32`, `steps=64`, `steps
 On Apple Silicon setup-heavy target-table runs, `RCK_VALIDATION_WORKERS=6` is
 an explicit reproducible tuning knob for the 25M tag32 parallel-insert gate. It
 keeps `target_keys_equal`, `all_keys_found`, and `correctness` in the JSON
-oracle, but remains opt-in until more hardware tracks reproduce it.
+oracle, but remains opt-in until more hardware tracks reproduce it. It did not
+transfer to the integrated affine-scan target-lookup gate in paired local runs,
+so leave that path on its default worker count unless a new paired gate proves
+otherwise.
 
 `metal-target-lookup-tag32-filter-persistent-bench` keeps the compact 4-byte tag filter, query batch, positive-index output buffer, and pipeline resident, then verifies only the compact positives on CPU with exact `x256 + y_parity` equality after each dispatch. Its JSON reports `buffer_lifetime=persistent`, `filter_positive_count`, `filter_false_positive_count`, `metal_setup_seconds`, `dispatch_seconds`, `exact_verify_seconds`, setup-inclusive `lookups_per_sec`, no-setup `dispatch_lookups_per_sec`, and pure Metal `gpu_dispatch_lookups_per_sec`. The no-setup metric includes exact CPU verification time; the GPU metric is dispatch-only, and `--min-ms` is bounded by accumulated Metal dispatch time. Large filter tables use a 512-thread default on M3, while explicit `--tg-limit N` overrides it.
 

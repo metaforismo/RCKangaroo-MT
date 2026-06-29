@@ -173,7 +173,9 @@ Su run Apple Silicon dominati dal setup delle tabelle target,
 `RCK_VALIDATION_WORKERS=6` e' una manopola riproducibile esplicita per il gate
 tag32 parallel-insert da 25M target. Mantiene `target_keys_equal`,
 `all_keys_found` e `correctness` nell'oracle JSON, ma resta opt-in finche' piu'
-tracce hardware non lo riproducono.
+tracce hardware non lo riproducono. Nei run paired locali non si e' trasferito
+al gate integrato affine-scan target-lookup, quindi quel percorso resta sul
+worker count di default finche' un nuovo gate paired non prova il contrario.
 
 `metal-target-lookup-tag32-filter-persistent-bench` mantiene residenti il filtro tag32 compatto da 4 byte, il batch di query, il buffer degli indici positivi e la pipeline, poi verifica su CPU solo i positivi compatti con equality esatta `x256 + y_parity` dopo ogni dispatch. Il JSON riporta `buffer_lifetime=persistent`, `filter_positive_count`, `filter_false_positive_count`, `metal_setup_seconds`, `dispatch_seconds`, `exact_verify_seconds`, `lookups_per_sec` inclusivo del setup, `dispatch_lookups_per_sec` senza setup e `gpu_dispatch_lookups_per_sec` puramente Metal. La metrica senza setup include comunque il tempo di verifica exact CPU; la metrica GPU misura solo il dispatch e `--min-ms` e' limitato dal tempo Metal accumulato. Le grandi tabelle filtro usano un default a 512 thread su M3, mentre `--tg-limit N` esplicito lo sovrascrive.
 

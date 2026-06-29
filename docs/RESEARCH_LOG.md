@@ -4796,6 +4796,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `all_keys_found=true`, and `correctness=true`. Treat this as an Apple
   Silicon host setup tuning knob, not as a global default yet; use the explicit
   env var when reproducing M3 Air setup-heavy gates.
+- Rejected `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps1024_dp7_setup_workers6`:
+  the worker-count win above did not transfer to the integrated Metal 25M
+  target-lookup gate when the only changed variable was
+  `RCK_VALIDATION_WORKERS=6`. The candidate preserved
+  `dp_distance_checksum=0x33b34eda684bc0e5`,
+  `dp_checksum=0x08b06faea04109e6`,
+  `target_lookup_checksum=0x4bfc0bfe896fe3ad`, `hit_count=65536`,
+  `filter_positive_count=65536`, `filter_false_positive_count=0`, and
+  `correctness=true`, but paired confirmations discarded it. Confirmation 1
+  measured `setup_inclusive_ops_per_sec=25890541.312106` versus baseline
+  `34477728.502830` (`paired_speedup=0.750935`); confirmation 2 measured
+  `74730044.051988` versus `80588312.832022`
+  (`paired_speedup=0.927306`). Keep `RCK_VALIDATION_WORKERS=6` as an isolated
+  target-table setup recipe only; leave the integrated gate on the default
+  worker count until a new end-to-end paired gate proves otherwise.
 
 ## Next Research Targets
 

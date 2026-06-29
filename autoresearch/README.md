@@ -54,7 +54,10 @@ correctness oracle.
 The 25M tag32 parallel-insert host setup gate also has an Apple Silicon
 worker-count recipe. It uses `env RCK_VALIDATION_WORKERS=6 ...` and records
 `target_keys_equal` plus `all_keys_found`, so the table builder must preserve
-the same semantic oracle:
+the same semantic oracle. Do not apply this to the integrated affine-scan
+target-lookup gate by default: the matching `steps1024/dp7/setup_workers6`
+transfer experiment was discarded against the default worker count while
+preserving checksums.
 
 ```sh
 python3 autoresearch/runner.py --experiment target_lookup_tag32_parallel_insert_workers6 --budget-sec 240 --paired-baseline-ref main --confirm-runs 2
@@ -81,6 +84,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_repeat_indexed2048 --budget-sec 300 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_steps1024_dp7 --budget-sec 240 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps1024_dp7_setup --budget-sec 420 --paired-baseline-ref main --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_steps1024_dp7_setup_workers6 --budget-sec 480 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_persistent_tg1024 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_persistent --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
