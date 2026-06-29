@@ -56,6 +56,10 @@ markers = [
     "\\\"lookup_hash_seconds\\\":",
     "\\\"lookup_gpu_seconds\\\":",
     "\\\"lookup_exact_seconds\\\":",
+    "\\\"target_build_seconds\\\":",
+    "\\\"target_filter_build_seconds\\\":",
+    "\\\"setup_inclusive_seconds\\\":",
+    "\\\"setup_inclusive_ops_per_sec\\\":",
     "\\\"gpu_lookup_lookups_per_sec\\\":",
     "filter_positive_count",
     "filter_false_positive_count",
@@ -63,6 +67,8 @@ markers = [
     "lookup_gpu_seconds += filter_seconds",
     "lookup_exact_seconds += exact_seconds",
     "lookup_gpu_lookups_per_sec",
+    "target_build_seconds += std::chrono::duration<double>",
+    "target_filter_build_seconds += std::chrono::duration<double>",
 ]
 for marker in markers:
     if marker not in kernels:
