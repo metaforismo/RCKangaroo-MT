@@ -4891,6 +4891,27 @@ These did not pass the performance gate or had a correctness/architecture issue:
   the target table resident across many fresh packet-boundary DP batches, avoid
   rebuilding query/output resources where possible, and score setup-inclusive
   and setup-excluded metrics separately.
+- Rejected a dirty repeat-mode exact-resolver cache for
+  `gpu-filter16-hash-repeat`. The idea cached each base DP query's exact
+  `TargetLookupTag32Find` result, then expanded repeated positives back to the
+  same logical output indices. It preserved the exact full-key oracle in all
+  scouts: for `steps=2048`, `dp_bits=6`, `target_count=25005000`,
+  `lookup_repeat=1024`, the paired dirty run kept
+  `dp_distance_checksum=0xf31d7766e1607041`,
+  `dp_checksum=0x54ccada61fd1edbc`,
+  `target_lookup_checksum=0x197ac7fed54a4156`, `hit_count=65536`, and
+  `filter_false_positive_count=0`, but confirmation discarded it on
+  `ops_per_sec` (`118709682.938361` then `43137775.235818`). A larger
+  `lookup_repeat=4096` scout initially kept `lookups_per_sec`
+  (`207220633.884313` vs `175064121.659721`, speedup `1.183684`) with
+  `target_lookup_checksum=0xa2cd0ae701083735`, `hit_count=262144`, and
+  `filter_false_positive_count=0`; the required two-run confirmation then
+  discarded it (`126730884.616311` vs `131362546.004964`, speedup
+  `0.964741`). Conclusion: the exact-resolver cache is mathematically safe, but
+  it did not produce stable integrated throughput on the local M3, so the code
+  patch was not kept. Raw rows remain in `autoresearch/benchmarks.jsonl` and
+  `autoresearch/results.tsv` under the dirty experiment names
+  `repeat_resolver_cache` and `repeat4096_resolver_cache`.
 
 ## Cleanup Policy
 
