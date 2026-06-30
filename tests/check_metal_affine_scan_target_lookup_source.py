@@ -35,6 +35,8 @@ markers = [
     "ResolveTargetLookupTag32FilterRepeatBaseCountsExpected",
     "ResolveTargetLookupTag32FilterRepeatBaseCountsExpectedIndices",
     "TargetLookupXOnlyHost",
+    "TargetLookupXOnlyHostBuffer",
+    "AllocateTargetLookupXOnlyBuffer",
     "TargetLookupTag32ParityBucketHost",
     "InsertTargetLookupTag32ParityBucket",
     "BuildTargetLookupTag32ParityTableFromKeysParallelInsert",
@@ -182,11 +184,11 @@ if 'ValidateAffineTargetLookupRepeatBaseCountsWithExpected(aggregate_expected_in
     raise SystemExit("fixed-round base-count repeat lookup should preserve the repeated checksum oracle")
 if "use_parity_xonly_target_table = use_base_repeat_positive_counts" not in rounds_body:
     raise SystemExit("fixed-round x-only target table should be limited to the standard base-count repeat path")
-if "target_x_keys.size() * sizeof(TargetLookupXOnlyHost)" not in rounds_body:
+if "target_x_key_count * sizeof(TargetLookupXOnlyHost)" not in rounds_body:
     raise SystemExit("fixed-round x-only target table should report compact target key bytes")
-if "BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, target_count, target_x_keys, target_parity_buckets" not in rounds_body:
+if "BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, target_count, target_x_keys, target_x_key_count, target_parity_buckets" not in rounds_body:
     raise SystemExit("fixed-round base-count repeat lookup should build the x-only parity target table")
-if "ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices(target_parity_buckets, target_x_keys" not in rounds_body:
+if "ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices(target_parity_buckets, target_x_keys.get(), target_x_key_count" not in rounds_body:
     raise SystemExit("fixed-round base-count repeat lookup should exact-resolve against x plus encoded parity")
 
 parity_builder_start = kernels.index("static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert")
@@ -196,6 +198,10 @@ if "std::vector<uint64_t> target_hashes" in parity_builder_body:
     raise SystemExit("x-only parity target builder should not materialize per-target hash temporaries")
 if "std::vector<uint8_t> target_parities" in parity_builder_body:
     raise SystemExit("x-only parity target builder should not materialize per-target parity temporaries")
+if "target_x_keys.resize" in parity_builder_body:
+    raise SystemExit("x-only parity target builder should avoid value-initializing the full target key array")
+if "AllocateTargetLookupXOnlyBuffer(target_count)" not in parity_builder_body:
+    raise SystemExit("x-only parity target builder should allocate an uninitialized x-only target buffer")
 if "InsertTargetLookupTag32ParityBucket(buckets" not in parity_builder_body:
     raise SystemExit("x-only parity target builder should stream bucket insertion while filling target keys")
 
@@ -842,6 +848,12 @@ check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_batched_walk.json",
     rounds_base_count_command,
     "ops_per_sec",
+)
+
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_setup_inclusive.json",
+    rounds_base_count_command,
+    "setup_inclusive_ops_per_sec",
 )
 
 m3_auto_repeat_tag16_mix_command = [

@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <cstring>
 #include <iomanip>
+#include <memory>
 #include <sstream>
 #include <thread>
 #include <utility>
@@ -79,6 +80,16 @@ struct alignas(uint64_t) TargetLookupTag32ParityBucketHost
 	uint32_t tag;
 	uint32_t encoded_target_index;
 };
+
+struct FreeTargetLookupXOnlyHost
+{
+	void operator()(TargetLookupXOnlyHost* ptr) const
+	{
+		free(ptr);
+	}
+};
+
+using TargetLookupXOnlyHostBuffer = std::unique_ptr<TargetLookupXOnlyHost, FreeTargetLookupXOnlyHost>;
 
 static const uint32_t kTargetLookupEmptyIndex = 0xFFFFFFFFU;
 static const uint32_t kTargetLookupIndexMask = 0x7FFFFFFFU;
@@ -2405,8 +2416,19 @@ static TargetLookupXOnlyHost TargetLookupXOnlyFromKey(const TargetLookupKeyHost&
 	return out;
 }
 
-static bool TargetLookupXOnlyEquals(const TargetLookupXOnlyHost& target, const TargetLookupKeyHost& query)
+static TargetLookupXOnlyHostBuffer AllocateTargetLookupXOnlyBuffer(size_t target_count)
 {
+	return TargetLookupXOnlyHostBuffer((TargetLookupXOnlyHost*)malloc(target_count * sizeof(TargetLookupXOnlyHost)));
+}
+
+static bool TargetLookupXOnlyEquals(const TargetLookupXOnlyHost* target_x_keys,
+	size_t target_x_key_count,
+	uint32_t target_index,
+	const TargetLookupKeyHost& query)
+{
+	if (!target_x_keys || target_index >= target_x_key_count)
+		return false;
+	const TargetLookupXOnlyHost& target = target_x_keys[target_index];
 	return target.x[0] == query.x[0] &&
 		target.x[1] == query.x[1] &&
 		target.x[2] == query.x[2] &&
@@ -2644,7 +2666,8 @@ static bool TargetLookupTag32Find(const std::vector<TargetLookupKeyHost>& target
 	return false;
 }
 
-static bool TargetLookupTag32ParityFind(const std::vector<TargetLookupXOnlyHost>& target_x_keys,
+static bool TargetLookupTag32ParityFind(const TargetLookupXOnlyHost* target_x_keys,
+	size_t target_x_key_count,
 	const std::vector<TargetLookupTag32ParityBucketHost>& buckets,
 	const TargetLookupKeyHost& key,
 	uint32_t* target_index)
@@ -2661,9 +2684,9 @@ static bool TargetLookupTag32ParityFind(const std::vector<TargetLookupXOnlyHost>
 		if (bucket.encoded_target_index == kTargetLookupEmptyIndex)
 			return false;
 		uint32_t decoded_index = DecodeTargetLookupIndex(bucket.encoded_target_index);
-		if (bucket.tag == tag && decoded_index < target_x_keys.size() &&
+		if (bucket.tag == tag &&
 			DecodeTargetLookupParity(bucket.encoded_target_index) == (key.parity & 1U) &&
-			TargetLookupXOnlyEquals(target_x_keys[decoded_index], key))
+			TargetLookupXOnlyEquals(target_x_keys, target_x_key_count, decoded_index, key))
 		{
 			if (target_index)
 				*target_index = decoded_index;
@@ -3459,7 +3482,8 @@ static bool InsertTargetLookupTag32ParityBucket(std::vector<TargetLookupTag32Par
 
 static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert(const std::vector<TargetLookupKeyHost>& injected_keys,
 	unsigned int target_count,
-	std::vector<TargetLookupXOnlyHost>& target_x_keys,
+	TargetLookupXOnlyHostBuffer& target_x_keys,
+	size_t& target_x_key_count,
 	std::vector<TargetLookupTag32ParityBucketHost>& buckets,
 	std::string& error,
 	std::vector<uint16_t>* fused_tag16_filter_buckets = NULL,
@@ -3475,7 +3499,14 @@ static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert(const std::v
 		fused_tag16_filter_buckets->clear();
 
 	TargetLookupTag32ParityBucketHost empty_bucket{0, kTargetLookupEmptyIndex};
-	target_x_keys.resize(target_count);
+	target_x_keys = AllocateTargetLookupXOnlyBuffer(target_count);
+	target_x_key_count = target_count;
+	if (!target_x_keys)
+	{
+		error = "failed to allocate affine DP tag32 parity x-only target keys";
+		target_x_key_count = 0;
+		return false;
+	}
 	buckets.assign(bucket_count, empty_bucket);
 	if (fused_tag16_filter_buckets)
 		fused_tag16_filter_buckets->assign(bucket_count, 0U);
@@ -3485,7 +3516,7 @@ static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert(const std::v
 	for (size_t i = 0; i < injected_keys.size(); ++i)
 	{
 		uint64_t hash = TargetLookupHash(injected_keys[i]);
-		target_x_keys[i] = TargetLookupXOnlyFromKey(injected_keys[i]);
+		target_x_keys.get()[i] = TargetLookupXOnlyFromKey(injected_keys[i]);
 		injected_hashes.push_back(std::make_pair(hash, (uint32_t)i));
 		if (!InsertTargetLookupTag32ParityBucket(buckets, fused_tag16_filter_buckets, fused_tag16_filter_mixed, (uint32_t)i, injected_keys[i].parity, hash))
 		{
@@ -3513,7 +3544,7 @@ static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert(const std::v
 			if (!injected_hashes.empty() && TargetLookupHashMatchesInjected(key, hash, injected_keys, injected_hashes))
 				duplicate_filler.store(true, std::memory_order_relaxed);
 			size_t out_index = injected_count + offset;
-			target_x_keys[out_index] = TargetLookupXOnlyFromKey(key);
+			target_x_keys.get()[out_index] = TargetLookupXOnlyFromKey(key);
 			if (!InsertTargetLookupTag32ParityBucket(buckets, fused_tag16_filter_buckets, fused_tag16_filter_mixed, (uint32_t)out_index, key.parity, hash))
 			{
 				insertion_failed.store(true, std::memory_order_relaxed);
@@ -4238,7 +4269,8 @@ static bool ResolveTargetLookupTag32FilterRepeatBaseCountsExpectedIndices(const 
 }
 
 static bool ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices(const std::vector<TargetLookupTag32ParityBucketHost>& buckets,
-	const std::vector<TargetLookupXOnlyHost>& target_x_keys,
+	const TargetLookupXOnlyHost* target_x_keys,
+	size_t target_x_key_count,
 	const std::vector<TargetLookupKeyHost>& base_queries,
 	const std::vector<uint32_t>& expected_base_indices,
 	const std::vector<uint32_t>& base_positive_counts,
@@ -4278,7 +4310,7 @@ static bool ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices(
 			continue;
 
 		uint32_t found = kTargetLookupEmptyIndex;
-		if (TargetLookupTag32ParityFind(target_x_keys, buckets, base_queries[base_query_index], &found))
+		if (TargetLookupTag32ParityFind(target_x_keys, target_x_key_count, buckets, base_queries[base_query_index], &found))
 		{
 			if (expected_base_indices[base_query_index] == kTargetLookupEmptyIndex ||
 				found != expected_base_indices[base_query_index])
@@ -11471,7 +11503,8 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 	std::vector<uint32_t> round_target_offsets(round_count, 0);
 	std::vector<TargetLookupKeyHost> injected_keys;
 	std::vector<TargetLookupKeyHost> target_keys;
-	std::vector<TargetLookupXOnlyHost> target_x_keys;
+	TargetLookupXOnlyHostBuffer target_x_keys;
+	size_t target_x_key_count = 0;
 	std::vector<TargetLookupTag32BucketHost> target_buckets;
 	std::vector<TargetLookupTag32ParityBucketHost> target_parity_buckets;
 	std::vector<uint32_t> target_filter32_buckets;
@@ -11598,14 +11631,14 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 	auto target_build_start = std::chrono::steady_clock::now();
 	bool fuse_tag16_filter = !use_tag32_hash_filter && !use_tag16_mixed_hash_filter;
 	bool target_build_ok = use_parity_xonly_target_table ?
-		BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, target_count, target_x_keys, target_parity_buckets, error, &target_filter16_buckets) :
+		BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, target_count, target_x_keys, target_x_key_count, target_parity_buckets, error, &target_filter16_buckets) :
 		BuildTargetLookupTag32TableFromKeys(injected_keys, target_count, target_keys, target_buckets, error, fuse_tag16_filter ? &target_filter16_buckets : NULL);
 	if (!target_build_ok)
 		return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32_rounds", requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits_per_round, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, 0, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, validation_seconds, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name, lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes, lookup_hash_seconds, lookup_gpu_seconds, lookup_exact_seconds, 0.0, "logical_query_index", target_build_seconds, target_filter_build_seconds, round_count);
 	target_build_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - target_build_start).count();
 	target_table_bucket_count = use_parity_xonly_target_table ? target_parity_buckets.size() : target_buckets.size();
 	target_key_bytes = use_parity_xonly_target_table ?
-		target_x_keys.size() * sizeof(TargetLookupXOnlyHost) :
+		target_x_key_count * sizeof(TargetLookupXOnlyHost) :
 		target_keys.size() * sizeof(TargetLookupKeyHost);
 	target_bucket_bytes = use_parity_xonly_target_table ?
 		target_parity_buckets.size() * sizeof(TargetLookupTag32ParityBucketHost) :
@@ -11717,7 +11750,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 		filter_positive_count = local_filter_positive_count;
 		if (use_parity_xonly_target_table)
 		{
-			lookup_ok = ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices(target_parity_buckets, target_x_keys, aggregate_dp_keys, aggregate_expected_indices, base_positive_counts, local_filter_positive_count, lookup_repeat, (uint32_t)logical_query_count, hit_count, filter_false_positive_count, resolve_reason);
+			lookup_ok = ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices(target_parity_buckets, target_x_keys.get(), target_x_key_count, aggregate_dp_keys, aggregate_expected_indices, base_positive_counts, local_filter_positive_count, lookup_repeat, (uint32_t)logical_query_count, hit_count, filter_false_positive_count, resolve_reason);
 		}
 		else
 		{

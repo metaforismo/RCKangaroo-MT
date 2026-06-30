@@ -5515,6 +5515,28 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `target_build_seconds=0.838866` and `ops_per_sec=126279608.929799`. Treat this
   as a deterministic peak-memory reduction and same-plateau setup result, not a
   separate throughput promotion.
+- Promoted an uninitialized x-only target buffer for the compact fixed-round
+  target table builder. The previous streaming builder still used
+  `target_x_keys.resize(target_count)`, which value-initialized about
+  `800160000` bytes on the 25,005,000-target gate before immediately overwriting
+  every x-only key. The new RAII malloc-backed buffer avoids that setup write,
+  fills every slot before exact lookup, and leaves the tag32/parity bucket
+  insertion and CPU `x256 + y_parity` resolver unchanged. A direct 25M
+  fixed-round run preserved `target_lookup_checksum=0x923b46f156f9d59b`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=131072`,
+  `filter_false_positive_count=0`, `target_key_bytes=800160000`, and
+  `exact_host_table_bytes=1068595456`, with `target_build_seconds=0.714661`,
+  `setup_inclusive_ops_per_sec=108420139.501535`, and
+  `ops_per_sec=126707072.573335`. The new setup-inclusive paired gate against
+  clean `HEAD=b5864aa` kept both confirmations: confirmation 1 measured
+  `setup_inclusive_ops_per_sec=109975306.448799` versus baseline
+  `105596316.168534` (`paired_speedup=1.041469`), and confirmation 2 measured
+  `62857296.634462` versus baseline `55923899.198912`
+  (`paired_speedup=1.123979`). In `autoresearch/results.tsv`, the selected
+  experiment metric is still stored in the common `ops_per_sec` column, so those
+  rows are aliases for `setup_inclusive_ops_per_sec`. Treat this as a real
+  target setup and memory-bandwidth improvement, not as a new GPU walk-throughput
+  claim.
 
 ## Cleanup Policy
 
