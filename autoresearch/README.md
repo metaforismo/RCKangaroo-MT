@@ -91,6 +91,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_dedup_repeat_diagnostic --budget-sec 540
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_auto_repeat --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_sparse_repeat_exact --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_sparse_repeat_exact_cache --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_persistent_tg1024 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_persistent --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
@@ -169,6 +170,10 @@ setting before changing any default policy. The repeat-indexed 2048 gate is
 explicitly repeat-mode-only: it sends one base DP hash batch to Metal and uses a
 2D `(base_query, repeat)` dispatch to preserve logical query positions without
 materializing repeated query hashes.
+On the M3 large-repeat gate, the sparse exact cache resolves each repeated base
+query against the exact tag32 host table once, then reuses that exact hit/miss
+state while still counting every logical repeated positive and preserving the
+same checksum oracle.
 
 ```sh
 make macos-check

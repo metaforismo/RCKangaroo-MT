@@ -5278,6 +5278,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   kept the candidate: median `ops_per_sec=52838131.057009`, paired baseline
   `40899473.572020`, `paired_speedup=1.291902`, same checksum
   `0x86ec0110960785f8`.
+- Added an exact-result cache inside the sparse repeat resolver for the local
+  M3 large-repeat gate. Earlier full-output repeat caches were rejected because
+  they did not survive noisy paired confirmation. This version applies only
+  after repeated miss materialization has already been removed: each compact
+  positive decodes its base DP query, the resolver calls `TargetLookupTag32Find`
+  once per repeated base query, and every logical repeat still increments the
+  exact hit or false-positive counter. The single-smoke gate kept
+  `target_lookup_checksum=0x86ec0110960785f8`, `hit_count=2097152`, and zero
+  false positives while reducing `lookup_exact_seconds` from about `0.029274`
+  to `0.007722`. Two paired autoresearch confirmations against `HEAD=95ac546`
+  both kept the candidate; the final median was
+  `ops_per_sec=65898116.327166` versus paired baseline
+  `53650264.971400`, `paired_speedup=1.228291`, with the same checksum.
 
 ## Cleanup Policy
 
