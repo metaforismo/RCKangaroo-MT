@@ -3822,9 +3822,65 @@ static bool ResolveTargetLookupTag32FilterRepeatSparseExpected(const std::vector
 	hit_count = 0;
 	false_positive_count = 0;
 	const bool use_base_exact_cache = repeat_count > 1U && filter_positive_count > base_query_count;
-	std::vector<uint8_t> exact_cache_state;
 	if (use_base_exact_cache)
-		exact_cache_state.assign(base_query_count, 0U);
+	{
+		std::vector<uint32_t> base_positive_counts(base_query_count, 0U);
+		for (uint32_t i = 0; i < filter_positive_count; ++i)
+		{
+			uint32_t encoded_index = positive_query_indices[i];
+			uint32_t base_query_index = 0;
+			if (base_positive_indices)
+			{
+				if (encoded_index >= base_query_count)
+				{
+					reason = "sparse base-index repeat tag16 filter emitted invalid query index";
+					return false;
+				}
+				base_query_index = encoded_index;
+			}
+			else if (packed_positive_indices)
+			{
+				base_query_index = encoded_index & 0xFFFFU;
+				uint32_t repeat_index = encoded_index >> 16U;
+				if (base_query_index >= base_query_count || repeat_index >= repeat_count)
+				{
+					reason = "sparse packed repeat tag16 filter emitted invalid query index";
+					return false;
+				}
+			}
+			else
+			{
+				if (encoded_index >= query_count)
+				{
+					reason = "sparse repeat tag16 filter emitted invalid query index";
+					return false;
+				}
+				base_query_index = encoded_index % base_query_count;
+			}
+			base_positive_counts[base_query_index]++;
+		}
+
+		for (uint32_t base_query_index = 0; base_query_index < base_query_count; ++base_query_index)
+		{
+			uint32_t positive_count = base_positive_counts[base_query_index];
+			if (!positive_count)
+				continue;
+			uint32_t found = kTargetLookupEmptyIndex;
+			if (TargetLookupTag32Find(target_keys, buckets, base_queries[base_query_index], &found))
+			{
+				if (base_query_index >= injected_hits || found != base_query_index)
+				{
+					reason = "sparse repeat target lookup unexpected exact hit at base query " + std::to_string(base_query_index);
+					return false;
+				}
+				hit_count += positive_count;
+			}
+			else
+				false_positive_count += positive_count;
+		}
+		return true;
+	}
+
 	for (uint32_t i = 0; i < filter_positive_count; ++i)
 	{
 		uint32_t encoded_index = positive_query_indices[i];
@@ -3858,37 +3914,21 @@ static bool ResolveTargetLookupTag32FilterRepeatSparseExpected(const std::vector
 			base_query_index = encoded_index % base_query_count;
 		}
 
-		uint8_t cached_state = use_base_exact_cache ? exact_cache_state[base_query_index] : 0U;
-		if (cached_state == 0U)
+		uint32_t found = kTargetLookupEmptyIndex;
+		if (TargetLookupTag32Find(target_keys, buckets, base_queries[base_query_index], &found))
 		{
-			uint32_t found = kTargetLookupEmptyIndex;
-			if (TargetLookupTag32Find(target_keys, buckets, base_queries[base_query_index], &found))
+			if (base_query_index >= injected_hits || found != base_query_index)
 			{
-				if (base_query_index >= injected_hits || found != base_query_index)
-				{
-					uint32_t query_index = packed_positive_indices ?
-						((encoded_index >> 16U) * base_query_count + base_query_index) :
-						(base_positive_indices ? base_query_index : encoded_index);
-					reason = "sparse repeat target lookup unexpected exact hit at query " + std::to_string(query_index);
-					return false;
-				}
-				cached_state = 2U;
+				uint32_t query_index = packed_positive_indices ?
+					((encoded_index >> 16U) * base_query_count + base_query_index) :
+					(base_positive_indices ? base_query_index : encoded_index);
+				reason = "sparse repeat target lookup unexpected exact hit at query " + std::to_string(query_index);
+				return false;
 			}
-			else
-				cached_state = 1U;
-			if (use_base_exact_cache)
-				exact_cache_state[base_query_index] = cached_state;
-		}
-
-		if (cached_state == 2U)
 			hit_count++;
-		else if (cached_state == 1U)
-			false_positive_count++;
-		else
-		{
-			reason = "sparse repeat target lookup exact cache state invalid";
-			return false;
 		}
+		else
+			false_positive_count++;
 	}
 	return true;
 }

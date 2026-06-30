@@ -34,8 +34,8 @@ markers = [
     "ValidateAffineTargetLookupDedupRepeatOutputsWithExpected",
     "ValidateAffineTargetLookupSparseRepeatOutputs",
     "use_base_exact_cache",
-    "exact_cache_state",
-    "sparse repeat target lookup exact cache state invalid",
+    "base_positive_counts",
+    "sparse repeat target lookup unexpected exact hit at base query",
     "RunTargetLookupTag32Cpu",
     "ValidateAffineTargetLookupOutputs",
     "\"gpu_filter\"",
@@ -144,8 +144,8 @@ if "ResolveTargetLookupTag32FilterRepeatSparseExpected(target_buckets, target_ke
     raise SystemExit("repeat-indexed integrated lookup should resolve exact positives sparsely without materializing repeated misses")
 if "ValidateAffineTargetLookupSparseRepeatOutputs(dp_keys.size(), injected_hits, lookup_repeat" not in target_lookup_body:
     raise SystemExit("repeat-indexed integrated lookup should validate sparse repeat outputs against the checksum oracle")
-if "filter_positive_count > base_query_count" not in kernels or "exact_cache_state.assign(base_query_count" not in kernels:
-    raise SystemExit("sparse repeat exact resolver should cache exact results per repeated base query")
+if "filter_positive_count > base_query_count" not in kernels or "base_positive_counts(base_query_count" not in kernels:
+    raise SystemExit("sparse repeat exact resolver should aggregate positives per repeated base query")
 
 choose_start = kernels.index("static const char* ChooseAffineLookupEngine")
 choose_end = kernels.index("static unsigned int ChooseAffineLookupThreadgroupLimit", choose_start)
@@ -734,6 +734,12 @@ check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_fused_filter_setup.json",
     m3_auto_repeat_command,
     "setup_inclusive_ops_per_sec",
+)
+
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_sparse_repeat_base_counts.json",
+    m3_auto_repeat_command,
+    "ops_per_sec",
 )
 
 print("metal affine-scan target lookup source ok")

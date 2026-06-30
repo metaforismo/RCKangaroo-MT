@@ -5333,6 +5333,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `4518461.033311` (`paired_speedup=1.119749`); confirmation 2 measured
   `5103671.503285` versus `4925686.310904` (`paired_speedup=1.036134`), with
   the same checksum and hit oracle.
+- Promoted per-base positive counting in the sparse repeat exact resolver. The
+  repeat-indexed Metal filter still probes every logical `(base_query, repeat)`
+  pair and still emits every compact positive, but the CPU exact resolver now
+  first counts positives by base DP query, runs `TargetLookupTag32Find` once per
+  positive base query, then adds the positive count to hit or false-positive
+  totals. This preserves the same logical query count, compact positive count,
+  exact `x256 + y_parity` equality, expected injected-target guard, hit count,
+  false-positive count, and repeat checksum while removing the per-positive
+  cache-state branch. A smoke run on the 16.384M-query M3 auto-repeat gate kept
+  `target_lookup_checksum=0x86ec0110960785f8`, `hit_count=2097152`, and zero
+  false positives while dropping `lookup_exact_seconds` to about `0.001979`.
+  Two paired autoresearch confirmations against `HEAD=99581a8` both kept the
+  candidate on runtime `ops_per_sec`: confirmation 1 measured
+  `ops_per_sec=41317942.907647` versus paired baseline `35704953.032364`
+  (`paired_speedup=1.157205`); confirmation 2 measured
+  `51789496.856066` versus `42452416.355267` (`paired_speedup=1.219942`), with
+  the same checksum and hit oracle.
 - Rejected two follow-on repeat-filter GPU scouts after preserving the
   checksum oracle. A `base_query_expand` repeat kernel emitted one positive
   per base query and expanded counts on the CPU; it kept
