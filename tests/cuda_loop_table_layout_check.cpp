@@ -26,6 +26,25 @@ std::uint64_t loop_table_index(const Layout& layout,
            lane;
 }
 
+std::uint64_t kernel_b_kang_index(const Layout& layout,
+                                  std::uint64_t block,
+                                  std::uint64_t group_pair,
+                                  std::uint64_t lane,
+                                  bool second_in_pair)
+{
+    const std::uint64_t tind = lane + group_pair * layout.block_size;
+    const std::uint64_t warp_ind = tind / (32 * layout.group_count / 2);
+    const std::uint64_t thr_ind = (tind / 4) % 32;
+    const std::uint64_t g8_ind = (tind % (32 * layout.group_count / 2)) / 128;
+    const std::uint64_t gr_ind = 2 * (tind % 4);
+
+    return block * layout.block_size * layout.group_count +
+           (32 * warp_ind + thr_ind) * layout.group_count +
+           8 * g8_ind +
+           gr_ind +
+           (second_in_pair ? 1 : 0);
+}
+
 bool check_fixed_layout(const Layout& layout)
 {
     if ((layout.group_count % 2) != 0) {
@@ -60,6 +79,71 @@ bool check_fixed_layout(const Layout& layout)
     for (std::uint64_t index = 0; index < block_entries; ++index) {
         if (seen[index] == 0) {
             std::cerr << layout.name << ": uncovered LoopTable slot\n";
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool check_kernel_b_kang_mapping(const Layout& layout)
+{
+    const std::uint64_t kangs_per_block = layout.block_size * layout.group_count;
+    std::vector<unsigned char> seen(kangs_per_block, 0);
+
+    for (std::uint64_t group_pair = 0; group_pair < layout.group_count / 2; ++group_pair) {
+        for (std::uint64_t lane = 0; lane < layout.block_size; ++lane) {
+            for (int pair_index = 0; pair_index < 2; ++pair_index) {
+                const std::uint64_t kang_ind = kernel_b_kang_index(layout, 0, group_pair, lane, pair_index != 0);
+                if (kang_ind >= kangs_per_block) {
+                    std::cerr << layout.name << ": KernelB kangaroo index outside block span\n";
+                    return false;
+                }
+                if (seen[kang_ind] != 0) {
+                    std::cerr << layout.name << ": duplicate KernelB kangaroo index\n";
+                    return false;
+                }
+                seen[kang_ind] = 1;
+            }
+        }
+    }
+
+    for (std::uint64_t kang_ind = 0; kang_ind < kangs_per_block; ++kang_ind) {
+        if (seen[kang_ind] == 0) {
+            std::cerr << layout.name << ": KernelB mapping missed a kangaroo\n";
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool check_wild_loop_reset_partition(const Layout& layout)
+{
+    const std::uint64_t kangs_per_block = layout.block_size * layout.group_count;
+    const std::uint64_t wild_begin = kangs_per_block / 3;
+    std::vector<unsigned char> cleared(kangs_per_block, 0);
+
+    for (std::uint64_t group_pair = 0; group_pair < layout.group_count / 2; ++group_pair) {
+        for (std::uint64_t lane = 0; lane < layout.block_size; ++lane) {
+            const std::uint64_t first = kernel_b_kang_index(layout, 0, group_pair, lane, false);
+            const std::uint64_t second = kernel_b_kang_index(layout, 0, group_pair, lane, true);
+            if (first >= wild_begin) {
+                cleared[first] = 1;
+            }
+            if (second >= wild_begin) {
+                cleared[second] = 1;
+            }
+        }
+    }
+
+    for (std::uint64_t kang_ind = 0; kang_ind < kangs_per_block; ++kang_ind) {
+        if (kang_ind < wild_begin && cleared[kang_ind] != 0) {
+            std::cerr << layout.name << ": wild reset would clear tame loop state\n";
+            return false;
+        }
+        if (kang_ind >= wild_begin && cleared[kang_ind] == 0) {
+            std::cerr << layout.name << ": wild reset missed a wild loop state\n";
             return false;
         }
     }
@@ -102,6 +186,12 @@ int main()
 
     for (const Layout& layout : layouts) {
         if (!check_fixed_layout(layout)) {
+            return 1;
+        }
+        if (!check_kernel_b_kang_mapping(layout)) {
+            return 1;
+        }
+        if (!check_wild_loop_reset_partition(layout)) {
             return 1;
         }
         if (!check_old_block_lane_would_alias(layout)) {

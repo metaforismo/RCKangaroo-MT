@@ -12,6 +12,7 @@
 
 cudaError_t cuSetGpuParams(TKparams Kparams, u64* _jmp2_table);
 void CallGpuKernelGen(TKparams Kparams, bool wild_only);
+void CallGpuKernelResetWildLoopState(TKparams Kparams);
 void CallGpuKernelABC(TKparams Kparams);
 void AddPointsToList(u32* data, int cnt, u64 ops_cnt);
 extern bool gGenMode; //tames generation mode
@@ -416,14 +417,30 @@ bool RCGpuKang::ResetStartPoints(u64 target_cycle_index, bool preserve_tame)
 		return false;
 	}
 
-	err = cudaMemset(Kparams.L1S2, 0, mpCnt * Kparams.BlockSize * 8);
-	if (err != cudaSuccess)
-		return false;
+	if (preserve_tame)
+	{
+		CallGpuKernelResetWildLoopState(Kparams);
+		err = cudaGetLastError();
+		if (err != cudaSuccess)
+		{
+			printf("GPU %d, KernelResetWildLoopState failed: %s\n", CudaIndex, cudaGetErrorString(err));
+			return false;
+		}
+	}
+	else
+	{
+		err = cudaMemset(Kparams.L1S2, 0, mpCnt * Kparams.BlockSize * 8);
+		if (err != cudaSuccess)
+			return false;
+	}
 	if (!target_cycle_index)
 		cudaMemset(Kparams.dbg_buf, 0, 1024);
-	err = cudaMemset(Kparams.LoopTable, 0, KangCnt * MD_LEN * sizeof(u64));
-	if (err != cudaSuccess)
-		return false;
+	if (!preserve_tame)
+	{
+		err = cudaMemset(Kparams.LoopTable, 0, KangCnt * MD_LEN * sizeof(u64));
+		if (err != cudaSuccess)
+			return false;
+	}
 
 	TargetCycleIndex = target_cycle_index;
 	return true;

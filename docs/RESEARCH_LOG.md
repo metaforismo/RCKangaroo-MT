@@ -231,6 +231,12 @@ Accepted: 2026-06-30.
   resets skip the tame kangaroo range inside the CUDA start-point kernel instead
   of spending scalar-multiplication work on tame points that are already
   continuing correctly on the GPU.
+- A third follow-up added a CUDA wild-loop-state reset kernel for target
+  cycling. Cycle resets now clear only WILD1/WILD2 `L1S2` bits and `LoopTable`
+  history, leaving tame loop history intact along with tame points and
+  distances. The host layout test models the `KernelB` kangaroo permutation for
+  both new-GPU and old-GPU geometry so this selective reset cannot silently miss
+  or duplicate a kangaroo partition.
 - Already collected DPs remain in the host DB because wild DPs carry the target
   id that was active when they were emitted. This keeps old target evidence
   valid while future windows cover target ids that would otherwise remain

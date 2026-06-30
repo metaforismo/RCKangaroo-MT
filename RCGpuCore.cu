@@ -763,6 +763,60 @@ __global__ void KernelC(const TKparams Kparams)
 		atomicAnd(&((u64*)Kparams.L1S2)[block_ind * BLOCK_SIZE + thr_ind], ~(1ull << gr_ind));
 #endif
 	}
+	}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+extern "C" __launch_bounds__(BLOCK_SIZE, 1)
+__global__ void KernelResetWildLoopState(const TKparams Kparams)
+{
+#ifndef OLD_GPU
+	u32 L1S2 = Kparams.L1S2[BLOCK_X * BLOCK_SIZE + THREAD_X];
+#else
+	u64 L1S2 = ((u64*)Kparams.L1S2)[BLOCK_X * BLOCK_SIZE + THREAD_X];
+#endif
+	u32 wild_begin = Kparams.KangCnt / 3;
+
+	for (u32 gr_ind2 = 0; gr_ind2 < PNT_GROUP_CNT / 2; gr_ind2++)
+	{
+		u32 tind = THREAD_X + gr_ind2 * BLOCK_SIZE;
+		u32 warp_ind = tind / (32 * PNT_GROUP_CNT / 2);
+		u32 thr_ind = (tind / 4) % 32;
+		u32 g8_ind = (tind % (32 * PNT_GROUP_CNT / 2)) / 128;
+		u32 gr_ind = 2 * (tind % 4);
+
+		u32 kang_ind = (BLOCK_X * BLOCK_SIZE) * PNT_GROUP_CNT;
+		kang_ind += (32 * warp_ind + thr_ind) * PNT_GROUP_CNT + 8 * g8_ind + gr_ind;
+
+		if (kang_ind >= wild_begin)
+		{
+#ifndef OLD_GPU
+			L1S2 &= ~(1u << gr_ind);
+#else
+			L1S2 &= ~(1ull << gr_ind);
+#endif
+			#pragma unroll
+			for (int i = 0; i < MD_LEN; i++)
+				Kparams.LoopTable[MD_LEN * BLOCK_SIZE * PNT_GROUP_CNT * BLOCK_X + 2 * MD_LEN * BLOCK_SIZE * gr_ind2 + i * BLOCK_SIZE + THREAD_X] = 0;
+		}
+		if ((kang_ind + 1) >= wild_begin)
+		{
+#ifndef OLD_GPU
+			L1S2 &= ~(1u << (gr_ind + 1));
+#else
+			L1S2 &= ~(1ull << (gr_ind + 1));
+#endif
+			#pragma unroll
+			for (int i = 0; i < MD_LEN; i++)
+				Kparams.LoopTable[MD_LEN * BLOCK_SIZE * PNT_GROUP_CNT * BLOCK_X + 2 * MD_LEN * BLOCK_SIZE * gr_ind2 + (i + MD_LEN) * BLOCK_SIZE + THREAD_X] = 0;
+		}
+	}
+
+#ifndef OLD_GPU
+	Kparams.L1S2[BLOCK_X * BLOCK_SIZE + THREAD_X] = L1S2;
+#else
+	((u64*)Kparams.L1S2)[BLOCK_X * BLOCK_SIZE + THREAD_X] = L1S2;
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -900,6 +954,11 @@ void CallGpuKernelABC(TKparams Kparams)
 void CallGpuKernelGen(TKparams Kparams, bool wild_only)
 {
 	KernelGen << < Kparams.BlockCnt, Kparams.BlockSize, 0 >> > (Kparams, wild_only);
+}
+
+void CallGpuKernelResetWildLoopState(TKparams Kparams)
+{
+	KernelResetWildLoopState << < Kparams.BlockCnt, Kparams.BlockSize, 0 >> > (Kparams);
 }
 
 cudaError_t cuSetGpuParams(TKparams Kparams, u64* _jmp2_table)
