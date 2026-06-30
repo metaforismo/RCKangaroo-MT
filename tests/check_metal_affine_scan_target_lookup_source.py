@@ -14,6 +14,7 @@ markers = [
     "affine_dp_scan_target_lookup",
     "lookup_repeat",
     "lookup_query_mode",
+    "dedup_repeat",
     "lookup_engine",
     "lookup_engine_effective",
     "ChooseAffineLookupEngine",
@@ -29,6 +30,7 @@ markers = [
     "ResolveTargetLookupTag32FilterCandidates",
     "ResolveTargetLookupTag32FilterRepeatCandidates",
     "ResolveTargetLookupTag32FilterRepeatPackedCandidates",
+    "ValidateAffineTargetLookupDedupRepeatOutputsWithExpected",
     "RunTargetLookupTag32Cpu",
     "ValidateAffineTargetLookupOutputs",
     "\"gpu_filter\"",
@@ -53,6 +55,11 @@ markers = [
     "pack_repeat_positive_indices",
     "repeat_positive_index_encoding",
     "packed16_base_repeat",
+    "base_query_index",
+    "hash64_dedup_repeat_base",
+    "physical_query_count",
+    "physical_filter_positive_count",
+    "lookup_repeat_dedup",
     "jacobian_affine_walk_dynamic_xyzz_steps2048_pow2_u32_distance",
     "jacobian_affine_walk_dynamic_xyzz_steps4096_pow2_u32_distance",
     "packed repeat tag16 hash-filter dimensions exceed 16-bit encoding",
@@ -137,6 +144,8 @@ if command not in cli:
     raise SystemExit("missing affine-scan target-lookup CLI command")
 if "--lookup-repeat" not in cli:
     raise SystemExit("missing affine-scan target-lookup lookup-repeat CLI option")
+if "--lookup-repeat-mode" not in cli:
+    raise SystemExit("missing affine-scan target-lookup lookup-repeat-mode CLI option")
 if "--lookup-query-mode" not in cli:
     raise SystemExit("missing affine-scan target-lookup lookup-query-mode CLI option")
 if "--lookup-engine" not in cli:

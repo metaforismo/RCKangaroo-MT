@@ -5118,6 +5118,33 @@ These did not pass the performance gate or had a correctness/architecture issue:
   a promising same-memory lookup mode, but do not change the default until a
   lower-noise confirmation shows end-to-end improvement, not only lookup-stage
   improvement.
+- Added explicit `--lookup-repeat-mode full|dedup` for the fixed-round
+  aggregate target-lookup benchmark. The default remains full repeat. The new
+  `dedup` mode filters each base DP hash once, resolves exact positives with
+  the same CPU `x256 + y_parity` equality, expands outputs back to the full
+  logical repeat shape, and records `physical_query_count` plus
+  `physical_filter_positive_count` so lookup rates cannot silently count
+  synthetic repeated queries as physical work. The small two-round smoke stayed
+  exact with unchanged checksum (`target_lookup_checksum=0x4d668f8d29797461`,
+  `query_count=9`, `physical_query_count=3`, `hit_count=9`).
+- Scout results: on the 1,048,576-target two-round shape
+  (`steps=1024, dp_bits=6, lookup_repeat=256`), repeat and dedup both preserved
+  `target_lookup_checksum=0x5eca43d3bfad103c`, with dedup reporting
+  `query_count=269568`, `physical_query_count=1053`, and
+  `physical_filter_positive_count=32`. Timing was noisy, but the exact-output
+  expansion fix reduced dedup `lookup_exact_seconds` to about `0.000037`.
+  On the 25,005,000-target fixed-round power2 shape
+  (`steps=2048, dp_bits=6, lookup_repeat=1024`), repeat and dedup both
+  preserved `target_lookup_checksum=0x923b46f156f9d59b` and zero false
+  positives. Avoiding full logical output materialization and validating the
+  repeated checksum from the base output reduced dedup lookup time to
+  `0.007150` seconds (`lookup_exact_seconds=0.000083`,
+  `physical_query_count=4121`, `physical_filter_positive_count=128`) versus
+  full repeat at `0.045586` seconds in a later same-session guardrail run.
+  Earlier full-repeat and dedup scouts in the same session were `0.029466` and
+  `0.013328` seconds respectively before the no-materialization validator.
+  Conclusion: keep dedup as a non-default repeated-query upper-bound diagnostic
+  and a future optimization target, not as a distinct-query throughput claim.
 
 ## Cleanup Policy
 
