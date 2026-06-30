@@ -190,6 +190,31 @@ GPU work should use Metal.
 
 ## Accepted Results
 
+### CUDA Multi-GPU Multi-Target Sharding
+
+Accepted: 2026-06-30.
+
+- Production CUDA multi-target starts now compute global WILD1 and WILD2 active
+  target offsets across enabled GPUs and pass those offsets into
+  `RCGpuKang::Prepare`. `RCGpuKang::Start` maps each wild start through
+  `TTargetSet::MapActiveWildTargetId`, so multi-GPU runs shard active target
+  assignment instead of repeating each GPU's local target slice.
+- This is a solver-path change, not a benchmark-only optimization. It affects
+  the normal `SolvePoint -> Prepare -> Start` CUDA path used by `-targets`.
+  Single-GPU target assignment is unchanged, and the collision equations,
+  `target_id` propagation, DP table, and final full-point verification remain
+  unchanged.
+- The startup log now reports `Multi-target active shard coverage`. If the
+  target file exceeds the active WILD1/WILD2 population, the log explicitly
+  says that only the deterministic active shard is covered in the current start
+  cycle; target cycling/reassignment is the next real solver improvement for
+  target files much larger than the active wild population.
+- Correctness gates added: `check-target-assignment` verifies the host mapping
+  invariants, and `tests/check_multi_target_sharding_source.py` verifies that
+  the production CUDA path still computes/passes sharding offsets. CUDA
+  throughput must still be replicated on NVIDIA hardware before making a
+  measured MKeys/s or solved-targets-per-hour claim.
+
 ### CPU Kangaroo Unit-Z First-Step Affine Conversion
 
 Accepted: 2026-06-23.

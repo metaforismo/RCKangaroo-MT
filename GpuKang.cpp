@@ -25,7 +25,7 @@ int RCGpuKang::CalcKangCnt()
 }
 
 //executes in main thread
-bool RCGpuKang::Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJumps1, EcJMP* _EcJumps2, EcJMP* _EcJumps3, TTargetSet* _TargetSet)
+bool RCGpuKang::Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJumps1, EcJMP* _EcJumps2, EcJMP* _EcJumps3, TTargetSet* _TargetSet, u64 _Wild1TargetOffset, u64 _Wild1TargetTotal, u64 _Wild2TargetOffset, u64 _Wild2TargetTotal)
 {
 	PntToSolve = _PntToSolve;
 	Range = _Range;
@@ -34,6 +34,10 @@ bool RCGpuKang::Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJump
 	EcJumps2 = _EcJumps2;
 	EcJumps3 = _EcJumps3;
 	TargetSet = _TargetSet;
+	Wild1TargetOffset = _Wild1TargetOffset;
+	Wild1TargetTotal = _Wild1TargetTotal;
+	Wild2TargetOffset = _Wild2TargetOffset;
+	Wild2TargetTotal = _Wild2TargetTotal;
 	HostTargetIds = NULL;
 	StopFlag = false;
 	Failed = false;
@@ -383,12 +387,15 @@ bool RCGpuKang::Start()
 		{
 			if (target_cnt)
 			{
-				u32 group_start = (i < (int)wild2_start) ? tame_cnt : wild2_start;
-				u32 group_cnt = (i < (int)wild2_start) ? (wild2_start - tame_cnt) : (KangCnt - wild2_start);
+				bool is_wild1 = i < (int)wild2_start;
+				u32 group_start = is_wild1 ? tame_cnt : wild2_start;
+				u32 group_cnt = is_wild1 ? (wild2_start - tame_cnt) : (KangCnt - wild2_start);
 				u32 group_ind = i - group_start;
-				u32 target_id = (u32)(((u64)group_ind * target_cnt) / group_cnt);
-				if (target_id >= target_cnt)
-					target_id = target_cnt - 1;
+				u64 target_offset = is_wild1 ? Wild1TargetOffset : Wild2TargetOffset;
+				u64 target_total = is_wild1 ? Wild1TargetTotal : Wild2TargetTotal;
+				if (!target_total)
+					target_total = group_cnt;
+				u32 target_id = TTargetSet::MapActiveWildTargetId(target_offset + group_ind, target_total, target_cnt);
 				HostTargetIds[i] = target_id;
 				EcPoint target = TargetSet->GetPoint(target_id);
 				EcPoint a = ec.AddPoints(target, NegPntHalfRange);

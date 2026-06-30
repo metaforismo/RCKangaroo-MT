@@ -31,6 +31,18 @@ std::string TTargetSet::NormalizeLine(const std::string& line)
 	return line.substr(begin, end - begin);
 }
 
+u32 TTargetSet::MapActiveWildTargetId(u64 active_index, u64 active_count, u32 target_count)
+{
+	if (!target_count || !active_count)
+		return 0;
+	if (active_index >= active_count)
+		active_index = active_count - 1;
+	u32 target_id = (u32)((active_index * (u64)target_count) / active_count);
+	if (target_id >= target_count)
+		target_id = target_count - 1;
+	return target_id;
+}
+
 bool TTargetSet::LoadFromFile(const char* fn, EcInt& start)
 {
 	Clear();

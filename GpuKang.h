@@ -46,6 +46,10 @@ private:
 	EcJMP* EcJumps3;
 	TTargetSet* TargetSet;
 	u32* HostTargetIds;
+	u64 Wild1TargetOffset;
+	u64 Wild1TargetTotal;
+	u64 Wild2TargetOffset;
+	u64 Wild2TargetTotal;
 
 	EcPoint PntA;
 	EcPoint PntB;
@@ -68,7 +72,7 @@ public:
 	bool IsOldGpu;
 
 	int CalcKangCnt();
-	bool Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJumps1, EcJMP* _EcJumps2, EcJMP* _EcJumps3, TTargetSet* _TargetSet = NULL);
+	bool Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJumps1, EcJMP* _EcJumps2, EcJMP* _EcJumps3, TTargetSet* _TargetSet = NULL, u64 _Wild1TargetOffset = 0, u64 _Wild1TargetTotal = 0, u64 _Wild2TargetOffset = 0, u64 _Wild2TargetTotal = 0);
 	void Stop();
 	void Execute();
 

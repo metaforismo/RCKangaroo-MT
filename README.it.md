@@ -114,7 +114,7 @@ PRIVATE KEY
 
 Il loader sottrae da ogni target l'offset `-start`. Le wild kangaroo partono poi da punti specifici per target e portano un `target_id` fino all'output GPU dei distinguished point. Le tame kangaroo restano universali, quindi una tame DP puo risolvere una collisione per qualunque target wild. La modalita attuale si ferma al primo target risolto.
 
-Con file target molto grandi, tutti i target vengono caricati e indicizzati, ma la densita wild effettiva per target dipende dal numero di GPU e dal numero di kangaroo. Piu GPU aumentano la popolazione wild attiva.
+Con file target molto grandi, tutti i target vengono caricati e indicizzati, ma la densita wild effettiva per target dipende dal numero di GPU e dal numero di kangaroo. Gli start CUDA multi-GPU ora dividono l'assegnazione dei target wild attivi tra le GPU invece di ripetere lo stesso slice locale su ogni device; il comportamento con una sola GPU resta invariato. Il log iniziale riporta `Multi-target active shard coverage`. Se il file target e' piu grande degli slot WILD1/WILD2 disponibili, nel ciclo di start corrente viene coperto solo quello shard deterministico; il lavoro futuro e' cycling/reassignment dei target per file molto piu grandi della popolazione wild attiva.
 
 I file tames originali v3.1 restano utilizzabili nel flusso single-target normale. In modalita multi-target usa tames generati da questo fork e generali separatamente prima di usare `-targets`.
 

@@ -5,6 +5,7 @@
 
 
 #include <iostream>
+#include <algorithm>
 #include <vector>
 
 #include "cuda_runtime.h"
@@ -372,12 +373,33 @@ bool SolvePoint(EcPoint PntToSolve, int Range, int DP, EcInt* pk_res, TTargetSet
 		printf("Max allowed number of ops: 2^%.3f, max RAM for DPs: %.3f GB\r\n", log2(MaxTotalOps), ram_max);
 	}
 
-	u64 total_kangs = GpuKangs[0]->CalcKangCnt();
-	for (int i = 1; i < GpuCnt; i++)
-		total_kangs += GpuKangs[i]->CalcKangCnt();
-	double path_single_kang = ops / total_kangs;	
+	std::vector<u64> wild1_offsets(GpuCnt, 0);
+	std::vector<u64> wild2_offsets(GpuCnt, 0);
+	u64 total_kangs = 0;
+	u64 total_wild1 = 0;
+	u64 total_wild2 = 0;
+	for (int i = 0; i < GpuCnt; i++)
+	{
+		u64 kang_cnt = GpuKangs[i]->CalcKangCnt();
+		total_kangs += kang_cnt;
+		u64 tame_cnt = kang_cnt / 3;
+		u64 wild2_start = (2 * kang_cnt) / 3;
+		wild1_offsets[i] = total_wild1;
+		total_wild1 += wild2_start - tame_cnt;
+		wild2_offsets[i] = total_wild2;
+		total_wild2 += kang_cnt - wild2_start;
+	}
+	double path_single_kang = ops / total_kangs;
 	double DPs_per_kang = path_single_kang / dp_val;
 	printf("Estimated DPs per kangaroo: %.3f.%s\r\n", DPs_per_kang, (DPs_per_kang < 5) ? " DP overhead is big, use less DP value if possible!" : "");
+	if (is_multi_target)
+	{
+		u64 active_targets = std::min((u64)TargetSet->Count(), std::min(total_wild1, total_wild2));
+		double coverage_pct = TargetSet->Count() ? (100.0 * (double)active_targets / (double)TargetSet->Count()) : 0.0;
+		printf("Multi-target active shard coverage: %llu/%u targets per start cycle (%.6f%%), sharded across %d GPU(s).\r\n", (unsigned long long)active_targets, TargetSet->Count(), coverage_pct, GpuCnt);
+		if (active_targets < TargetSet->Count())
+			printf("Multi-target note: target file exceeds active wild slots; inactive targets need future reassignment/cycling work.\r\n");
+	}
 
 	if (!gGenMode && gTamesFileName[0])
 	{
@@ -449,7 +471,7 @@ bool SolvePoint(EcPoint PntToSolve, int Range, int DP, EcInt* pk_res, TTargetSet
 
 //prepare GPUs
 	for (int i = 0; i < GpuCnt; i++)
-		if (!GpuKangs[i]->Prepare(PntToSolve, Range, DP, EcJumps1, EcJumps2, EcJumps3, TargetSet))
+		if (!GpuKangs[i]->Prepare(PntToSolve, Range, DP, EcJumps1, EcJumps2, EcJumps3, TargetSet, wild1_offsets[i], total_wild1, wild2_offsets[i], total_wild2))
 		{
 			GpuKangs[i]->Failed = true;
 			printf("GPU %d Prepare failed\r\n", GpuKangs[i]->CudaIndex);

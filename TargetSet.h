@@ -30,4 +30,5 @@ public:
 	u32 GetSourceLine(u32 index) const;
 
 	static std::string NormalizeLine(const std::string& line);
+	static u32 MapActiveWildTargetId(u64 active_index, u64 active_count, u32 target_count);
 };
