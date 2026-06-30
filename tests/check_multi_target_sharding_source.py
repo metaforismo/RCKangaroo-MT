@@ -4,6 +4,7 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 gpu_h = (root / "GpuKang.h").read_text()
 gpu_cpp = (root / "GpuKang.cpp").read_text()
+gpu_core = (root / "RCGpuCore.cu").read_text()
 main_cpp = (root / "RCKangaroo.cpp").read_text()
 target_h = (root / "TargetSet.h").read_text()
 target_cpp = (root / "TargetSet.cpp").read_text()
@@ -27,6 +28,10 @@ checks = [
     ("cycle reset preserves tame walks", "ResetStartPoints(TargetCycleIndex + 1, true)" in gpu_cpp),
     ("cycle reset copies wild1 only", "cudaMemcpy(Kparams.Kangs + (u64)tame_cnt * 12" in gpu_cpp),
     ("cycle reset copies wild2 only", "cudaMemcpy(Kparams.Kangs + (u64)wild2_start * 12" in gpu_cpp),
+    ("kernel gen accepts wild-only", "KernelGen(const TKparams Kparams, bool wild_only)" in gpu_core),
+    ("kernel gen skips tame in wild-only mode", "wild_only && (kang_ind < Kparams.KangCnt / 3)" in gpu_core),
+    ("host passes preserve_tame to kernel gen", "CallGpuKernelGen(Kparams, preserve_tame)" in gpu_cpp),
+    ("kernel launch receives wild-only", "KernelGen << < Kparams.BlockCnt, Kparams.BlockSize, 0 >> > (Kparams, wild_only)" in gpu_core),
     ("solvepoint computes wild1 offsets", "wild1_offsets[i] = total_wild1" in main_cpp),
     ("solvepoint computes wild2 offsets", "wild2_offsets[i] = total_wild2" in main_cpp),
     ("solvepoint passes wild1 sharding", "wild1_offsets[i], total_wild1" in main_cpp),

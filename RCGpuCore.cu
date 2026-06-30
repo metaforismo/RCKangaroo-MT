@@ -812,7 +812,7 @@ __device__ __forceinline__ void DoublePoint(u64* res_x, u64* res_y, u64* pntx, u
 
 //this kernel calculates start points of kangs
 extern "C" __launch_bounds__(BLOCK_SIZE, 1)
-__global__ void KernelGen(const TKparams Kparams)
+__global__ void KernelGen(const TKparams Kparams, bool wild_only)
 {
 	for (u32 group = 0; group < PNT_GROUP_CNT; group++)
 	{
@@ -822,6 +822,8 @@ __global__ void KernelGen(const TKparams Kparams)
 		__align__(16) u64 t2x[4], t2y[4];
 
 		u32 kang_ind = PNT_GROUP_CNT * (THREAD_X + BLOCK_X * BLOCK_SIZE) + group;
+		if (wild_only && (kang_ind < Kparams.KangCnt / 3))
+			continue;
 		x0[0] = Kparams.Kangs[kang_ind * 12 + 0];
 		x0[1] = Kparams.Kangs[kang_ind * 12 + 1];
 		x0[2] = Kparams.Kangs[kang_ind * 12 + 2];
@@ -895,9 +897,9 @@ void CallGpuKernelABC(TKparams Kparams)
 	KernelC <<< Kparams.BlockCnt, Kparams.BlockSize, Kparams.KernelC_LDS_Size >>> (Kparams);
 }
 
-void CallGpuKernelGen(TKparams Kparams)
+void CallGpuKernelGen(TKparams Kparams, bool wild_only)
 {
-	KernelGen << < Kparams.BlockCnt, Kparams.BlockSize, 0 >> > (Kparams);
+	KernelGen << < Kparams.BlockCnt, Kparams.BlockSize, 0 >> > (Kparams, wild_only);
 }
 
 cudaError_t cuSetGpuParams(TKparams Kparams, u64* _jmp2_table)

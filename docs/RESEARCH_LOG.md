@@ -208,6 +208,10 @@ Accepted: 2026-06-30.
   `KernelGen` still rebuilds coherent points from the device distances, but the
   cycle no longer replaces tame distances or abandons tame coverage just to
   move the wild target window.
+- A second follow-up passed a `wild_only` flag into `KernelGen`, so cycle
+  resets skip the tame kangaroo range inside the CUDA start-point kernel instead
+  of spending scalar-multiplication work on tame points that are already
+  continuing correctly on the GPU.
 - Already collected DPs remain in the host DB because wild DPs carry the target
   id that was active when they were emitted. This keeps old target evidence
   valid while future windows cover target ids that would otherwise remain

@@ -11,7 +11,7 @@
 #include "GpuKang.h"
 
 cudaError_t cuSetGpuParams(TKparams Kparams, u64* _jmp2_table);
-void CallGpuKernelGen(TKparams Kparams);
+void CallGpuKernelGen(TKparams Kparams, bool wild_only);
 void CallGpuKernelABC(TKparams Kparams);
 void AddPointsToList(u32* data, int cnt, u64 ops_cnt);
 extern bool gGenMode; //tames generation mode
@@ -408,7 +408,7 @@ bool RCGpuKang::ResetStartPoints(u64 target_cycle_index, bool preserve_tame)
 			return false;
 		}
 	}
-	CallGpuKernelGen(Kparams);
+	CallGpuKernelGen(Kparams, preserve_tame);
 	err = cudaGetLastError();
 	if (err != cudaSuccess)
 	{
