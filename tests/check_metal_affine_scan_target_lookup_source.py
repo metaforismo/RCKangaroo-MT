@@ -26,11 +26,13 @@ markers = [
     "RunTargetLookupTag32FilterKernel",
     "RunTargetLookupTag16HashFilterKernel",
     "RunTargetLookupTag16HashFilterRepeatKernel",
+    "RunTargetLookupTag16HashFilterRepeatBaseCountKernel",
     "RunTargetLookupTag32HashFilterRepeatKernel",
     "ResolveTargetLookupTag32FilterCandidates",
     "ResolveTargetLookupTag32FilterRepeatCandidates",
     "ResolveTargetLookupTag32FilterRepeatPackedCandidates",
     "ResolveTargetLookupTag32FilterRepeatSparseExpected",
+    "ResolveTargetLookupTag32FilterRepeatBaseCountsExpected",
     "ValidateAffineTargetLookupDedupRepeatOutputsWithExpected",
     "ValidateAffineTargetLookupSparseRepeatOutputs",
     "use_base_exact_cache",
@@ -54,6 +56,7 @@ markers = [
     "BuildRepeatedTargetLookupQueryHashes",
     "target_lookup_tag16_hash_filter_repeat2d256",
     "target_lookup_tag16_hash_filter_repeat_base2d256",
+    "target_lookup_tag16_hash_filter_repeat_base_count2d256",
     "target_lookup_tag16_hash_filter_repeat_packed2d256",
     "target_lookup_tag16_mixed_hash_filter_repeat2d256",
     "target_lookup_tag16_mixed_hash_filter_repeat_packed2d256",
@@ -61,10 +64,10 @@ markers = [
     "target_lookup_tag32_hash_filter_repeat_packed2d256",
     "base_query_hashes",
     "pack_repeat_positive_indices",
-    "base_repeat_positive_indices",
+    "base_repeat_positive_counts",
     "repeat_positive_index_encoding",
     "packed16_base_repeat",
-    "base_query_index_repeated",
+    "base_query_count_repeated",
     "sparse repeat target lookup unexpected exact hit",
     "base_query_index",
     "hash64_dedup_repeat_base",
@@ -738,6 +741,12 @@ check_experiment(
 
 check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_sparse_repeat_base_counts.json",
+    m3_auto_repeat_command,
+    "ops_per_sec",
+)
+
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_base_count_repeat.json",
     m3_auto_repeat_command,
     "ops_per_sec",
 )

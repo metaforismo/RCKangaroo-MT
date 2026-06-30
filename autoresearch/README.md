@@ -92,6 +92,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_auto_repeat --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_sparse_repeat_exact --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_sparse_repeat_exact_cache --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_base_count_repeat --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_persistent_tg1024 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_exact256 --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_target_lookup_tag32_filter_persistent --budget-sec 10 --paired-baseline-ref main --confirm-runs 2
@@ -175,9 +176,11 @@ query against the exact tag32 host table once, then reuses that exact hit/miss
 state while still counting every logical repeated positive and preserving the
 same checksum oracle.
 When the integrated sparse repeat path cannot use the packed 16-bit
-base/repeat positive encoding, it can emit `base_query_index_repeated`: the GPU
-still runs every logical repeat probe and emits every logical positive, while
-the CPU resolver avoids reconstructing the unused full logical index.
+base/repeat positive encoding, it can emit `base_query_count_repeated`: the GPU
+still runs every logical repeat probe, but records per-base positive counts
+instead of copying repeated base indices. The CPU resolver validates the total
+positive count, resolves exact `x256 + y_parity` once per positive base query,
+and still accounts every logical repeated hit or false positive.
 
 ```sh
 make macos-check
@@ -650,6 +653,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_repeat_indexed2048 --budget-sec 300 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_fused_filter_setup --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_sparse_repeat_base_counts --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_base_count_repeat --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 ```
 
 These use the 25,005,000-target mostly-miss shapes and score
@@ -692,6 +696,12 @@ query count, compact positive count, exact CPU equality, and repeat checksum,
 but emits `base_query_index_repeated` positives when packed 16-bit indices do
 not fit. That makes the benchmark an end-to-end solver-path check, not a
 lookup-only shortcut.
+
+The M3 sparse-repeat base-count gate keeps the same command and exact oracle,
+but replaces repeated base-index positive copies with GPU-emitted per-base
+positive counts. It is scored against the accepted base-index path with
+`--lookup-tg-limit 512` fixed, so the result measures the positive-output and
+resolver architecture rather than threadgroup tuning.
 
 The M3 fused-filter setup gate compares the same real integrated command after
 the tag16 target-filter setup is fused into tag32 table insertion. It scores

@@ -5365,6 +5365,27 @@ These did not pass the performance gate or had a correctness/architecture issue:
   baseline `59226315.668816`, `paired_speedup=0.955925`, with the same
   checksum. Keep the raw rows as negative evidence; do not promote either
   change.
+- Rejected grouped threadgroup compaction and default `768` lookup-threadgroup
+  promotion on the M3 auto repeat gate, then promoted GPU base-count positive
+  output. The grouped compaction candidate kept
+  `target_lookup_checksum=0x86ec0110960785f8`, `hit_count=2097152`, and zero
+  false positives, but paired confirmation discarded it at
+  `ops_per_sec=30022289.683890` versus paired baseline `39907839.933016`
+  (`paired_speedup=0.752291`). A direct explicit `--lookup-tg-limit 768` sweep
+  looked promising, but the real default-vs-`HEAD` gate discarded promotion:
+  final `ops_per_sec=34205080.912293` versus paired baseline
+  `40962800.191419` (`paired_speedup=0.835028`). The accepted path replaces
+  repeated base-index positive copies with GPU-emitted per-base positive
+  counts (`repeat_positive_index_encoding=base_query_count_repeated`). It still
+  probes every logical `(base_query, repeat)` pair, validates the total compact
+  positive count, resolves exact `x256 + y_parity` once per positive base
+  query, and counts every logical hit or false positive. Smoke kept the same
+  checksum, `hit_count=2097152`, and zero false positives while dropping
+  `lookup_exact_seconds` to about `0.000011`. Two paired confirmations against
+  `HEAD=a5cb61a` kept the candidate: confirmation 1 measured
+  `ops_per_sec=67353853.133572` versus baseline `53144408.728376`
+  (`paired_speedup=1.267374`); confirmation 2 measured
+  `71787238.321406` versus `69363382.005319` (`paired_speedup=1.034944`).
 
 ## Cleanup Policy
 
