@@ -34,6 +34,11 @@ markers = [
     "ResolveTargetLookupTag32FilterRepeatSparseExpected",
     "ResolveTargetLookupTag32FilterRepeatBaseCountsExpected",
     "ResolveTargetLookupTag32FilterRepeatBaseCountsExpectedIndices",
+    "TargetLookupXOnlyHost",
+    "TargetLookupTag32ParityBucketHost",
+    "BuildTargetLookupTag32ParityTableFromKeysParallelInsert",
+    "ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices",
+    "DecodeTargetLookupParity(bucket.encoded_target_index) == (key.parity & 1U)",
     "ValidateAffineTargetLookupDedupRepeatOutputsWithExpected",
     "ValidateAffineTargetLookupRepeatBaseCountsWithExpected",
     "ValidateAffineTargetLookupSparseRepeatOutputs",
@@ -174,6 +179,14 @@ if 'repeat_positive_index_encoding = lookup_repeat_dedup ? "base_query_index" :'
     raise SystemExit("fixed-round repeat lookup should report its positive index encoding")
 if 'ValidateAffineTargetLookupRepeatBaseCountsWithExpected(aggregate_expected_indices, lookup_repeat' not in rounds_body:
     raise SystemExit("fixed-round base-count repeat lookup should preserve the repeated checksum oracle")
+if "use_parity_xonly_target_table = use_base_repeat_positive_counts" not in rounds_body:
+    raise SystemExit("fixed-round x-only target table should be limited to the standard base-count repeat path")
+if "target_x_keys.size() * sizeof(TargetLookupXOnlyHost)" not in rounds_body:
+    raise SystemExit("fixed-round x-only target table should report compact target key bytes")
+if "BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, target_count, target_x_keys, target_parity_buckets" not in rounds_body:
+    raise SystemExit("fixed-round base-count repeat lookup should build the x-only parity target table")
+if "ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices(target_parity_buckets, target_x_keys" not in rounds_body:
+    raise SystemExit("fixed-round base-count repeat lookup should exact-resolve against x plus encoded parity")
 
 choose_start = kernels.index("static const char* ChooseAffineLookupEngine")
 choose_end = kernels.index("static unsigned int ChooseAffineLookupThreadgroupLimit", choose_start)

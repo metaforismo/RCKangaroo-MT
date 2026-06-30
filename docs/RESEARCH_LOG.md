@@ -5470,6 +5470,39 @@ These did not pass the performance gate or had a correctness/architecture issue:
   preserved correctness and measured `128136100.370204`, but this is too close
   to the 2048/dp6 direct scouts and has previous setup-gate discard history; it
   needs a dedicated paired fixed-round gate before any claim.
+- Rejected additional post-batched fixed-round scouts rather than tuning to one
+  lucky sample. A no-infinity affine-add fast path preserved
+  `target_lookup_checksum=0x923b46f156f9d59b`, `hit_count=131072`, and zero
+  false positives, but its direct 25M run measured only
+  `125377290.345938 ops/sec`, below the current direct plateau, so it was
+  reverted. Same-operation cadence probes also stayed correct but did not justify
+  promotion: `4096/dp5` with half repeat measured `117981446.931567 ops/sec`,
+  `1024/dp7` measured `125220469.005635 ops/sec` with
+  `filter_false_positive_count=1024`, and `512/dp8` measured
+  `125305714.106584 ops/sec` with `filter_false_positive_count=2048`. Keep
+  `2048/dp6` as the fixed-round local plateau until a paired gate beats it.
+- Promoted a compact exact target table for the large standard fixed-round
+  tag16 base-count repeat path. The table stores only affine `x` in the host key
+  array (`TargetLookupXOnlyHost`, 32 bytes per target) and moves the `y` parity
+  bit into the high bit of the tag32 bucket index. The exact resolver still
+  validates full compressed identity (`x256 + y_parity`) before counting hits,
+  and the path is limited to `base_query_count_repeated` fixed-round batches;
+  tag32 diagnostics, tag16-mix diagnostics, dedup-repeat, and packed/full output
+  modes keep the original full-key table. A 4096-target smoke reported
+  `target_key_bytes=131072`, `repeat_positive_index_encoding=base_query_count_repeated`,
+  `target_lookup_checksum=0x6bc66af2c4c40f7b`, and zero false positives. The
+  direct 25M fixed-round run preserved `target_lookup_checksum=0x923b46f156f9d59b`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=131072`, and
+  `filter_false_positive_count=0`, while reducing `target_key_bytes` from
+  `1000200000` to `800160000` and `exact_host_table_bytes` from `1268635456` to
+  `1068595456`; direct throughput measured `126676125.573514 ops/sec`. The
+  paired fixed-round gate against clean `HEAD=147f940` kept both confirmations:
+  confirmation 1 measured `120293962.488858` versus baseline
+  `67114963.416265` (`paired_speedup=1.792357`), and confirmation 2 measured
+  `59628720.520350` versus baseline `58353738.362171`
+  (`paired_speedup=1.021849`). Treat this as a real memory/setup efficiency win
+  with a kept noisy M3 throughput gate, not as a mathematical sqrt-step
+  breakthrough or cross-machine speed guarantee.
 
 ## Cleanup Policy
 

@@ -186,6 +186,14 @@ instead of copying repeated base indices. The CPU resolver validates the total
 positive count, resolves exact `x256 + y_parity` once per positive base query,
 and still accounts every logical repeated hit or false positive.
 
+The fixed-round 25M tag16 repeat gate now uses a compact exact host table only
+on that standard base-count path: target keys store affine `x` only
+(`target_key_bytes = target_count * 32`) and encode `y` parity in the tag32
+bucket index. Correctness still depends on exact `x256 + y_parity` resolution,
+so rows must keep `target_lookup_checksum`, `hit_count`,
+`filter_false_positive_count`, and `repeat_positive_index_encoding` stable
+before comparing `ops_per_sec` or `setup_inclusive_ops_per_sec`.
+
 ```sh
 make macos-check
 make macos-bench
