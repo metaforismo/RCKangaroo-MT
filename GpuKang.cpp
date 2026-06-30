@@ -301,9 +301,10 @@ void RCGpuKang::Stop()
 	StopFlag = true;
 }
 
-void RCGpuKang::GenerateRndDistances()
+void RCGpuKang::GenerateRndDistances(bool wild_only)
 {
-	for (int i = 0; i < KangCnt; i++)
+	int start = wild_only ? (KangCnt / 3) : 0;
+	for (int i = start; i < KangCnt; i++)
 	{
 		EcInt d;
 		if (i < KangCnt / 3)
@@ -317,13 +318,13 @@ void RCGpuKang::GenerateRndDistances()
 	}
 }
 
-bool RCGpuKang::ResetStartPoints(u64 target_cycle_index)
+bool RCGpuKang::ResetStartPoints(u64 target_cycle_index, bool preserve_tame)
 {
 	cudaError_t err = cudaSetDevice(CudaIndex);
 	if (err != cudaSuccess)
 		return false;
 
-	GenerateRndDistances();
+	GenerateRndDistances(preserve_tame);
 	memset(HostTargetIds, 0, sizeof(u32) * KangCnt);
 
 	//but it's faster to calc them on GPU
@@ -336,7 +337,10 @@ bool RCGpuKang::ResetStartPoints(u64 target_cycle_index)
 	for (int i = 0; i < KangCnt; i++)
 	{
 		if (i < (int)tame_cnt)
-			memset(RndPnts[i].x, 0, 64);
+		{
+			if (!preserve_tame)
+				memset(RndPnts[i].x, 0, 64);
+		}
 		else
 		{
 			if (target_cnt)
@@ -378,11 +382,31 @@ bool RCGpuKang::ResetStartPoints(u64 target_cycle_index)
 		printf("GPU %d, cudaMemcpy TargetIds failed: %s\n", CudaIndex, cudaGetErrorString(err));
 		return false;
 	}
-	err = cudaMemcpy(Kparams.Kangs, RndPnts, KangCnt * 96, cudaMemcpyHostToDevice);
-	if (err != cudaSuccess)
+	if (preserve_tame)
 	{
-		printf("GPU %d, cudaMemcpy failed: %s\n", CudaIndex, cudaGetErrorString(err));
-		return false;
+		u64 wild1_cnt = wild2_start - tame_cnt;
+		u64 wild2_cnt = KangCnt - wild2_start;
+		err = cudaMemcpy(Kparams.Kangs + (u64)tame_cnt * 12, RndPnts + tame_cnt, wild1_cnt * 96, cudaMemcpyHostToDevice);
+		if (err != cudaSuccess)
+		{
+			printf("GPU %d, cudaMemcpy wild1 failed: %s\n", CudaIndex, cudaGetErrorString(err));
+			return false;
+		}
+		err = cudaMemcpy(Kparams.Kangs + (u64)wild2_start * 12, RndPnts + wild2_start, wild2_cnt * 96, cudaMemcpyHostToDevice);
+		if (err != cudaSuccess)
+		{
+			printf("GPU %d, cudaMemcpy wild2 failed: %s\n", CudaIndex, cudaGetErrorString(err));
+			return false;
+		}
+	}
+	else
+	{
+		err = cudaMemcpy(Kparams.Kangs, RndPnts, KangCnt * 96, cudaMemcpyHostToDevice);
+		if (err != cudaSuccess)
+		{
+			printf("GPU %d, cudaMemcpy failed: %s\n", CudaIndex, cudaGetErrorString(err));
+			return false;
+		}
 	}
 	CallGpuKernelGen(Kparams);
 	err = cudaGetLastError();
@@ -427,7 +451,7 @@ bool RCGpuKang::Start()
 
 	RndPnts = (TPointPriv*)malloc(KangCnt * 96);
 	HostTargetIds = (u32*)malloc(sizeof(u32) * KangCnt);
-	if (!ResetStartPoints(0))
+	if (!ResetStartPoints(0, false))
 	{
 		free(RndPnts);
 		free(HostTargetIds);
@@ -555,7 +579,7 @@ void RCGpuKang::Execute()
 			if (TargetCycleRoundCounter >= TargetCycleRounds)
 			{
 				TargetCycleRoundCounter = 0;
-				if (!ResetStartPoints(TargetCycleIndex + 1))
+				if (!ResetStartPoints(TargetCycleIndex + 1, true))
 				{
 					printf("GPU %d, target cycle reset failed\r\n", CudaIndex);
 					gTotalErrors++;

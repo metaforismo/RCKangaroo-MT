@@ -203,6 +203,11 @@ Accepted: 2026-06-30.
   distinguished-point records, host DB storage, target-aware filtering, and
   final full-point verification unchanged, and resets only per-GPU loop history
   for the newly generated starts.
+- A follow-up tightened the cycle reset so it preserves the universal tame
+  walks and copies only the WILD1/WILD2 start ranges for later target windows.
+  `KernelGen` still rebuilds coherent points from the device distances, but the
+  cycle no longer replaces tame distances or abandons tame coverage just to
+  move the wild target window.
 - Already collected DPs remain in the host DB because wild DPs carry the target
   id that was active when they were emitted. This keeps old target evidence
   valid while future windows cover target ids that would otherwise remain

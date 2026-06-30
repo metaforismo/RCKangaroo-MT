@@ -60,8 +60,8 @@ private:
 	int cur_stats_ind;
 	int SpeedStats[STATS_WND_SIZE];
 
-	void GenerateRndDistances();
-	bool ResetStartPoints(u64 target_cycle_index);
+	void GenerateRndDistances(bool wild_only);
+	bool ResetStartPoints(u64 target_cycle_index, bool preserve_tame);
 	bool Start();
 	void Release();
 #ifdef DEBUG_MODE
