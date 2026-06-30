@@ -5537,6 +5537,25 @@ These did not pass the performance gate or had a correctness/architecture issue:
   rows are aliases for `setup_inclusive_ops_per_sec`. Treat this as a real
   target setup and memory-bandwidth improvement, not as a new GPU walk-throughput
   claim.
+- Rejected a zero-sentinel/calloc parity-bucket follow-up for the compact
+  fixed-round table. The candidate recoded the parity bucket empty marker from
+  `0xffffffff` to zero by storing `target_index + 1`, then used a calloc-backed
+  bucket buffer so untouched empty buckets did not need an explicit vector fill.
+  The idea preserved the exact oracle in both the 4096-target smoke
+  (`target_lookup_checksum=0x6bc66af2c4c40f7b`) and the 25M gate
+  (`target_lookup_checksum=0x923b46f156f9d59b`, `dp_checksum=0x7f111e78c67b5c18`,
+  `hit_count=131072`, `filter_false_positive_count=0`), but it did not improve
+  setup consistently. A direct 25M scout measured
+  `target_build_seconds=0.714034` and
+  `setup_inclusive_ops_per_sec=104879966.369781`, essentially no better than the
+  accepted builder. The paired setup-inclusive gate against clean `HEAD=6e8f49f`
+  discarded the candidate: confirmation 1 measured
+  `104431906.564908` versus baseline `110311024.032910`
+  (`paired_speedup=0.946704`), while confirmation 2 measured
+  `87372372.474576` versus baseline `85013762.668708`
+  (`paired_speedup=1.027744`). Because both confirmations must keep, the code was
+  reverted; raw rows remain in `autoresearch/benchmarks.jsonl` and
+  `autoresearch/results.tsv`.
 
 ## Cleanup Policy
 
