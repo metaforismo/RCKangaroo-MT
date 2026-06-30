@@ -190,6 +190,24 @@ GPU work should use Metal.
 
 ## Accepted Results
 
+### CUDA Per-Thread LoopTable Indexing
+
+Accepted: 2026-06-30.
+
+- Fixed `KernelB` loop-history load/store indexing from `BLOCK_X` to
+  `THREAD_X` for the final `LoopTable` lane offset.
+- The `LoopTable` layout is block, group-pair, history slot, and thread lane.
+  Using the CUDA block index as the final lane made threads inside a block
+  share a small set of loop-history slots instead of preserving independent
+  per-kangaroo history. That can create races and weaken loop detection on the
+  real CUDA solver path.
+- This does not change jump distances, distinguished-point selection,
+  target-id propagation, collision equations, host DB filtering, or final
+  full-point verification. It repairs per-thread state ownership in the kernel.
+- Added a source gate so the CUDA loop table cannot regress back to block-index
+  lane addressing. Runtime throughput still needs NVIDIA replication before
+  claiming a measured GKeys/s, MKeys/s, or solved-targets-per-hour gain.
+
 ### CUDA Multi-Target Active Window Cycling
 
 Accepted: 2026-06-30.

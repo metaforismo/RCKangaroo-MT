@@ -603,8 +603,8 @@ __global__ void KernelB(const TKparams Kparams)
 		#pragma unroll
 		for (int i = 0; i < MD_LEN; i++)
 		{
-			RegsA[i] = Kparams.LoopTable[MD_LEN * BLOCK_SIZE * PNT_GROUP_CNT * BLOCK_X + 2 * MD_LEN * BLOCK_SIZE * gr_ind2 + i * BLOCK_SIZE + BLOCK_X];
-			RegsB[i] = Kparams.LoopTable[MD_LEN * BLOCK_SIZE * PNT_GROUP_CNT * BLOCK_X + 2 * MD_LEN * BLOCK_SIZE * gr_ind2 + (i + MD_LEN) * BLOCK_SIZE + BLOCK_X];
+			RegsA[i] = Kparams.LoopTable[MD_LEN * BLOCK_SIZE * PNT_GROUP_CNT * BLOCK_X + 2 * MD_LEN * BLOCK_SIZE * gr_ind2 + i * BLOCK_SIZE + THREAD_X];
+			RegsB[i] = Kparams.LoopTable[MD_LEN * BLOCK_SIZE * PNT_GROUP_CNT * BLOCK_X + 2 * MD_LEN * BLOCK_SIZE * gr_ind2 + (i + MD_LEN) * BLOCK_SIZE + THREAD_X];
 		}
 		u32 cur_indA = 0;
 		u32 cur_indB = 0;
@@ -658,9 +658,9 @@ __global__ void KernelB(const TKparams Kparams)
 		for (int i = 0; i < MD_LEN; i++)
 		{
 			int ind = (i + MD_LEN - cur_indA) % MD_LEN;
-			Kparams.LoopTable[MD_LEN * BLOCK_SIZE * PNT_GROUP_CNT * BLOCK_X + 2 * MD_LEN * BLOCK_SIZE * gr_ind2 + ind * BLOCK_SIZE + BLOCK_X] = RegsA[i];
+			Kparams.LoopTable[MD_LEN * BLOCK_SIZE * PNT_GROUP_CNT * BLOCK_X + 2 * MD_LEN * BLOCK_SIZE * gr_ind2 + ind * BLOCK_SIZE + THREAD_X] = RegsA[i];
 			ind = (i + MD_LEN - cur_indB) % MD_LEN;
-			Kparams.LoopTable[MD_LEN * BLOCK_SIZE * PNT_GROUP_CNT * BLOCK_X + 2 * MD_LEN * BLOCK_SIZE * gr_ind2 + (ind + MD_LEN) * BLOCK_SIZE + BLOCK_X] = RegsB[i];
+			Kparams.LoopTable[MD_LEN * BLOCK_SIZE * PNT_GROUP_CNT * BLOCK_X + 2 * MD_LEN * BLOCK_SIZE * gr_ind2 + (ind + MD_LEN) * BLOCK_SIZE + THREAD_X] = RegsB[i];
 		}
 	}
 }
