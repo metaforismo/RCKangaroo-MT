@@ -42,6 +42,8 @@ markers = [
     "use_base_repeat_positive_counts",
     "sparse repeat target lookup unexpected exact hit at base query",
     "rounds repeat base-count resolver",
+    "total_round_samples",
+    "batched_round_p",
     "RunTargetLookupTag32Cpu",
     "ValidateAffineTargetLookupOutputs",
     "\"gpu_filter\"",
@@ -166,6 +168,8 @@ rounds_end = kernels.index("std::string RCKMetalJacobianDynamicDpCountBenchJson"
 rounds_body = kernels[rounds_start:rounds_end]
 if "RunTargetLookupTag16HashFilterRepeatBaseCountKernel(target_filter16_buckets, lookup_query_hashes, dispatch_query_count" not in rounds_body:
     raise SystemExit("fixed-round repeat lookup should route large standard tag16 repeat batches through base-count positives")
+if "RunJacobianDynamicXyzzDistanceKernel(batched_round_p, jumps, jump_distances" not in rounds_body:
+    raise SystemExit("fixed-round target lookup should batch distinct round walks into one Metal dispatch")
 if 'repeat_positive_index_encoding = lookup_repeat_dedup ? "base_query_index" :' not in rounds_body:
     raise SystemExit("fixed-round repeat lookup should report its positive index encoding")
 if 'ValidateAffineTargetLookupRepeatBaseCountsWithExpected(aggregate_expected_indices, lookup_repeat' not in rounds_body:
@@ -806,6 +810,12 @@ rounds_base_count_command = [
 ]
 check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_base_count_repeat.json",
+    rounds_base_count_command,
+    "ops_per_sec",
+)
+
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_batched_walk.json",
     rounds_base_count_command,
     "ops_per_sec",
 )

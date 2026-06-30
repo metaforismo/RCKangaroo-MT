@@ -90,6 +90,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_scaled4_j4_setup --budget-sec 540 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_dedup_repeat_diagnostic --budget-sec 540
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_base_count_repeat --budget-sec 540 --paired-baseline-ref HEAD --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_batched_walk --budget-sec 540 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_auto_repeat --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_sparse_repeat_exact --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_sparse_repeat_exact_cache --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
@@ -659,6 +660,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_base_count_repeat --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_base_count_by_base_reduce --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_base_count_repeat --budget-sec 540 --paired-baseline-ref HEAD --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_batched_walk --budget-sec 540 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_mix_filter_m3_base_count_repeat --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 ```
 
@@ -733,6 +735,18 @@ The fixed-round 25M base-count repeat gate moves that output representation
 into the stricter rounds benchmark. It reuses distinct deterministic walk
 batches and one target table, still probes every logical repeat on Metal, and
 validates the same exact CPU `x256 + y_parity` equality plus repeated checksum.
+
+The fixed-round 25M batched-walk gate keeps those distinct deterministic round
+starts, but concatenates them into one larger Metal walk dispatch before
+splitting results back into per-round affine scans, target offsets, and exact
+lookup validation.
+On the local M3 Air it passed two paired confirmations against the accepted
+base-count rounds path with the same `target_lookup_checksum`, `hit_count`,
+`filter_false_positive_count=0`, and `dp_count`. The kept rows measured
+`ops_per_sec=109395855.173225` versus paired baseline `78109003.815734`
+(`paired_speedup=1.400554`) and `59926669.794161` versus `52718596.332662`
+(`paired_speedup=1.136727`). Treat the larger win as thermally noisy until
+another hardware track reproduces it.
 
 The M3 tag16-mix base-count gate is diagnostic, not a default policy. It uses
 `--lookup-filter-mode tag16-mix` to test the same-memory mixed 16-bit filter

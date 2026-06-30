@@ -5435,6 +5435,26 @@ These did not pass the performance gate or had a correctness/architecture issue:
   (`paired_speedup=1.152319`); confirmation 2 measured `64727322.948725`
   versus baseline `57414054.969548` (`paired_speedup=1.127378`). This promotes a
   real fixed-round solver-path improvement, not a dedup-repeat diagnostic.
+- Promoted fixed-round batched Metal walk dispatch. The previous fixed-round
+  benchmark launched the XYZZ distance kernel separately for each deterministic
+  round. The new path still builds distinct round starts, but concatenates them
+  into one larger Metal walk dispatch, then slices the outputs back into
+  per-round affine scans, target offsets, expected hit injection, repeat lookup,
+  and exact CPU `x256 + y_parity` validation. A small smoke preserved
+  `correctness=true`, `repeat_positive_index_encoding=packed16_base_repeat`,
+  `target_lookup_checksum=0x4d668f8d29797461`, and zero false positives. The
+  full 25M fixed-round smoke preserved `target_lookup_checksum=0x923b46f156f9d59b`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_distance_checksum=0x894123b96acf0de5`,
+  `dp_count=4121`, `query_count=4219904`, `physical_query_count=4219904`,
+  `hit_count=131072`, and `filter_false_positive_count=0`, while measuring
+  `ops_per_sec=125880811.007822` in a direct run. The paired autoresearch gate
+  against `HEAD=d06499f` kept both confirmations on runtime `ops_per_sec`:
+  confirmation 1 measured `109395855.173225` versus baseline
+  `78109003.815734` (`paired_speedup=1.400554`); confirmation 2 measured
+  `59926669.794161` versus baseline `52718596.332662`
+  (`paired_speedup=1.136727`). The M3 Air samples were thermally noisy, including
+  one slower internal candidate sample, so report this as a confirmed local
+  fixed-round dispatch-shape win, not a guaranteed cross-machine multiplier.
 
 ## Cleanup Policy
 
