@@ -5455,6 +5455,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   (`paired_speedup=1.136727`). The M3 Air samples were thermally noisy, including
   one slower internal candidate sample, so report this as a confirmed local
   fixed-round dispatch-shape win, not a guaranteed cross-machine multiplier.
+- Post-promotion scouts after `f252993` did not justify another default change.
+  Explicit fixed-round 25M walk threadgroup scouts all preserved
+  `target_lookup_checksum=0x923b46f156f9d59b`, `dp_checksum=0x7f111e78c67b5c18`,
+  `hit_count=131072`, and zero false positives, but did not separate enough to
+  beat the current 128-thread default: `--tg-limit 32` measured
+  `ops_per_sec=126318260.344232`, `64` measured `126489753.560562`, `128`
+  measured `126405382.893416`, and `256` regressed to `121046091.255387`.
+  A post-batched `scaled4-balanced` fixed-round scout stayed correct, with
+  `dp_checksum=0x23ddf9863ade346f`, `target_lookup_checksum=0x6aaec4659e60b735`,
+  and `hit_count=131072`, but measured only `124842555.334704` and carried
+  `filter_false_positive_count=1024`, so the prior fixed-round rejection still
+  stands. A same-cadence `4096/dp5` direct scout with `lookup_repeat=512`
+  preserved correctness and measured `128136100.370204`, but this is too close
+  to the 2048/dp6 direct scouts and has previous setup-gate discard history; it
+  needs a dedicated paired fixed-round gate before any claim.
 
 ## Cleanup Policy
 
