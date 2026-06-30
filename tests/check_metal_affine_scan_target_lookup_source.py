@@ -30,7 +30,9 @@ markers = [
     "ResolveTargetLookupTag32FilterCandidates",
     "ResolveTargetLookupTag32FilterRepeatCandidates",
     "ResolveTargetLookupTag32FilterRepeatPackedCandidates",
+    "ResolveTargetLookupTag32FilterRepeatSparseExpected",
     "ValidateAffineTargetLookupDedupRepeatOutputsWithExpected",
+    "ValidateAffineTargetLookupSparseRepeatOutputs",
     "RunTargetLookupTag32Cpu",
     "ValidateAffineTargetLookupOutputs",
     "\"gpu_filter\"",
@@ -55,6 +57,7 @@ markers = [
     "pack_repeat_positive_indices",
     "repeat_positive_index_encoding",
     "packed16_base_repeat",
+    "sparse repeat target lookup unexpected exact hit",
     "base_query_index",
     "hash64_dedup_repeat_base",
     "physical_query_count",
@@ -129,6 +132,10 @@ repeat_hash_branch = (
 )
 if repeat_hash_branch not in target_lookup_body:
     raise SystemExit("repeat-mode gpu-filter16-hash should reuse base DP query hashes and keep other modes on full query hashing")
+if "ResolveTargetLookupTag32FilterRepeatSparseExpected(target_buckets, target_keys, dp_keys" not in target_lookup_body:
+    raise SystemExit("repeat-indexed integrated lookup should resolve exact positives sparsely without materializing repeated misses")
+if "ValidateAffineTargetLookupSparseRepeatOutputs(dp_keys.size(), injected_hits, lookup_repeat" not in target_lookup_body:
+    raise SystemExit("repeat-indexed integrated lookup should validate sparse repeat outputs against the checksum oracle")
 
 choose_start = kernels.index("static const char* ChooseAffineLookupEngine")
 choose_end = kernels.index("static unsigned int ChooseAffineLookupThreadgroupLimit", choose_start)
@@ -691,6 +698,12 @@ m3_auto_repeat_command = [
 ]
 check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_auto_repeat.json",
+    m3_auto_repeat_command,
+    "ops_per_sec",
+)
+
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_sparse_repeat_exact.json",
     m3_auto_repeat_command,
     "ops_per_sec",
 )

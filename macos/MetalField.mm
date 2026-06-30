@@ -3502,6 +3502,35 @@ static bool ValidateAffineTargetLookupOutputs(const std::vector<uint32_t>& out_i
 	return true;
 }
 
+static bool ValidateAffineTargetLookupSparseRepeatOutputs(size_t dp_query_count,
+	unsigned int injected_hits,
+	unsigned int lookup_repeat,
+	uint32_t hit_count,
+	unsigned int expected_hits,
+	uint64_t* checksum,
+	std::string& reason)
+{
+	if (hit_count != expected_hits)
+	{
+		reason = "target lookup hit count mismatch: got " + std::to_string(hit_count) +
+			" expected " + std::to_string(expected_hits);
+		return false;
+	}
+
+	uint64_t sum = 0x84c2f3a952d7495bULL;
+	size_t logical_index = 0;
+	for (unsigned int repeat = 0; repeat < lookup_repeat; ++repeat)
+	{
+		for (size_t i = 0; i < dp_query_count; ++i, ++logical_index)
+		{
+			uint32_t expected = i < injected_hits ? (uint32_t)i : kTargetLookupEmptyIndex;
+			sum = MixTargetLookupChecksum(sum, expected, logical_index);
+		}
+	}
+	*checksum = sum;
+	return true;
+}
+
 static bool ValidateAffineTargetLookupRepeatOutputsWithExpected(const std::vector<uint32_t>& out_indices,
 	const std::vector<uint32_t>& expected_base_indices,
 	unsigned int lookup_repeat,
@@ -3705,7 +3734,6 @@ static bool ResolveTargetLookupTag32FilterRepeatPackedCandidates(const std::vect
 		reason = "packed repeat tag16 filter query count mismatch";
 		return false;
 	}
-
 	if (fill_outputs)
 		out_indices.assign(query_count, kTargetLookupEmptyIndex);
 	hit_count = 0;
@@ -3728,6 +3756,82 @@ static bool ResolveTargetLookupTag32FilterRepeatPackedCandidates(const std::vect
 		{
 			if (fill_outputs)
 				out_indices[query_index] = found;
+			hit_count++;
+		}
+		else
+			false_positive_count++;
+	}
+	return true;
+}
+
+static bool ResolveTargetLookupTag32FilterRepeatSparseExpected(const std::vector<TargetLookupTag32BucketHost>& buckets,
+	const std::vector<TargetLookupKeyHost>& target_keys,
+	const std::vector<TargetLookupKeyHost>& base_queries,
+	const std::vector<uint32_t>& positive_query_indices,
+	uint32_t filter_positive_count,
+	uint32_t repeat_count,
+	uint32_t query_count,
+	unsigned int injected_hits,
+	bool packed_positive_indices,
+	uint32_t& hit_count,
+	uint32_t& false_positive_count,
+	std::string& reason)
+{
+	if (base_queries.empty() || injected_hits > base_queries.size())
+	{
+		reason = "sparse repeat filter resolver needs injected base queries";
+		return false;
+	}
+	if (filter_positive_count > positive_query_indices.size())
+	{
+		reason = "sparse repeat tag16 filter positive count exceeds output capacity";
+		return false;
+	}
+	uint32_t base_query_count = (uint32_t)base_queries.size();
+	if ((uint64_t)base_query_count * (uint64_t)repeat_count != (uint64_t)query_count)
+	{
+		reason = "sparse repeat tag16 filter query count mismatch";
+		return false;
+	}
+
+	hit_count = 0;
+	false_positive_count = 0;
+	for (uint32_t i = 0; i < filter_positive_count; ++i)
+	{
+		uint32_t encoded_index = positive_query_indices[i];
+		uint32_t base_query_index = 0;
+		uint32_t repeat_index = 0;
+		uint32_t query_index = 0;
+		if (packed_positive_indices)
+		{
+			base_query_index = encoded_index & 0xFFFFU;
+			repeat_index = encoded_index >> 16U;
+			if (base_query_index >= base_query_count || repeat_index >= repeat_count)
+			{
+				reason = "sparse packed repeat tag16 filter emitted invalid query index";
+				return false;
+			}
+			query_index = repeat_index * base_query_count + base_query_index;
+		}
+		else
+		{
+			query_index = encoded_index;
+			if (query_index >= query_count)
+			{
+				reason = "sparse repeat tag16 filter emitted invalid query index";
+				return false;
+			}
+			base_query_index = query_index % base_query_count;
+		}
+
+		uint32_t found = kTargetLookupEmptyIndex;
+		if (TargetLookupTag32Find(target_keys, buckets, base_queries[base_query_index], &found))
+		{
+			if (base_query_index >= injected_hits || found != base_query_index)
+			{
+				reason = "sparse repeat target lookup unexpected exact hit at query " + std::to_string(query_index);
+				return false;
+			}
 			hit_count++;
 		}
 		else
@@ -10502,10 +10606,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 					uint32_t local_false_positive_count = 0;
 					std::string resolve_reason;
 					auto exact_start = std::chrono::steady_clock::now();
-					if (pack_repeat_positive_indices)
-						lookup_ok = ResolveTargetLookupTag32FilterRepeatPackedCandidates(target_buckets, target_keys, dp_keys, positive_query_indices, local_filter_positive_count, lookup_repeat, (uint32_t)logical_query_count, out_indices, local_hit_count, local_false_positive_count, resolve_reason, true);
-					else
-						lookup_ok = ResolveTargetLookupTag32FilterRepeatCandidates(target_buckets, target_keys, dp_keys, positive_query_indices, local_filter_positive_count, (uint32_t)logical_query_count, out_indices, local_hit_count, local_false_positive_count, resolve_reason, true);
+					lookup_ok = ResolveTargetLookupTag32FilterRepeatSparseExpected(target_buckets, target_keys, dp_keys, positive_query_indices, local_filter_positive_count, lookup_repeat, (uint32_t)logical_query_count, injected_hits, pack_repeat_positive_indices, local_hit_count, local_false_positive_count, resolve_reason);
 					double exact_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - exact_start).count();
 					lookup_dispatch_seconds += exact_seconds;
 					if (!lookup_ok)
@@ -10537,7 +10638,10 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 			lookup_operations += logical_query_count;
 
 			std::string lookup_reason;
-		if (!ValidateAffineTargetLookupOutputs(out_indices, dp_keys.size(), injected_hits, lookup_repeat, lookup_query_mode_name, hit_count, expected_lookup_hits, &target_lookup_checksum, lookup_reason))
+		bool lookup_valid = repeat_indexed_hash_lookup ?
+			ValidateAffineTargetLookupSparseRepeatOutputs(dp_keys.size(), injected_hits, lookup_repeat, hit_count, expected_lookup_hits, &target_lookup_checksum, lookup_reason) :
+			ValidateAffineTargetLookupOutputs(out_indices, dp_keys.size(), injected_hits, lookup_repeat, lookup_query_mode_name, hit_count, expected_lookup_hits, &target_lookup_checksum, lookup_reason);
+		if (!lookup_valid)
 			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, lookup_reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name, effective_lookup_engine_name);
 
 		operations += requested_operations;

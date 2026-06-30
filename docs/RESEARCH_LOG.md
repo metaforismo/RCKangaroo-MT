@@ -5261,6 +5261,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   candidate median `ops_per_sec=45756095.881506`, paired CPU baseline
   `20155261.342318`, `paired_speedup=2.270181`, and
   `target_lookup_checksum=0x86ec0110960785f8`.
+- Tested a wider packed repeat-positive encoding for the same M3 auto-repeat
+  shape. A generic dynamic shift and then a fixed 8-bit base shift both
+  preserved `target_lookup_checksum=0x86ec0110960785f8`, but neither improved
+  the full path; the extra kernel shape made the GPU side slower enough to
+  offset the resolver savings. Rejected that direction.
+- Promoted sparse exact resolution for the repeat-indexed integrated lookup.
+  The old path filled a full logical `out_indices` vector, including repeated
+  misses that a real kangaroo join does not need. The new path resolves only
+  compact filter positives with exact CPU `x256 + y_parity` equality, rejects
+  any exact hit outside the injected target prefix, and then computes the same
+  repeat checksum oracle without materializing all misses. Manual M3 smoke on
+  the 16.384M-query auto-repeat gate kept `target_lookup_checksum=0x86ec0110960785f8`
+  and zero false positives; `lookup_exact_seconds` dropped to about `0.014568`
+  in one run. A same-command paired autoresearch check against `HEAD=25a76bc`
+  kept the candidate: median `ops_per_sec=52838131.057009`, paired baseline
+  `40899473.572020`, `paired_speedup=1.291902`, same checksum
+  `0x86ec0110960785f8`.
 
 ## Cleanup Policy
 
