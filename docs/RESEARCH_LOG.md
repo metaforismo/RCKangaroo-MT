@@ -204,9 +204,10 @@ Accepted: 2026-06-30.
 - This does not change jump distances, distinguished-point selection,
   target-id propagation, collision equations, host DB filtering, or final
   full-point verification. It repairs per-thread state ownership in the kernel.
-- Added a source gate so the CUDA loop table cannot regress back to block-index
-  lane addressing. Runtime throughput still needs NVIDIA replication before
-  claiming a measured GKeys/s, MKeys/s, or solved-targets-per-hour gain.
+- Added a source gate and a CPU-only structural layout test so the CUDA loop
+  table cannot regress back to block-index lane addressing. Runtime throughput
+  still needs NVIDIA replication before claiming a measured GKeys/s, MKeys/s,
+  or solved-targets-per-hour gain.
 
 ### CUDA Multi-Target Active Window Cycling
 
