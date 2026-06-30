@@ -31,4 +31,6 @@ public:
 
 	static std::string NormalizeLine(const std::string& line);
 	static u32 MapActiveWildTargetId(u64 active_index, u64 active_count, u32 target_count);
+	static u32 MapCycledActiveWildTargetId(u64 active_index, u64 active_count, u32 target_count, u64 cycle_index);
+	static u64 CoverageCycleCount(u64 active_count, u32 target_count);
 };

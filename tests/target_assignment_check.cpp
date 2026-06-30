@@ -37,6 +37,28 @@ int main()
 		dense[TTargetSet::MapActiveWildTargetId(i, 8, 3)]++;
 	require(dense[0] && dense[1] && dense[2], "dense active slots must cover all targets");
 
+	require(TTargetSet::CoverageCycleCount(0, 16) == 0, "zero active coverage cycle count");
+	require(TTargetSet::CoverageCycleCount(8, 16) == 2, "two coverage cycles");
+	require(TTargetSet::CoverageCycleCount(3, 10) == 4, "ceil coverage cycles");
+	require(TTargetSet::CoverageCycleCount(32, 10) == 1, "dense active coverage cycle count");
+
+	std::vector<unsigned char> cycled16(16, 0);
+	u64 cycles16 = TTargetSet::CoverageCycleCount(4, 16);
+	for (u64 cycle = 0; cycle < cycles16; cycle++)
+		for (u64 i = 0; i < 4; i++)
+			cycled16[TTargetSet::MapCycledActiveWildTargetId(i, 4, 16, cycle)]++;
+	for (int i = 0; i < 16; i++)
+		require(cycled16[i] == 1, "cycled windows must cover each divisible target once");
+
+	std::vector<unsigned char> cycled10(10, 0);
+	u64 cycles10 = TTargetSet::CoverageCycleCount(3, 10);
+	for (u64 cycle = 0; cycle < cycles10; cycle++)
+		for (u64 i = 0; i < 3; i++)
+			cycled10[TTargetSet::MapCycledActiveWildTargetId(i, 3, 10, cycle)]++;
+	for (int i = 0; i < 10; i++)
+		require(cycled10[i] >= 1, "cycled windows must cover each non-divisible target");
+	require(cycled10[0] == 2 && cycled10[1] == 2 && cycled10[2] == 1, "cycled remainder must wrap predictably");
+
 	std::puts("target assignment mapping ok");
 	return 0;
 }

@@ -43,6 +43,27 @@ u32 TTargetSet::MapActiveWildTargetId(u64 active_index, u64 active_count, u32 ta
 	return target_id;
 }
 
+u32 TTargetSet::MapCycledActiveWildTargetId(u64 active_index, u64 active_count, u32 target_count, u64 cycle_index)
+{
+	if (!target_count || !active_count)
+		return 0;
+	if (active_count >= target_count)
+		return MapActiveWildTargetId(active_index, active_count, target_count);
+	if (active_index >= active_count)
+		active_index = active_count - 1;
+	u64 cycle_offset = ((cycle_index % target_count) * (active_count % target_count)) % target_count;
+	return (u32)((cycle_offset + active_index) % target_count);
+}
+
+u64 TTargetSet::CoverageCycleCount(u64 active_count, u32 target_count)
+{
+	if (!target_count || !active_count)
+		return 0;
+	if (active_count >= target_count)
+		return 1;
+	return ((u64)target_count + active_count - 1) / active_count;
+}
+
 bool TTargetSet::LoadFromFile(const char* fn, EcInt& start)
 {
 	Clear();

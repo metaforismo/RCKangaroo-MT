@@ -50,6 +50,9 @@ private:
 	u64 Wild1TargetTotal;
 	u64 Wild2TargetOffset;
 	u64 Wild2TargetTotal;
+	u64 TargetCycleRounds;
+	u64 TargetCycleIndex;
+	u64 TargetCycleRoundCounter;
 
 	EcPoint PntA;
 	EcPoint PntB;
@@ -58,6 +61,7 @@ private:
 	int SpeedStats[STATS_WND_SIZE];
 
 	void GenerateRndDistances();
+	bool ResetStartPoints(u64 target_cycle_index);
 	bool Start();
 	void Release();
 #ifdef DEBUG_MODE
@@ -72,7 +76,7 @@ public:
 	bool IsOldGpu;
 
 	int CalcKangCnt();
-	bool Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJumps1, EcJMP* _EcJumps2, EcJMP* _EcJumps3, TTargetSet* _TargetSet = NULL, u64 _Wild1TargetOffset = 0, u64 _Wild1TargetTotal = 0, u64 _Wild2TargetOffset = 0, u64 _Wild2TargetTotal = 0);
+	bool Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJumps1, EcJMP* _EcJumps2, EcJMP* _EcJumps3, TTargetSet* _TargetSet = NULL, u64 _Wild1TargetOffset = 0, u64 _Wild1TargetTotal = 0, u64 _Wild2TargetOffset = 0, u64 _Wild2TargetTotal = 0, u64 _TargetCycleRounds = 0);
 	void Stop();
 	void Execute();
 

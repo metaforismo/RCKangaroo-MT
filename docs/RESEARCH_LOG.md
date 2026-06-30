@@ -190,6 +190,33 @@ GPU work should use Metal.
 
 ## Accepted Results
 
+### CUDA Multi-Target Active Window Cycling
+
+Accepted: 2026-06-30.
+
+- Added opt-in `-target-cycle-rounds N` for huge CUDA multi-target runs where
+  `target_count` exceeds the active WILD1/WILD2 population. After every `N`
+  CUDA rounds, each GPU regenerates kangaroo start points and `target_id`
+  assignments for the next active target window.
+- This is a production solver-path feature, not a benchmark-only change. It
+  uses the existing `KernelGen` start-point path, leaves collision equations,
+  distinguished-point records, host DB storage, target-aware filtering, and
+  final full-point verification unchanged, and resets only per-GPU loop history
+  for the newly generated starts.
+- Already collected DPs remain in the host DB because wild DPs carry the target
+  id that was active when they were emitted. This keeps old target evidence
+  valid while future windows cover target ids that would otherwise remain
+  inactive in a single start cycle.
+- Added pure mapping helpers
+  `MapCycledActiveWildTargetId` and `CoverageCycleCount` plus host tests for
+  divisible and non-divisible target windows. The source gate now verifies that
+  the CLI option, `SolvePoint -> Prepare` plumbing, and GPU reset path remain
+  wired together.
+- This does not claim a measured MKeys/s gain. It improves real target-file
+  coverage for large multi-target runs; the best `N` depends on DP value, range,
+  GPU speed, and restart overhead and still needs NVIDIA replication before
+  making throughput claims.
+
 ### CUDA Multi-GPU Multi-Target Sharding
 
 Accepted: 2026-06-30.

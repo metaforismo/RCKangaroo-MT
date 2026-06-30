@@ -25,7 +25,7 @@ int RCGpuKang::CalcKangCnt()
 }
 
 //executes in main thread
-bool RCGpuKang::Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJumps1, EcJMP* _EcJumps2, EcJMP* _EcJumps3, TTargetSet* _TargetSet, u64 _Wild1TargetOffset, u64 _Wild1TargetTotal, u64 _Wild2TargetOffset, u64 _Wild2TargetTotal)
+bool RCGpuKang::Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJumps1, EcJMP* _EcJumps2, EcJMP* _EcJumps3, TTargetSet* _TargetSet, u64 _Wild1TargetOffset, u64 _Wild1TargetTotal, u64 _Wild2TargetOffset, u64 _Wild2TargetTotal, u64 _TargetCycleRounds)
 {
 	PntToSolve = _PntToSolve;
 	Range = _Range;
@@ -38,6 +38,9 @@ bool RCGpuKang::Prepare(EcPoint _PntToSolve, int _Range, int _DP, EcJMP* _EcJump
 	Wild1TargetTotal = _Wild1TargetTotal;
 	Wild2TargetOffset = _Wild2TargetOffset;
 	Wild2TargetTotal = _Wild2TargetTotal;
+	TargetCycleRounds = _TargetCycleRounds;
+	TargetCycleIndex = 0;
+	TargetCycleRoundCounter = 0;
 	HostTargetIds = NULL;
 	StopFlag = false;
 	Failed = false;
@@ -314,64 +317,15 @@ void RCGpuKang::GenerateRndDistances()
 	}
 }
 
-bool RCGpuKang::Start()
+bool RCGpuKang::ResetStartPoints(u64 target_cycle_index)
 {
-	if (Failed)
-		return false;
-
-	cudaError_t err;
-	err = cudaSetDevice(CudaIndex);
+	cudaError_t err = cudaSetDevice(CudaIndex);
 	if (err != cudaSuccess)
 		return false;
 
-	HalfRange.Set(1);
-	HalfRange.ShiftLeft(Range - 1);
-	PntHalfRange = ec.MultiplyG(HalfRange);
-	NegPntHalfRange = PntHalfRange;
-	NegPntHalfRange.y.NegModP();
-
-	PntA = ec.AddPoints(PntToSolve, NegPntHalfRange);
-	PntB = PntA;
-	PntB.y.NegModP();
-
-	RndPnts = (TPointPriv*)malloc(KangCnt * 96);
-	HostTargetIds = (u32*)malloc(sizeof(u32) * KangCnt);
-	memset(HostTargetIds, 0, sizeof(u32) * KangCnt);
 	GenerateRndDistances();
-/* 
-	//we can calc start points on CPU
-	for (int i = 0; i < KangCnt; i++)
-	{
-		EcInt d;
-		memcpy(d.data, RndPnts[i].priv, 24);
-		d.data[3] = 0;
-		d.data[4] = 0;
-		EcPoint p = ec.MultiplyG(d);
-		memcpy(RndPnts[i].x, p.x.data, 32);
-		memcpy(RndPnts[i].y, p.y.data, 32);
-	}
-	for (int i = KangCnt / 3; i < 2 * KangCnt / 3; i++)
-	{
-		EcPoint p;
-		p.LoadFromBuffer64((u8*)RndPnts[i].x);
-		p = ec.AddPoints(p, PntA);
-		p.SaveToBuffer64((u8*)RndPnts[i].x);
-	}
-	for (int i = 2 * KangCnt / 3; i < KangCnt; i++)
-	{
-		EcPoint p;
-		p.LoadFromBuffer64((u8*)RndPnts[i].x);
-		p = ec.AddPoints(p, PntB);
-		p.SaveToBuffer64((u8*)RndPnts[i].x);
-	}
-	//copy to gpu
-	err = cudaMemcpy(Kparams.Kangs, RndPnts, KangCnt * 96, cudaMemcpyHostToDevice);
-	if (err != cudaSuccess)
-	{
-		printf("GPU %d, cudaMemcpy failed: %s\n", CudaIndex, cudaGetErrorString(err));
-		return false;
-	}
-/**/
+	memset(HostTargetIds, 0, sizeof(u32) * KangCnt);
+
 	//but it's faster to calc them on GPU
 	u8 buf_PntA[64], buf_PntB[64];
 	PntA.SaveToBuffer64(buf_PntA);
@@ -395,7 +349,10 @@ bool RCGpuKang::Start()
 				u64 target_total = is_wild1 ? Wild1TargetTotal : Wild2TargetTotal;
 				if (!target_total)
 					target_total = group_cnt;
-				u32 target_id = TTargetSet::MapActiveWildTargetId(target_offset + group_ind, target_total, target_cnt);
+				u64 active_index = target_offset + group_ind;
+				u32 target_id = TargetCycleRounds
+					? TTargetSet::MapCycledActiveWildTargetId(active_index, target_total, target_cnt, target_cycle_index)
+					: TTargetSet::MapActiveWildTargetId(active_index, target_total, target_cnt);
 				HostTargetIds[i] = target_id;
 				EcPoint target = TargetSet->GetPoint(target_id);
 				EcPoint a = ec.AddPoints(target, NegPntHalfRange);
@@ -421,7 +378,6 @@ bool RCGpuKang::Start()
 		printf("GPU %d, cudaMemcpy TargetIds failed: %s\n", CudaIndex, cudaGetErrorString(err));
 		return false;
 	}
-	//copy to gpu
 	err = cudaMemcpy(Kparams.Kangs, RndPnts, KangCnt * 96, cudaMemcpyHostToDevice);
 	if (err != cudaSuccess)
 	{
@@ -429,12 +385,56 @@ bool RCGpuKang::Start()
 		return false;
 	}
 	CallGpuKernelGen(Kparams);
+	err = cudaGetLastError();
+	if (err != cudaSuccess)
+	{
+		printf("GPU %d, KernelGen failed: %s\n", CudaIndex, cudaGetErrorString(err));
+		return false;
+	}
 
 	err = cudaMemset(Kparams.L1S2, 0, mpCnt * Kparams.BlockSize * 8);
 	if (err != cudaSuccess)
 		return false;
-	cudaMemset(Kparams.dbg_buf, 0, 1024);
-	cudaMemset(Kparams.LoopTable, 0, KangCnt * MD_LEN * sizeof(u64));
+	if (!target_cycle_index)
+		cudaMemset(Kparams.dbg_buf, 0, 1024);
+	err = cudaMemset(Kparams.LoopTable, 0, KangCnt * MD_LEN * sizeof(u64));
+	if (err != cudaSuccess)
+		return false;
+
+	TargetCycleIndex = target_cycle_index;
+	return true;
+}
+
+bool RCGpuKang::Start()
+{
+	if (Failed)
+		return false;
+
+	cudaError_t err;
+	err = cudaSetDevice(CudaIndex);
+	if (err != cudaSuccess)
+		return false;
+
+	HalfRange.Set(1);
+	HalfRange.ShiftLeft(Range - 1);
+	PntHalfRange = ec.MultiplyG(HalfRange);
+	NegPntHalfRange = PntHalfRange;
+	NegPntHalfRange.y.NegModP();
+
+	PntA = ec.AddPoints(PntToSolve, NegPntHalfRange);
+	PntB = PntA;
+	PntB.y.NegModP();
+
+	RndPnts = (TPointPriv*)malloc(KangCnt * 96);
+	HostTargetIds = (u32*)malloc(sizeof(u32) * KangCnt);
+	if (!ResetStartPoints(0))
+	{
+		free(RndPnts);
+		free(HostTargetIds);
+		RndPnts = NULL;
+		HostTargetIds = NULL;
+		return false;
+	}
 	return true;
 }
 
@@ -492,7 +492,12 @@ void RCGpuKang::Execute()
 #ifdef DEBUG_MODE
 	u64 iter = 1;
 #endif
-	cudaError_t err;	
+	cudaError_t err;
+	u64 active_targets = Wild1TargetTotal < Wild2TargetTotal ? Wild1TargetTotal : Wild2TargetTotal;
+	if (TargetSet && (active_targets > TargetSet->Count()))
+		active_targets = TargetSet->Count();
+	u64 coverage_cycles = TargetSet ? TTargetSet::CoverageCycleCount(active_targets, TargetSet->Count()) : 0;
+	bool target_cycling_enabled = TargetCycleRounds && Kparams.IsMultiTarget && (coverage_cycles > 1);
 	while (!StopFlag)
 	{
 		u64 t1 = GetTickCount64();
@@ -543,6 +548,21 @@ void RCGpuKang::Execute()
 
 		SpeedStats[cur_stats_ind] = cur_speed;
 		cur_stats_ind = (cur_stats_ind + 1) % STATS_WND_SIZE;
+
+		if (target_cycling_enabled)
+		{
+			TargetCycleRoundCounter++;
+			if (TargetCycleRoundCounter >= TargetCycleRounds)
+			{
+				TargetCycleRoundCounter = 0;
+				if (!ResetStartPoints(TargetCycleIndex + 1))
+				{
+					printf("GPU %d, target cycle reset failed\r\n", CudaIndex);
+					gTotalErrors++;
+					break;
+				}
+			}
+		}
 
 #ifdef DEBUG_MODE
 		if ((iter % 300) == 0)

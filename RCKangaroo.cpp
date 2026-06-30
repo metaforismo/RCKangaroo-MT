@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <algorithm>
+#include <cstdlib>
 #include <vector>
 
 #include "cuda_runtime.h"
@@ -60,6 +61,7 @@ double gMax;
 bool gGenMode; //tames generation mode
 bool gIsOpsLimit;
 bool gMultiTargetMode;
+u64 gTargetCycleRounds;
 
 #pragma pack(push, 1)
 struct DBRec
@@ -398,7 +400,10 @@ bool SolvePoint(EcPoint PntToSolve, int Range, int DP, EcInt* pk_res, TTargetSet
 		double coverage_pct = TargetSet->Count() ? (100.0 * (double)active_targets / (double)TargetSet->Count()) : 0.0;
 		printf("Multi-target active shard coverage: %llu/%u targets per start cycle (%.6f%%), sharded across %d GPU(s).\r\n", (unsigned long long)active_targets, TargetSet->Count(), coverage_pct, GpuCnt);
 		if (active_targets < TargetSet->Count())
-			printf("Multi-target note: target file exceeds active wild slots; inactive targets need future reassignment/cycling work.\r\n");
+			printf("Multi-target note: target file exceeds active wild slots; use -target-cycle-rounds N to reassign active wild starts over time.\r\n");
+		u64 coverage_cycles = TTargetSet::CoverageCycleCount(active_targets, TargetSet->Count());
+		if (gTargetCycleRounds && (coverage_cycles > 1))
+			printf("Multi-target cycling: every %llu CUDA round(s), full target coverage window in %llu cycle(s).\r\n", (unsigned long long)gTargetCycleRounds, (unsigned long long)coverage_cycles);
 	}
 
 	if (!gGenMode && gTamesFileName[0])
@@ -471,7 +476,7 @@ bool SolvePoint(EcPoint PntToSolve, int Range, int DP, EcInt* pk_res, TTargetSet
 
 //prepare GPUs
 	for (int i = 0; i < GpuCnt; i++)
-		if (!GpuKangs[i]->Prepare(PntToSolve, Range, DP, EcJumps1, EcJumps2, EcJumps3, TargetSet, wild1_offsets[i], total_wild1, wild2_offsets[i], total_wild2))
+		if (!GpuKangs[i]->Prepare(PntToSolve, Range, DP, EcJumps1, EcJumps2, EcJumps3, TargetSet, wild1_offsets[i], total_wild1, wild2_offsets[i], total_wild2, gTargetCycleRounds))
 		{
 			GpuKangs[i]->Failed = true;
 			printf("GPU %d Prepare failed\r\n", GpuKangs[i]->CudaIndex);
@@ -671,6 +676,25 @@ bool ParseCommandLine(int argc, char* argv[])
 			ci++;
 		}
 		else
+		if (strcmp(argument, "-target-cycle-rounds") == 0)
+		{
+			if (ci >= argc)
+			{
+				printf("error: missed value after -target-cycle-rounds option\r\n");
+				return false;
+			}
+			char* val_str = argv[ci];
+			char* end = NULL;
+			u64 val = strtoull(val_str, &end, 10);
+			ci++;
+			if ((val_str[0] == '-') || !val || !end || *end)
+			{
+				printf("error: invalid value for -target-cycle-rounds option\r\n");
+				return false;
+			}
+			gTargetCycleRounds = val;
+		}
+		else
 		if (strcmp(argument, "-max") == 0)
 		{
 			if (ci >= argc)
@@ -707,6 +731,11 @@ bool ParseCommandLine(int argc, char* argv[])
 	if (gTargetsFileName[0] && !IsFileExist(gTargetsFileName))
 	{
 		printf("error: targets file does not exist\r\n");
+		return false;
+	}
+	if (gTargetCycleRounds && !gTargetsFileName[0])
+	{
+		printf("error: -target-cycle-rounds requires -targets\r\n");
 		return false;
 	}
 	if (gTamesFileName[0] && !IsFileExist(gTamesFileName))
@@ -760,6 +789,7 @@ int main(int argc, char* argv[])
 	gIsOpsLimit = false;
 	gMultiTargetMode = false;
 	gSolvedTargetId = 0;
+	gTargetCycleRounds = 0;
 	memset(gGPUs_Mask, 1, sizeof(gGPUs_Mask));
 	if (!ParseCommandLine(argc, argv))
 		return 0;
