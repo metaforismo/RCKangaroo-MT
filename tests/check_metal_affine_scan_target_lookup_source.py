@@ -33,11 +33,15 @@ markers = [
     "ResolveTargetLookupTag32FilterRepeatPackedCandidates",
     "ResolveTargetLookupTag32FilterRepeatSparseExpected",
     "ResolveTargetLookupTag32FilterRepeatBaseCountsExpected",
+    "ResolveTargetLookupTag32FilterRepeatBaseCountsExpectedIndices",
     "ValidateAffineTargetLookupDedupRepeatOutputsWithExpected",
+    "ValidateAffineTargetLookupRepeatBaseCountsWithExpected",
     "ValidateAffineTargetLookupSparseRepeatOutputs",
     "use_base_exact_cache",
     "base_positive_counts",
+    "use_base_repeat_positive_counts",
     "sparse repeat target lookup unexpected exact hit at base query",
+    "rounds repeat base-count resolver",
     "RunTargetLookupTag32Cpu",
     "ValidateAffineTargetLookupOutputs",
     "\"gpu_filter\"",
@@ -154,6 +158,18 @@ if "ValidateAffineTargetLookupSparseRepeatOutputs(dp_keys.size(), injected_hits,
     raise SystemExit("repeat-indexed integrated lookup should validate sparse repeat outputs against the checksum oracle")
 if "filter_positive_count > base_query_count" not in kernels or "base_positive_counts(base_query_count" not in kernels:
     raise SystemExit("sparse repeat exact resolver should aggregate positives per repeated base query")
+
+rounds_start = kernels.index(
+    "std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32RoundsBenchJson"
+)
+rounds_end = kernels.index("std::string RCKMetalJacobianDynamicDpCountBenchJson", rounds_start)
+rounds_body = kernels[rounds_start:rounds_end]
+if "RunTargetLookupTag16HashFilterRepeatBaseCountKernel(target_filter16_buckets, lookup_query_hashes, dispatch_query_count" not in rounds_body:
+    raise SystemExit("fixed-round repeat lookup should route large standard tag16 repeat batches through base-count positives")
+if 'repeat_positive_index_encoding = lookup_repeat_dedup ? "base_query_index" :' not in rounds_body:
+    raise SystemExit("fixed-round repeat lookup should report its positive index encoding")
+if 'ValidateAffineTargetLookupRepeatBaseCountsWithExpected(aggregate_expected_indices, lookup_repeat' not in rounds_body:
+    raise SystemExit("fixed-round base-count repeat lookup should preserve the repeated checksum oracle")
 
 choose_start = kernels.index("static const char* ChooseAffineLookupEngine")
 choose_end = kernels.index("static unsigned int ChooseAffineLookupThreadgroupLimit", choose_start)
@@ -761,6 +777,36 @@ check_experiment(
 check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_base_count_by_base_reduce.json",
     m3_auto_repeat_command,
+    "ops_per_sec",
+)
+
+rounds_base_count_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-rounds-bench",
+    "--iterations",
+    "131072",
+    "--steps",
+    "2048",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "6",
+    "--target-count",
+    "25005000",
+    "--hits",
+    "64",
+    "--lookup-repeat",
+    "1024",
+    "--rounds",
+    "2",
+    "--lookup-tg-limit",
+    "512",
+    "--jump-schedule",
+    "power2",
+]
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_base_count_repeat.json",
+    rounds_base_count_command,
     "ops_per_sec",
 )
 

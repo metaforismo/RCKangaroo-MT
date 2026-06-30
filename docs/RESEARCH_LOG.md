@@ -5418,6 +5418,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `77881634.196628` versus baseline `73789843.671519`
   (`paired_speedup=1.055452`). This is a lookup-kernel win, not target setup
   hiding; target build and filter setup fields remain visible separately.
+- Promoted the same base-count positive representation into the stricter
+  fixed-round 25M target lookup benchmark. This path uses distinct deterministic
+  walk batches, one reused target table/filter, and the same repeated lookup
+  oracle, but reports large standard tag16 repeat positives as
+  `base_query_count_repeated` instead of expanded packed positive indices. It
+  still probes every logical repeat on Metal and preserves exact CPU
+  `x256 + y_parity` resolution. The smoke gate kept
+  `query_count=16384000`, `hit_count=2097152`, zero false positives, and
+  `target_lookup_checksum=0x86ec0110960785f8`. The full fixed-round paired gate
+  kept correctness with `target_lookup_checksum=0x923b46f156f9d59b`,
+  `hit_count=131072`, `filter_false_positive_count=0`, `dp_count=4121`, and
+  `physical_query_count=4219904`. Two paired confirmations against
+  `HEAD=9399a02` kept the candidate on runtime `ops_per_sec`: confirmation 1
+  measured `55355964.432093` versus baseline `48038763.096163`
+  (`paired_speedup=1.152319`); confirmation 2 measured `64727322.948725`
+  versus baseline `57414054.969548` (`paired_speedup=1.127378`). This promotes a
+  real fixed-round solver-path improvement, not a dedup-repeat diagnostic.
 
 ## Cleanup Policy
 
