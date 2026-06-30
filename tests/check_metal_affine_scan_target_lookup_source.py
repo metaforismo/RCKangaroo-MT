@@ -45,10 +45,14 @@ markers = [
     "\"gpu_filter16_hash_repeat\"",
     "\"gpu_filter16_mix_hash_repeat\"",
     "\"gpu_filter32_hash_repeat\"",
+    "NormalizeAffineLookupFilterModeName",
+    "lookup_filter_mode_name",
+    "tag16-mix lookup filter mode requires gpu_filter16_hash_repeat effective engine",
     "BuildTargetLookupTag32FilterTable",
     "BuildTargetLookupTag16FilterTable",
     "BuildTargetLookupTag32FilterTableFromTag32Buckets",
     "BuildTargetLookupTag16FilterTableFromTag32Buckets",
+    "BuildTargetLookupTag16MixedFilterTableFromTag32Buckets",
     "fuse_tag16_filter ? &target_filter16_buckets : NULL",
     "target_filter16_buckets.empty()",
     "BuildTargetLookupQueryHashes",
@@ -57,6 +61,7 @@ markers = [
     "target_lookup_tag16_hash_filter_repeat2d256",
     "target_lookup_tag16_hash_filter_repeat_base2d256",
     "target_lookup_tag16_hash_filter_repeat_base_count2d256",
+    "target_lookup_tag16_mixed_hash_filter_repeat_base_count2d256",
     "target_lookup_tag16_hash_filter_repeat_packed2d256",
     "target_lookup_tag16_mixed_hash_filter_repeat2d256",
     "target_lookup_tag16_mixed_hash_filter_repeat_packed2d256",
@@ -178,6 +183,8 @@ if "--lookup-query-mode" not in cli:
     raise SystemExit("missing affine-scan target-lookup lookup-query-mode CLI option")
 if "--lookup-engine" not in cli:
     raise SystemExit("missing affine-scan target-lookup lookup-engine CLI option")
+if "--lookup-filter-mode" not in cli:
+    raise SystemExit("missing affine-scan target-lookup lookup-filter-mode CLI option")
 if "--lookup-tg-limit" not in cli:
     raise SystemExit("missing affine-scan target-lookup lookup-tg-limit CLI option")
 
@@ -749,6 +756,40 @@ check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_base_count_repeat.json",
     m3_auto_repeat_command,
     "ops_per_sec",
+)
+
+m3_auto_repeat_tag16_mix_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench",
+    "--iterations",
+    "8192",
+    "--steps",
+    "512",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "6",
+    "--target-count",
+    "16777216",
+    "--hits",
+    "16",
+    "--lookup-repeat",
+    "131072",
+    "--lookup-query-mode",
+    "repeat",
+    "--lookup-engine",
+    "auto",
+    "--lookup-filter-mode",
+    "tag16-mix",
+    "--lookup-tg-limit",
+    "512",
+    "--min-ms",
+    "100",
+]
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_mix_filter_m3_base_count_repeat.json",
+    m3_auto_repeat_tag16_mix_command,
+    "setup_inclusive_ops_per_sec",
 )
 
 print("metal affine-scan target lookup source ok")

@@ -2758,6 +2758,37 @@ kernel void target_lookup_tag16_hash_filter_repeat_base_count2d256(device const 
   }
 }
 
+kernel void target_lookup_tag16_mixed_hash_filter_repeat_base_count2d256(device const ushort* target_filter_buckets [[buffer(0)]],
+                                                                         device const ulong* base_query_hashes [[buffer(1)]],
+                                                                         device atomic_uint* out_base_positive_counts [[buffer(2)]],
+                                                                         device atomic_uint* out_filter_positive_count [[buffer(3)]],
+                                                                         constant uint& bucket_count [[buffer(4)]],
+                                                                         constant uint& base_query_count [[buffer(5)]],
+                                                                         constant uint& repeat_count [[buffer(6)]],
+                                                                         uint2 id [[thread_position_in_grid]]) {
+  uint base_query_id = id.x;
+  uint repeat_id = id.y;
+  if (base_query_id >= base_query_count || repeat_id >= repeat_count || base_query_count == 0) return;
+  ulong hash = base_query_hashes[base_query_id];
+  ushort filter_tag = target_lookup_filter_tag16_mixed(hash);
+  uint slot = (uint)(hash & (ulong)(bucket_count - 1));
+  uint probes = 0;
+
+  while (probes < bucket_count) {
+    ushort bucket_tag = target_filter_buckets[slot];
+    if (bucket_tag == (ushort)0U) {
+      break;
+    }
+    if (bucket_tag == filter_tag) {
+      atomic_fetch_add_explicit(out_filter_positive_count, 1U, memory_order_relaxed);
+      atomic_fetch_add_explicit(out_base_positive_counts + base_query_id, 1U, memory_order_relaxed);
+      break;
+    }
+    slot = (slot + 1U) & (bucket_count - 1U);
+    probes++;
+  }
+}
+
 kernel void target_lookup_tag16_hash_filter_repeat_packed2d256(device const ushort* target_filter_buckets [[buffer(0)]],
                                                                device const ulong* base_query_hashes [[buffer(1)]],
                                                                device uint* out_positive_query_indices [[buffer(2)]],

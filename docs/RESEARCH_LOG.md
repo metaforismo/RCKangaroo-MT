@@ -5386,6 +5386,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `ops_per_sec=67353853.133572` versus baseline `53144408.728376`
   (`paired_speedup=1.267374`); confirmation 2 measured
   `71787238.321406` versus `69363382.005319` (`paired_speedup=1.034944`).
+- Rejected two post-base-count M3 GPU probes while keeping their correctness
+  evidence. A 2D threadgroup dispatch for the base-count kernel kept
+  `target_lookup_checksum=0x86ec0110960785f8`, `hit_count=2097152`, and zero
+  false positives, but paired confirmation was mixed and ended as discard:
+  confirmation 1 measured `ops_per_sec=75097791.714684` versus baseline
+  `73169519.919926` (`paired_speedup=1.026353`), while confirmation 2 measured
+  `72047891.025586` versus `73874758.195050`
+  (`paired_speedup=0.975271`). The launcher was reverted. A separate
+  `tag16-mix` integrated lookup diagnostic was added behind
+  `--lookup-filter-mode tag16-mix`, including a fused mixed tag16 filter setup
+  and a mixed base-count Metal kernel. It preserves the same logical repeat
+  probes, base-count positive encoding, exact CPU `x256 + y_parity` resolver,
+  checksum, hit count, and false-positive count, but the setup-inclusive paired
+  M3 gate discarded it: final `setup_inclusive_ops_per_sec=15462762.638213`
+  versus baseline `17646576.051489` (`paired_speedup=0.876247`). Keep
+  `tag16-mix` as an explicit diagnostic for collision-distribution probes; do
+  not promote it as a default or speed claim.
 
 ## Cleanup Policy
 

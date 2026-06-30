@@ -75,7 +75,7 @@ static void PrintUsage()
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations N [--steps N] [--packets N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N] [--jump-schedule power2|scaled4-balanced]\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench --iterations N [--steps N] [--packets N] [--rounds N] [--jumps N] [--dp-bits N] [--tg-limit N] [--jump-schedule power2|scaled4-balanced]\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N] [--jump-schedule power2|scaled4-balanced]\n");
-	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench --iterations N --target-count N [--hits N] [--lookup-repeat N] [--lookup-query-mode repeat|distinct-misses] [--lookup-engine gpu|cpu|gpu-filter|gpu-filter16-hash|auto] [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N] [--lookup-tg-limit N] [--jump-schedule power2|scaled4-balanced]\n");
+	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench --iterations N --target-count N [--hits N] [--lookup-repeat N] [--lookup-query-mode repeat|distinct-misses] [--lookup-engine gpu|cpu|gpu-filter|gpu-filter16-hash|gpu-filter16-hash-repeat|auto] [--lookup-filter-mode tag16|tag16-mix] [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N] [--lookup-tg-limit N] [--jump-schedule power2|scaled4-balanced]\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-rounds-bench --iterations N --target-count N [--rounds N] [--hits N] [--lookup-repeat N] [--lookup-repeat-mode full|dedup] [--lookup-filter-bits 16|32] [--lookup-filter-mode tag16|tag16-mix|tag32] [--steps N] [--jumps N] [--dp-bits N] [--tg-limit N] [--lookup-tg-limit N] [--jump-schedule power2|scaled4-balanced]\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-count-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N]\n");
 }
@@ -1688,6 +1688,7 @@ int main(int argc, char* argv[])
 		const char* lookup_repeat_s = NULL;
 		const char* lookup_query_mode_s = "repeat";
 		const char* lookup_engine_s = "gpu";
+		const char* lookup_filter_mode_s = "tag16";
 		const char* lookup_tg_s = NULL;
 		unsigned int iterations = 1024;
 		unsigned int steps = 256;
@@ -1728,6 +1729,7 @@ int main(int argc, char* argv[])
 		}
 		ReadOption(argc, argv, "--lookup-query-mode", &lookup_query_mode_s);
 		ReadOption(argc, argv, "--lookup-engine", &lookup_engine_s);
+		ReadOption(argc, argv, "--lookup-filter-mode", &lookup_filter_mode_s);
 		if (ReadOption(argc, argv, "--lookup-tg-limit", &lookup_tg_s) && !ParseU32(lookup_tg_s, &lookup_threadgroup_limit))
 		{
 			PrintUsage();
@@ -1735,7 +1737,7 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 		ReadOption(argc, argv, "--jump-schedule", &jump_schedule_s);
-		printf("%s\n", RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJson(iterations, steps, jumps, min_ms, target_count, hits, lookup_repeat, threadgroup_limit, dp_bits, jump_schedule_s, lookup_query_mode_s, lookup_engine_s, lookup_threadgroup_limit).c_str());
+		printf("%s\n", RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJson(iterations, steps, jumps, min_ms, target_count, hits, lookup_repeat, threadgroup_limit, dp_bits, jump_schedule_s, lookup_query_mode_s, lookup_engine_s, lookup_threadgroup_limit, lookup_filter_mode_s).c_str());
 	}
 	else if (strcmp(argv[1], "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-rounds-bench") == 0)
 	{

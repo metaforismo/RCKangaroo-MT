@@ -169,6 +169,8 @@ Il percorso DP8 stream in-place ha anche specializzazioni packet `steps=16`, `st
 
 Nei path integrati tag16 standard, il filtro target tag16 puo' essere riempito durante l'inserimento nella tabella tag32. Nel JSON, `target_filter_build_seconds=0` significa che quel setup e' stato fuso dentro `target_build_seconds`; per confronti dominati dal setup usa `setup_inclusive_ops_per_sec`.
 
+Il lookup repeat integrato standard accetta anche `--lookup-filter-mode tag16-mix` come diagnostica esplicita per il filtro hash tag16 repeat-indexed. Mantiene gli stessi 2 byte per bucket, setup fuso, encoding positivi base-count e resolver CPU esatto, ma la conferma paired locale su M3 lo ha scartato contro il tag16 standard sul throughput setup-inclusive; quindi non e' una policy di default.
+
 `metal-target-lookup-tag32-persistent-bench` mantiene residenti in Metal tabella tag32, chiavi, query, output e pipeline mentre ripete i dispatch per il `--min-ms` richiesto. Il JSON separa `metal_setup_seconds`, `dispatch_seconds` gia' caldo, `lookups_per_sec` inclusivo del setup e `dispatch_lookups_per_sec`. Il cap threadgroup di default resta 64 sotto 16,777,216 target, ma le grandi tabelle diagnostiche usano 1024 di default su M3 dopo controlli paired a 25M target; un `--tg-limit N` esplicito prevale sempre su questo default adattivo. E' una diagnostica per capire l'economia di tabelle target GPU residenti a lungo, non un sostituto del gate integrato affine-scan target-lookup.
 
 Su run Apple Silicon dominati dal setup delle tabelle target,
