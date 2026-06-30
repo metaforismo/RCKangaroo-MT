@@ -5556,6 +5556,31 @@ These did not pass the performance gate or had a correctness/architecture issue:
   (`paired_speedup=1.027744`). Because both confirmations must keep, the code was
   reverted; raw rows remain in `autoresearch/benchmarks.jsonl` and
   `autoresearch/results.tsv`.
+- Added fixed-round wall-clock telemetry for the Metal walk and lookup stages,
+  then kept only the safe no-copy optimization for the large tag16 base-count
+  lookup buffers. New JSON fields report `walk_wall_seconds`,
+  `walk_buffer_seconds`, `lookup_wall_seconds`, `lookup_buffer_seconds`,
+  `setup_inclusive_wall_seconds`, and `setup_inclusive_wall_ops_per_sec`, so
+  future gates can see host/Metal setup costs that `seconds` and
+  `lookup_seconds` intentionally exclude. The retained code uses
+  `newBufferWithBytesNoCopy` with a `newBufferWithBytes` fallback only inside
+  `RunTargetLookupTag16HashFilterRepeatBaseCountKernel`; the diagnostic
+  `RCK_METAL_DISABLE_NOCOPY=1` flag forces the copy path for A/B checks. On the
+  final reduced candidate, a direct 25M fixed-round run preserved
+  `target_lookup_checksum=0x923b46f156f9d59b`, `dp_checksum=0x7f111e78c67b5c18`,
+  `dp_count=4121`, `hit_count=131072`, and `filter_false_positive_count=0`, with
+  `lookup_gpu_seconds=0.006008`, `lookup_wall_seconds=0.007314`,
+  `walk_wall_seconds=4.301978`, and
+  `setup_inclusive_wall_ops_per_sec=107225416.977237`. A same-binary 25M
+  copy-disabled scout before trimming the walk candidate had measured the lookup
+  copy path at `lookup_gpu_seconds=0.017072` and
+  `lookup_wall_seconds=0.023977`, while the no-copy lookup path measured
+  `lookup_gpu_seconds=0.009458` and `lookup_wall_seconds=0.010637`; treat this
+  as a real lookup-component win, not a full solver-throughput breakthrough.
+  A broader candidate that also routed the XYZZ walk state buffers through
+  no-copy was rejected: the paired setup-inclusive gate against clean
+  `HEAD=24c0458` ended with `confirmation_status=discard` despite one noisy
+  confirmation showing improvement, so the walk no-copy code was removed.
 
 ## Cleanup Policy
 
