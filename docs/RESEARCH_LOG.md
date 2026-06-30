@@ -5291,6 +5291,40 @@ These did not pass the performance gate or had a correctness/architecture issue:
   both kept the candidate; the final median was
   `ops_per_sec=65898116.327166` versus paired baseline
   `53650264.971400`, `paired_speedup=1.228291`, with the same checksum.
+- Promoted base-index positive encoding for the integrated sparse repeat
+  resolver when the 16-bit packed positive encoding is unavailable. The Metal
+  grid still runs every logical `(base_query, repeat)` probe and still emits
+  one compact positive per logical positive, but the emitted payload is the
+  base DP query index instead of the full logical index. The sparse resolver
+  already validates against the base DP key and expected repeat checksum, so
+  this removes resolver-side logical-index modulo without changing hit/miss
+  semantics. A smoke run on the 16.384M-query M3 gate reported
+  `repeat_positive_index_encoding=base_query_index_repeated`,
+  `target_lookup_checksum=0x86ec0110960785f8`, `hit_count=2097152`, and zero
+  false positives. Two paired autoresearch confirmations against `HEAD=e5892e2`
+  both kept the candidate. The first kept median was
+  `ops_per_sec=53328905.600368` versus paired baseline `46870638.585665`
+  (`paired_speedup=1.137789`). The final kept median was
+  `ops_per_sec=41034435.022514` versus paired baseline `33622719.474270`
+  (`paired_speedup=1.220438`), with the same checksum. This is a real
+  integrated-path improvement, not a benchmark shortcut: `query_count`,
+  `filter_positive_count`, exact CPU equality, and the repeat checksum oracle
+  remain unchanged.
+- Rejected two follow-on repeat-filter GPU scouts after preserving the
+  checksum oracle. A `base_query_expand` repeat kernel emitted one positive
+  per base query and expanded counts on the CPU; it kept
+  `target_lookup_checksum=0x86ec0110960785f8`, `hit_count=2097152`, and zero
+  false positives, but the 500 ms guardrail lost to the accepted sparse exact
+  path (`ops_per_sec=71527275.349346`, `lookup_seconds=0.139999`) versus the
+  default (`ops_per_sec=72362967.315323`, `lookup_seconds=0.110338`). It was
+  also structurally under-occupied for the 125-base-query shape, so it is not
+  a real-world solver win. A separate default-threadgroup scout tried routing
+  the large repeat hash filter to 768 threads per threadgroup. A direct sweep
+  looked promising, but paired autoresearch confirmation against `HEAD=e5892e2`
+  discarded it: final median `ops_per_sec=56615931.341812` versus paired
+  baseline `59226315.668816`, `paired_speedup=0.955925`, with the same
+  checksum. Keep the raw rows as negative evidence; do not promote either
+  change.
 
 ## Cleanup Policy
 

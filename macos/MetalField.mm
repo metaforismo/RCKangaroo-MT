@@ -3773,6 +3773,7 @@ static bool ResolveTargetLookupTag32FilterRepeatSparseExpected(const std::vector
 	uint32_t query_count,
 	unsigned int injected_hits,
 	bool packed_positive_indices,
+	bool base_positive_indices,
 	uint32_t& hit_count,
 	uint32_t& false_positive_count,
 	std::string& reason)
@@ -3793,6 +3794,11 @@ static bool ResolveTargetLookupTag32FilterRepeatSparseExpected(const std::vector
 		reason = "sparse repeat tag16 filter query count mismatch";
 		return false;
 	}
+	if (packed_positive_indices && base_positive_indices)
+	{
+		reason = "sparse repeat tag16 filter cannot use packed and base-index positive encodings together";
+		return false;
+	}
 
 	hit_count = 0;
 	false_positive_count = 0;
@@ -3804,7 +3810,16 @@ static bool ResolveTargetLookupTag32FilterRepeatSparseExpected(const std::vector
 	{
 		uint32_t encoded_index = positive_query_indices[i];
 		uint32_t base_query_index = 0;
-		if (packed_positive_indices)
+		if (base_positive_indices)
+		{
+			if (encoded_index >= base_query_count)
+			{
+				reason = "sparse base-index repeat tag16 filter emitted invalid query index";
+				return false;
+			}
+			base_query_index = encoded_index;
+		}
+		else if (packed_positive_indices)
 		{
 			base_query_index = encoded_index & 0xFFFFU;
 			uint32_t repeat_index = encoded_index >> 16U;
@@ -3834,7 +3849,7 @@ static bool ResolveTargetLookupTag32FilterRepeatSparseExpected(const std::vector
 				{
 					uint32_t query_index = packed_positive_indices ?
 						((encoded_index >> 16U) * base_query_count + base_query_index) :
-						encoded_index;
+						(base_positive_indices ? base_query_index : encoded_index);
 					reason = "sparse repeat target lookup unexpected exact hit at query " + std::to_string(query_index);
 					return false;
 				}
@@ -4485,6 +4500,7 @@ static bool RunTargetLookupTag16HashFilterRepeatKernel(const std::vector<uint16_
 	unsigned int threadgroup_limit = 0,
 	MetalDispatchStats* dispatch_stats = NULL,
 	bool packed_positive_indices = false,
+	bool base_positive_indices = false,
 	bool mixed_filter_tag = false)
 {
 	if (dispatch_stats)
@@ -4506,6 +4522,16 @@ static bool RunTargetLookupTag16HashFilterRepeatKernel(const std::vector<uint16_
 		error = "packed repeat tag16 hash-filter dimensions exceed 16-bit encoding";
 		return false;
 	}
+	if (packed_positive_indices && base_positive_indices)
+	{
+		error = "repeat tag16 hash-filter cannot use packed and base-index positive encodings together";
+		return false;
+	}
+	if (base_positive_indices && mixed_filter_tag)
+	{
+		error = "base-index repeat tag16 hash-filter encoding is not available for mixed tags";
+		return false;
+	}
 
 	@autoreleasepool
 	{
@@ -4524,13 +4550,17 @@ static bool RunTargetLookupTag16HashFilterRepeatKernel(const std::vector<uint16_
 			return false;
 		}
 
-		NSString* function_name = mixed_filter_tag ?
-			(packed_positive_indices ? @"target_lookup_tag16_mixed_hash_filter_repeat_packed2d256" : @"target_lookup_tag16_mixed_hash_filter_repeat2d256") :
-			(packed_positive_indices ? @"target_lookup_tag16_hash_filter_repeat_packed2d256" : @"target_lookup_tag16_hash_filter_repeat2d256");
+		NSString* function_name = base_positive_indices ?
+			@"target_lookup_tag16_hash_filter_repeat_base2d256" :
+			(mixed_filter_tag ?
+				(packed_positive_indices ? @"target_lookup_tag16_mixed_hash_filter_repeat_packed2d256" : @"target_lookup_tag16_mixed_hash_filter_repeat2d256") :
+				(packed_positive_indices ? @"target_lookup_tag16_hash_filter_repeat_packed2d256" : @"target_lookup_tag16_hash_filter_repeat2d256"));
 		id<MTLFunction> function = [library newFunctionWithName:function_name];
 		if (!function)
 		{
-			if (mixed_filter_tag)
+			if (base_positive_indices)
+				error = "failed to load target_lookup_tag16_hash_filter_repeat_base2d256 function";
+			else if (mixed_filter_tag)
 				error = packed_positive_indices ?
 					"failed to load target_lookup_tag16_mixed_hash_filter_repeat_packed2d256 function" :
 					"failed to load target_lookup_tag16_mixed_hash_filter_repeat2d256 function";
@@ -10616,8 +10646,10 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 				uint32_t local_filter_positive_count = 0;
 				double filter_seconds = 0.0;
 				bool pack_repeat_positive_indices = dp_keys.size() <= 0xFFFFULL && lookup_repeat <= 0xFFFFU;
-				repeat_positive_index_encoding = pack_repeat_positive_indices ? "packed16_base_repeat" : "logical_query_index";
-				lookup_ok = RunTargetLookupTag16HashFilterRepeatKernel(target_filter16_buckets, lookup_query_hashes, (uint32_t)logical_query_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, pack_repeat_positive_indices);
+				bool base_repeat_positive_indices = !pack_repeat_positive_indices && lookup_repeat > 1U;
+				repeat_positive_index_encoding = base_repeat_positive_indices ? "base_query_index_repeated" :
+					(pack_repeat_positive_indices ? "packed16_base_repeat" : "logical_query_index");
+				lookup_ok = RunTargetLookupTag16HashFilterRepeatKernel(target_filter16_buckets, lookup_query_hashes, (uint32_t)logical_query_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, pack_repeat_positive_indices, base_repeat_positive_indices);
 				lookup_dispatch_seconds = hash_seconds + filter_seconds;
 				if (lookup_ok)
 				{
@@ -10625,7 +10657,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 					uint32_t local_false_positive_count = 0;
 					std::string resolve_reason;
 					auto exact_start = std::chrono::steady_clock::now();
-					lookup_ok = ResolveTargetLookupTag32FilterRepeatSparseExpected(target_buckets, target_keys, dp_keys, positive_query_indices, local_filter_positive_count, lookup_repeat, (uint32_t)logical_query_count, injected_hits, pack_repeat_positive_indices, local_hit_count, local_false_positive_count, resolve_reason);
+					lookup_ok = ResolveTargetLookupTag32FilterRepeatSparseExpected(target_buckets, target_keys, dp_keys, positive_query_indices, local_filter_positive_count, lookup_repeat, (uint32_t)logical_query_count, injected_hits, pack_repeat_positive_indices, base_repeat_positive_indices, local_hit_count, local_false_positive_count, resolve_reason);
 					double exact_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - exact_start).count();
 					lookup_dispatch_seconds += exact_seconds;
 					if (!lookup_ok)
@@ -10922,7 +10954,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 	uint32_t local_filter_positive_count = 0;
 	bool filter_ok = use_tag32_hash_filter ?
 		RunTargetLookupTag32HashFilterRepeatKernel(target_filter32_buckets, lookup_query_hashes, dispatch_query_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, pack_repeat_positive_indices) :
-		RunTargetLookupTag16HashFilterRepeatKernel(target_filter16_buckets, lookup_query_hashes, dispatch_query_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, pack_repeat_positive_indices, use_tag16_mixed_hash_filter);
+		RunTargetLookupTag16HashFilterRepeatKernel(target_filter16_buckets, lookup_query_hashes, dispatch_query_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, pack_repeat_positive_indices, false, use_tag16_mixed_hash_filter);
 	physical_filter_positive_count = local_filter_positive_count;
 	if (!filter_ok)
 		return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32_rounds", requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits_per_round, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, 0, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, validation_seconds, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name, lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes, lookup_hash_seconds, lookup_gpu_seconds, lookup_exact_seconds, 0.0, repeat_positive_index_encoding, target_build_seconds, target_filter_build_seconds, round_count);

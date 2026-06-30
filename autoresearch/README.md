@@ -174,6 +174,10 @@ On the M3 large-repeat gate, the sparse exact cache resolves each repeated base
 query against the exact tag32 host table once, then reuses that exact hit/miss
 state while still counting every logical repeated positive and preserving the
 same checksum oracle.
+When the integrated sparse repeat path cannot use the packed 16-bit
+base/repeat positive encoding, it can emit `base_query_index_repeated`: the GPU
+still runs every logical repeat probe and emits every logical positive, while
+the CPU resolver avoids reconstructing the unused full logical index.
 
 ```sh
 make macos-check
@@ -679,6 +683,13 @@ The M3 sparse-repeat exact gate compares the same `--lookup-engine auto` command
 on the previous code and the candidate. The candidate resolves only compact
 filter positives with exact CPU `x256 + y_parity` equality and validates the
 same repeat checksum without materializing the full logical miss vector.
+
+The M3 sparse-repeat base-index gate compares the same real integrated command
+again after the sparse resolver cache is present. It keeps the same logical
+query count, compact positive count, exact CPU equality, and repeat checksum,
+but emits `base_query_index_repeated` positives when packed 16-bit indices do
+not fit. That makes the benchmark an end-to-end solver-path check, not a
+lookup-only shortcut.
 
 Run the CPU field multiplication experiment:
 
