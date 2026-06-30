@@ -47,6 +47,8 @@ markers = [
     "BuildTargetLookupTag16FilterTable",
     "BuildTargetLookupTag32FilterTableFromTag32Buckets",
     "BuildTargetLookupTag16FilterTableFromTag32Buckets",
+    "fuse_tag16_filter ? &target_filter16_buckets : NULL",
+    "target_filter16_buckets.empty()",
     "BuildTargetLookupQueryHashes",
     "BuildTargetLookupQueryHashesParallel",
     "BuildRepeatedTargetLookupQueryHashes",
@@ -720,6 +722,18 @@ check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_sparse_repeat_exact_cache.json",
     m3_auto_repeat_command,
     "ops_per_sec",
+)
+
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_sparse_repeat_base_index.json",
+    m3_auto_repeat_command,
+    "ops_per_sec",
+)
+
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_fused_filter_setup.json",
+    m3_auto_repeat_command,
+    "setup_inclusive_ops_per_sec",
 )
 
 print("metal affine-scan target lookup source ok")

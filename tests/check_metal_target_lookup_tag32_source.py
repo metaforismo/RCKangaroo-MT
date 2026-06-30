@@ -58,6 +58,8 @@ for marker in (
     "BuildTargetLookupTag32TableFromKeysPrehashed",
     "BuildTargetLookupTag32TableFromKeysParallelInsert",
     "InsertTargetLookupTag32PrehashedTableParallel",
+    "fused_tag16_filter_buckets",
+    "(*fused_tag16_filter_buckets)[slot]",
     "TargetLookupHashMatchesInjected",
     "TargetLookupTag32TablesEqual",
     "TargetLookupTag32TableFindsAllKeys",

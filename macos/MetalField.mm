@@ -3088,7 +3088,8 @@ static bool InsertTargetLookupTag32PrehashedTable(const std::vector<TargetLookup
 	const std::vector<uint64_t>& target_hashes,
 	unsigned int bucket_count,
 	std::vector<TargetLookupTag32BucketHost>& buckets,
-	std::string& error)
+	std::string& error,
+	std::vector<uint16_t>* fused_tag16_filter_buckets = NULL)
 {
 	if (target_keys.size() != target_hashes.size() || target_keys.size() > 0xFFFFFFFFULL)
 	{
@@ -3097,18 +3098,23 @@ static bool InsertTargetLookupTag32PrehashedTable(const std::vector<TargetLookup
 	}
 
 	buckets.assign(bucket_count, TargetLookupTag32BucketHost{0, kTargetLookupEmptyIndex});
+	if (fused_tag16_filter_buckets)
+		fused_tag16_filter_buckets->assign(bucket_count, 0U);
 	uint32_t mask = bucket_count - 1U;
 	for (uint32_t i = 0; i < (uint32_t)target_keys.size(); ++i)
 	{
 		uint64_t hash = target_hashes[i];
+		uint32_t tag = TargetLookupTag32(hash);
 		uint32_t slot = (uint32_t)(hash & (uint64_t)mask);
 		for (unsigned int probe = 0; probe < bucket_count; ++probe)
 		{
 			TargetLookupTag32BucketHost& bucket = buckets[slot];
 			if (bucket.target_index == kTargetLookupEmptyIndex)
 			{
-				bucket.tag = TargetLookupTag32(hash);
+				bucket.tag = tag;
 				bucket.target_index = i;
+				if (fused_tag16_filter_buckets)
+					(*fused_tag16_filter_buckets)[slot] = (uint16_t)(((uint16_t)(tag >> 16)) | (uint16_t)1U);
 				break;
 			}
 			slot = (slot + 1U) & mask;
@@ -3126,7 +3132,8 @@ static bool InsertTargetLookupTag32PrehashedTableParallel(const std::vector<Targ
 	const std::vector<uint64_t>& target_hashes,
 	unsigned int bucket_count,
 	std::vector<TargetLookupTag32BucketHost>& buckets,
-	std::string& error)
+	std::string& error,
+	std::vector<uint16_t>* fused_tag16_filter_buckets = NULL)
 {
 	if (target_keys.size() != target_hashes.size() || target_keys.size() > 0xFFFFFFFFULL || bucket_count == 0)
 	{
@@ -3136,6 +3143,8 @@ static bool InsertTargetLookupTag32PrehashedTableParallel(const std::vector<Targ
 
 	TargetLookupTag32BucketHost empty_bucket{0, kTargetLookupEmptyIndex};
 	buckets.assign(bucket_count, TargetLookupTag32BucketHost{0, kTargetLookupEmptyIndex});
+	if (fused_tag16_filter_buckets)
+		fused_tag16_filter_buckets->assign(bucket_count, 0U);
 	uint32_t mask = bucket_count - 1U;
 	std::atomic<bool> insertion_failed(false);
 	ParallelForSamples(target_keys.size(), [&](size_t begin, size_t end, unsigned int worker) {
@@ -3143,7 +3152,8 @@ static bool InsertTargetLookupTag32PrehashedTableParallel(const std::vector<Targ
 		for (size_t i = begin; i < end; ++i)
 		{
 			uint64_t hash = target_hashes[i];
-			TargetLookupTag32BucketHost desired{TargetLookupTag32(hash), (uint32_t)i};
+			uint32_t tag = TargetLookupTag32(hash);
+			TargetLookupTag32BucketHost desired{tag, (uint32_t)i};
 			uint32_t slot = (uint32_t)(hash & (uint64_t)mask);
 			bool inserted = false;
 			for (unsigned int probe = 0; probe < bucket_count; ++probe)
@@ -3151,6 +3161,8 @@ static bool InsertTargetLookupTag32PrehashedTableParallel(const std::vector<Targ
 				TargetLookupTag32BucketHost expected = empty_bucket;
 				if (__atomic_compare_exchange(&buckets[slot], &expected, &desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
 				{
+					if (fused_tag16_filter_buckets)
+						(*fused_tag16_filter_buckets)[slot] = (uint16_t)(((uint16_t)(tag >> 16)) | (uint16_t)1U);
 					inserted = true;
 					break;
 				}
@@ -3175,7 +3187,8 @@ static bool BuildTargetLookupTag32TableFromKeysPrehashed(const std::vector<Targe
 	unsigned int target_count,
 	std::vector<TargetLookupKeyHost>& target_keys,
 	std::vector<TargetLookupTag32BucketHost>& buckets,
-	std::string& error)
+	std::string& error,
+	std::vector<uint16_t>* fused_tag16_filter_buckets = NULL)
 {
 	unsigned int bucket_count = TargetLookupBucketCount(target_count);
 	if (!bucket_count || target_count < injected_keys.size())
@@ -3183,6 +3196,8 @@ static bool BuildTargetLookupTag32TableFromKeysPrehashed(const std::vector<Targe
 		error = "invalid affine DP target lookup table shape";
 		return false;
 	}
+	if (fused_tag16_filter_buckets)
+		fused_tag16_filter_buckets->clear();
 	std::vector<uint64_t> target_hashes(target_count);
 	target_keys.resize(target_count);
 	for (size_t i = 0; i < injected_keys.size(); ++i)
@@ -3232,14 +3247,15 @@ static bool BuildTargetLookupTag32TableFromKeysPrehashed(const std::vector<Targe
 	if (duplicate_filler.load(std::memory_order_relaxed))
 		return BuildTargetLookupTag32TableFromKeysLegacy(injected_keys, target_count, target_keys, buckets, error);
 
-	return InsertTargetLookupTag32PrehashedTable(target_keys, target_hashes, bucket_count, buckets, error);
+	return InsertTargetLookupTag32PrehashedTable(target_keys, target_hashes, bucket_count, buckets, error, fused_tag16_filter_buckets);
 }
 
 static bool BuildTargetLookupTag32TableFromKeysParallelInsert(const std::vector<TargetLookupKeyHost>& injected_keys,
 	unsigned int target_count,
 	std::vector<TargetLookupKeyHost>& target_keys,
 	std::vector<TargetLookupTag32BucketHost>& buckets,
-	std::string& error)
+	std::string& error,
+	std::vector<uint16_t>* fused_tag16_filter_buckets = NULL)
 {
 	unsigned int bucket_count = TargetLookupBucketCount(target_count);
 	if (!bucket_count || target_count < injected_keys.size())
@@ -3247,8 +3263,10 @@ static bool BuildTargetLookupTag32TableFromKeysParallelInsert(const std::vector<
 		error = "invalid affine DP target lookup table shape";
 		return false;
 	}
+	if (fused_tag16_filter_buckets)
+		fused_tag16_filter_buckets->clear();
 	if (target_count < kMinParallelTargetLookupHashQueries || ValidationWorkerCount(target_count) <= 1)
-		return BuildTargetLookupTag32TableFromKeysPrehashed(injected_keys, target_count, target_keys, buckets, error);
+		return BuildTargetLookupTag32TableFromKeysPrehashed(injected_keys, target_count, target_keys, buckets, error, fused_tag16_filter_buckets);
 
 	std::vector<uint64_t> target_hashes(target_count);
 	target_keys.resize(target_count);
@@ -3297,18 +3315,19 @@ static bool BuildTargetLookupTag32TableFromKeysParallelInsert(const std::vector<
 	}
 
 	if (duplicate_filler.load(std::memory_order_relaxed))
-		return BuildTargetLookupTag32TableFromKeysPrehashed(injected_keys, target_count, target_keys, buckets, error);
+		return BuildTargetLookupTag32TableFromKeysPrehashed(injected_keys, target_count, target_keys, buckets, error, fused_tag16_filter_buckets);
 
-	return InsertTargetLookupTag32PrehashedTableParallel(target_keys, target_hashes, bucket_count, buckets, error);
+	return InsertTargetLookupTag32PrehashedTableParallel(target_keys, target_hashes, bucket_count, buckets, error, fused_tag16_filter_buckets);
 }
 
 static bool BuildTargetLookupTag32TableFromKeys(const std::vector<TargetLookupKeyHost>& injected_keys,
 	unsigned int target_count,
 	std::vector<TargetLookupKeyHost>& target_keys,
 	std::vector<TargetLookupTag32BucketHost>& buckets,
-	std::string& error)
+	std::string& error,
+	std::vector<uint16_t>* fused_tag16_filter_buckets = NULL)
 {
-	return BuildTargetLookupTag32TableFromKeysParallelInsert(injected_keys, target_count, target_keys, buckets, error);
+	return BuildTargetLookupTag32TableFromKeysParallelInsert(injected_keys, target_count, target_keys, buckets, error, fused_tag16_filter_buckets);
 }
 
 static void BuildTargetLookupQueries(const std::vector<TargetLookupKeyHost>& target_keys,
@@ -10466,6 +10485,16 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 			std::string reason = "affine scan produced no DP queries for target lookup";
 			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name);
 		}
+		uint64_t repeated_query_count = (uint64_t)dp_keys.size() * (uint64_t)lookup_repeat;
+		if (repeated_query_count > 32000000ULL)
+		{
+			std::string reason = "affine DP target lookup repeated query count limit is 32000000 for host memory safety";
+			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name);
+		}
+		uint64_t logical_query_count = repeated_query_count;
+		effective_lookup_engine_name = ChooseAffineLookupEngine(lookup_engine_name, target_count, logical_query_count, lookup_query_mode_name, lookup_repeat);
+		bool repeat_indexed_hash_lookup = strcmp(effective_lookup_engine_name, "gpu_filter16_hash_repeat") == 0;
+		effective_lookup_threadgroup_limit = ChooseAffineLookupThreadgroupLimit(lookup_engine_name, effective_lookup_engine_name, target_count, logical_query_count, threadgroup_limit, lookup_threadgroup_limit);
 
 		if (!target_table_ready)
 		{
@@ -10479,11 +10508,15 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 			for (unsigned int i = 0; i < injected_hits; ++i)
 				injected_keys.push_back(dp_keys[i]);
 			auto target_build_start = std::chrono::steady_clock::now();
-			if (!BuildTargetLookupTag32TableFromKeys(injected_keys, target_count, target_keys, target_buckets, error))
+			bool fuse_tag16_filter = strcmp(effective_lookup_engine_name, "gpu_filter16_hash") == 0 ||
+				strcmp(effective_lookup_engine_name, "gpu_filter16_hash_repeat") == 0;
+			if (!BuildTargetLookupTag32TableFromKeys(injected_keys, target_count, target_keys, target_buckets, error, fuse_tag16_filter ? &target_filter16_buckets : NULL))
 				return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name);
 			target_build_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - target_build_start).count();
 			target_key_bytes = target_keys.size() * sizeof(TargetLookupKeyHost);
 			target_bucket_bytes = target_buckets.size() * sizeof(TargetLookupTag32BucketHost);
+			if (!target_filter16_buckets.empty())
+				target_filter_bucket_bytes = target_filter16_buckets.size() * sizeof(uint16_t);
 			target_table_dp_query_count = dp_query_count;
 			target_table_ready = true;
 		}
@@ -10492,16 +10525,6 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 			std::string reason = "affine DP target lookup query count changed across dispatches";
 			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name);
 		}
-		uint64_t repeated_query_count = (uint64_t)dp_keys.size() * (uint64_t)lookup_repeat;
-		if (repeated_query_count > 32000000ULL)
-		{
-			std::string reason = "affine DP target lookup repeated query count limit is 32000000 for host memory safety";
-			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name);
-		}
-			uint64_t logical_query_count = repeated_query_count;
-			effective_lookup_engine_name = ChooseAffineLookupEngine(lookup_engine_name, target_count, logical_query_count, lookup_query_mode_name, lookup_repeat);
-			bool repeat_indexed_hash_lookup = strcmp(effective_lookup_engine_name, "gpu_filter16_hash_repeat") == 0;
-			effective_lookup_threadgroup_limit = ChooseAffineLookupThreadgroupLimit(lookup_engine_name, effective_lookup_engine_name, target_count, logical_query_count, threadgroup_limit, lookup_threadgroup_limit);
 			std::vector<TargetLookupKeyHost> lookup_queries;
 			unsigned int expected_lookup_hits = 0;
 			if (strcmp(lookup_query_mode_name, "distinct_misses") == 0)
@@ -10891,11 +10914,14 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 	}
 
 	auto target_build_start = std::chrono::steady_clock::now();
-	if (!BuildTargetLookupTag32TableFromKeys(injected_keys, target_count, target_keys, target_buckets, error))
+	bool fuse_tag16_filter = !use_tag32_hash_filter && !use_tag16_mixed_hash_filter;
+	if (!BuildTargetLookupTag32TableFromKeys(injected_keys, target_count, target_keys, target_buckets, error, fuse_tag16_filter ? &target_filter16_buckets : NULL))
 		return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32_rounds", requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits_per_round, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, 0, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, validation_seconds, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name, lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes, lookup_hash_seconds, lookup_gpu_seconds, lookup_exact_seconds, 0.0, "logical_query_index", target_build_seconds, target_filter_build_seconds, round_count);
 	target_build_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - target_build_start).count();
 	target_key_bytes = target_keys.size() * sizeof(TargetLookupKeyHost);
 	target_bucket_bytes = target_buckets.size() * sizeof(TargetLookupTag32BucketHost);
+	if (!target_filter16_buckets.empty())
+		target_filter_bucket_bytes = target_filter16_buckets.size() * sizeof(uint16_t);
 
 	auto filter_build_start = std::chrono::steady_clock::now();
 	if (use_tag32_hash_filter)
@@ -10912,8 +10938,11 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 	}
 	else
 	{
-		if (!BuildTargetLookupTag16FilterTableFromTag32Buckets(target_buckets, target_count, target_filter16_buckets, error))
+		if (target_filter16_buckets.empty() &&
+			!BuildTargetLookupTag16FilterTableFromTag32Buckets(target_buckets, target_count, target_filter16_buckets, error))
+		{
 			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32_rounds", requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits_per_round, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, 0, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, validation_seconds, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name, lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes, lookup_hash_seconds, lookup_gpu_seconds, lookup_exact_seconds, 0.0, "logical_query_index", target_build_seconds, target_filter_build_seconds, round_count);
+		}
 		target_filter_bucket_bytes = target_filter16_buckets.size() * sizeof(uint16_t);
 	}
 	target_filter_build_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - filter_build_start).count();

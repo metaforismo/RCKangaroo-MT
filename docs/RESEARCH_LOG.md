@@ -5310,6 +5310,29 @@ These did not pass the performance gate or had a correctness/architecture issue:
   integrated-path improvement, not a benchmark shortcut: `query_count`,
   `filter_positive_count`, exact CPU equality, and the repeat checksum oracle
   remain unchanged.
+- Promoted fused tag16 target-filter setup for the integrated M3 sparse-repeat
+  hash-filter path. The target table builder now optionally fills the 2-byte
+  tag16 filter bucket at the same slot where it inserts each tag32 target
+  bucket, so the normal tag16 path avoids a separate post-build bucket scan.
+  The fused value is exactly `(tag32 >> 16) | 1`, matching the derived filter
+  builder; tag32 bucket layout, tag16 bytes, exact CPU `x256 + y_parity`
+  equality, logical query count, compact positive count, and checksum oracle
+  stay unchanged. If duplicate filler generation falls back to the conservative
+  builder, the fused vector stays empty and the old derived-filter builder is
+  used. On the JSON surface, `target_filter_build_seconds=0` means the filter
+  setup was fused into `target_build_seconds`, not skipped; compare
+  `setup_inclusive_ops_per_sec` for honest end-to-end scoring. Smoke on the
+  16.384M-query M3 auto-repeat gate reported
+  `repeat_positive_index_encoding=base_query_index_repeated`,
+  `target_lookup_checksum=0x86ec0110960785f8`, `hit_count=2097152`, and zero
+  false positives. The companion rounds smoke kept
+  `target_lookup_checksum=0x5ea18a42bc519039`, `hit_count=8192`, and zero false
+  positives. Two paired autoresearch confirmations against `HEAD=d16d3fd` both
+  kept the candidate on setup-inclusive throughput: confirmation 1 measured
+  `setup_inclusive_ops_per_sec=5059542.988443` versus paired baseline
+  `4518461.033311` (`paired_speedup=1.119749`); confirmation 2 measured
+  `5103671.503285` versus `4925686.310904` (`paired_speedup=1.036134`), with
+  the same checksum and hit oracle.
 - Rejected two follow-on repeat-filter GPU scouts after preserving the
   checksum oracle. A `base_query_expand` repeat kernel emitted one positive
   per base query and expanded counts on the CPU; it kept

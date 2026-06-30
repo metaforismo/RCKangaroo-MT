@@ -648,6 +648,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_parallel_hash_repeat2048 --budget-sec 120 --paired-baseline-ref main --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_repeat_mode2048 --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_repeat_indexed2048 --budget-sec 300 --paired-baseline-ref HEAD --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_fused_filter_setup --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 ```
 
 These use the 25,005,000-target mostly-miss shapes and score
@@ -690,6 +691,13 @@ query count, compact positive count, exact CPU equality, and repeat checksum,
 but emits `base_query_index_repeated` positives when packed 16-bit indices do
 not fit. That makes the benchmark an end-to-end solver-path check, not a
 lookup-only shortcut.
+
+The M3 fused-filter setup gate compares the same real integrated command after
+the tag16 target-filter setup is fused into tag32 table insertion. It scores
+`setup_inclusive_ops_per_sec`, because `target_filter_build_seconds=0` on the
+candidate means that setup cost moved into `target_build_seconds`; it does not
+mean the filter was omitted. The oracle still checks the same logical queries,
+compact positives, exact CPU `x256 + y_parity` equality, and repeat checksum.
 
 Run the CPU field multiplication experiment:
 

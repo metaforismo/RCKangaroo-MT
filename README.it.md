@@ -19,7 +19,7 @@ Questo fork mantiene single-target, benchmark e tames del progetto originale, e 
 - Metadati target per ogni distinguished point, cosi' la collisione risolta viene verificata contro il target corretto.
 - Oracle CPU macOS per tiny-range, test di correttezza e benchmark locali.
 - Backend Metal smoke e microkernel field-add/field-sub/field-double/field-mul4/field-neg/field-mul/field-square per verificare il runtime Apple Silicon.
-- Probe sperimentali Metal su Apple Silicon per walk Jacobian/XYZZ, inclusi stream DP sparsi, benchmark chain XYZZ multi-packet e gate lookup multi-target esatti.
+- Probe sperimentali Metal su Apple Silicon per walk Jacobian/XYZZ, inclusi stream DP sparsi, benchmark chain XYZZ multi-packet e gate lookup multi-target esatti con metriche inclusive del setup.
 - Runner autoresearch per esperimenti con gate fissi e risultati misurabili.
 - Benchforge Metal Lab per note locali, submission riproducibili, verifier JSON e leaderboard statiche del track macOS/Metal.
 
