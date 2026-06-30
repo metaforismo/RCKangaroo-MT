@@ -36,6 +36,7 @@ markers = [
     "ResolveTargetLookupTag32FilterRepeatBaseCountsExpectedIndices",
     "TargetLookupXOnlyHost",
     "TargetLookupTag32ParityBucketHost",
+    "InsertTargetLookupTag32ParityBucket",
     "BuildTargetLookupTag32ParityTableFromKeysParallelInsert",
     "ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices",
     "DecodeTargetLookupParity(bucket.encoded_target_index) == (key.parity & 1U)",
@@ -187,6 +188,16 @@ if "BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, targe
     raise SystemExit("fixed-round base-count repeat lookup should build the x-only parity target table")
 if "ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices(target_parity_buckets, target_x_keys" not in rounds_body:
     raise SystemExit("fixed-round base-count repeat lookup should exact-resolve against x plus encoded parity")
+
+parity_builder_start = kernels.index("static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert")
+parity_builder_end = kernels.index("static void BuildTargetLookupQueries", parity_builder_start)
+parity_builder_body = kernels[parity_builder_start:parity_builder_end]
+if "std::vector<uint64_t> target_hashes" in parity_builder_body:
+    raise SystemExit("x-only parity target builder should not materialize per-target hash temporaries")
+if "std::vector<uint8_t> target_parities" in parity_builder_body:
+    raise SystemExit("x-only parity target builder should not materialize per-target parity temporaries")
+if "InsertTargetLookupTag32ParityBucket(buckets" not in parity_builder_body:
+    raise SystemExit("x-only parity target builder should stream bucket insertion while filling target keys")
 
 choose_start = kernels.index("static const char* ChooseAffineLookupEngine")
 choose_end = kernels.index("static unsigned int ChooseAffineLookupThreadgroupLimit", choose_start)

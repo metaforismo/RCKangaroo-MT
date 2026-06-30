@@ -5503,6 +5503,18 @@ These did not pass the performance gate or had a correctness/architecture issue:
   (`paired_speedup=1.021849`). Treat this as a real memory/setup efficiency win
   with a kept noisy M3 throughput gate, not as a mathematical sqrt-step
   breakthrough or cross-machine speed guarantee.
+- Followed the compact fixed-round target table with a streaming host builder.
+  The previous x-only builder still materialized 25,005,000 `uint64_t` hashes
+  plus 25,005,000 parity bytes before insertion; the new builder writes the
+  x-only target key and atomically inserts the tag32/parity bucket in the same
+  pass, removing about `225045000` bytes of temporary setup allocation on the
+  25M gate. A direct 25M fixed-round run preserved
+  `target_lookup_checksum=0x923b46f156f9d59b`, `dp_checksum=0x7f111e78c67b5c18`,
+  `dp_count=4121`, `hit_count=131072`, `filter_false_positive_count=0`,
+  `target_key_bytes=800160000`, and `exact_host_table_bytes=1068595456`, with
+  `target_build_seconds=0.838866` and `ops_per_sec=126279608.929799`. Treat this
+  as a deterministic peak-memory reduction and same-plateau setup result, not a
+  separate throughput promotion.
 
 ## Cleanup Policy
 

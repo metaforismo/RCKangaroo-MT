@@ -3424,72 +3424,37 @@ static bool BuildTargetLookupTag32TableFromKeys(const std::vector<TargetLookupKe
 	return BuildTargetLookupTag32TableFromKeysParallelInsert(injected_keys, target_count, target_keys, buckets, error, fused_tag16_filter_buckets, fused_tag16_filter_mixed);
 }
 
-static bool InsertTargetLookupTag32ParityPrehashedTableParallel(const std::vector<TargetLookupXOnlyHost>& target_x_keys,
-	const std::vector<uint8_t>& target_parities,
-	const std::vector<uint64_t>& target_hashes,
-	unsigned int bucket_count,
-	std::vector<TargetLookupTag32ParityBucketHost>& buckets,
-	std::string& error,
-	std::vector<uint16_t>* fused_tag16_filter_buckets = NULL,
-	bool fused_tag16_filter_mixed = false)
+static bool InsertTargetLookupTag32ParityBucket(std::vector<TargetLookupTag32ParityBucketHost>& buckets,
+	std::vector<uint16_t>* fused_tag16_filter_buckets,
+	bool fused_tag16_filter_mixed,
+	uint32_t target_index,
+	uint32_t parity,
+	uint64_t hash)
 {
-	if (target_x_keys.size() != target_hashes.size() ||
-		target_x_keys.size() != target_parities.size() ||
-		target_x_keys.size() > kTargetLookupIndexMask ||
-		bucket_count == 0)
-	{
-		error = "parallel prehashed tag32 parity target lookup table shape mismatch";
+	if (buckets.empty())
 		return false;
-	}
-
 	TargetLookupTag32ParityBucketHost empty_bucket{0, kTargetLookupEmptyIndex};
-	buckets.assign(bucket_count, empty_bucket);
-	if (fused_tag16_filter_buckets)
-		fused_tag16_filter_buckets->assign(bucket_count, 0U);
-	uint32_t mask = bucket_count - 1U;
-	std::atomic<bool> insertion_failed(false);
-	ParallelForSamples(target_x_keys.size(), [&](size_t begin, size_t end, unsigned int worker) {
-		(void)worker;
-		for (size_t i = begin; i < end; ++i)
-		{
-			uint64_t hash = target_hashes[i];
-			uint32_t tag = TargetLookupTag32(hash);
-			uint32_t encoded = kTargetLookupEmptyIndex;
-			if (!EncodeTargetLookupIndexParity((uint32_t)i, target_parities[i], encoded))
-			{
-				insertion_failed.store(true, std::memory_order_relaxed);
-				return;
-			}
-			TargetLookupTag32ParityBucketHost desired{tag, encoded};
-			uint32_t slot = (uint32_t)(hash & (uint64_t)mask);
-			bool inserted = false;
-			for (unsigned int probe = 0; probe < bucket_count; ++probe)
-			{
-				TargetLookupTag32ParityBucketHost expected = empty_bucket;
-				if (__atomic_compare_exchange(&buckets[slot], &expected, &desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
-				{
-					if (fused_tag16_filter_buckets)
-						(*fused_tag16_filter_buckets)[slot] = fused_tag16_filter_mixed ?
-							TargetLookupFilterTag16MixedFromTag32(tag) :
-							(uint16_t)(((uint16_t)(tag >> 16)) | (uint16_t)1U);
-					inserted = true;
-					break;
-				}
-				slot = (slot + 1U) & mask;
-			}
-			if (!inserted)
-			{
-				insertion_failed.store(true, std::memory_order_relaxed);
-				return;
-			}
-		}
-	});
-	if (insertion_failed.load(std::memory_order_relaxed))
-	{
-		error = "parallel prehashed affine DP tag32 parity target lookup table insertion failed";
+	uint32_t tag = TargetLookupTag32(hash);
+	uint32_t encoded = kTargetLookupEmptyIndex;
+	if (!EncodeTargetLookupIndexParity(target_index, parity, encoded))
 		return false;
+	TargetLookupTag32ParityBucketHost desired{tag, encoded};
+	uint32_t mask = (uint32_t)buckets.size() - 1U;
+	uint32_t slot = (uint32_t)(hash & (uint64_t)mask);
+	for (unsigned int probe = 0; probe < buckets.size(); ++probe)
+	{
+		TargetLookupTag32ParityBucketHost expected = empty_bucket;
+		if (__atomic_compare_exchange(&buckets[slot], &expected, &desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
+		{
+			if (fused_tag16_filter_buckets)
+				(*fused_tag16_filter_buckets)[slot] = fused_tag16_filter_mixed ?
+					TargetLookupFilterTag16MixedFromTag32(tag) :
+					(uint16_t)(((uint16_t)(tag >> 16)) | (uint16_t)1U);
+			return true;
+		}
+		slot = (slot + 1U) & mask;
 	}
-	return true;
+	return false;
 }
 
 static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert(const std::vector<TargetLookupKeyHost>& injected_keys,
@@ -3509,20 +3474,26 @@ static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert(const std::v
 	if (fused_tag16_filter_buckets)
 		fused_tag16_filter_buckets->clear();
 
-	std::vector<uint64_t> target_hashes(target_count);
-	std::vector<uint8_t> target_parities(target_count);
+	TargetLookupTag32ParityBucketHost empty_bucket{0, kTargetLookupEmptyIndex};
 	target_x_keys.resize(target_count);
-	for (size_t i = 0; i < injected_keys.size(); ++i)
-	{
-		target_x_keys[i] = TargetLookupXOnlyFromKey(injected_keys[i]);
-		target_parities[i] = (uint8_t)(injected_keys[i].parity & 1U);
-		target_hashes[i] = TargetLookupHash(injected_keys[i]);
-	}
+	buckets.assign(bucket_count, empty_bucket);
+	if (fused_tag16_filter_buckets)
+		fused_tag16_filter_buckets->assign(bucket_count, 0U);
 
 	std::vector<std::pair<uint64_t, uint32_t> > injected_hashes;
 	injected_hashes.reserve(injected_keys.size());
-	for (uint32_t i = 0; i < (uint32_t)injected_keys.size(); ++i)
-		injected_hashes.push_back(std::make_pair(target_hashes[i], i));
+	for (size_t i = 0; i < injected_keys.size(); ++i)
+	{
+		uint64_t hash = TargetLookupHash(injected_keys[i]);
+		target_x_keys[i] = TargetLookupXOnlyFromKey(injected_keys[i]);
+		injected_hashes.push_back(std::make_pair(hash, (uint32_t)i));
+		if (!InsertTargetLookupTag32ParityBucket(buckets, fused_tag16_filter_buckets, fused_tag16_filter_mixed, (uint32_t)i, injected_keys[i].parity, hash))
+		{
+			error = "parallel streaming affine DP tag32 parity target lookup injected insertion failed";
+			return false;
+		}
+	}
+
 	std::sort(injected_hashes.begin(), injected_hashes.end(),
 		[](const std::pair<uint64_t, uint32_t>& lhs, const std::pair<uint64_t, uint32_t>& rhs) {
 			if (lhs.first != rhs.first)
@@ -3533,6 +3504,7 @@ static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert(const std::v
 	size_t injected_count = injected_keys.size();
 	size_t filler_count = (size_t)target_count - injected_count;
 	std::atomic<bool> duplicate_filler(false);
+	std::atomic<bool> insertion_failed(false);
 	auto fill_range = [&](size_t begin, size_t end) {
 		for (size_t offset = begin; offset < end; ++offset)
 		{
@@ -3542,8 +3514,11 @@ static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert(const std::v
 				duplicate_filler.store(true, std::memory_order_relaxed);
 			size_t out_index = injected_count + offset;
 			target_x_keys[out_index] = TargetLookupXOnlyFromKey(key);
-			target_parities[out_index] = (uint8_t)(key.parity & 1U);
-			target_hashes[out_index] = hash;
+			if (!InsertTargetLookupTag32ParityBucket(buckets, fused_tag16_filter_buckets, fused_tag16_filter_mixed, (uint32_t)out_index, key.parity, hash))
+			{
+				insertion_failed.store(true, std::memory_order_relaxed);
+				return;
+			}
 		}
 	};
 	if (filler_count >= kMinParallelTargetLookupHashQueries && ValidationWorkerCount(filler_count) > 1)
@@ -3563,8 +3538,13 @@ static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert(const std::v
 		error = "affine DP tag32 parity filler duplicated an injected key";
 		return false;
 	}
+	if (insertion_failed.load(std::memory_order_relaxed))
+	{
+		error = "parallel streaming affine DP tag32 parity target lookup table insertion failed";
+		return false;
+	}
 
-	return InsertTargetLookupTag32ParityPrehashedTableParallel(target_x_keys, target_parities, target_hashes, bucket_count, buckets, error, fused_tag16_filter_buckets, fused_tag16_filter_mixed);
+	return true;
 }
 
 static void BuildTargetLookupQueries(const std::vector<TargetLookupKeyHost>& target_keys,
