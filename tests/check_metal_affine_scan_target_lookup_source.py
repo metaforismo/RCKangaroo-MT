@@ -60,7 +60,7 @@ markers = [
     "BuildRepeatedTargetLookupQueryHashes",
     "target_lookup_tag16_hash_filter_repeat2d256",
     "target_lookup_tag16_hash_filter_repeat_base2d256",
-    "target_lookup_tag16_hash_filter_repeat_base_count2d256",
+    "target_lookup_tag16_hash_filter_repeat_base_count_by_base2d256",
     "target_lookup_tag16_mixed_hash_filter_repeat_base_count2d256",
     "target_lookup_tag16_hash_filter_repeat_packed2d256",
     "target_lookup_tag16_mixed_hash_filter_repeat2d256",
@@ -754,6 +754,12 @@ check_experiment(
 
 check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_base_count_repeat.json",
+    m3_auto_repeat_command,
+    "ops_per_sec",
+)
+
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_base_count_by_base_reduce.json",
     m3_auto_repeat_command,
     "ops_per_sec",
 )

@@ -5403,6 +5403,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   versus baseline `17646576.051489` (`paired_speedup=0.876247`). Keep
   `tag16-mix` as an explicit diagnostic for collision-distribution probes; do
   not promote it as a default or speed claim.
+- Promoted by-base threadgroup reduction for the repeat-indexed tag16
+  base-count Metal kernel. The old base-count kernel probed every logical
+  `(base_query, repeat)` pair but used global atomics for every filter
+  positive. The new kernel dispatches as `(repeat, base_query)`, still runs one
+  probe per logical repeat, reduces positives inside each threadgroup, then
+  performs one global add per block/base. It keeps
+  `repeat_positive_index_encoding=base_query_count_repeated`, exact CPU
+  `x256 + y_parity` resolution, `target_lookup_checksum=0x86ec0110960785f8`,
+  `hit_count=2097152`, and zero false positives. Two paired M3 confirmations
+  against `HEAD=73adb7f` kept the candidate on runtime `ops_per_sec`:
+  confirmation 1 measured `75494801.824354` versus baseline
+  `72939819.645629` (`paired_speedup=1.035029`); confirmation 2 measured
+  `77881634.196628` versus baseline `73789843.671519`
+  (`paired_speedup=1.055452`). This is a lookup-kernel win, not target setup
+  hiding; target build and filter setup fields remain visible separately.
 
 ## Cleanup Policy
 

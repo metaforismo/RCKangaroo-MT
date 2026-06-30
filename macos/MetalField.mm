@@ -4823,13 +4823,13 @@ static bool RunTargetLookupTag16HashFilterRepeatBaseCountKernel(const std::vecto
 
 		NSString* function_name = mixed_filter_tag ?
 			@"target_lookup_tag16_mixed_hash_filter_repeat_base_count2d256" :
-			@"target_lookup_tag16_hash_filter_repeat_base_count2d256";
+			@"target_lookup_tag16_hash_filter_repeat_base_count_by_base2d256";
 		id<MTLFunction> function = [library newFunctionWithName:function_name];
 		if (!function)
 		{
 			error = mixed_filter_tag ?
 				"failed to load target_lookup_tag16_mixed_hash_filter_repeat_base_count2d256 function" :
-				"failed to load target_lookup_tag16_hash_filter_repeat_base_count2d256 function";
+				"failed to load target_lookup_tag16_hash_filter_repeat_base_count_by_base2d256 function";
 			return false;
 		}
 
@@ -4885,7 +4885,8 @@ static bool RunTargetLookupTag16HashFilterRepeatBaseCountKernel(const std::vecto
 		[encoder setBuffer:bucket_count_buffer offset:0 atIndex:4];
 		[encoder setBuffer:base_query_count_buffer offset:0 atIndex:5];
 		[encoder setBuffer:repeat_count_buffer offset:0 atIndex:6];
-		[encoder dispatchThreads:MTLSizeMake(base_query_count, repeat_count, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
+		MTLSize grid_size = mixed_filter_tag ? MTLSizeMake(base_query_count, repeat_count, 1) : MTLSizeMake(repeat_count, base_query_count, 1);
+		[encoder dispatchThreads:grid_size threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
 		[encoder endEncoding];
 		auto start = std::chrono::steady_clock::now();
 		[command_buffer commit];

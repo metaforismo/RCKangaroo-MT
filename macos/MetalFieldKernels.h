@@ -2758,6 +2758,56 @@ kernel void target_lookup_tag16_hash_filter_repeat_base_count2d256(device const 
   }
 }
 
+kernel void target_lookup_tag16_hash_filter_repeat_base_count_by_base2d256(device const ushort* target_filter_buckets [[buffer(0)]],
+                                                                           device const ulong* base_query_hashes [[buffer(1)]],
+                                                                           device atomic_uint* out_base_positive_counts [[buffer(2)]],
+                                                                           device atomic_uint* out_filter_positive_count [[buffer(3)]],
+                                                                           constant uint& bucket_count [[buffer(4)]],
+                                                                           constant uint& base_query_count [[buffer(5)]],
+                                                                           constant uint& repeat_count [[buffer(6)]],
+                                                                           uint2 id [[thread_position_in_grid]],
+                                                                           uint2 thread_id_in_group [[thread_position_in_threadgroup]],
+                                                                           uint2 threads_per_group [[threads_per_threadgroup]]) {
+  threadgroup uint positive_counts[1024];
+  uint repeat_id = id.x;
+  uint base_query_id = id.y;
+  uint thread_id = thread_id_in_group.x;
+  uint positive = 0;
+  if (base_query_id < base_query_count && repeat_id < repeat_count && base_query_count != 0) {
+    ulong hash = base_query_hashes[base_query_id];
+    ushort filter_tag = target_lookup_filter_tag16(hash);
+    uint slot = (uint)(hash & (ulong)(bucket_count - 1));
+    uint probes = 0;
+
+    while (probes < bucket_count) {
+      ushort bucket_tag = target_filter_buckets[slot];
+      if (bucket_tag == (ushort)0U) {
+        break;
+      }
+      if (bucket_tag == filter_tag) {
+        positive = 1;
+        break;
+      }
+      slot = (slot + 1U) & (bucket_count - 1U);
+      probes++;
+    }
+  }
+
+  positive_counts[thread_id] = positive;
+  threadgroup_barrier(mem_flags::mem_threadgroup);
+  uint group_width = threads_per_group.x;
+  for (uint stride = 512U; stride > 0U; stride >>= 1U) {
+    if (thread_id < stride && thread_id + stride < group_width) {
+      positive_counts[thread_id] += positive_counts[thread_id + stride];
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+  }
+  if (thread_id == 0U && positive_counts[0] != 0U && base_query_id < base_query_count) {
+    atomic_fetch_add_explicit(out_filter_positive_count, positive_counts[0], memory_order_relaxed);
+    atomic_fetch_add_explicit(out_base_positive_counts + base_query_id, positive_counts[0], memory_order_relaxed);
+  }
+}
+
 kernel void target_lookup_tag16_mixed_hash_filter_repeat_base_count2d256(device const ushort* target_filter_buckets [[buffer(0)]],
                                                                          device const ulong* base_query_hashes [[buffer(1)]],
                                                                          device atomic_uint* out_base_positive_counts [[buffer(2)]],
