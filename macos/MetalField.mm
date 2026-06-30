@@ -30,6 +30,7 @@ static constexpr unsigned int kDefaultMetalTargetLookupThreadgroupLimit = 64;
 static constexpr unsigned int kDefaultMetalPersistentTargetLookupLargeThreadgroupLimit = 1024;
 static constexpr unsigned int kDefaultMetalPersistentTargetLookupFilterLargeThreadgroupLimit = 512;
 static constexpr size_t kDefaultMetalPersistentTargetLookupLargeTargetThreshold = 16777216;
+static constexpr uint64_t kMinAutoRepeatHashLookupLogicalQueries = 16000000ULL;
 static constexpr size_t kMinParallelTargetLookupHashQueries = 2097152;
 static constexpr size_t kMinParallelTargetLookupFilterBuckets = 2097152;
 static constexpr size_t kMinValidationSamplesPerWorker = 1024;
@@ -7670,10 +7671,19 @@ static bool ValidateAffineLookupEngine(const char* lookup_engine, std::string& r
 	return false;
 }
 
-static const char* ChooseAffineLookupEngine(const char* lookup_engine, unsigned int target_count, uint64_t query_count)
+static const char* ChooseAffineLookupEngine(const char* lookup_engine,
+	unsigned int target_count,
+	uint64_t query_count,
+	const char* lookup_query_mode,
+	unsigned int lookup_repeat)
 {
 	if (strcmp(lookup_engine, "auto") != 0)
 		return lookup_engine;
+	if (strcmp(lookup_query_mode, "repeat") == 0 &&
+		lookup_repeat > 1 &&
+		target_count >= kDefaultMetalPersistentTargetLookupLargeTargetThreshold &&
+		query_count >= kMinAutoRepeatHashLookupLogicalQueries)
+		return "gpu_filter16_hash_repeat";
 	if (target_count <= 4194304U && query_count >= 1048576ULL)
 		return "gpu";
 	if (target_count >= 1048576U && query_count <= 4194304ULL)
@@ -10336,7 +10346,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJ
 			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, min_ms, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, 0.0, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name);
 		}
 			uint64_t logical_query_count = repeated_query_count;
-			effective_lookup_engine_name = ChooseAffineLookupEngine(lookup_engine_name, target_count, logical_query_count);
+			effective_lookup_engine_name = ChooseAffineLookupEngine(lookup_engine_name, target_count, logical_query_count, lookup_query_mode_name, lookup_repeat);
 			bool repeat_indexed_hash_lookup = strcmp(effective_lookup_engine_name, "gpu_filter16_hash_repeat") == 0;
 			effective_lookup_threadgroup_limit = ChooseAffineLookupThreadgroupLimit(lookup_engine_name, effective_lookup_engine_name, target_count, logical_query_count, threadgroup_limit, lookup_threadgroup_limit);
 			std::vector<TargetLookupKeyHost> lookup_queries;

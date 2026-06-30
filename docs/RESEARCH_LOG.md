@@ -5231,6 +5231,36 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `0.013328` seconds respectively before the no-materialization validator.
   Conclusion: keep dedup as a non-default repeated-query upper-bound diagnostic
   and a future optimization target, not as a distinct-query throughput claim.
+- Added conservative `auto` routing for large M3 repeat-mode target joins. The
+  previous `auto` policy could choose the host CPU whenever a large target table
+  produced only a small DP query batch, even if the logical repeat expansion was
+  large enough for the repeat-indexed Metal hash filter to win. A direct local
+  M3 scout on `iterations=8192`, `steps=512`, `dp_bits=6`,
+  `target_count=16777216`, `lookup_repeat=8192`,
+  `lookup_query_mode=repeat` preserved the exact same
+  `target_lookup_checksum=0xb87fc40ba6652a4f`, `dp_count=125`, and
+  `hit_count=131072`. It was a lookup-stage win (`cpu lookup_seconds=0.009043`,
+  `gpu-filter16-hash-repeat lookup_seconds=0.005014`), but paired
+  end-to-end `ops_per_sec` later discarded the 1.024M-logical-query threshold
+  once target-filter setup was counted. A 4.096M-logical-query scout also kept
+  the checksum (`0x5103c731ae1429a0`) and improved lookup time
+  (`0.038443` CPU versus `0.017617` GPU), but still missed end-to-end. At
+  16.384M logical queries (`lookup_repeat=131072`), the same checksum oracle
+  passed (`0x86ec0110960785f8`, `hit_count=2097152`) and the repeat-indexed
+  Metal path beat CPU with setup included: CPU measured
+  `ops_per_sec=16581135`, `setup_inclusive_ops_per_sec=6772869`, and
+  `lookup_seconds=0.197659`; GPU measured `ops_per_sec=38197808`,
+  `setup_inclusive_ops_per_sec=10084276`, and `lookup_seconds=0.036280`.
+  Therefore the new route only promotes `auto` to `gpu_filter16_hash_repeat`
+  for repeat-mode joins with `lookup_repeat > 1`, target count at least the
+  large-target threshold, and at least 16,000,000 logical repeated queries. This
+  changes default routing only where the M3 profile paid for the GPU filter
+  setup without changing the exact hit/miss oracle, checksum, or explicit
+  CPU/GPU engine controls. The final paired autoresearch check against
+  `HEAD=e01d29c` kept the updated `auto` route on the 16.384M-query gate:
+  candidate median `ops_per_sec=45756095.881506`, paired CPU baseline
+  `20155261.342318`, `paired_speedup=2.270181`, and
+  `target_lookup_checksum=0x86ec0110960785f8`.
 
 ## Cleanup Policy
 
