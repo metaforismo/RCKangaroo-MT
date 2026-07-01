@@ -2891,6 +2891,30 @@ static bool TargetLookupTag32ParityFind(const TargetLookupXOnlyHost* target_x_ke
 	return TargetLookupTag32ParityFindWithHash(target_x_keys, target_x_key_count, buckets, key, TargetLookupHash(key), target_index);
 }
 
+static bool TargetLookupTag16FilterMayContainWithHash(const std::vector<uint16_t>* filter_buckets,
+	uint64_t hash,
+	bool mixed_filter_tag)
+{
+	if (!filter_buckets || filter_buckets->empty())
+		return true;
+	uint16_t filter_tag = mixed_filter_tag ?
+		TargetLookupFilterTag16Mixed(hash) :
+		TargetLookupFilterTag16(hash);
+	uint32_t bucket_count = (uint32_t)filter_buckets->size();
+	uint32_t mask = bucket_count - 1U;
+	uint32_t slot = (uint32_t)(hash & (uint64_t)mask);
+	for (uint32_t probes = 0; probes < bucket_count; ++probes)
+	{
+		uint16_t bucket_tag = (*filter_buckets)[slot];
+		if (bucket_tag == 0U)
+			return false;
+		if (bucket_tag == filter_tag)
+			return true;
+		slot = (slot + 1U) & mask;
+	}
+	return false;
+}
+
 static bool BuildTargetLookupTag32Table(unsigned int target_count,
 	std::vector<TargetLookupKeyHost>& target_keys,
 	std::vector<TargetLookupTag32BucketHost>& buckets,
@@ -3217,6 +3241,8 @@ static bool BuildDistinctTargetLookupMissSources(const std::vector<TargetLookupK
 	const TargetLookupXOnlyHost* target_x_keys,
 	size_t target_x_key_count,
 	bool use_parity_xonly_target_table,
+	const std::vector<uint16_t>* target_filter16_buckets,
+	bool target_filter16_mixed,
 	std::vector<uint64_t>& miss_sources,
 	std::vector<uint64_t>* query_hashes,
 	std::string& error)
@@ -3275,9 +3301,11 @@ static bool BuildDistinctTargetLookupMissSources(const std::vector<TargetLookupK
 					bool retry_salt = salt_index != 0;
 					TargetLookupKeyHost miss_key = DeterministicTargetLookupKey(nonce, retry_salt ? kDistinctMissRetrySalt : kDistinctMissPrimarySalt);
 					uint64_t miss_hash = TargetLookupHash(miss_key);
-					bool exact_hit = use_parity_xonly_target_table ?
-						TargetLookupTag32ParityFindWithHash(target_x_keys, target_x_key_count, parity_buckets, miss_key, miss_hash, &ignored) :
-						TargetLookupTag32FindWithHash(target_keys, buckets, miss_key, miss_hash, &ignored);
+					bool maybe_exact_hit = TargetLookupTag16FilterMayContainWithHash(target_filter16_buckets, miss_hash, target_filter16_mixed);
+					bool exact_hit = maybe_exact_hit &&
+						(use_parity_xonly_target_table ?
+							TargetLookupTag32ParityFindWithHash(target_x_keys, target_x_key_count, parity_buckets, miss_key, miss_hash, &ignored) :
+							TargetLookupTag32FindWithHash(target_keys, buckets, miss_key, miss_hash, &ignored));
 					if (!exact_hit)
 					{
 						miss_sources[i] = EncodeDistinctMissSource(nonce, retry_salt);
@@ -12627,7 +12655,8 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 	if (lookup_distinct_misses)
 	{
 		auto source_start = std::chrono::steady_clock::now();
-		if (!BuildDistinctTargetLookupMissSources(aggregate_dp_keys, logical_query_count, target_buckets, target_keys, target_parity_buckets, target_x_keys.get(), target_x_key_count, use_parity_xonly_target_table, distinct_miss_sources, &lookup_query_hashes, error))
+		const std::vector<uint16_t>* distinct_source_filter16 = target_filter16_buckets.empty() ? NULL : &target_filter16_buckets;
+		if (!BuildDistinctTargetLookupMissSources(aggregate_dp_keys, logical_query_count, target_buckets, target_keys, target_parity_buckets, target_x_keys.get(), target_x_key_count, use_parity_xonly_target_table, distinct_source_filter16, use_tag16_mixed_hash_filter, distinct_miss_sources, &lookup_query_hashes, error))
 		{
 			distinct_miss_source_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - source_start).count();
 			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32_rounds", requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits_per_round, injected_hits, dp_query_count, hit_count, target_table_bucket_count, target_key_bytes, target_bucket_bytes, 0, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, validation_seconds, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name, lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes, lookup_hash_seconds, lookup_gpu_seconds, lookup_exact_seconds, 0.0, "physical_query_index", target_build_seconds, target_filter_build_seconds, round_count);

@@ -6164,6 +6164,24 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0x30a7914972cba014`. This is a health check for the public
   Metal micro-track, not evidence of a new integrated 25M breakthrough.
 
+- Accepted a host-side tag16 prefilter for fixed-round physical
+  `distinct-misses` source generation. The deterministic miss builder now
+  checks the already fused tag16 target filter before exact target lookup, then
+  still runs exact `x256 + y_parity` resolution for every filter-positive
+  candidate. If no tag16 filter is available, such as the Bloom64 diagnostic
+  path, it falls back to the previous exact-check behavior. On the local M3
+  1M-target, `--lookup-repeat 65536` physical distinct gate, paired baseline
+  and candidate runs preserved the same checksum
+  `target_lookup_checksum=0x7c2ae959e5577a79`, `hit_count=64`, and
+  `filter_positive_count=752`. Median `distinct_miss_source_seconds` improved
+  from `0.260545` to `0.158142`, and median
+  `setup_inclusive_wall_seconds` improved from `0.400209` to `0.320489`.
+  Standard tag16, tag16-mix, and Bloom64 distinct smokes all kept
+  `correctness=true`. A separate compact positive-output-buffer experiment was
+  rejected: although it preserved the same checksum and reduced positive-index
+  buffer size, the 16M-query paired check slowed median lookup wall time from
+  `0.0143445` to `0.015679`, so it was not promoted.
+
 ## Cleanup Policy
 
 - After a feature is merged to `main` and pushed, remove only its clean accepted

@@ -91,6 +91,7 @@ markers = [
     "BuildTargetLookupQueryHashes",
     "BuildTargetLookupQueryHashesParallel",
     "BuildRepeatedTargetLookupQueryHashes",
+    "TargetLookupTag16FilterMayContainWithHash",
     "target_lookup_tag16_hash_filter_repeat2d256",
     "target_lookup_tag16_hash_filter_repeat_base2d256",
     "target_lookup_tag16_hash_filter_repeat_base_count_by_base2d256",
@@ -267,8 +268,14 @@ if "ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices(target_p
     raise SystemExit("fixed-round base-count repeat lookup should exact-resolve against x plus encoded parity")
 if "BuildDistinctTargetLookupMissSources(aggregate_dp_keys, logical_query_count" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should build compact miss sources without materializing full key queries")
+if "distinct_source_filter16, use_tag16_mixed_hash_filter" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses source generation should reuse the fused tag16 filter before exact target checks")
 if "miss_sources.assign(suffix_count, 0)" not in kernels or "ParallelForSamples(suffix_count" not in kernels:
     raise SystemExit("distinct miss-source generation should fill compact sources in parallel")
+if "TargetLookupTag16FilterMayContainWithHash(target_filter16_buckets, miss_hash, target_filter16_mixed)" not in kernels:
+    raise SystemExit("distinct miss-source generation should tag16-prefilter generated misses before exact target checks")
+if "TargetLookupTag32ParityFindWithHash(target_x_keys, target_x_key_count, parity_buckets, miss_key, miss_hash, &ignored)" not in kernels:
+    raise SystemExit("distinct miss-source generation should preserve parity exact lookup after prefilter positives")
 if "distinct_miss_source_seconds" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should measure compact miss-source generation time")
 if "&lookup_query_hashes, error)" not in rounds_body:
