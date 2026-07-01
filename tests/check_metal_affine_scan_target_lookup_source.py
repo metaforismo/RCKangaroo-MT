@@ -140,6 +140,7 @@ markers = [
     "\\\"target_filter_build_seconds\\\":",
     "\\\"setup_inclusive_seconds\\\":",
     "\\\"setup_inclusive_wall_seconds\\\":",
+    "\\\"distinct_miss_source_seconds\\\":",
     "\\\"setup_inclusive_ops_per_sec\\\":",
     "\\\"setup_inclusive_wall_ops_per_sec\\\":",
     "\\\"mean_jump_distance\\\":",
@@ -206,10 +207,10 @@ if "ValidateAffineTargetLookupSparseRepeatOutputs(dp_keys.size(), injected_hits,
     raise SystemExit("repeat-indexed integrated lookup should validate sparse repeat outputs against the checksum oracle")
 if "filter_positive_count > base_query_count" not in kernels or "base_positive_counts(base_query_count" not in kernels:
     raise SystemExit("sparse repeat exact resolver should aggregate positives per repeated base query")
-if "double setup_inclusive_seconds = round_sample_build_seconds + walk_seconds + affine_scan_seconds + lookup_seconds + target_build_seconds + target_filter_build_seconds;" not in kernels:
-    raise SystemExit("setup-inclusive seconds should include fixed-round sample generation time")
-if "double setup_inclusive_wall_seconds = round_sample_build_seconds + effective_walk_wall_seconds + affine_scan_seconds + effective_lookup_wall_seconds + target_build_seconds + target_filter_build_seconds;" not in kernels:
-    raise SystemExit("setup-inclusive wall seconds should include fixed-round sample generation time")
+if "double setup_inclusive_seconds = round_sample_build_seconds + walk_seconds + affine_scan_seconds + distinct_miss_source_seconds + lookup_seconds + target_build_seconds + target_filter_build_seconds;" not in kernels:
+    raise SystemExit("setup-inclusive seconds should include fixed-round sample generation and distinct miss-source time")
+if "double setup_inclusive_wall_seconds = round_sample_build_seconds + effective_walk_wall_seconds + affine_scan_seconds + distinct_miss_source_seconds + effective_lookup_wall_seconds + target_build_seconds + target_filter_build_seconds;" not in kernels:
+    raise SystemExit("setup-inclusive wall seconds should include fixed-round sample generation and distinct miss-source time")
 
 rounds_start = kernels.index(
     "std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32RoundsBenchJson"
@@ -266,6 +267,10 @@ if "ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices(target_p
     raise SystemExit("fixed-round base-count repeat lookup should exact-resolve against x plus encoded parity")
 if "BuildDistinctTargetLookupMissSources(aggregate_dp_keys, logical_query_count" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should build compact miss sources without materializing full key queries")
+if "miss_sources.assign(suffix_count, 0)" not in kernels or "ParallelForSamples(suffix_count" not in kernels:
+    raise SystemExit("distinct miss-source generation should fill compact sources in parallel")
+if "distinct_miss_source_seconds" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should measure compact miss-source generation time")
 if "BuildDistinctTargetLookupQueryHashesFromSources(aggregate_dp_keys, distinct_miss_sources, logical_query_count" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should hash compact miss sources in the measured lookup path")
 if "ResolveTargetLookupTag32ParityFilterDistinctSourcesExpected(target_parity_buckets, target_x_keys.get(), target_x_key_count, aggregate_dp_keys, distinct_miss_sources" not in rounds_body:

@@ -6095,6 +6095,29 @@ These did not pass the performance gate or had a correctness/architecture issue:
   Its paired whole-gate run was thermally noisy and should not be reported as a
   solver breakthrough; it is useful only as evidence that the real path remains
   correct and did not reject the change.
+- Accepted a fixed-round `distinct-misses` measurement correction and source
+  generation cleanup. The compact deterministic miss-source pass previously ran
+  before `lookup_hash_seconds`, so setup-inclusive metrics did not count the
+  host work that creates and exact-checks physical miss queries. The JSON now
+  reports `distinct_miss_source_seconds` and includes it in both
+  `setup_inclusive_seconds` and `setup_inclusive_wall_seconds`. The source
+  builder now fills the compact source vector in parallel by deterministic
+  suffix offset, using the primary salt first and the retry salt only if the
+  exact target lookup resolves the primary candidate as a hit. This keeps the
+  exact `x256 + y_parity` miss oracle while avoiding a serial push loop. A
+  small 1M distinct smoke preserved correctness with
+  `target_lookup_checksum=0x490898cb59685f2c` and reported
+  `distinct_miss_source_seconds=0.001196`. The 25M fixed-round distinct gate
+  preserved `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, and `hit_count=128`, with
+  `distinct_miss_source_seconds=0.174581`. Treat new setup-inclusive numbers as
+  more honest, not directly comparable with older rows that hid this work. The
+  updated 25M autoresearch recipe recorded three correct samples with the same
+  checksum and `status=discard`, median
+  `setup_inclusive_wall_distance_per_sec=134904859680.919525`, and
+  `distinct_miss_source_seconds` in the `0.242052..0.527568` range. The discard
+  is expected because previous leaderboard rows used a less complete
+  setup-inclusive denominator.
 
 ## Cleanup Policy
 
