@@ -1512,6 +1512,24 @@ static std::string TargetLookupTag32ParallelInsertBenchJson(const char* operatio
 	return oss.str();
 }
 
+static double MeanJumpDistanceForJson(unsigned int jump_count, const char* jump_schedule)
+{
+	if (jump_count == 0 || (jump_schedule && strcmp(jump_schedule, "invalid") == 0))
+		return 0.0;
+	if (jump_schedule &&
+		(strcmp(jump_schedule, "scaled4_balanced") == 0 ||
+		 strcmp(jump_schedule, "scaled4-balanced") == 0))
+	{
+		if (jump_count != 4)
+			return 0.0;
+		return (1.0 + 2.0 + 8192.0 + 8193.0) / 4.0;
+	}
+	double total = 0.0;
+	for (unsigned int i = 0; i < jump_count && i < 63; ++i)
+		total += (double)(1ULL << i);
+	return total / (double)jump_count;
+}
+
 static std::string MetalAffineScanTargetLookupTag32BenchJson(const char* operation,
 	uint64_t iterations,
 	unsigned int sample_count,
@@ -1618,6 +1636,11 @@ static std::string MetalAffineScanTargetLookupTag32BenchJson(const char* operati
 	double setup_inclusive_ops_per_sec = setup_inclusive_seconds > 0.0 ? (double)iterations / setup_inclusive_seconds : 0.0;
 	double setup_inclusive_wall_seconds = round_sample_build_seconds + effective_walk_wall_seconds + affine_scan_seconds + effective_lookup_wall_seconds + target_build_seconds + target_filter_build_seconds;
 	double setup_inclusive_wall_ops_per_sec = setup_inclusive_wall_seconds > 0.0 ? (double)iterations / setup_inclusive_wall_seconds : 0.0;
+	double mean_jump_distance = MeanJumpDistanceForJson(jump_count, jump_schedule);
+	double distance_per_sec = ops_per_sec * mean_jump_distance;
+	double gpu_distance_per_sec = gpu_ops_per_sec * mean_jump_distance;
+	double setup_inclusive_distance_per_sec = setup_inclusive_ops_per_sec * mean_jump_distance;
+	double setup_inclusive_wall_distance_per_sec = setup_inclusive_wall_ops_per_sec * mean_jump_distance;
 	std::ostringstream oss;
 	oss << std::fixed << std::setprecision(6);
 	oss << "{\"backend\":\"metal\",\"operation\":\"" << operation << "\",";
@@ -1639,6 +1662,7 @@ static std::string MetalAffineScanTargetLookupTag32BenchJson(const char* operati
 	oss << "\"jump_index\":\"" << jump_index_mode << "\",";
 	oss << "\"jump_mixer\":\"" << jump_mixer << "\",";
 	oss << "\"jump_schedule\":\"" << jump_schedule << "\",";
+	oss << "\"mean_jump_distance\":" << mean_jump_distance << ",";
 	oss << "\"jump_histogram_min_bucket\":" << jump_histogram_min_bucket << ",";
 	oss << "\"jump_histogram_max_bucket\":" << jump_histogram_max_bucket << ",";
 	oss << "\"jump_histogram_max_deviation_ppm\":" << jump_histogram_max_deviation_ppm << ",";
@@ -1704,6 +1728,10 @@ static std::string MetalAffineScanTargetLookupTag32BenchJson(const char* operati
 	oss << "\"lookups_per_sec\":" << lookups_per_sec << ",";
 	oss << "\"setup_inclusive_ops_per_sec\":" << setup_inclusive_ops_per_sec << ",";
 	oss << "\"setup_inclusive_wall_ops_per_sec\":" << setup_inclusive_wall_ops_per_sec << ",";
+	oss << "\"gpu_distance_per_sec\":" << gpu_distance_per_sec << ",";
+	oss << "\"distance_per_sec\":" << distance_per_sec << ",";
+	oss << "\"setup_inclusive_distance_per_sec\":" << setup_inclusive_distance_per_sec << ",";
+	oss << "\"setup_inclusive_wall_distance_per_sec\":" << setup_inclusive_wall_distance_per_sec << ",";
 	oss << "\"ops_per_sec\":" << ops_per_sec << ",";
 	oss << "\"target_lookup_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << target_lookup_checksum << std::dec << std::setfill(' ') << "\",";
 	oss << "\"correctness\":" << (correctness ? "true" : "false") << ",";

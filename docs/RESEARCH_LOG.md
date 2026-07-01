@@ -5754,6 +5754,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   rebuilt baseline measured `115571607.177231` on the same command with the
   same oracle. Treat the apparent win as run-state noise; keep the unhinted
   branch shape.
+- Added schedule-distance throughput metrics to the integrated affine-scan
+  target-lookup JSON. The benchmark now reports `mean_jump_distance`,
+  `gpu_distance_per_sec`, `distance_per_sec`,
+  `setup_inclusive_distance_per_sec`, and
+  `setup_inclusive_wall_distance_per_sec`. These fields multiply the existing
+  group-operation rates by the exact mean jump distance for `power2` and
+  `scaled4-balanced` schedules, making schedule experiments compare effective
+  kangaroo distance covered per second instead of raw operation rate alone.
+  This is a benchmark-honesty improvement, not a solver speed claim. Small
+  runtime smokes preserved correctness and showed `mean_jump_distance=31.875`
+  for `--jumps 8 --jump-schedule power2` and `4097.0` for
+  `--jumps 4 --jump-schedule scaled4-balanced`. Invalid `scaled4-balanced`
+  jump counts report zero distance throughput alongside the existing
+  correctness failure instead of exposing a misleading schedule metric.
 
 ## Cleanup Policy
 
