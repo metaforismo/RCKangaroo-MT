@@ -51,6 +51,7 @@ markers = [
     "InsertTargetLookupTag32ParityBucket",
     "BuildTargetLookupTag32ParityTableFromKeysParallelInsert",
     "ResolveTargetLookupTag32ParityFilterCandidates",
+    "ResolveTargetLookupTag32ParityFilterDistinctExpected",
     "ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices",
     "DecodeTargetLookupParity(bucket.encoded_target_index) == (key.parity & 1U)",
     "ValidateAffineTargetLookupDedupRepeatOutputsWithExpected",
@@ -59,6 +60,7 @@ markers = [
     "lookup_uses_distinct_misses",
     "physical_query_index",
     "ValidateAffineTargetLookupSparseRepeatOutputs",
+    "ValidateDistinctTargetLookupSparseOutputsWithExpected",
     "use_base_exact_cache",
     "base_positive_counts",
     "use_base_repeat_positive_counts",
@@ -93,6 +95,7 @@ markers = [
     "target_lookup_tag16_hash_filter_repeat_base2d256",
     "target_lookup_tag16_hash_filter_repeat_base_count_by_base2d256",
     "target_lookup_tag16_mixed_hash_filter256",
+    "target_lookup_bloom64_hash_filter256",
     "target_lookup_tag16_mixed_hash_filter_repeat_base_count2d256",
     "target_lookup_tag16_hash_filter_repeat_packed2d256",
     "target_lookup_tag16_mixed_hash_filter_repeat2d256",
@@ -118,9 +121,11 @@ markers = [
     "ParallelForSamples(queries.size()",
     "\\\"lookup_layout\\\":\\\"open_address_tag16_hash_filter_exact256\\\"",
     "open_address_tag16_mix_hash_filter_exact256",
+    "blocked_bloom64_hash_filter_exact256",
     "open_address_tag32_hash_filter_exact256",
     "\\\"candidate_verification\\\":\\\"tag16_hash_filter_then_cpu_exact_key_equality\\\"",
     "tag16_mix_hash_filter_then_cpu_exact_key_equality",
+    "bloom64_hash_filter_then_cpu_exact_key_equality",
     "tag32_hash_filter_then_cpu_exact_key_equality",
     "\\\"query_input\\\":\\\"hash64\\\"",
     "\\\"target_query_hash_bytes\\\":",
@@ -217,20 +222,26 @@ if "RunTargetLookupTag16HashFilterKernel(target_filter16_buckets, lookup_query_h
     raise SystemExit("fixed-round distinct-misses lookup should use the physical non-repeat tag16 hash-filter kernel")
 if "use_tag16_mixed_hash_filter" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should preserve the tag16-mix filter choice")
-if "BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, target_count, target_x_keys, target_x_key_count, target_parity_buckets, error, &target_filter16_buckets, use_tag16_mixed_hash_filter)" not in rounds_body:
+if "BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, target_count, target_x_keys, target_x_key_count, target_parity_buckets, error, fuse_tag16_filter ? &target_filter16_buckets : NULL, use_tag16_mixed_hash_filter, use_bloom64_hash_filter ? &target_bloom64_filter_words : NULL)" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should fuse standard or mixed tag16 filters into the compact parity table")
 if "RunTargetLookupTag16HashFilterKernel(target_filter16_buckets, lookup_query_hashes, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, use_tag16_mixed_hash_filter)" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should pass the mixed tag selector to the non-repeat hash-filter kernel")
-if 'lookup_distinct_misses ?\n\t\t(use_tag16_mixed_hash_filter ? "gpu_filter16_mix_hash" : "gpu_filter16_hash")' not in rounds_body:
+if "RunTargetLookupBloom64HashFilterKernel(target_bloom64_filter_words, lookup_query_hashes, positive_query_indices" not in rounds_body:
+    raise SystemExit("fixed-round bloom64 distinct-misses lookup should use the physical non-repeat bloom64 hash-filter kernel")
+if 'lookup_distinct_misses ?\n\t\t(use_bloom64_hash_filter ? "gpu_filter_bloom64_hash" :' not in rounds_body:
     raise SystemExit("fixed-round distinct-misses should report standard versus mixed tag16 hash engines separately")
 if "lookup_uses_tag16_mixed_hash_repeat_filter" not in kernels:
     raise SystemExit("JSON query_input reporting should distinguish mixed hash repeat from mixed hash distinct")
 if "fixed-round distinct-misses currently supports tag16 hash filters only" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses should reject only tag32 filters")
+if "fixed-round bloom64 filter currently requires distinct-misses query mode" not in rounds_body:
+    raise SystemExit("fixed-round bloom64 filter should be guarded to physical distinct-miss mode")
 if "fixed-round distinct-misses currently supports the standard tag16 hash filter only" in rounds_body:
     raise SystemExit("fixed-round distinct-misses should no longer reject tag16-mix")
-if "ValidateTargetLookupOutputs(out_indices, distinct_expected_indices" not in rounds_body:
-    raise SystemExit("fixed-round distinct-misses lookup should validate physical query outputs against explicit expected indices")
+if "ValidateDistinctTargetLookupSparseOutputsWithExpected(aggregate_expected_indices, physical_query_count" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should validate physical query outputs against sparse expected indices")
+if "distinct_expected_indices" in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should not materialize physical expected miss indices")
 if 'repeat_positive_index_encoding = lookup_distinct_misses ? "physical_query_index"' not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should report physical query index positives")
 if "RunJacobianDynamicXyzzDistanceKernel(batched_round_p, jumps, jump_distances" not in rounds_body:
@@ -247,8 +258,8 @@ if "BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, targe
     raise SystemExit("fixed-round base-count repeat lookup should build the x-only parity target table")
 if "ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices(target_parity_buckets, target_x_keys.get(), target_x_key_count" not in rounds_body:
     raise SystemExit("fixed-round base-count repeat lookup should exact-resolve against x plus encoded parity")
-if "ResolveTargetLookupTag32ParityFilterCandidates(target_parity_buckets, target_x_keys.get(), target_x_key_count, distinct_lookup_queries" not in rounds_body:
-    raise SystemExit("fixed-round distinct-misses lookup should exact-resolve against x plus encoded parity")
+if "ResolveTargetLookupTag32ParityFilterDistinctExpected(target_parity_buckets, target_x_keys.get(), target_x_key_count, distinct_lookup_queries" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should exact-resolve against x plus encoded parity with sparse expected indices")
 if "BuildJacobianPointSamplesFrom((uint64_t)round * (uint64_t)sample_count, sample_count, p);" not in rounds_body:
     raise SystemExit("fixed-round setup should avoid generating discarded affine q samples after round zero")
 if "ignored_q" in rounds_body:
@@ -284,6 +295,10 @@ if "kernel void target_lookup_tag16_mixed_hash_filter256" not in metal_kernels:
     raise SystemExit("missing non-repeat mixed tag16 hash-filter Metal kernel")
 if "target_lookup_filter_tag16_mixed(hash)" not in metal_kernels:
     raise SystemExit("non-repeat mixed tag16 hash-filter kernel should derive mixed tags from query hashes")
+if "kernel void target_lookup_bloom64_hash_filter256" not in metal_kernels:
+    raise SystemExit("missing non-repeat bloom64 hash-filter Metal kernel")
+if "target_lookup_bloom64_mask(hash)" not in metal_kernels:
+    raise SystemExit("bloom64 hash-filter kernel should derive blocked masks from query hashes")
 
 parity_builder_start = kernels.index("static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert")
 parity_builder_end = kernels.index("static void BuildTargetLookupQueries", parity_builder_start)

@@ -5847,6 +5847,40 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `419382208002.396973`, because that metric excludes the old pre-scan slice
   copy overhead and the M3 Air run was thermally noisy; keep both facts visible
   when comparing future changes.
+- Added sparse exact validation for physical `distinct-misses` lookup and a
+  diagnostic blocked Bloom64 GPU filter. The accepted part is the sparse
+  distinct resolver: after the GPU emits positive physical query indices, the
+  CPU exact resolver now checks each positive against the expected prefix
+  indices directly, and `ValidateDistinctTargetLookupSparseOutputsWithExpected`
+  computes the same checksum from the expected prefix plus implicit miss suffix.
+  This removes the full `distinct_expected_indices` allocation and avoids
+  filling a multi-million-entry output vector in the distinct path. Small tag16
+  and Bloom64 smokes both preserved `target_lookup_checksum=0xb107a63c69100191`;
+  the 25M tag16 gate preserved `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, and `hit_count=128`, with
+  `lookup_exact_seconds=0.000345` to `0.000580` in candidate runs versus
+  `0.001736` in an adjacent clean `4d17076` baseline. Setup-inclusive wall
+  distance/sec stayed noisy but favored the candidate in the sandwich
+  (`448914572235.917664`, baseline `413672125515.746338`,
+  candidate `455370090782.347961`). Treat this as a correctness-preserving host
+  allocation/exact-resolver cleanup, not as a GPU arithmetic breakthrough. The
+  canonical autoresearch gate kept the same checksum and oracle on three
+  samples (`440858189444.951538`, `447840335155.647644`,
+  `439183237405.765137` setup-inclusive wall distance/sec), but recorded
+  `status=discard` because the metric did not beat the existing 25M gate by the
+  configured threshold. The optional `--lookup-filter-mode bloom64` path uses a
+  one-word blocked
+  Bloom filter and the same exact resolver. It is not promoted for the 25M M3
+  gate: the Bloom64 run was correct with the same checksum, but produced
+  `filter_false_positive_count=21745`, `lookup_exact_seconds=0.026213`, and
+  `setup_inclusive_wall_distance_per_sec=432166775347.620728`, behind the
+  adjacent tag16 run at `filter_false_positive_count=880`,
+  `lookup_exact_seconds=0.001583`, and
+  `setup_inclusive_wall_distance_per_sec=444669824372.268311`. Bloom64 looked
+  mildly useful on a 1M-target diagnostic (`475900359808.846436` versus
+  `473042432573.026917` setup-inclusive wall distance/sec), so the mode and
+  reproducible autoresearch recipe are kept as a diagnostic, not as the default
+  multi-target filter.
 
 ## Cleanup Policy
 

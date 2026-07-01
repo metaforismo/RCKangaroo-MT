@@ -2488,6 +2488,15 @@ static inline ushort target_lookup_filter_tag16_mixed(ulong hash) {
   return (ushort)((tag32 ^ (tag32 >> 16)) | 1U);
 }
 
+static inline ulong target_lookup_bloom64_mask(ulong hash) {
+  ulong mask = 0;
+  mask |= 1UL << ((hash >> 12) & 63UL);
+  mask |= 1UL << ((hash >> 24) & 63UL);
+  mask |= 1UL << ((hash >> 36) & 63UL);
+  mask |= 1UL << ((hash >> 48) & 63UL);
+  return mask;
+}
+
 static inline bool target_lookup_key_equals(thread const TargetLookupKey& a, thread const TargetLookupKey& b) {
   return a.parity == b.parity &&
          a.x[0] == b.x[0] &&
@@ -2685,6 +2694,26 @@ kernel void target_lookup_tag16_mixed_hash_filter256(device const ushort* target
     }
     slot = (slot + 1U) & (bucket_count - 1U);
     probes++;
+  }
+}
+
+kernel void target_lookup_bloom64_hash_filter256(device const ulong* target_filter_words [[buffer(0)]],
+                                                 device const ulong* query_hashes [[buffer(1)]],
+                                                 device uint* out_positive_query_indices [[buffer(2)]],
+                                                 device atomic_uint* out_filter_positive_count [[buffer(3)]],
+                                                 constant uint& word_count [[buffer(4)]],
+                                                 constant uint& query_count [[buffer(5)]],
+                                                 uint id [[thread_position_in_grid]]) {
+  if (id >= query_count) return;
+  ulong hash = query_hashes[id];
+  ulong mask = target_lookup_bloom64_mask(hash);
+  uint slot = (uint)(hash & (ulong)(word_count - 1));
+
+  if ((target_filter_words[slot] & mask) == mask) {
+    uint out_slot = atomic_fetch_add_explicit(out_filter_positive_count, 1U, memory_order_relaxed);
+    if (out_slot < query_count) {
+      out_positive_query_indices[out_slot] = id;
+    }
   }
 }
 

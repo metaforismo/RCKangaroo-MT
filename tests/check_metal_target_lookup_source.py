@@ -27,12 +27,15 @@ for marker in required_kernel_markers:
     if marker not in kernel_source:
         raise SystemExit("missing target lookup kernel marker: " + marker)
 
+exact_kernel_start = kernel_source.index("kernel void target_lookup_exact256")
+exact_kernel_end = kernel_source.index("kernel void target_lookup_compact_exact256", exact_kernel_start)
+exact_kernel_source = kernel_source[exact_kernel_start:exact_kernel_end].lower()
 for forbidden in (
     "fingerprint",
     "probabilistic",
     "bloom",
 ):
-    if forbidden in kernel_source.lower():
+    if forbidden in exact_kernel_source:
         raise SystemExit("target lookup gate must remain exact, found marker: " + forbidden)
 
 required_host_markers = (
