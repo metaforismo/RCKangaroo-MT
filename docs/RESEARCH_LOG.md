@@ -30,7 +30,60 @@ The local target machine is a MacBook Air M3 with 16 GB RAM and a 10-core Apple
 M3 GPU. Metal is available outside the sandbox. CUDA remains NVIDIA-only; macOS
 GPU work should use Metal.
 
+## Recent Accepted Experiments
+
+### 2026-07-01 Batched Start-Offset Mapping For Target Files
+
+- Accepted chunked batch inversion in `TTargetSet::LoadFromFile` when `-targets`
+  is used with a non-zero `-start`. The old path subtracted `start*G` from each
+  loaded public key with `Ec::AddPoints`, paying one field inversion per target.
+  The new path keeps the same affine addition formula but computes all
+  non-degenerate `1 / (offset.x - target.x)` values in chunks of 32,768 with one
+  inversion plus prefix/suffix products, falling back to the legacy point add for
+  the rare zero-denominator case.
+- Correctness oracle: `make check-host`, the parser fixture, and the start-offset
+  target assignment test all pass; the new `target-set-load-bench` command
+  reports identical checksums versus a binary linked with the previous
+  `TargetSet.cpp`. Clean MacBook Air M3 runs with 1,048,576 deterministic
+  compressed targets and `--start 2` measured about `191,532` to `196,902`
+  targets/sec versus `172,830` for the previous mapper, a conservative
+  end-to-end startup speedup of about `1.1x` to `1.14x` including file I/O, line
+  normalization, compressed-key decode, and storage. At 262,144 targets the
+  clean paired result was about `191,028` versus `170,646` targets/sec
+  (`~1.12x`). This does not claim a kernel GKeys/s improvement; it speeds the
+  real "Successfully mapped N targets against the Base Point" startup phase and
+  makes non-zero `-start` nearly as cheap as the parser/storage floor.
+
 ## Recent Rejected Or Inconclusive Experiments
+
+### 2026-07-01 Target File In-Place Line Trimming
+
+- Rejected replacing `TTargetSet::NormalizeLine` plus `substr` with an
+  in-place trimmed pointer for `LoadFromFile`. Correctness held on the parser
+  and start-offset gates, but throughput did not improve materially after the
+  batch-inversion mapper moved the bottleneck toward `SetHexStr` and file
+  loading: 262,144 targets with `--start 0` moved only from about
+  `196,759` to `197,765` targets/sec, while `--start 2` moved from about
+  `195,614` down to `192,623` targets/sec, and 1,048,576 targets with
+  `--start 2` moved from about `198,768` down to `195,400` targets/sec.
+  Keep the clearer public normalization helper unless a parser-level change
+  attacks `SetHexStr`/compressed-key decode directly.
+
+### 2026-07-01 Target Builder Filler Key/Hash Fusion
+
+- Rejected fusing deterministic filler target-key generation with
+  `TargetLookupHash` in the host target-table builders. The change was
+  mathematically equivalent and preserved the fixed-round 25M distinct-miss
+  oracle (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `hit_count=128`,
+  `correctness=true`), but it did not improve the real target-build path:
+  patched `target_build_seconds` was about `0.494s` versus baseline
+  `0.489s` at commit `93ea027`. The isolated 25M full tag32 parallel-insert
+  probe also regressed (`parallel_seconds=0.691s` patched versus `0.612s`
+  baseline; `serial_seconds=1.238s` patched versus `0.909s` baseline) while
+  preserving `target_keys_equal=true` and `all_keys_found=true`. The likely
+  cause is reduced instruction-level parallelism in the CPU filler loop; keep
+  the separate key-generation plus hash pass spelling.
 
 ### 2026-06-23 Metal Arithmetic And Scheduling Probes
 

@@ -6,6 +6,79 @@
 
 #include <fstream>
 
+static constexpr size_t kTargetMapBatchSize = 32768;
+
+static bool TargetFieldIsZero(const EcInt& v)
+{
+	return (v.data[0] | v.data[1] | v.data[2] | v.data[3] | v.data[4]) == 0;
+}
+
+static EcPoint AddTargetOffsetWithInverse(const EcPoint& target, const EcPoint& offset, const EcInt& dx_inv)
+{
+	EcPoint res;
+	EcInt dy, lambda, lambda2;
+
+	dy = offset.y;
+	dy.SubModP(target.y);
+
+	lambda = dy;
+	lambda.MulModP(dx_inv);
+	lambda2 = lambda;
+	lambda2.MulModP(lambda);
+
+	res.x = lambda2;
+	res.x.SubModP(target.x);
+	res.x.SubModP(offset.x);
+
+	res.y = offset.x;
+	res.y.SubModP(res.x);
+	res.y.MulModP(lambda);
+	res.y.SubModP(offset.y);
+	return res;
+}
+
+static void MapTargetBatchByOffset(std::vector<EcPoint>& points, EcPoint& offset)
+{
+	std::vector<size_t> active_indices;
+	std::vector<EcInt> denominators;
+	std::vector<EcInt> prefix_products;
+	active_indices.reserve(points.size());
+	denominators.reserve(points.size());
+	prefix_products.reserve(points.size());
+
+	EcInt product;
+	product.Set(1);
+	for (size_t i = 0; i < points.size(); ++i)
+	{
+		EcInt dx = offset.x;
+		dx.SubModP(points[i].x);
+		if (TargetFieldIsZero(dx))
+		{
+			points[i] = Ec::AddPoints(points[i], offset);
+			continue;
+		}
+		product.MulModP(dx);
+		active_indices.push_back(i);
+		denominators.push_back(dx);
+		prefix_products.push_back(product);
+	}
+
+	if (active_indices.empty())
+		return;
+
+	EcInt inverse_suffix = prefix_products.back();
+	inverse_suffix.InvModP();
+	for (size_t remaining = active_indices.size(); remaining > 0; --remaining)
+	{
+		size_t pos = remaining - 1;
+		EcInt dx_inv = inverse_suffix;
+		if (pos)
+			dx_inv.MulModP(prefix_products[pos - 1]);
+		points[active_indices[pos]] = AddTargetOffsetWithInverse(points[active_indices[pos]], offset, dx_inv);
+		inverse_suffix.MulModP(denominators[pos]);
+	}
+}
+
 void TTargetSet::Clear()
 {
 	Targets.clear();
@@ -83,6 +156,26 @@ bool TTargetSet::LoadFromFile(const char* fn, EcInt& start)
 		neg_start.y.NegModP();
 	}
 
+	std::vector<EcPoint> pending_points;
+	std::vector<u32> pending_lines;
+	pending_points.reserve(kTargetMapBatchSize);
+	pending_lines.reserve(kTargetMapBatchSize);
+	auto flush_pending = [&]() {
+		if (pending_points.empty())
+			return;
+		if (has_start)
+			MapTargetBatchByOffset(pending_points, neg_start);
+		for (size_t i = 0; i < pending_points.size(); ++i)
+		{
+			TTargetPoint rec;
+			pending_points[i].SaveToBuffer64(rec.p);
+			rec.source_line = pending_lines[i];
+			Targets.push_back(rec);
+		}
+		pending_points.clear();
+		pending_lines.clear();
+	};
+
 	std::string line;
 	u32 line_no = 0;
 	while (std::getline(fp, line))
@@ -100,14 +193,12 @@ bool TTargetSet::LoadFromFile(const char* fn, EcInt& start)
 			return false;
 		}
 
-		if (has_start)
-			p = Ec::AddPoints(p, neg_start);
-
-		TTargetPoint rec;
-		p.SaveToBuffer64(rec.p);
-		rec.source_line = line_no;
-		Targets.push_back(rec);
+		pending_points.push_back(p);
+		pending_lines.push_back(line_no);
+		if (pending_points.size() >= kTargetMapBatchSize)
+			flush_pending();
 	}
+	flush_pending();
 
 	if (Targets.empty())
 	{

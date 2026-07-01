@@ -160,6 +160,7 @@ macos-check: check-host check-autoresearch check-quality-gates macos-lto-flags-c
 	sh tests/check_jacobian_kangaroo_small_bench_cli.sh
 	sh tests/check_jacobian_kangaroo_multi_small_cli.sh
 	sh tests/check_jacobian_kangaroo_multi_small_bench_cli.sh
+	sh tests/check_target_set_load_bench_cli.sh
 	sh tests/check_cpu_field_cli.sh
 	sh tests/check_cpu_field_bench_cli.sh
 	sh tests/check_metal_kernels.sh

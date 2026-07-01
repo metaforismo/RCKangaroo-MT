@@ -257,6 +257,17 @@ Poi copia `targets.cleaned.txt` sulla macchina CUDA e avvia:
 ./rckangaroo -dp 16 -range 84 -start 1000000000000000000000 -targets targets.cleaned.txt
 ```
 
+Per misurare su Mac il parser target condiviso piu' il mapping con `-start`
+non-zero, usa:
+
+```sh
+./macos/rck_macos target-set-load-bench --target-count 1048576 --start 2
+```
+
+Il comando riporta `operation=target_set_load` e `targets_per_sec`. Isola la
+fase di startup che mappa le public key sottraendo `start*G`; non e' un
+benchmark del kangaroo walk Metal o dei GKeys/s.
+
 ## Note
 
 Lo script macOS e' volutamente in Python puro e usa solo la standard library. Non richiede Homebrew, CUDA, OpenSSL o pacchetti Python esterni.

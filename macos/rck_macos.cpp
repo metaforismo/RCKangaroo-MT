@@ -2,8 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <chrono>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
+
+#include <unistd.h>
 
 #include "macos/CpuField.h"
 #include "macos/RCKMac.h"
@@ -18,6 +23,7 @@ static void PrintUsage()
 	printf("  rck_macos solve-small --range N --start HEX --pubkey PUBKEY\n");
 	printf("  rck_macos jacobian-kangaroo-small --range N --start HEX --pubkey PUBKEY [--jumps N] [--dp-bits N] [--max-steps N]\n");
 	printf("  rck_macos jacobian-kangaroo-multi-small --range N --start HEX --targets FILE [--jumps N] [--dp-bits N] [--max-steps N]\n");
+	printf("  rck_macos target-set-load-bench --target-count N [--iterations N] [--start HEX]\n");
 	printf("  rck_macos jacobian-kangaroo-small-bench [--iterations N] [--min-ms N] [--range N] [--jumps N] [--dp-bits N] [--max-steps N] [--jump-schedule power2|scaled4-balanced] [--key-offset N]\n");
 	printf("  rck_macos jacobian-kangaroo-multi-small-bench --target-count N [--iterations N] [--min-ms N] [--range N] [--jumps N] [--dp-bits N] [--max-steps N] [--jump-schedule power2|scaled4-balanced] [--key-offset N]\n");
 	printf("  rck_macos bench --iterations N\n");
@@ -184,6 +190,129 @@ static bool ReadMetalJumpWalkPersistentChainBenchOptions(int argc, char* argv[],
 	if (ReadOption(argc, argv, "--rounds", &rounds_s) && !ParseU32(rounds_s, rounds))
 		return false;
 	return true;
+}
+
+static u64 MixTargetSetLoadChecksum(u64 checksum, const EcPoint& p, u32 source_line, u64 index)
+{
+	checksum ^= p.x.data[0] + 0x9E3779B97F4A7C15ULL + (checksum << 6) + (checksum >> 2);
+	checksum ^= p.x.data[1] + (p.x.data[2] << 1) + (p.x.data[3] >> 1);
+	checksum ^= p.y.data[0] + (p.y.data[1] << 1) + (p.y.data[2] >> 1) + p.y.data[3];
+	checksum ^= ((u64)source_line << 32) ^ index;
+	return checksum;
+}
+
+static bool WriteTargetSetLoadBenchFixture(const char* path, unsigned int target_count)
+{
+	static const char* kFixtureKeys[] = {
+		"0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798",
+		"0379BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
+	};
+	std::ofstream out(path);
+	if (!out)
+		return false;
+	out << "# deterministic target-set load benchmark fixture\n";
+	for (unsigned int i = 0; i < target_count; i++)
+		out << kFixtureKeys[i & 1] << "\n";
+	return (bool)out;
+}
+
+static std::string TargetSetLoadBenchJson(unsigned int iterations, unsigned int target_count, unsigned long long start_scalar)
+{
+	if (!iterations)
+		iterations = 1;
+	if (!target_count)
+		target_count = 1;
+
+	const char* tmpdir = getenv("TMPDIR");
+	if (!tmpdir || !tmpdir[0])
+		tmpdir = "/tmp";
+	char fixture_path[512];
+	snprintf(fixture_path, sizeof(fixture_path), "%s%srckangaroo-target-load-bench-%ld.txt",
+		tmpdir,
+		tmpdir[strlen(tmpdir) - 1] == '/' ? "" : "/",
+		(long)getpid());
+
+	bool correctness = true;
+	std::string reason;
+	if (!WriteTargetSetLoadBenchFixture(fixture_path, target_count))
+	{
+		correctness = false;
+		reason = "could not write fixture";
+	}
+
+	EcInt start;
+	start.Set(start_scalar);
+	u64 checksum = 0x6D2B79F5D34A5E91ULL;
+	u64 operations = 0;
+	unsigned int loaded_count = 0;
+
+	auto t0 = std::chrono::steady_clock::now();
+	auto t1 = t0;
+	if (correctness)
+	{
+		for (unsigned int iteration = 0; iteration < iterations; iteration++)
+		{
+			TTargetSet target_set;
+			if (!target_set.LoadFromFile(fixture_path, start))
+			{
+				correctness = false;
+				reason = target_set.GetLastError();
+				break;
+			}
+			loaded_count = target_set.Count();
+			if (loaded_count != target_count)
+			{
+				correctness = false;
+				reason = "loaded target count mismatch";
+				break;
+			}
+
+			const u32 max_samples = 1024;
+			u32 stride = loaded_count > max_samples ? loaded_count / max_samples : 1;
+			bool sampled_last = false;
+			for (u32 i = 0; i < loaded_count; i += stride)
+			{
+				checksum = MixTargetSetLoadChecksum(checksum, target_set.GetPoint(i), target_set.GetSourceLine(i), operations + i);
+				if (i == loaded_count - 1)
+					sampled_last = true;
+			}
+			if (!sampled_last)
+			{
+				u32 last = loaded_count - 1;
+				checksum = MixTargetSetLoadChecksum(checksum, target_set.GetPoint(last), target_set.GetSourceLine(last), operations + last);
+			}
+			operations += loaded_count;
+		}
+		t1 = std::chrono::steady_clock::now();
+	}
+	std::remove(fixture_path);
+
+	double seconds = std::chrono::duration<double>(t1 - t0).count();
+	double targets_per_sec = seconds > 0.0 ? (double)operations / seconds : 0.0;
+
+	std::ostringstream out;
+	out.setf(std::ios::fixed);
+	out.precision(6);
+	out << "{\"backend\":\"macos_cpu\",";
+	out << "\"operation\":\"target_set_load\",";
+	out << "\"setup_phase\":\"multi_target_start_offset_mapping\",";
+	out << "\"parser\":\"shared_target_set\",";
+	out << "\"fixture\":\"alternating_compressed_generator\",";
+	out << "\"mapping\":\"" << (start_scalar ? "batch_inversion_chunks" : "none_start_zero") << "\",";
+	out << "\"batch_size\":32768,";
+	out << "\"metric\":\"targets_per_sec\",";
+	out << "\"iterations\":" << iterations << ",";
+	out << "\"target_count\":" << target_count << ",";
+	out << "\"loaded_count\":" << loaded_count << ",";
+	out << "\"start_scalar\":\"0x" << std::hex << start_scalar << std::dec << "\",";
+	out << "\"seconds\":" << seconds << ",";
+	out << "\"targets_per_sec\":" << targets_per_sec << ",";
+	out << "\"checksum\":\"0x" << std::hex << checksum << std::dec << "\",";
+	out << "\"correctness\":" << (correctness ? "true" : "false");
+	if (!correctness)
+		out << ",\"reason\":\"" << reason << "\"";
+	out << "}";
+	return out.str();
 }
 
 int main(int argc, char* argv[])
@@ -371,6 +500,34 @@ int main(int argc, char* argv[])
 				result.dp_count);
 			rc = 2;
 		}
+	}
+	else if (strcmp(argv[1], "target-set-load-bench") == 0)
+	{
+		const char* iter_s = NULL;
+		const char* target_count_s = NULL;
+		const char* start_s = NULL;
+		unsigned int iterations = 1;
+		unsigned int target_count = 65536;
+		unsigned long long start = 2;
+		if (ReadOption(argc, argv, "--iterations", &iter_s) && !ParseU32(iter_s, &iterations))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--target-count", &target_count_s) && !ParseU32(target_count_s, &target_count))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		if (ReadOption(argc, argv, "--start", &start_s) && !ParseHexU64(start_s, &start))
+		{
+			PrintUsage();
+			DeInitEc();
+			return 1;
+		}
+		printf("%s\n", TargetSetLoadBenchJson(iterations, target_count, start).c_str());
 	}
 	else if (strcmp(argv[1], "bench") == 0)
 	{
