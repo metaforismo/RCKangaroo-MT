@@ -5743,6 +5743,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   clean direct run at `107088262.970406`, and walk wall time rising from
   about `4.499s` to `4.555s`. The loop-control overhead is not the bottleneck;
   keep the current compiler scheduling.
+- Rejected a Metal XYZZ branch-hint scout. Adding `__builtin_expect` around the
+  rare `p_infinity` and `h == 0` mixed-add branches compiled on the M3 runtime
+  and preserved the XYZZ DP stream test, affine-scan checksums, the 25M
+  fixed-round `target_lookup_checksum=0x923b46f156f9d59b`,
+  `dp_checksum=0x7f111e78c67b5c18`, `hit_count=131072`, and zero false
+  positives. The small 2048-step affine-scan gate was neutral at roughly
+  `83.6M` to `83.8M ops/s`. A direct 25M candidate run looked high at
+  `setup_inclusive_wall_ops_per_sec=114310632.488466`, but the immediately
+  rebuilt baseline measured `115571607.177231` on the same command with the
+  same oracle. Treat the apparent win as run-state noise; keep the unhinted
+  branch shape.
 
 ## Cleanup Policy
 
