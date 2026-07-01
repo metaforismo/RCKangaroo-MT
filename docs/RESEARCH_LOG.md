@@ -6134,6 +6134,17 @@ These did not pass the performance gate or had a correctness/architecture issue:
   median `setup_inclusive_wall_distance_per_sec=194258881234.917969`, but still
   reported `status=discard` against older stronger rows; keep this as an
   accepted host-work cleanup, not as a whole-gate breakthrough claim.
+- Added sample-spread accounting to the autoresearch runner and set the 25M
+  fixed-round physical `distinct-misses` gate to discard rows whose scored
+  max/min sample ratio exceeds `1.5`. A clean post-commit run at `41f1aa0`
+  preserved `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, and `hit_count=128`, but
+  degraded across samples from `152950650811.878815` to
+  `77644906700.515747` setup-inclusive wall distance/sec; the median row was
+  `104571563857.380615` and `status=discard`. Treat this as thermal/noise
+  evidence on the M3 Air, not a correctness regression. Future rows for this
+  gate now record `sample_metric`, `sample_metric_values`, and
+  `sample_spread_ratio` so unstable keeps cannot silently become the next base.
 
 ## Cleanup Policy
 

@@ -51,18 +51,24 @@ def aggregate_metric_samples(samples: list[dict], metric_name: str = "ops_per_se
         raise ValueError("at least one benchmark sample is required")
 
     ops_values = [float(sample.get(metric_name, 0.0)) for sample in samples]
+    min_ops = min(ops_values)
+    max_ops = max(ops_values)
+    sample_spread_ratio = (max_ops / min_ops) if min_ops > 0.0 else (1.0 if max_ops == 0.0 else 1.0e300)
     sorted_samples = sorted(samples, key=lambda sample: float(sample.get(metric_name, 0.0)))
     median_sample = dict(sorted_samples[len(sorted_samples) // 2])
     median_ops = float(statistics.median(ops_values))
 
     median_sample.update(
         {
+            "sample_metric": metric_name,
+            "sample_metric_values": ops_values,
+            "sample_spread_ratio": sample_spread_ratio,
             metric_name: median_ops,
-            f"{metric_name}_min": min(ops_values),
-            f"{metric_name}_max": max(ops_values),
+            f"{metric_name}_min": min_ops,
+            f"{metric_name}_max": max_ops,
             "ops_per_sec": median_ops,
-            "ops_per_sec_min": min(ops_values),
-            "ops_per_sec_max": max(ops_values),
+            "ops_per_sec_min": min_ops,
+            "ops_per_sec_max": max_ops,
             "runner_sample_count": len(samples),
             "correctness": all(bool(sample.get("correctness")) for sample in samples),
             "skipped": all(bool(sample.get("skipped")) for sample in samples),
@@ -173,6 +179,9 @@ def build_benchmark_row(
     operation = str(metrics.get("operation", "unknown"))
     ops_per_sec = float(metrics.get("ops_per_sec", 0.0))
     min_ratio = float(experiment.get("min_improvement_ratio", 0.0))
+    max_spread_ratio = float(experiment.get("max_sample_spread_ratio", 0.0) or 0.0)
+    sample_spread_ratio = float(metrics.get("sample_spread_ratio", 1.0) or 1.0)
+    spread_too_high = max_spread_ratio > 0.0 and sample_spread_ratio > max_spread_ratio
     paired_ops: float | None = None
     paired_usable = False
     if paired_baseline is not None:
@@ -187,6 +196,8 @@ def build_benchmark_row(
         status = "skip"
     elif not correctness:
         status = "crash"
+    elif spread_too_high:
+        status = "discard"
     elif paired_usable:
         status = "keep" if ops_per_sec > paired_ops * (1.0 + min_ratio) else "discard"
     elif previous is None:
@@ -219,6 +230,12 @@ def build_benchmark_row(
             "machine": machine,
         }
     )
+    if max_spread_ratio > 0.0:
+        row["max_sample_spread_ratio"] = max_spread_ratio
+    if spread_too_high:
+        reason = str(row.get("reason", ""))
+        spread_reason = f"sample spread ratio {sample_spread_ratio:.6f} exceeds max {max_spread_ratio:.6f}"
+        row["reason"] = f"{reason}; {spread_reason}" if reason else spread_reason
     if paired_baseline is not None:
         row.update(
             {

@@ -107,9 +107,27 @@ aggregated = runner.aggregate_metric_samples(samples)
 assert aggregated["ops_per_sec"] == 100.0
 assert aggregated["ops_per_sec_min"] == 50.0
 assert aggregated["ops_per_sec_max"] == 150.0
+assert aggregated["sample_metric"] == "ops_per_sec"
+assert aggregated["sample_metric_values"] == [50.0, 100.0, 150.0]
+assert aggregated["sample_spread_ratio"] == 3.0
 assert aggregated["runner_sample_count"] == 3
 assert aggregated["iterations"] == 10
 assert aggregated["correctness"] is True
+
+spread_row = runner.build_benchmark_row(
+    experiment=dict(experiment, max_sample_spread_ratio=2.0),
+    metrics=aggregated,
+    budget_sec=5,
+    commit="abc126",
+    machine="test-machine",
+    previous=70.0,
+    paired_baseline=None,
+    paired_baseline_ref="",
+    timestamp="2026-01-01T00:00:04Z",
+)
+assert spread_row["status"] == "discard"
+assert spread_row["max_sample_spread_ratio"] == 2.0
+assert "sample spread ratio 3.000000 exceeds max 2.000000" in spread_row["reason"]
 
 lookup_samples = [
     dict(metrics, operation="target_lookup_exact256", lookups_per_sec=10.0, ops_per_sec=0.0),
@@ -120,7 +138,14 @@ lookup_aggregated = runner.aggregate_metric_samples(lookup_samples, metric_name=
 assert lookup_aggregated["lookups_per_sec"] == 20.0
 assert lookup_aggregated["lookups_per_sec_min"] == 10.0
 assert lookup_aggregated["lookups_per_sec_max"] == 30.0
+assert lookup_aggregated["sample_metric"] == "lookups_per_sec"
 assert lookup_aggregated["ops_per_sec"] == 20.0
+
+zero_spread = runner.aggregate_metric_samples([
+    dict(metrics, ops_per_sec=0.0),
+    dict(metrics, ops_per_sec=10.0),
+])
+assert zero_spread["sample_spread_ratio"] == 1.0e300
 
 jump_walk_experiment = runner.load_experiment("jacobian_jump_walk")
 assert int(jump_walk_experiment.get("sample_runs", 1)) >= 3
