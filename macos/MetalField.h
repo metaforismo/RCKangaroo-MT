@@ -52,3 +52,4 @@ std::string RCKCpuTargetLookupTag32BenchJson(unsigned int target_count, unsigned
 std::string RCKTargetLookupFilterBuildBenchJson(unsigned int target_count, unsigned int iterations = 1);
 std::string RCKTargetLookupTag32BuildFromKeysBenchJson(unsigned int target_count, unsigned int injected_count = 64, unsigned int iterations = 1);
 std::string RCKTargetLookupTag32ParallelInsertBenchJson(unsigned int target_count, unsigned int injected_count = 64, unsigned int iterations = 1);
+std::string RCKTargetLookupTag32ParityParallelInsertBenchJson(unsigned int target_count, unsigned int injected_count = 64, unsigned int iterations = 1);

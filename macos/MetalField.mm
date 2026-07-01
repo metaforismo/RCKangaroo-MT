@@ -1515,6 +1515,54 @@ static std::string TargetLookupTag32ParallelInsertBenchJson(const char* operatio
 	return oss.str();
 }
 
+static std::string TargetLookupTag32ParityParallelInsertBenchJson(const char* operation,
+	unsigned int target_count,
+	unsigned int injected_count,
+	uint64_t iterations,
+	uint64_t target_table_buckets,
+	uint64_t target_x_key_bytes,
+	uint64_t target_bucket_bytes,
+	uint64_t target_filter_bucket_bytes,
+	double build_seconds,
+	uint64_t checksum,
+	uint64_t semantic_checksum,
+	bool all_keys_found,
+	bool correctness,
+	const std::string& reason)
+{
+	double targets_per_sec = build_seconds > 0.0 ? ((double)target_count * (double)iterations) / build_seconds : 0.0;
+	std::ostringstream oss;
+	oss << std::fixed << std::setprecision(6);
+	oss << "{\"backend\":\"macos_cpu\",\"operation\":\"" << operation << "\",";
+	oss << "\"setup_phase\":\"host_tag32_parity_parallel_insert_probe\",";
+	oss << "\"lookup_layout\":\"open_address_tag32_parity_xonly_tag16_filter_exact256\",";
+	oss << "\"target_key\":\"x256_y_parity\",";
+	oss << "\"candidate_verification\":\"xonly_parity_tag32_prefilter_semantic_find_all_keys\",";
+	oss << "\"iterations\":" << iterations << ",";
+	oss << "\"sample_count\":" << target_count << ",";
+	oss << "\"target_count\":" << target_count << ",";
+	oss << "\"injected_count\":" << injected_count << ",";
+	oss << "\"target_table_buckets\":" << target_table_buckets << ",";
+	oss << "\"target_x_key_bytes\":" << target_x_key_bytes << ",";
+	oss << "\"target_bucket_bytes\":" << target_bucket_bytes << ",";
+	oss << "\"target_filter_bucket_bytes\":" << target_filter_bucket_bytes << ",";
+	oss << "\"target_table_bytes\":" << (target_x_key_bytes + target_bucket_bytes + target_filter_bucket_bytes) << ",";
+	oss << "\"min_ms\":0,";
+	oss << "\"build_seconds\":" << build_seconds << ",";
+	oss << "\"seconds\":" << build_seconds << ",";
+	oss << "\"parallel_targets_per_sec\":" << targets_per_sec << ",";
+	oss << "\"ops_per_sec\":" << targets_per_sec << ",";
+	oss << "\"checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << checksum << std::dec << std::setfill(' ') << "\",";
+	oss << "\"semantic_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << semantic_checksum << std::dec << std::setfill(' ') << "\",";
+	oss << "\"all_keys_found\":" << (all_keys_found ? "true" : "false") << ",";
+	oss << "\"correctness\":" << (correctness ? "true" : "false") << ",";
+	oss << "\"skipped\":false";
+	if (!reason.empty())
+		oss << ",\"reason\":\"" << JsonEscape(reason) << "\"";
+	oss << "}";
+	return oss.str();
+}
+
 static double MeanJumpDistanceForJson(unsigned int jump_count, const char* jump_schedule)
 {
 	if (jump_count == 0 || (jump_schedule && strcmp(jump_schedule, "invalid") == 0))
@@ -3405,6 +3453,108 @@ static bool TargetLookupTag32TableFindsAllKeys(const std::vector<TargetLookupKey
 	{
 		reason = "parallel tag32 table failed semantic find-all oracle at key index " + std::to_string(index);
 		return false;
+	}
+	return true;
+}
+
+static uint64_t TargetLookupTag32ParityTableChecksum(const TargetLookupXOnlyHost* target_x_keys,
+	size_t target_x_key_count,
+	const std::vector<TargetLookupTag32ParityBucketHost>& buckets,
+	const std::vector<uint16_t>& filter_buckets)
+{
+	uint64_t checksum = 0x8B8D9D1B4B2D3C17ULL;
+	for (size_t i = 0; i < target_x_key_count; ++i)
+	{
+		const TargetLookupXOnlyHost& key = target_x_keys[i];
+		uint64_t key_mix = TargetLookupMix(key.x[0] ^ TargetLookupMix(key.x[1]));
+		key_mix = TargetLookupMix(key_mix ^ key.x[2]);
+		key_mix = TargetLookupMix(key_mix ^ key.x[3]);
+		checksum = TargetLookupMix(checksum ^ TargetLookupMix(key_mix + (uint64_t)i));
+	}
+	for (size_t slot = 0; slot < buckets.size(); ++slot)
+	{
+		const TargetLookupTag32ParityBucketHost& bucket = buckets[slot];
+		uint64_t packed = ((uint64_t)bucket.tag << 32) ^ (uint64_t)bucket.encoded_target_index;
+		checksum = TargetLookupMix(checksum ^ TargetLookupMix(packed + 0x9E3779B97F4A7C15ULL + (uint64_t)slot));
+	}
+	for (size_t slot = 0; slot < filter_buckets.size(); ++slot)
+		checksum = TargetLookupMix(checksum ^ TargetLookupMix((uint64_t)filter_buckets[slot] + 0xD1B54A32D192ED03ULL + (uint64_t)slot));
+	return checksum;
+}
+
+static bool TargetLookupTag32ParityTableFindsAllKeys(const std::vector<TargetLookupKeyHost>& injected_keys,
+	const TargetLookupXOnlyHost* target_x_keys,
+	size_t target_x_key_count,
+	const std::vector<TargetLookupTag32ParityBucketHost>& buckets,
+	std::string& reason,
+	uint64_t* semantic_checksum = NULL)
+{
+	if (!target_x_keys || !target_x_key_count || buckets.empty())
+	{
+		reason = "parallel parity tag32 semantic oracle needs non-empty table";
+		return false;
+	}
+	if (target_x_key_count < injected_keys.size())
+	{
+		reason = "parallel parity tag32 target key count is smaller than injected key count";
+		return false;
+	}
+
+	size_t injected_count = injected_keys.size();
+	std::atomic<uint64_t> failed_index(UINT64_MAX);
+	unsigned int worker_count = target_x_key_count >= kMinParallelTargetLookupHashQueries ?
+		ValidationWorkerCount(target_x_key_count) :
+		1;
+	if (worker_count == 0)
+		worker_count = 1;
+	std::vector<uint64_t> worker_checksums(worker_count, 0);
+	auto check_range = [&](size_t begin, size_t end, unsigned int worker) {
+		uint64_t local_checksum = 0;
+		for (size_t i = begin; i < end; ++i)
+		{
+			TargetLookupKeyHost key = i < injected_count ?
+				injected_keys[i] :
+				DeterministicTargetLookupKey((uint64_t)(i - injected_count), 0xA1171E5CAFULL);
+			uint32_t found = kTargetLookupEmptyIndex;
+			if (!TargetLookupTag32ParityFind(target_x_keys, target_x_key_count, buckets, key, &found) || found != (uint32_t)i)
+			{
+				uint64_t expected = UINT64_MAX;
+				failed_index.compare_exchange_strong(expected, (uint64_t)i, std::memory_order_relaxed);
+				return;
+			}
+			const TargetLookupXOnlyHost& stored = target_x_keys[i];
+			uint64_t key_mix = TargetLookupMix(stored.x[0] ^ TargetLookupMix(stored.x[1]));
+			key_mix = TargetLookupMix(key_mix ^ stored.x[2]);
+			key_mix = TargetLookupMix(key_mix ^ stored.x[3]);
+			key_mix = TargetLookupMix(key_mix ^ ((uint64_t)key.parity << 48) ^ TargetLookupMix((uint64_t)i));
+			local_checksum ^= TargetLookupMix(key_mix ^ TargetLookupMix((uint64_t)found));
+		}
+		if (worker < worker_checksums.size())
+			worker_checksums[worker] = local_checksum;
+	};
+	if (worker_count > 1)
+	{
+		ParallelForSamples(target_x_key_count, [&](size_t begin, size_t end, unsigned int worker) {
+			check_range(begin, end, worker);
+		});
+	}
+	else
+	{
+		check_range(0, target_x_key_count, 0);
+	}
+
+	uint64_t index = failed_index.load(std::memory_order_relaxed);
+	if (index != UINT64_MAX)
+	{
+		reason = "parallel parity tag32 table failed semantic find-all oracle at key index " + std::to_string(index);
+		return false;
+	}
+	if (semantic_checksum)
+	{
+		uint64_t combined_checksum = 0xD8E1A5371C9F2B45ULL;
+		for (uint64_t part : worker_checksums)
+			combined_checksum ^= part;
+		*semantic_checksum = TargetLookupMix(combined_checksum ^ TargetLookupMix((uint64_t)target_x_key_count));
 	}
 	return true;
 }
@@ -13389,6 +13539,55 @@ std::string RCKTargetLookupTag32ParallelInsertBenchJson(unsigned int target_coun
 	uint64_t parallel_checksum = parallel_keys.empty() ? 0 : TargetLookupTag32TableChecksum(parallel_keys, parallel_buckets);
 	bool correctness = target_keys_equal && all_keys_found;
 	return TargetLookupTag32ParallelInsertBenchJson("target_lookup_tag32_parallel_insert_probe", target_count, injected_count, iterations, parallel_buckets.size(), parallel_keys.size() * sizeof(TargetLookupKeyHost), parallel_buckets.size() * sizeof(TargetLookupTag32BucketHost), serial_seconds, parallel_seconds, serial_checksum, parallel_checksum, target_keys_equal, all_keys_found, correctness, correctness ? "" : error);
+}
+
+std::string RCKTargetLookupTag32ParityParallelInsertBenchJson(unsigned int target_count,
+	unsigned int injected_count,
+	unsigned int iterations)
+{
+	if (target_count == 0)
+		target_count = 1;
+	if (iterations == 0)
+		iterations = 1;
+	if (injected_count == 0)
+		injected_count = 1;
+	if (injected_count > target_count)
+		injected_count = target_count;
+	if (target_count > 32000000U)
+	{
+		std::string reason = "target lookup benchmark target_count limit is 32000000 for host memory safety";
+		return TargetLookupTag32ParityParallelInsertBenchJson("target_lookup_tag32_parity_parallel_insert_probe", target_count, injected_count, iterations, 0, 0, 0, 0, 0.0, 0, 0, false, false, reason);
+	}
+
+	std::vector<TargetLookupKeyHost> injected_keys;
+	injected_keys.reserve(injected_count);
+	for (uint32_t i = 0; i < injected_count; ++i)
+		injected_keys.push_back(DeterministicTargetLookupKey((uint64_t)i, 0xD97E7C4B3A219845ULL));
+
+	TargetLookupXOnlyHostBuffer target_x_keys;
+	size_t target_x_key_count = 0;
+	std::vector<TargetLookupTag32ParityBucketHost> parity_buckets;
+	std::vector<uint16_t> filter_buckets;
+	double build_seconds = 0.0;
+	bool all_keys_found = true;
+	uint64_t semantic_checksum = 0;
+	std::string error;
+
+	for (unsigned int iteration = 0; iteration < iterations; ++iteration)
+	{
+		auto start = std::chrono::steady_clock::now();
+		if (!BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, target_count, target_x_keys, target_x_key_count, parity_buckets, error, &filter_buckets, false))
+			return TargetLookupTag32ParityParallelInsertBenchJson("target_lookup_tag32_parity_parallel_insert_probe", target_count, injected_count, iterations, parity_buckets.size(), target_x_key_count * sizeof(TargetLookupXOnlyHost), parity_buckets.size() * sizeof(TargetLookupTag32ParityBucketHost), filter_buckets.size() * sizeof(uint16_t), build_seconds, 0, 0, false, false, error);
+		build_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+
+		all_keys_found = TargetLookupTag32ParityTableFindsAllKeys(injected_keys, target_x_keys.get(), target_x_key_count, parity_buckets, error, &semantic_checksum);
+		if (!all_keys_found)
+			break;
+	}
+
+	uint64_t checksum = target_x_keys ? TargetLookupTag32ParityTableChecksum(target_x_keys.get(), target_x_key_count, parity_buckets, filter_buckets) : 0;
+	bool correctness = all_keys_found;
+	return TargetLookupTag32ParityParallelInsertBenchJson("target_lookup_tag32_parity_parallel_insert_probe", target_count, injected_count, iterations, parity_buckets.size(), target_x_key_count * sizeof(TargetLookupXOnlyHost), parity_buckets.size() * sizeof(TargetLookupTag32ParityBucketHost), filter_buckets.size() * sizeof(uint16_t), build_seconds, checksum, semantic_checksum, all_keys_found, correctness, correctness ? "" : error);
 }
 
 static std::string RunMetalFieldBenchJson(const char* operation,

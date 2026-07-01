@@ -365,10 +365,14 @@ if auto_repeat_branch not in choose_body or 'return "gpu_filter16_hash_repeat";'
 
 if "RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJson" not in header:
     raise SystemExit("missing affine-scan target-lookup header declaration")
+if "RCKTargetLookupTag32ParityParallelInsertBenchJson" not in header:
+    raise SystemExit("missing parity target-builder benchmark header declaration")
 
 command = "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench"
 if command not in cli:
     raise SystemExit("missing affine-scan target-lookup CLI command")
+if "target-lookup-tag32-parity-parallel-insert-bench" not in cli:
+    raise SystemExit("missing parity target-builder benchmark CLI command")
 if "--lookup-repeat" not in cli:
     raise SystemExit("missing affine-scan target-lookup lookup-repeat CLI option")
 if "--lookup-repeat-mode" not in cli:
@@ -385,6 +389,7 @@ if "--lookup-tg-limit" not in cli:
 make_markers = [
     "macos-metal-affine-scan-target-lookup-source-check",
     "macos-metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench",
+    "macos-target-lookup-tag32-parity-parallel-insert-bench",
 ]
 for marker in make_markers:
     if marker not in makefile:

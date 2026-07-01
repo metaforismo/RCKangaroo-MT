@@ -1,0 +1,20 @@
+{
+  "name": "target_lookup_tag32_parity_parallel_insert",
+  "description": "Host setup benchmark for the x-only parity tag32 builder used by fixed-round distinct-miss lookup",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "target-lookup-tag32-parity-parallel-insert-bench",
+    "--target-count",
+    "25005000",
+    "--injected-count",
+    "128",
+    "--iterations",
+    "1"
+  ],
+  "metric": "parallel_targets_per_sec",
+  "min_improvement_ratio": 0.01,
+  "sample_runs": 3,
+  "paired_order": "alternate",
+  "cooldown_sec": 5
+}

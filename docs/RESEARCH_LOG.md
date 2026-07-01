@@ -6056,6 +6056,28 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `macos-build` and prevents stale binaries after raw Metal kernel edits. The
   LTO/source check now dry-runs `make -B macos/rck_macos` and verifies that the
   target depends on `MetalFieldKernels.h`.
+- Added a parity target-builder benchmark to close a benchmark-honesty gap in
+  the fixed-round multi-target path. The older
+  `target-lookup-tag32-parallel-insert-bench` measures the full-key tag32 table,
+  but the current `distinct-misses` gate builds the compact x-only plus encoded
+  y-parity table. The new
+  `target-lookup-tag32-parity-parallel-insert-bench` runs the same parity
+  builder used by the integrated path and verifies every injected and
+  deterministic filler key with the exact `x256 + y_parity` resolver. It reports
+  both the physical table `checksum` and a deterministic `semantic_checksum`;
+  the latter stayed stable at `0x388d492ffb8b482f` across default and
+  `RCK_VALIDATION_WORKERS=6` 25M runs even though the physical checksum changed
+  because parallel open-address insertion can choose different equivalent slot
+  layouts. A clean default 25M sample produced `build_seconds=0.827925`,
+  `parallel_targets_per_sec=30202000.399814`, and `correctness=true`; the
+  sequential worker=6 scout was slower at `build_seconds=1.414620` with the
+  same semantic checksum, so worker=6 is not promoted. Treat this as a
+  measurement/oracle improvement for real target-build tuning, not as a solver
+  throughput speed claim. The new autoresearch recipe recorded three 25M samples
+  with the same semantic checksum and median `ops_per_sec=43189537.070119`
+  (`41550374.844451` min, `48326754.961320` max); its first `keep` row is a
+  baseline artifact for future parity-builder changes rather than evidence of a
+  speedup over the integrated kangaroo gate.
 
 ## Cleanup Policy
 
