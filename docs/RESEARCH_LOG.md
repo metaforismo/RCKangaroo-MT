@@ -5581,6 +5581,22 @@ These did not pass the performance gate or had a correctness/architecture issue:
   no-copy was rejected: the paired setup-inclusive gate against clean
   `HEAD=24c0458` ended with `confirmation_status=discard` despite one noisy
   confirmation showing improvement, so the walk no-copy code was removed.
+- Rejected a Metal XYZZ distance-only specialization for the fixed-round
+  `jump_schedule=power2`, `jump_count=16` path. The candidate added separate
+  `*_j16_power2_u32_distance` kernels that replaced the constant-memory
+  `jump_distances[jump_index]` load with `1U << jump_index`, guarded by a host
+  predicate and an A/B kill switch. It preserved correctness on smoke tests and
+  on the 25M multi-target gate: both on/off runs kept
+  `target_lookup_checksum=0x923b46f156f9d59b`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=131072`, and
+  `filter_false_positive_count=0`. It was slower in the same-binary 25M
+  comparison, with the disabled baseline at `seconds=4.229600`,
+  `setup_inclusive_wall_ops_per_sec=108819740.194160`, and
+  `ops_per_sec=126390406.970705`, versus the specialization at
+  `seconds=4.289734`, `setup_inclusive_wall_ops_per_sec=107641119.847796`, and
+  `ops_per_sec=124637827.081943`. The candidate was removed; the result suggests
+  that the constant-distance load is not the bottleneck on M3 for this kernel,
+  and the shift/codegen path can be worse than the cached table read.
 
 ## Cleanup Policy
 
