@@ -5881,6 +5881,30 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `473042432573.026917` setup-inclusive wall distance/sec), so the mode and
   reproducible autoresearch recipe are kept as a diagnostic, not as the default
   multi-target filter.
+- Added compact physical-miss sources and no-copy Metal buffers for the
+  fixed-round `distinct-misses` hash-filter path. The distinct benchmark no
+  longer materializes the full physical `TargetLookupKeyHost` query vector
+  (`4219904 * 40 = 168796160` bytes at the 25M gate). Instead it stores the
+  real DP prefix plus one compact `uint64_t` nonce/salt source per synthetic
+  miss (`4215783 * 8 = 33726264` bytes) and reconstructs only GPU-positive
+  keys for exact `x256 + y_parity` validation. The non-repeat tag16 and Bloom64
+  hash-filter kernels now use `NewSharedMetalBufferNoCopyFallback` for their
+  large filter/hash inputs on Apple unified memory, matching the existing
+  repeat base-count path. Small distinct tag16 and Bloom64 smokes preserved
+  `target_lookup_checksum=0xb107a63c69100191`; the 25M tag16 gate preserved
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, and `hit_count=128`.
+  A same-session clean `d636653` sandwich showed a real lookup transfer win but
+  only a small whole-gate gain: candidate samples measured
+  `451052909577.432922` and `451985201396.679932` setup-inclusive distance/sec
+  around a clean baseline at `447232494661.439087`. Lookup wall time improved
+  from the baseline `0.077735s` to `0.046888s` and `0.040415s`, with
+  `lookup_buffer_seconds` falling from `0.027118s` to roughly `0.000878s` and
+  `0.001356s`. The canonical autoresearch gate remained honest and recorded
+  `status=discard` on setup-inclusive wall distance/sec (`440817525593.280823`,
+  `439827907194.731995`, `446454740412.935791`), so this is promoted as a
+  memory/UMA transfer efficiency improvement for multi-target lookup, not as a
+  kangaroo arithmetic breakthrough.
 
 ## Cleanup Policy
 

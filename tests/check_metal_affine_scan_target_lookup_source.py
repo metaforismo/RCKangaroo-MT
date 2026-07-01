@@ -51,7 +51,7 @@ markers = [
     "InsertTargetLookupTag32ParityBucket",
     "BuildTargetLookupTag32ParityTableFromKeysParallelInsert",
     "ResolveTargetLookupTag32ParityFilterCandidates",
-    "ResolveTargetLookupTag32ParityFilterDistinctExpected",
+    "ResolveTargetLookupTag32ParityFilterDistinctSourcesExpected",
     "ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices",
     "DecodeTargetLookupParity(bucket.encoded_target_index) == (key.parity & 1U)",
     "ValidateAffineTargetLookupDedupRepeatOutputsWithExpected",
@@ -228,6 +228,12 @@ if "RunTargetLookupTag16HashFilterKernel(target_filter16_buckets, lookup_query_h
     raise SystemExit("fixed-round distinct-misses lookup should pass the mixed tag selector to the non-repeat hash-filter kernel")
 if "RunTargetLookupBloom64HashFilterKernel(target_bloom64_filter_words, lookup_query_hashes, positive_query_indices" not in rounds_body:
     raise SystemExit("fixed-round bloom64 distinct-misses lookup should use the physical non-repeat bloom64 hash-filter kernel")
+if "NewSharedMetalBufferNoCopyFallback(device, const_cast<uint16_t*>(filter_buckets.data()), bucket_bytes)" not in kernels:
+    raise SystemExit("non-repeat tag16 hash-filter lookup should avoid copying the large filter bucket buffer on unified memory")
+if "NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(query_hashes.data()), hash_bytes)" not in kernels:
+    raise SystemExit("non-repeat hash-filter lookup should avoid copying the large query hash buffer on unified memory")
+if "NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(filter_words.data()), filter_bytes)" not in kernels:
+    raise SystemExit("bloom64 hash-filter lookup should avoid copying the large filter word buffer on unified memory")
 if 'lookup_distinct_misses ?\n\t\t(use_bloom64_hash_filter ? "gpu_filter_bloom64_hash" :' not in rounds_body:
     raise SystemExit("fixed-round distinct-misses should report standard versus mixed tag16 hash engines separately")
 if "lookup_uses_tag16_mixed_hash_repeat_filter" not in kernels:
@@ -258,8 +264,14 @@ if "BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, targe
     raise SystemExit("fixed-round base-count repeat lookup should build the x-only parity target table")
 if "ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices(target_parity_buckets, target_x_keys.get(), target_x_key_count" not in rounds_body:
     raise SystemExit("fixed-round base-count repeat lookup should exact-resolve against x plus encoded parity")
-if "ResolveTargetLookupTag32ParityFilterDistinctExpected(target_parity_buckets, target_x_keys.get(), target_x_key_count, distinct_lookup_queries" not in rounds_body:
-    raise SystemExit("fixed-round distinct-misses lookup should exact-resolve against x plus encoded parity with sparse expected indices")
+if "BuildDistinctTargetLookupMissSources(aggregate_dp_keys, logical_query_count" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should build compact miss sources without materializing full key queries")
+if "BuildDistinctTargetLookupQueryHashesFromSources(aggregate_dp_keys, distinct_miss_sources, logical_query_count" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should hash compact miss sources in the measured lookup path")
+if "ResolveTargetLookupTag32ParityFilterDistinctSourcesExpected(target_parity_buckets, target_x_keys.get(), target_x_key_count, aggregate_dp_keys, distinct_miss_sources" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should exact-resolve compact miss sources against x plus encoded parity")
+if "distinct_lookup_queries" in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should not materialize full physical key queries")
 if "BuildJacobianPointSamplesFrom((uint64_t)round * (uint64_t)sample_count, sample_count, p);" not in rounds_body:
     raise SystemExit("fixed-round setup should avoid generating discarded affine q samples after round zero")
 if "ignored_q" in rounds_body:
