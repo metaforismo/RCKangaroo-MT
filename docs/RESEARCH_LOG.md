@@ -6145,6 +6145,24 @@ These did not pass the performance gate or had a correctness/architecture issue:
   evidence on the M3 Air, not a correctness regression. Future rows for this
   gate now record `sample_metric`, `sample_metric_values`, and
   `sample_spread_ratio` so unstable keeps cannot silently become the next base.
+- Ran a light integrated `distinct-misses` schedule scout at 1M targets after
+  the hash-fold cleanup. `--jumps 4 --jump-schedule scaled4-balanced` preserved
+  correctness with `hit_count=32` and
+  `target_lookup_checksum=0xd79a55f329197c16`, but the adjacent 16-jump power2
+  smoke had better setup-inclusive wall distance/sec
+  (`132239998919.271225` versus `127048790873.198715`). Keep scaled4 as an
+  opt-in solver-facing schedule candidate, not a default for the physical
+  distinct-miss gate.
+- Ran the local Benchforge `rckmetal` loop on `2433d9e`. `doctor --run` passed
+  with only the expected hosted-API warning. Local `run` produced
+  `run_d0f34dab-af9d-4f62-bbad-eeb28eeda589` at `22991090.944463` ops/sec.
+  `submit --verify` produced accepted local-public run
+  `run_6b268d79-bbbd-41e0-b84c-0d474a6c8513` for submission
+  `sub_3d3d1f3e-a1f7-41b0-8f94-68897a08d077`, verifier `trusted=false`,
+  accepted score `46195148.625942`, hardware `Apple M3`, and the expected
+  public oracle values `distance_checksum=0xa45f471493cace2f`, `dp_count=1000`,
+  `dp_checksum=0x30a7914972cba014`. This is a health check for the public
+  Metal micro-track, not evidence of a new integrated 25M breakthrough.
 
 ## Cleanup Policy
 
