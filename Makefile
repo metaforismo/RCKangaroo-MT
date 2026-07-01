@@ -79,6 +79,7 @@ benchforge-rckmetal-report:
 	$(BENCHFORGE_RCKMETAL) export-site
 
 MACOS_SRC := macos/rck_macos.cpp macos/RCKMac.cpp macos/CpuField.cpp macos/MetalSmoke.mm macos/MetalField.mm Ec.cpp utils.cpp TargetSet.cpp
+MACOS_HEADERS := macos/RCKMac.h macos/CpuField.h macos/MetalSmoke.h macos/MetalField.h macos/MetalFieldKernels.h Ec.h utils.h TargetSet.h
 MACOS_LTO_FLAGS ?= -flto=thin
 MACOS_CXXFLAGS ?= -std=c++17 -O3 -I. $(MACOS_LTO_FLAGS)
 MACOS_LDFLAGS := -framework Foundation -framework Metal
@@ -147,8 +148,10 @@ macos-metal-target-lookup-tag32-source-check:
 macos-metal-affine-scan-target-lookup-source-check:
 	python3 tests/check_metal_affine_scan_target_lookup_source.py
 
-macos-build:
+$(MACOS_TARGET): $(MACOS_SRC) $(MACOS_HEADERS)
 	$(CXX) $(MACOS_CXXFLAGS) $(MACOS_SRC) -o $(MACOS_TARGET) $(MACOS_LDFLAGS)
+
+macos-build: $(MACOS_TARGET)
 
 macos-check: check-host check-autoresearch check-quality-gates macos-lto-flags-check macos-jump-index-source-check macos-ecint-carry-source-check macos-hotpath-microbatch-source-check macos-affine-z-check-source-check macos-affine-inplace-field-source-check macos-affine-reverse-loop-source-check macos-metal-dp4-uchar-infinity-source-check macos-metal-dp4-q-struct-row-source-check macos-metal-dynamic-jump-walk-source-check macos-metal-dynamic-compact-dp-source-check macos-metal-dynamic-dp-stream-source-check macos-metal-dynamic-dp-stream-mask-source-check macos-metal-dynamic-dp-stream-inplace-source-check macos-metal-dynamic-dp-stream-xyzz-source-check macos-metal-dynamic-dp-count-source-check macos-metal-target-lookup-source-check macos-metal-target-lookup-compact-source-check macos-metal-target-lookup-tag32-source-check macos-metal-affine-scan-target-lookup-source-check macos-build
 	./$(MACOS_TARGET) selftest

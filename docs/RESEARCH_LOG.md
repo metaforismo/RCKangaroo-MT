@@ -6025,6 +6025,37 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0x54ccada61fd1edbc`. Treat this as a correctness-preserving
   host/UMA cleanup that reduces measured affine-scan overhead, not as a promoted
   whole-kangaroo throughput breakthrough.
+- Rejected a split `jacobian_add_affine_xyzz_finite_values` hot-path helper.
+  The idea was to bypass the initial infinity branch for normal finite XYZZ
+  walk steps while keeping the `h == 0` doubling/infinity cases intact. The
+  checksum oracle stayed stable (`target_lookup_checksum=0xbb1a96ed05ae784d`)
+  on the 1M fixed-round repeat gate, but warm samples were not faster
+  (`setup_inclusive_wall_ops_per_sec` around `98.3M` and `104.5M`) than the
+  adjacent clean/default samples already seen around `105.3M..108.4M`; the
+  split also appeared to increase register/compiler pressure. The candidate was
+  reverted and should not be retried without inspecting Metal compiler output.
+- Re-tested `tag16-mix` for physical `distinct-misses`. It is useful as a
+  medium-table diagnostic but not a 25M default. On the 1M fixed-round distinct
+  shape, tag16-mix preserved `target_lookup_checksum=0x5391fe86d976e429`,
+  reduced false positives from `28` to `23`, and improved
+  `setup_inclusive_wall_ops_per_sec` from about `85.3M` to `88.2M`. On the 4M
+  shape it preserved the same checksum, reduced false positives from `22` to
+  `21`, and improved wall throughput from about `96.6M` to `98.5M`. The
+  canonical 25M distinct shape rejected it: standard tag16 reached
+  `449623720806.395691` setup-inclusive wall distance/sec with
+  `filter_false_positive_count=884` and `target_build_seconds=0.535272`, while
+  tag16-mix reached only `430883970686.674500` with
+  `filter_false_positive_count=948` and `target_build_seconds=0.742167`. Keep
+  `--lookup-filter-mode tag16-mix` explicit; do not promote it as the large
+  multi-target default.
+- Separately accepted a build-reproducibility fix for Metal experiments.
+  `macos-build`
+  now routes through an explicit `$(MACOS_TARGET)` file target with the macOS
+  headers, including `macos/MetalFieldKernels.h`, as prerequisites. This makes
+  direct `make macos/rck_macos` use the same multi-source command as
+  `macos-build` and prevents stale binaries after raw Metal kernel edits. The
+  LTO/source check now dry-runs `make -B macos/rck_macos` and verifies that the
+  target depends on `MetalFieldKernels.h`.
 
 ## Cleanup Policy
 
