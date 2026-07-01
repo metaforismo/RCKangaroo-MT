@@ -3222,6 +3222,64 @@ static bool TargetLookupHashMatchesInjected(const TargetLookupKeyHost& key,
 	return false;
 }
 
+static constexpr size_t kInjectedHashFilterWords = 256;
+static constexpr uint32_t kInjectedHashFilterBitMask = (uint32_t)(kInjectedHashFilterWords * 64U - 1U);
+
+struct InjectedHashFilter
+{
+	std::array<uint64_t, kInjectedHashFilterWords> words;
+	bool enabled;
+};
+
+static uint32_t InjectedHashFilterBit(uint64_t hash, uint64_t salt)
+{
+	return (uint32_t)(TargetLookupMix(hash ^ salt) & (uint64_t)kInjectedHashFilterBitMask);
+}
+
+static void InjectedHashFilterSetBit(InjectedHashFilter& filter, uint32_t bit)
+{
+	filter.words[bit >> 6] |= 1ULL << (bit & 63U);
+}
+
+static bool InjectedHashFilterTestBit(const InjectedHashFilter& filter, uint32_t bit)
+{
+	return (filter.words[bit >> 6] & (1ULL << (bit & 63U))) != 0;
+}
+
+static InjectedHashFilter BuildInjectedHashFilter(const std::vector<std::pair<uint64_t, uint32_t> >& injected_hashes)
+{
+	InjectedHashFilter filter;
+	filter.words.fill(0);
+	filter.enabled = !injected_hashes.empty();
+	for (const std::pair<uint64_t, uint32_t>& entry : injected_hashes)
+	{
+		uint64_t hash = entry.first;
+		InjectedHashFilterSetBit(filter, InjectedHashFilterBit(hash, 0xD6E8FEB86659FD93ULL));
+		InjectedHashFilterSetBit(filter, InjectedHashFilterBit(hash, 0xA5A3564E27F886A5ULL));
+	}
+	return filter;
+}
+
+static bool InjectedHashFilterMayContain(const InjectedHashFilter& filter, uint64_t hash)
+{
+	if (!filter.enabled)
+		return true;
+	uint32_t bit0 = InjectedHashFilterBit(hash, 0xD6E8FEB86659FD93ULL);
+	uint32_t bit1 = InjectedHashFilterBit(hash, 0xA5A3564E27F886A5ULL);
+	return InjectedHashFilterTestBit(filter, bit0) && InjectedHashFilterTestBit(filter, bit1);
+}
+
+static bool TargetLookupHashMatchesInjectedFiltered(const TargetLookupKeyHost& key,
+	uint64_t hash,
+	const std::vector<TargetLookupKeyHost>& injected_keys,
+	const std::vector<std::pair<uint64_t, uint32_t> >& injected_hashes,
+	const InjectedHashFilter& injected_filter)
+{
+	if (!InjectedHashFilterMayContain(injected_filter, hash))
+		return false;
+	return TargetLookupHashMatchesInjected(key, hash, injected_keys, injected_hashes);
+}
+
 static bool InsertTargetLookupTag32PrehashedTable(const std::vector<TargetLookupKeyHost>& target_keys,
 	const std::vector<uint64_t>& target_hashes,
 	unsigned int bucket_count,
@@ -3361,6 +3419,7 @@ static bool BuildTargetLookupTag32TableFromKeysPrehashed(const std::vector<Targe
 				return lhs.first < rhs.first;
 			return lhs.second < rhs.second;
 		});
+	InjectedHashFilter injected_filter = BuildInjectedHashFilter(injected_hashes);
 
 	size_t injected_count = injected_keys.size();
 	size_t filler_count = (size_t)target_count - injected_count;
@@ -3370,7 +3429,7 @@ static bool BuildTargetLookupTag32TableFromKeysPrehashed(const std::vector<Targe
 		{
 			TargetLookupKeyHost key = DeterministicTargetLookupKey((uint64_t)offset, 0xA1171E5CAFULL);
 			uint64_t hash = TargetLookupHash(key);
-			if (!injected_hashes.empty() && TargetLookupHashMatchesInjected(key, hash, injected_keys, injected_hashes))
+			if (!injected_hashes.empty() && TargetLookupHashMatchesInjectedFiltered(key, hash, injected_keys, injected_hashes, injected_filter))
 				duplicate_filler.store(true, std::memory_order_relaxed);
 			size_t out_index = injected_count + offset;
 			target_keys[out_index] = key;
@@ -3432,6 +3491,7 @@ static bool BuildTargetLookupTag32TableFromKeysParallelInsert(const std::vector<
 				return lhs.first < rhs.first;
 			return lhs.second < rhs.second;
 		});
+	InjectedHashFilter injected_filter = BuildInjectedHashFilter(injected_hashes);
 
 	size_t injected_count = injected_keys.size();
 	size_t filler_count = (size_t)target_count - injected_count;
@@ -3441,7 +3501,7 @@ static bool BuildTargetLookupTag32TableFromKeysParallelInsert(const std::vector<
 		{
 			TargetLookupKeyHost key = DeterministicTargetLookupKey((uint64_t)offset, 0xA1171E5CAFULL);
 			uint64_t hash = TargetLookupHash(key);
-			if (!injected_hashes.empty() && TargetLookupHashMatchesInjected(key, hash, injected_keys, injected_hashes))
+			if (!injected_hashes.empty() && TargetLookupHashMatchesInjectedFiltered(key, hash, injected_keys, injected_hashes, injected_filter))
 				duplicate_filler.store(true, std::memory_order_relaxed);
 			size_t out_index = injected_count + offset;
 			target_keys[out_index] = key;
@@ -3561,6 +3621,7 @@ static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert(const std::v
 				return lhs.first < rhs.first;
 			return lhs.second < rhs.second;
 		});
+	InjectedHashFilter injected_filter = BuildInjectedHashFilter(injected_hashes);
 
 	size_t injected_count = injected_keys.size();
 	size_t filler_count = (size_t)target_count - injected_count;
@@ -3571,7 +3632,7 @@ static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert(const std::v
 		{
 			TargetLookupKeyHost key = DeterministicTargetLookupKey((uint64_t)offset, 0xA1171E5CAFULL);
 			uint64_t hash = TargetLookupHash(key);
-			if (!injected_hashes.empty() && TargetLookupHashMatchesInjected(key, hash, injected_keys, injected_hashes))
+			if (!injected_hashes.empty() && TargetLookupHashMatchesInjectedFiltered(key, hash, injected_keys, injected_hashes, injected_filter))
 				duplicate_filler.store(true, std::memory_order_relaxed);
 			size_t out_index = injected_count + offset;
 			target_x_keys.get()[out_index] = TargetLookupXOnlyFromKey(key);

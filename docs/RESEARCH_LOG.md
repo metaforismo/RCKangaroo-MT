@@ -5639,6 +5639,28 @@ These did not pass the performance gate or had a correctness/architecture issue:
   but its walk timing was thermally/noise affected, so this should be treated as
   a correctness-preserving cleanup and stricter metric, not as a promoted solver
   throughput breakthrough.
+- Accepted an injected-hash prefilter for host target-table builders. The
+  target builders still sort injected hashes and still call the exact
+  `TargetLookupHashMatchesInjected(...)` check whenever a filler hash may match;
+  the new `InjectedHashFilter` only skips that binary-search/exact path when two
+  hash-derived filter bits prove the filler hash cannot be one of the injected
+  hashes. This keeps the no-false-negative correctness contract while reducing
+  repeated injected-hash probes during large deterministic filler generation.
+  The isolated `target-lookup-tag32-parallel-insert-bench --target-count
+  25005000 --injected-count 128 --iterations 1` improved in a direct scout from
+  `parallel_seconds=1.124707` to `0.628557`, with `target_keys_equal=true`,
+  `all_keys_found=true`, and `correctness=true`. The integrated 25M fixed-round
+  run preserved the full oracle (`target_lookup_checksum=0x923b46f156f9d59b`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=131072`, zero
+  false positives) and measured `target_build_seconds=0.706725` in the direct
+  candidate run. A paired autoresearch gate against clean `main=7b4423e` using
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_setup_wall`
+  kept both confirmations despite strong M3 Air thermal noise:
+  confirmation 1 measured `setup_inclusive_wall_ops_per_sec=102762281.417187`
+  versus baseline `101650514.686968` (`paired_speedup=1.010937`), and
+  confirmation 2 measured `78462642.066908` versus baseline
+  `77106310.387503` (`paired_speedup=1.017590`). Treat the win as a
+  target-build/setup improvement; the GPU walk kernel itself is unchanged.
 
 ## Cleanup Policy
 
