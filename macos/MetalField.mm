@@ -128,6 +128,9 @@ static_assert(offsetof(TargetLookupTag32BucketHost, tag) == 0, "Metal tag32 targ
 static_assert(offsetof(TargetLookupTag32BucketHost, target_index) == 4, "Metal tag32 target lookup index offset drifted");
 static_assert(offsetof(TargetLookupTag32ParityBucketHost, tag) == 0, "Metal tag32 parity target lookup tag offset drifted");
 static_assert(offsetof(TargetLookupTag32ParityBucketHost, encoded_target_index) == 4, "Metal tag32 parity target lookup index offset drifted");
+#if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__)
+static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "packed tag32 parity CAS expects little-endian bucket words");
+#endif
 
 static unsigned int ValidationWorkerOverride()
 {
@@ -3901,18 +3904,19 @@ static bool InsertTargetLookupTag32ParityBucket(std::vector<TargetLookupTag32Par
 {
 	if (buckets.empty())
 		return false;
-	TargetLookupTag32ParityBucketHost empty_bucket{0, kTargetLookupEmptyIndex};
 	uint32_t tag = TargetLookupTag32(hash);
 	uint32_t encoded = kTargetLookupEmptyIndex;
 	if (!EncodeTargetLookupIndexParity(target_index, parity, encoded))
 		return false;
-	TargetLookupTag32ParityBucketHost desired{tag, encoded};
+	uint64_t empty_word = ((uint64_t)kTargetLookupEmptyIndex << 32);
+	uint64_t desired_word = ((uint64_t)encoded << 32) | (uint64_t)tag;
+	uint64_t* bucket_words = reinterpret_cast<uint64_t*>(buckets.data());
 	uint32_t mask = (uint32_t)buckets.size() - 1U;
 	uint32_t slot = (uint32_t)(hash & (uint64_t)mask);
 	for (unsigned int probe = 0; probe < buckets.size(); ++probe)
 	{
-		TargetLookupTag32ParityBucketHost expected = empty_bucket;
-		if (__atomic_compare_exchange(&buckets[slot], &expected, &desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
+		uint64_t expected = empty_word;
+		if (__atomic_compare_exchange_n(&bucket_words[slot], &expected, desired_word, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
 		{
 			if (fused_tag16_filter_buckets)
 				(*fused_tag16_filter_buckets)[slot] = fused_tag16_filter_mixed ?

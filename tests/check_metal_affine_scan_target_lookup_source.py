@@ -348,6 +348,10 @@ if "AllocateTargetLookupXOnlyBuffer(target_count)" not in parity_builder_body:
     raise SystemExit("x-only parity target builder should allocate an uninitialized x-only target buffer")
 if "InsertTargetLookupTag32ParityBucket(buckets" not in parity_builder_body:
     raise SystemExit("x-only parity target builder should stream bucket insertion while filling target keys")
+if "__atomic_compare_exchange_n(&bucket_words[slot]" not in kernels:
+    raise SystemExit("x-only parity target builder should use packed uint64 bucket CAS")
+if "packed tag32 parity CAS expects little-endian bucket words" not in kernels:
+    raise SystemExit("packed parity bucket CAS should keep an explicit endian guard")
 
 choose_start = kernels.index("static const char* ChooseAffineLookupEngine")
 choose_end = kernels.index("static unsigned int ChooseAffineLookupThreadgroupLimit", choose_start)

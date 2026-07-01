@@ -6078,6 +6078,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   (`41550374.844451` min, `48326754.961320` max); its first `keep` row is a
   baseline artifact for future parity-builder changes rather than evidence of a
   speedup over the integrated kangaroo gate.
+- Accepted a packed-word CAS cleanup inside
+  `InsertTargetLookupTag32ParityBucket`. The parity bucket is exactly 8 bytes
+  (`tag` at offset 0, encoded target index/parity at offset 4), so insertion now
+  compares and swaps the bucket as one little-endian `uint64_t` word instead of
+  passing the two-field struct to the atomic builtin. This preserves the same
+  open-addressing, same filter tag writes, and same exact `x256 + y_parity`
+  resolver. The parity-builder autoresearch gate against clean baseline
+  `79a93be` kept correctness and `semantic_checksum=0x388d492ffb8b482f`, with
+  median candidate `parallel_targets_per_sec=20102413.374918` versus paired
+  baseline `19226470.622761` (`paired_speedup=1.045559`). A warm unpaired
+  candidate run also stayed in the previous baseline band
+  (`44031285.361388` median over three samples). The full 25M fixed-round
+  distinct-miss integrated gate preserved `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, and `hit_count=128`.
+  Its paired whole-gate run was thermally noisy and should not be reported as a
+  solver breakthrough; it is useful only as evidence that the real path remains
+  correct and did not reject the change.
 
 ## Cleanup Policy
 
