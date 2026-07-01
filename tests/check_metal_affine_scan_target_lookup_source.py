@@ -142,6 +142,9 @@ for marker in markers:
     if marker not in kernels:
         raise SystemExit("missing affine-scan target-lookup host marker: " + marker)
 
+if "bool* no_copy_used = NULL" not in kernels or "*no_copy_used = true;" not in kernels:
+    raise SystemExit("no-copy Metal buffer helper should report whether fallback copied storage")
+
 target_lookup_start = kernels.index(
     "std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32BenchJson"
 )
@@ -213,6 +216,22 @@ if "BuildJacobianPointSamplesFrom((uint64_t)round * (uint64_t)sample_count, samp
     raise SystemExit("fixed-round setup should avoid generating discarded affine q samples after round zero")
 if "ignored_q" in rounds_body:
     raise SystemExit("fixed-round setup should not generate discarded affine q samples")
+
+distance_kernel_start = kernels.index("static bool RunJacobianDynamicXyzzDistanceKernel")
+distance_kernel_end = kernels.index("static bool RunJacobianDynamicDpStreamXyzzPersistentChainKernel", distance_kernel_start)
+distance_kernel_body = kernels[distance_kernel_start:distance_kernel_end]
+if "bool p_no_copy = false;" not in distance_kernel_body or "bool p_inf_no_copy = false;" not in distance_kernel_body:
+    raise SystemExit("fixed-round XYZZ distance wrapper should track no-copy fallback status")
+if "NewSharedMetalBufferNoCopyFallback(device, p_xyzz.data(), p_bytes, &p_no_copy)" not in distance_kernel_body:
+    raise SystemExit("fixed-round XYZZ distance wrapper should avoid the initial full p_xyzz Metal buffer copy")
+if "NewSharedMetalBufferNoCopyFallback(device, dynamic_p_infinity.data(), p_inf_bytes, &p_inf_no_copy)" not in distance_kernel_body:
+    raise SystemExit("fixed-round XYZZ distance wrapper should avoid the initial p_infinity Metal buffer copy")
+if "if (!p_no_copy)\n\t\t\tmemcpy(p_xyzz.data(), [p_buffer contents], p_bytes);" not in distance_kernel_body:
+    raise SystemExit("fixed-round XYZZ distance fallback should copy p_xyzz back only when no-copy was unavailable")
+if "if (!p_inf_no_copy)\n\t\t\tmemcpy(dynamic_p_infinity.data(), [p_inf_buffer contents], p_inf_bytes);" not in distance_kernel_body:
+    raise SystemExit("fixed-round XYZZ distance fallback should copy infinity flags back only when no-copy was unavailable")
+if "distances_out = std::move(distances);" not in distance_kernel_body:
+    raise SystemExit("fixed-round XYZZ distance wrapper should move packet distances instead of copying them")
 
 parity_builder_start = kernels.index("static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert")
 parity_builder_end = kernels.index("static void BuildTargetLookupQueries", parity_builder_start)

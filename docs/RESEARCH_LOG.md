@@ -5675,6 +5675,51 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_checksum=0x7f111e78c67b5c18`, `hit_count=131072`, zero false positives,
   and measured `target_build_seconds=0.593294` with
   `setup_inclusive_wall_ops_per_sec=108085496.663599`.
+- Rejected a smaller 64-word injected-hash prefilter scout. The direct
+  `target-lookup-tag32-parallel-insert-bench --target-count 25005000` probes
+  stayed correct for `--injected-count 64` and `--injected-count 128`, but
+  measured `parallel_seconds=1.380848` and `1.385115`, clearly worse than the
+  accepted 256-word filter shape. The change was reverted without promotion.
+- Rejected an XYZZ in-place step helper scout. The candidate replaced the hot
+  `XyzzValue` return in selected Metal walk paths with scalar reference updates
+  while preserving the exceptional cases. Source checks, Metal build, DP-stream
+  CLI, and a small fixed-round target lookup all stayed correct, but the paired
+  walk gates did not improve: 2048-step affine-scan candidate runs measured
+  roughly `77.0M`, `74.8M`, and `64.4M ops/s`, while clean baseline runs in the
+  same session measured roughly `77.8M`, `82.5M`, and `80.5M ops/s`.
+  DP-stream 256 was likewise neutral-to-worse. The scout was discarded.
+- Rejected a no-avalanche XYZZ jump selector scout. Removing the avalanche mix
+  from the fixed-round XYZZ jump index preserved correctness and even kept a
+  sane 2048-step jump histogram (`jump_histogram_max_deviation_ppm=1869` in the
+  scout), but it did not produce a stable speed win (`gpu_ops_per_sec` varied
+  from `61.8M` to `80.1M` against recent clean baselines around `78M` to
+  `82M`). Because this changes walk trajectories and weakens the documented
+  `jump_mixer=avalanche64` contract without a clear performance win, it was
+  reverted.
+- Accepted no-copy backing for the fixed-round XYZZ distance wrapper on macOS.
+  `RunJacobianDynamicXyzzDistanceKernel(...)` now creates the mutable `p_xyzz`
+  and infinity Metal buffers through `NewSharedMetalBufferNoCopyFallback(...)`,
+  then parses the updated backing vectors directly and moves the packet
+  distance vector instead of copying it. The existing
+  `RCK_METAL_DISABLE_NOCOPY=1` escape hatch can still force the copy-backed
+  path for A/B checks; the wrapper tracks whether the helper actually returned
+  no-copy storage and copies back only on fallback. This removes full host-side
+  state buffer copies without changing the Metal kernel, jump schedule, affine
+  DP scan, target lookup, or exact equality oracle. The 25M fixed-round gate preserved
+  `target_lookup_checksum=0x923b46f156f9d59b`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=131072`, and
+  zero false positives. A same-session paired check measured candidate
+  `setup_inclusive_wall_ops_per_sec=112827538.813821` versus clean baseline
+  `110323392.381208` (`paired_speedup=1.022699`), with a second candidate
+  confirmation at `111743508.178081` (`paired_speedup=1.012874` versus the same
+  baseline). Treat this as a real macOS host-buffer/setup improvement; GPU walk
+  arithmetic throughput is intentionally unchanged. After adding fallback-state
+  tracking, `RCK_METAL_DISABLE_NOCOPY=1` was also checked on the same 25M gate
+  and preserved the full oracle; in that same-bin comparison no-copy measured
+  `setup_inclusive_wall_ops_per_sec=110604004.595908` and forced-copy measured
+  `108859529.906798`, with similar `walk_buffer_seconds` and visible
+  target-build/lookup noise. Keep treating this as a modest macOS host-buffer
+  reduction, not as a mathematical walk-speed breakthrough.
 
 ## Cleanup Policy
 

@@ -44,14 +44,18 @@ struct MetalDispatchStats
 	unsigned int threads_per_threadgroup = 0;
 };
 
-static id<MTLBuffer> NewSharedMetalBufferNoCopyFallback(id<MTLDevice> device, void* data, size_t byte_count)
+static id<MTLBuffer> NewSharedMetalBufferNoCopyFallback(id<MTLDevice> device, void* data, size_t byte_count, bool* no_copy_used = NULL)
 {
+	if (no_copy_used)
+		*no_copy_used = false;
 	if (!device || !data || byte_count == 0)
 		return nil;
 	const char* disable_no_copy = getenv("RCK_METAL_DISABLE_NOCOPY");
 	if (!disable_no_copy || disable_no_copy[0] == '\0' || strcmp(disable_no_copy, "0") == 0)
 	{
 		id<MTLBuffer> buffer = [device newBufferWithBytesNoCopy:data length:byte_count options:MTLResourceStorageModeShared deallocator:nil];
+		if (buffer && no_copy_used)
+			*no_copy_used = true;
 		if (buffer)
 			return buffer;
 	}
@@ -7670,9 +7674,11 @@ static bool RunJacobianDynamicXyzzDistanceKernel(const std::vector<CpuJacobianPo
 		size_t distances_out_bytes = distances.size() * sizeof(uint64_t);
 		uint32_t count = (uint32_t)p.size();
 		uint32_t jump_mask = (uint32_t)jumps.size() - 1U;
-		id<MTLBuffer> p_buffer = [device newBufferWithBytes:p_xyzz.data() length:p_bytes options:MTLResourceStorageModeShared];
+		bool p_no_copy = false;
+		bool p_inf_no_copy = false;
+		id<MTLBuffer> p_buffer = NewSharedMetalBufferNoCopyFallback(device, p_xyzz.data(), p_bytes, &p_no_copy);
 		id<MTLBuffer> q_buffer = [device newBufferWithBytes:q_xy.data() length:q_bytes options:MTLResourceStorageModeShared];
-		id<MTLBuffer> p_inf_buffer = [device newBufferWithBytes:dynamic_p_infinity.data() length:p_inf_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> p_inf_buffer = NewSharedMetalBufferNoCopyFallback(device, dynamic_p_infinity.data(), p_inf_bytes, &p_inf_no_copy);
 		id<MTLBuffer> out_distances_buffer = [device newBufferWithLength:distances_out_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> count_buffer = [device newBufferWithBytes:&count length:sizeof(count) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> jump_distances_buffer = [device newBufferWithBytes:jump_distances.data() length:distance_bytes options:MTLResourceStorageModeShared];
@@ -7717,9 +7723,11 @@ static bool RunJacobianDynamicXyzzDistanceKernel(const std::vector<CpuJacobianPo
 		}
 
 		memcpy(distances.data(), [out_distances_buffer contents], distances_out_bytes);
-		memcpy(p_xyzz.data(), [p_buffer contents], p_bytes);
-		memcpy(dynamic_p_infinity.data(), [p_inf_buffer contents], p_inf_bytes);
-		distances_out = distances;
+		if (!p_no_copy)
+			memcpy(p_xyzz.data(), [p_buffer contents], p_bytes);
+		if (!p_inf_no_copy)
+			memcpy(dynamic_p_infinity.data(), [p_inf_buffer contents], p_inf_bytes);
+		distances_out = std::move(distances);
 		state_out.clear();
 		state_out.reserve(p.size());
 		for (size_t i = 0; i < p.size(); ++i)
