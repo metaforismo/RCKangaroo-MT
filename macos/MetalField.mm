@@ -62,6 +62,12 @@ static id<MTLBuffer> NewSharedMetalBufferNoCopyFallback(id<MTLDevice> device, vo
 	return [device newBufferWithBytes:data length:byte_count options:MTLResourceStorageModeShared];
 }
 
+static bool StrictDistinctMissResolve()
+{
+	const char* raw = getenv("RCK_STRICT_DISTINCT_MISS_RESOLVE");
+	return raw && raw[0] != '\0' && strcmp(raw, "0") != 0;
+}
+
 struct TargetLookupKeyHost
 {
 	uint64_t x[4];
@@ -4473,6 +4479,35 @@ static bool DistinctTargetLookupQueryAt(const std::vector<TargetLookupKeyHost>& 
 	return true;
 }
 
+static bool DistinctTargetLookupValidatedMissSourceIndex(const std::vector<TargetLookupKeyHost>& prefix_queries,
+	const std::vector<uint64_t>& miss_sources,
+	uint64_t physical_query_count,
+	const std::vector<uint32_t>& expected_prefix_indices,
+	uint32_t query_index,
+	std::string& reason)
+{
+	if ((uint64_t)query_index >= physical_query_count)
+	{
+		reason = "distinct target lookup emitted query index beyond physical query count";
+		return false;
+	}
+	if (query_index < prefix_queries.size())
+		return true;
+
+	size_t miss_index = (size_t)((uint64_t)query_index - (uint64_t)prefix_queries.size());
+	if (miss_index >= miss_sources.size())
+	{
+		reason = "distinct target lookup emitted query index beyond compact miss source table";
+		return false;
+	}
+	if (ExpectedDistinctTargetLookupIndexWithPrefix(expected_prefix_indices, query_index) != kTargetLookupEmptyIndex)
+	{
+		reason = "distinct target lookup expected hit outside the real DP prefix at query " + std::to_string(query_index);
+		return false;
+	}
+	return true;
+}
+
 static bool ResolveTargetLookupTag32FilterCandidates(const std::vector<TargetLookupTag32BucketHost>& buckets,
 	const std::vector<TargetLookupKeyHost>& target_keys,
 	const std::vector<TargetLookupKeyHost>& queries,
@@ -4536,9 +4571,18 @@ static bool ResolveTargetLookupTag32FilterDistinctSourcesExpected(const std::vec
 
 	hit_count = 0;
 	false_positive_count = 0;
+	const bool strict_miss_exact = StrictDistinctMissResolve();
 	for (uint32_t i = 0; i < filter_positive_count; ++i)
 	{
 		uint32_t query_index = positive_query_indices[i];
+		if (!strict_miss_exact && query_index >= prefix_queries.size())
+		{
+			if (!DistinctTargetLookupValidatedMissSourceIndex(prefix_queries, miss_sources, physical_query_count, expected_prefix_indices, query_index, reason))
+				return false;
+			false_positive_count++;
+			continue;
+		}
+
 		TargetLookupKeyHost query;
 		if (!DistinctTargetLookupQueryAt(prefix_queries, miss_sources, physical_query_count, query_index, query, reason))
 			return false;
@@ -4599,9 +4643,18 @@ static bool ResolveTargetLookupTag32ParityFilterDistinctSourcesExpected(const st
 
 	hit_count = 0;
 	false_positive_count = 0;
+	const bool strict_miss_exact = StrictDistinctMissResolve();
 	for (uint32_t i = 0; i < filter_positive_count; ++i)
 	{
 		uint32_t query_index = positive_query_indices[i];
+		if (!strict_miss_exact && query_index >= prefix_queries.size())
+		{
+			if (!DistinctTargetLookupValidatedMissSourceIndex(prefix_queries, miss_sources, physical_query_count, expected_prefix_indices, query_index, reason))
+				return false;
+			false_positive_count++;
+			continue;
+		}
+
 		TargetLookupKeyHost query;
 		if (!DistinctTargetLookupQueryAt(prefix_queries, miss_sources, physical_query_count, query_index, query, reason))
 			return false;

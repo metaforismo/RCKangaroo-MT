@@ -281,6 +281,12 @@ if "if (maybe_exact_hit)\n\t\t\t\t\t{\n\t\t\t\t\t\tTargetLookupKeyHost miss_key 
     raise SystemExit("distinct miss-source generation should materialize miss keys only for tag16 prefilter positives")
 if "TargetLookupTag32ParityFindWithHash(target_x_keys, target_x_key_count, parity_buckets, miss_key, miss_hash, &ignored)" not in kernels:
     raise SystemExit("distinct miss-source generation should preserve parity exact lookup after prefilter positives")
+if "RCK_STRICT_DISTINCT_MISS_RESOLVE" not in kernels:
+    raise SystemExit("distinct resolver should keep an env-gated strict exact audit mode")
+if "DistinctTargetLookupValidatedMissSourceIndex" not in kernels:
+    raise SystemExit("distinct resolver should validate compact miss-source indices before skipping exact miss lookups")
+if kernels.count("if (!strict_miss_exact && query_index >= prefix_queries.size())\n\t\t{\n\t\t\tif (!DistinctTargetLookupValidatedMissSourceIndex") < 2:
+    raise SystemExit("distinct resolver should skip exact CPU lookup only for already-validated compact miss sources")
 if "distinct_miss_source_seconds" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should measure compact miss-source generation time")
 if "&lookup_query_hashes, error)" not in rounds_body:

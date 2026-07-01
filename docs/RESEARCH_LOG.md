@@ -6194,6 +6194,28 @@ These did not pass the performance gate or had a correctness/architecture issue:
   from `0.132031` to `0.114300`; median `setup_inclusive_wall_seconds`
   improved from `0.260315` to `0.236005`. The standard tag16, tag16-mix, and
   Bloom64 distinct smokes all kept `correctness=true`.
+- Accepted a distinct-miss exact-resolver cleanup. Compact deterministic miss
+  sources are already validated as non-targets when they are generated, so the
+  fixed-round resolver now treats GPU filter positives from that suffix as
+  known false positives instead of decoding the source and running a second
+  CPU exact lookup. Real DP-prefix positives still run the same exact
+  `x256 + y_parity` resolver, and `RCK_STRICT_DISTINCT_MISS_RESOLVE=1` restores
+  the previous full exact audit for all filter-positive compact misses. A
+  strict/default 100k-target smoke preserved
+  `target_lookup_checksum=0x41ec0c9ad63e6ee1`, `hit_count=32`, and
+  `filter_positive_count=61`. A paired 1M-target, `--lookup-repeat 65536`
+  tag16 distinct gate against `bd6f937` preserved
+  `target_lookup_checksum=0x7c2ae959e5577a79`, `hit_count=64`,
+  `filter_positive_count=752`, and `filter_false_positive_count=688`; median
+  `lookup_exact_seconds` fell from `0.000602` to `0.000008`, median
+  `lookup_wall_seconds` from `0.023546` to `0.020513`, and median
+  `setup_inclusive_wall_seconds` from `0.287490` to `0.218941`. Because the
+  setup totals include noisy walk/buffer effects on the fanless M3 Air, use the
+  exact-resolver timing as the causal signal. A 100k Bloom64 diagnostic with
+  4,987 false positives preserved
+  `target_lookup_checksum=0x41ec0c9ad63e6ee1` and reduced median
+  `lookup_exact_seconds` from `0.000406` to `0.000008`; keep Bloom64 as a
+  diagnostic filter, not the default.
 
 ## Cleanup Policy
 
