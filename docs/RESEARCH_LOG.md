@@ -5597,6 +5597,26 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `ops_per_sec=124637827.081943`. The candidate was removed; the result suggests
   that the constant-distance load is not the bottleneck on M3 for this kernel,
   and the shift/codegen path can be worse than the cached table read.
+- Rejected a local `-mcpu=native` macOS build-flag promotion for the fixed-round
+  25M gate. The native build preserved the standard oracle
+  (`target_lookup_checksum=0x923b46f156f9d59b`,
+  `dp_checksum=0x7f111e78c67b5c18`, `hit_count=131072`, and zero false
+  positives), but the direct M3 run regressed to
+  `setup_inclusive_wall_ops_per_sec=103730446.451354` and
+  `ops_per_sec=124753607.454484`, below the same-session default-build baseline.
+  Keep the portable `-O3 -flto=thin` macOS build flags unless a paired gate
+  proves a machine-specific target.
+- Rejected a no-copy range refactor for fixed-round per-round scan/validation
+  slices. The candidate avoided creating temporary `std::vector` copies for
+  each round after the batched Metal walk, and preserved the full 25M oracle
+  (`target_lookup_checksum=0x923b46f156f9d59b`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=131072`, zero
+  false positives). It did not clear the promotion gate: paired autoresearch
+  against clean `main` measured candidate
+  `setup_inclusive_wall_ops_per_sec=106910092.849915` versus baseline
+  `106621267.427845`, only `paired_speedup=1.002709` under the required 1%
+  threshold. The code was removed and the discard row is retained in
+  `autoresearch/results.tsv` and `autoresearch/benchmarks.jsonl`.
 
 ## Cleanup Policy
 
