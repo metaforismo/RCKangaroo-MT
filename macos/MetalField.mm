@@ -1593,12 +1593,14 @@ static std::string MetalAffineScanTargetLookupTag32BenchJson(const char* operati
 		lookup_engine_effective = lookup_engine;
 	bool lookup_uses_tag32_filter = strcmp(lookup_engine_effective, "gpu_filter") == 0;
 	bool lookup_uses_tag32_hash_filter = strcmp(lookup_engine_effective, "gpu_filter32_hash_repeat") == 0;
-	bool lookup_uses_tag16_mixed_hash_filter = strcmp(lookup_engine_effective, "gpu_filter16_mix_hash_repeat") == 0;
+	bool lookup_uses_tag16_mixed_hash_filter = strcmp(lookup_engine_effective, "gpu_filter16_mix_hash") == 0 ||
+		strcmp(lookup_engine_effective, "gpu_filter16_mix_hash_repeat") == 0;
+	bool lookup_uses_tag16_mixed_hash_repeat_filter = strcmp(lookup_engine_effective, "gpu_filter16_mix_hash_repeat") == 0;
 	bool lookup_uses_tag16_hash_filter = strcmp(lookup_engine_effective, "gpu_filter16_hash") == 0 ||
 		strcmp(lookup_engine_effective, "gpu_filter16_hash_repeat") == 0;
 	bool lookup_uses_hash_filter = lookup_uses_tag16_hash_filter || lookup_uses_tag16_mixed_hash_filter || lookup_uses_tag32_hash_filter;
 	bool lookup_uses_repeat_hash_filter = strcmp(lookup_engine_effective, "gpu_filter16_hash_repeat") == 0 ||
-		lookup_uses_tag16_mixed_hash_filter || lookup_uses_tag32_hash_filter;
+		lookup_uses_tag16_mixed_hash_repeat_filter || lookup_uses_tag32_hash_filter;
 	bool lookup_uses_dedup_repeat = strcmp(lookup_query_mode, "dedup_repeat") == 0;
 	bool lookup_uses_distinct_misses = strcmp(lookup_query_mode, "distinct_misses") == 0;
 	bool lookup_uses_filter = lookup_uses_tag32_filter || lookup_uses_hash_filter;
@@ -5068,7 +5070,8 @@ static bool RunTargetLookupTag16HashFilterKernel(const std::vector<uint16_t>& fi
 	std::string& error,
 	double* seconds,
 	unsigned int threadgroup_limit = 0,
-	MetalDispatchStats* dispatch_stats = NULL)
+	MetalDispatchStats* dispatch_stats = NULL,
+	bool mixed_filter_tag = false)
 {
 	if (dispatch_stats)
 		dispatch_stats->threadgroup_limit = (unsigned int)EffectiveTargetLookupThreadgroupLimit(threadgroup_limit);
@@ -5095,10 +5098,15 @@ static bool RunTargetLookupTag16HashFilterKernel(const std::vector<uint16_t>& fi
 			return false;
 		}
 
-		id<MTLFunction> function = [library newFunctionWithName:@"target_lookup_tag16_hash_filter256"];
+		NSString* function_name = mixed_filter_tag ?
+			@"target_lookup_tag16_mixed_hash_filter256" :
+			@"target_lookup_tag16_hash_filter256";
+		id<MTLFunction> function = [library newFunctionWithName:function_name];
 		if (!function)
 		{
-			error = "failed to load target_lookup_tag16_hash_filter256 function";
+			error = mixed_filter_tag ?
+				"failed to load target_lookup_tag16_mixed_hash_filter256 function" :
+				"failed to load target_lookup_tag16_hash_filter256 function";
 			return false;
 		}
 
@@ -11664,7 +11672,8 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 	lookup_filter_bits = lookup_filter_bits == 32 ? 32 : 16;
 	const bool use_tag32_hash_filter = lookup_filter_bits == 32;
 	const bool use_tag16_mixed_hash_filter = !use_tag32_hash_filter && lookup_filter_mix;
-	const char* lookup_engine_name = lookup_distinct_misses ? "gpu_filter16_hash" :
+	const char* lookup_engine_name = lookup_distinct_misses ?
+		(use_tag16_mixed_hash_filter ? "gpu_filter16_mix_hash" : "gpu_filter16_hash") :
 		(use_tag32_hash_filter ? "gpu_filter32_hash_repeat" :
 		 (use_tag16_mixed_hash_filter ? "gpu_filter16_mix_hash_repeat" : "gpu_filter16_hash_repeat"));
 	const unsigned int sample_count = iterations;
@@ -11686,9 +11695,9 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 		std::string reason = "dedup repeat mode requires repeat lookup query mode";
 		return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32_rounds", requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, 0, dp_bits, 0, 0, target_count, requested_hits_per_round, 0, 0, 0, 0, 0, 0, 0, walk_stats, lookup_stats, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, false, false, reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name, lookup_engine_name, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, "logical_query_index", 0.0, 0.0, round_count);
 	}
-	if (lookup_distinct_misses && (use_tag32_hash_filter || use_tag16_mixed_hash_filter))
+	if (lookup_distinct_misses && use_tag32_hash_filter)
 	{
-		std::string reason = "fixed-round distinct-misses currently supports the standard tag16 hash filter only";
+		std::string reason = "fixed-round distinct-misses currently supports tag16 hash filters only";
 		return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32_rounds", requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, 0, dp_bits, 0, 0, target_count, requested_hits_per_round, 0, 0, 0, 0, 0, 0, 0, walk_stats, lookup_stats, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, false, false, reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name, lookup_engine_name, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, "logical_query_index", 0.0, 0.0, round_count);
 	}
 
@@ -11867,10 +11876,10 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 	bool use_parity_xonly_target_table = use_base_repeat_positive_counts || lookup_distinct_misses;
 
 	auto target_build_start = std::chrono::steady_clock::now();
-	bool fuse_tag16_filter = !use_tag32_hash_filter && !use_tag16_mixed_hash_filter;
+	bool fuse_tag16_filter = !use_tag32_hash_filter;
 	bool target_build_ok = use_parity_xonly_target_table ?
-		BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, target_count, target_x_keys, target_x_key_count, target_parity_buckets, error, &target_filter16_buckets) :
-		BuildTargetLookupTag32TableFromKeys(injected_keys, target_count, target_keys, target_buckets, error, fuse_tag16_filter ? &target_filter16_buckets : NULL);
+		BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, target_count, target_x_keys, target_x_key_count, target_parity_buckets, error, &target_filter16_buckets, use_tag16_mixed_hash_filter) :
+		BuildTargetLookupTag32TableFromKeys(injected_keys, target_count, target_keys, target_buckets, error, fuse_tag16_filter ? &target_filter16_buckets : NULL, use_tag16_mixed_hash_filter);
 	if (!target_build_ok)
 		return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32_rounds", requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits_per_round, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, 0, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, validation_seconds, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name, lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes, lookup_hash_seconds, lookup_gpu_seconds, lookup_exact_seconds, 0.0, "logical_query_index", target_build_seconds, target_filter_build_seconds, round_count);
 	target_build_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - target_build_start).count();
@@ -11971,7 +11980,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 	uint32_t local_filter_positive_count = 0;
 	auto filter_wall_start = std::chrono::steady_clock::now();
 	bool filter_ok = lookup_distinct_misses ?
-		RunTargetLookupTag16HashFilterKernel(target_filter16_buckets, lookup_query_hashes, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats) :
+		RunTargetLookupTag16HashFilterKernel(target_filter16_buckets, lookup_query_hashes, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, use_tag16_mixed_hash_filter) :
 		(use_base_repeat_positive_counts ?
 		RunTargetLookupTag16HashFilterRepeatBaseCountKernel(target_filter16_buckets, lookup_query_hashes, dispatch_query_count, base_positive_counts, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, false) :
 		(use_tag32_hash_filter ?

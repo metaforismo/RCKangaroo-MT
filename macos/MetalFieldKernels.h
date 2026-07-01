@@ -2658,6 +2658,36 @@ kernel void target_lookup_tag16_hash_filter256(device const ushort* target_filte
   }
 }
 
+kernel void target_lookup_tag16_mixed_hash_filter256(device const ushort* target_filter_buckets [[buffer(0)]],
+                                                     device const ulong* query_hashes [[buffer(1)]],
+                                                     device uint* out_positive_query_indices [[buffer(2)]],
+                                                     device atomic_uint* out_filter_positive_count [[buffer(3)]],
+                                                     constant uint& bucket_count [[buffer(4)]],
+                                                     constant uint& query_count [[buffer(5)]],
+                                                     uint id [[thread_position_in_grid]]) {
+  if (id >= query_count) return;
+  ulong hash = query_hashes[id];
+  ushort filter_tag = target_lookup_filter_tag16_mixed(hash);
+  uint slot = (uint)(hash & (ulong)(bucket_count - 1));
+  uint probes = 0;
+
+  while (probes < bucket_count) {
+    ushort bucket_tag = target_filter_buckets[slot];
+    if (bucket_tag == (ushort)0U) {
+      break;
+    }
+    if (bucket_tag == filter_tag) {
+      uint out_slot = atomic_fetch_add_explicit(out_filter_positive_count, 1U, memory_order_relaxed);
+      if (out_slot < query_count) {
+        out_positive_query_indices[out_slot] = id;
+      }
+      break;
+    }
+    slot = (slot + 1U) & (bucket_count - 1U);
+    probes++;
+  }
+}
+
 kernel void target_lookup_tag16_hash_filter_repeat2d256(device const ushort* target_filter_buckets [[buffer(0)]],
                                                         device const ulong* base_query_hashes [[buffer(1)]],
                                                         device uint* out_positive_query_indices [[buffer(2)]],

@@ -4,6 +4,7 @@ import json
 
 root = Path(".")
 kernels = (root / "macos" / "MetalField.mm").read_text(encoding="utf-8")
+metal_kernels = (root / "macos" / "MetalFieldKernels.h").read_text(encoding="utf-8")
 header = (root / "macos" / "MetalField.h").read_text(encoding="utf-8")
 cli = (root / "macos" / "rck_macos.cpp").read_text(encoding="utf-8")
 makefile = (root / "Makefile").read_text(encoding="utf-8")
@@ -69,6 +70,7 @@ markers = [
     "ValidateAffineTargetLookupOutputs",
     "\"gpu_filter\"",
     "\"gpu_filter16_hash\"",
+    "\"gpu_filter16_mix_hash\"",
     "\"gpu_filter16_hash_repeat\"",
     "\"gpu_filter16_mix_hash_repeat\"",
     "\"gpu_filter32_hash_repeat\"",
@@ -88,6 +90,7 @@ markers = [
     "target_lookup_tag16_hash_filter_repeat2d256",
     "target_lookup_tag16_hash_filter_repeat_base2d256",
     "target_lookup_tag16_hash_filter_repeat_base_count_by_base2d256",
+    "target_lookup_tag16_mixed_hash_filter256",
     "target_lookup_tag16_mixed_hash_filter_repeat_base_count2d256",
     "target_lookup_tag16_hash_filter_repeat_packed2d256",
     "target_lookup_tag16_mixed_hash_filter_repeat2d256",
@@ -210,6 +213,20 @@ if "RunTargetLookupTag16HashFilterRepeatBaseCountKernel(target_filter16_buckets,
     raise SystemExit("fixed-round repeat lookup should route large standard tag16 repeat batches through base-count positives")
 if "RunTargetLookupTag16HashFilterKernel(target_filter16_buckets, lookup_query_hashes, positive_query_indices" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should use the physical non-repeat tag16 hash-filter kernel")
+if "use_tag16_mixed_hash_filter" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should preserve the tag16-mix filter choice")
+if "BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, target_count, target_x_keys, target_x_key_count, target_parity_buckets, error, &target_filter16_buckets, use_tag16_mixed_hash_filter)" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should fuse standard or mixed tag16 filters into the compact parity table")
+if "RunTargetLookupTag16HashFilterKernel(target_filter16_buckets, lookup_query_hashes, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, use_tag16_mixed_hash_filter)" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should pass the mixed tag selector to the non-repeat hash-filter kernel")
+if 'lookup_distinct_misses ?\n\t\t(use_tag16_mixed_hash_filter ? "gpu_filter16_mix_hash" : "gpu_filter16_hash")' not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses should report standard versus mixed tag16 hash engines separately")
+if "lookup_uses_tag16_mixed_hash_repeat_filter" not in kernels:
+    raise SystemExit("JSON query_input reporting should distinguish mixed hash repeat from mixed hash distinct")
+if "fixed-round distinct-misses currently supports tag16 hash filters only" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses should reject only tag32 filters")
+if "fixed-round distinct-misses currently supports the standard tag16 hash filter only" in rounds_body:
+    raise SystemExit("fixed-round distinct-misses should no longer reject tag16-mix")
 if "ValidateTargetLookupOutputs(out_indices, distinct_expected_indices" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should validate physical query outputs against explicit expected indices")
 if 'repeat_positive_index_encoding = lookup_distinct_misses ? "physical_query_index"' not in rounds_body:
@@ -250,6 +267,11 @@ if "if (!p_inf_no_copy)\n\t\t\tmemcpy(dynamic_p_infinity.data(), [p_inf_buffer c
     raise SystemExit("fixed-round XYZZ distance fallback should copy infinity flags back only when no-copy was unavailable")
 if "distances_out = std::move(distances);" not in distance_kernel_body:
     raise SystemExit("fixed-round XYZZ distance wrapper should move packet distances instead of copying them")
+
+if "kernel void target_lookup_tag16_mixed_hash_filter256" not in metal_kernels:
+    raise SystemExit("missing non-repeat mixed tag16 hash-filter Metal kernel")
+if "target_lookup_filter_tag16_mixed(hash)" not in metal_kernels:
+    raise SystemExit("non-repeat mixed tag16 hash-filter kernel should derive mixed tags from query hashes")
 
 parity_builder_start = kernels.index("static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert")
 parity_builder_end = kernels.index("static void BuildTargetLookupQueries", parity_builder_start)

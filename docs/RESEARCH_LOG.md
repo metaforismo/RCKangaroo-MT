@@ -5795,6 +5795,36 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `440854462579.940979`, min `434461529030.060547`, max
   `444661566891.730347`, and the same distinct checksum
   `0x5c90bdf7f12141b9`.
+- Rejected several follow-up speed scouts on the fixed-round distinct-miss gate,
+  while keeping one diagnostic path. The new non-repeat
+  `target_lookup_tag16_mixed_hash_filter256` Metal kernel allows
+  `--lookup-query-mode distinct-misses --lookup-filter-mode tag16-mix` to run
+  through the same compact x-only-plus-parity exact resolver and explicit
+  expected-index oracle. It is not a speed win on the MacBook Air M3 25M gate:
+  the mixed run preserved `target_lookup_checksum=0x5c90bdf7f12141b9` and
+  `dp_checksum=0x7f111e78c67b5c18`, but measured
+  `filter_false_positive_count=955` and
+  `setup_inclusive_wall_distance_per_sec=437922068026.285522`, versus an
+  adjacent standard tag16 run at `filter_false_positive_count=870` and
+  `442680658255.041443`. A lookup threadgroup sweep kept the existing
+  `--lookup-tg-limit 512` default: same-checksum samples measured roughly
+  `443.9B`, `464.4B`, `453.2B`, and `463.7B` distance/sec for lookup caps
+  `256`, `512`, `768`, and `1024`, respectively, so `512` remained the best
+  tested cap and `1024` was only close. A walk threadgroup sweep likewise kept
+  the existing 128-thread walk cap: `64`, `128`, `256`, and `512` measured
+  roughly `428.1B`, `464.9B`, `447.9B`, and `440.2B` setup-inclusive wall
+  distance/sec. A `jumps=4 --jump-schedule scaled4-balanced` distinct run was
+  correct but slower than the adjacent power-of-two path
+  (`443109577739.199829` distance/sec with checksum
+  `0x302b660f00b7f972`). A DP-density scout showed why high `dp_bits` should
+  not be accepted as a default speed win without solver-level policy: `dp8`
+  briefly reached `451496782620.7065` distance/sec with only `1015` DPs, but
+  `dp9` and `dp10` slowed sharply and `dp11+` underfilled the requested
+  64-hit-per-round oracle. A cached Metal-library setup scout was also
+  rejected: one 25M standard distinct sample reached
+  `452658472970.062134`, but the next fell to `423174123107.479248` with the
+  same checksum, so the extra process-global Objective-C cache was removed as
+  noise rather than kept as an optimization.
 
 ## Cleanup Policy
 
