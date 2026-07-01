@@ -6216,6 +6216,35 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `target_lookup_checksum=0x41ec0c9ad63e6ee1` and reduced median
   `lookup_exact_seconds` from `0.000406` to `0.000008`; keep Bloom64 as a
   diagnostic filter, not the default.
+- Accepted storing compact distinct-miss payloads only for strict audit mode.
+  After `6bf7167`, the default resolver no longer decodes deterministic suffix
+  misses, so writing millions of encoded `miss_sources` only feeds the optional
+  `RCK_STRICT_DISTINCT_MISS_RESOLVE=1` audit path. The builder now skips that
+  payload allocation and write in the default path while still producing the
+  same GPU query hashes and keeping the strict payload path intact. A paired
+  1M-target, `--lookup-repeat 65536` physical distinct gate against `6bf7167`
+  preserved `target_lookup_checksum=0x7c2ae959e5577a79`, `hit_count=64`,
+  `filter_positive_count=752`, and `filter_false_positive_count=688`; median
+  `distinct_miss_source_seconds` improved from `0.134726` to `0.103729`,
+  median `lookup_wall_seconds` from `0.019508` to `0.016914`, and median
+  `setup_inclusive_wall_seconds` from `0.261416` to `0.229430`. Strict 1M and
+  strict Bloom64 smokes kept the exact audit path correct. A direct 25M
+  correctness/memory gate preserved `correctness=true`,
+  `target_lookup_checksum=0x5c90bdf7f12141b9`, `dp_checksum=0x7f111e78c67b5c18`,
+  `dp_count=4121`, `hit_count=128`, `filter_positive_count=1006`, and
+  `filter_false_positive_count=878`; treat that row as correctness and memory
+  evidence because host validation dominated wall time.
+- Rejected direct x-only deterministic filler generation for the parity target
+  builder. The candidate generated filler `x`, `y` parity, and hash in one pass
+  and wrote `TargetLookupXOnlyHost` directly into the target buffer instead of
+  materializing a full `TargetLookupKeyHost` and converting it to x-only. It
+  preserved the semantic oracle (`semantic_checksum=0x388d492ffb8b482f`) and
+  `all_keys_found=true`, but it was slower on the real 25M parity-builder gate
+  against `6bf7167`: baseline median `parallel_targets_per_sec=6,854,436.092081`
+  versus candidate median `4,604,409.297136`. A smaller 4M paired scout was
+  inconclusive and noisy. Conclusion: keep the current full-key filler path;
+  on the M3 Air, the direct x-only rewrite appears to hurt code generation or
+  memory behavior more than it saves.
 
 ## Cleanup Policy
 

@@ -271,8 +271,12 @@ if "BuildDistinctTargetLookupMissSources(aggregate_dp_keys, logical_query_count"
     raise SystemExit("fixed-round distinct-misses lookup should build compact miss sources without materializing full key queries")
 if "distinct_source_filter16, use_tag16_mixed_hash_filter" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses source generation should reuse the fused tag16 filter before exact target checks")
-if "miss_sources.assign(suffix_count, 0)" not in kernels or "ParallelForSamples(suffix_count" not in kernels:
-    raise SystemExit("distinct miss-source generation should fill compact sources in parallel")
+if "bool store_distinct_miss_sources = StrictDistinctMissResolve();" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses should store compact miss payloads only for strict exact audit mode")
+if "if (store_miss_sources)\n\t\tmiss_sources.assign(suffix_count, 0)" not in kernels:
+    raise SystemExit("distinct miss-source generation should avoid allocating miss-source payloads in the default fast path")
+if "if (store_miss_sources)\n\t\t\t\t\t\t\tmiss_sources[i] = EncodeDistinctMissSource(nonce, retry_salt);" not in kernels or "ParallelForSamples(suffix_count" not in kernels:
+    raise SystemExit("distinct miss-source generation should fill compact sources in parallel only when strict audit needs them")
 if "TargetLookupTag16FilterMayContainWithHash(target_filter16_buckets, miss_hash, target_filter16_mixed)" not in kernels:
     raise SystemExit("distinct miss-source generation should tag16-prefilter generated misses before exact target checks")
 if "uint64_t miss_hash = DeterministicTargetLookupKeyHash(nonce, miss_salt);" not in kernels:
