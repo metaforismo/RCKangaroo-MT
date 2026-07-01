@@ -22,6 +22,9 @@ markers = [
     "ChooseAffineLookupThreadgroupLimit",
     "dp_query_count",
     "target_lookup_checksum",
+    "round_sample_build_seconds",
+    "BuildJacobianSampleAt",
+    "BuildJacobianPointSamplesFrom",
     "RunTargetLookupTag32Kernel",
     "RunTargetLookupTag32FilterKernel",
     "RunTargetLookupTag16HashFilterKernel",
@@ -177,6 +180,10 @@ if "ValidateAffineTargetLookupSparseRepeatOutputs(dp_keys.size(), injected_hits,
     raise SystemExit("repeat-indexed integrated lookup should validate sparse repeat outputs against the checksum oracle")
 if "filter_positive_count > base_query_count" not in kernels or "base_positive_counts(base_query_count" not in kernels:
     raise SystemExit("sparse repeat exact resolver should aggregate positives per repeated base query")
+if "double setup_inclusive_seconds = round_sample_build_seconds + walk_seconds + affine_scan_seconds + lookup_seconds + target_build_seconds + target_filter_build_seconds;" not in kernels:
+    raise SystemExit("setup-inclusive seconds should include fixed-round sample generation time")
+if "double setup_inclusive_wall_seconds = round_sample_build_seconds + effective_walk_wall_seconds + affine_scan_seconds + effective_lookup_wall_seconds + target_build_seconds + target_filter_build_seconds;" not in kernels:
+    raise SystemExit("setup-inclusive wall seconds should include fixed-round sample generation time")
 
 rounds_start = kernels.index(
     "std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32RoundsBenchJson"
@@ -199,6 +206,10 @@ if "BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, targe
     raise SystemExit("fixed-round base-count repeat lookup should build the x-only parity target table")
 if "ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices(target_parity_buckets, target_x_keys.get(), target_x_key_count" not in rounds_body:
     raise SystemExit("fixed-round base-count repeat lookup should exact-resolve against x plus encoded parity")
+if "BuildJacobianPointSamplesFrom((uint64_t)round * (uint64_t)sample_count, sample_count, p);" not in rounds_body:
+    raise SystemExit("fixed-round setup should avoid generating discarded affine q samples after round zero")
+if "ignored_q" in rounds_body:
+    raise SystemExit("fixed-round setup should not generate discarded affine q samples")
 
 parity_builder_start = kernels.index("static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert")
 parity_builder_end = kernels.index("static void BuildTargetLookupQueries", parity_builder_start)

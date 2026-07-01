@@ -5617,6 +5617,28 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `106621267.427845`, only `paired_speedup=1.002709` under the required 1%
   threshold. The code was removed and the discard row is retained in
   `autoresearch/results.tsv` and `autoresearch/benchmarks.jsonl`.
+- Accepted a small fixed-round host setup cleanup and benchmark honesty patch.
+  For `round > 0`, fixed-round setup previously called
+  `BuildJacobianAddSamplesFrom(...)` with a throwaway affine `q` vector, causing
+  deterministic affine samples to be generated and then discarded before the
+  Metal walk. The retained code factors sample generation through
+  `BuildJacobianSampleAt(...)` and uses `BuildJacobianPointSamplesFrom(...)`
+  for later rounds, preserving the original `p/q` builder for call sites that
+  still need both point streams. The JSON now reports
+  `round_sample_build_seconds` and includes it in both
+  `setup_inclusive_seconds` and `setup_inclusive_wall_seconds`, so fixed-round
+  metrics include this real host-side preparation cost instead of hiding it
+  before the walk timer. The 25M fixed-round gate preserved
+  `target_lookup_checksum=0x923b46f156f9d59b`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=131072`, and
+  `filter_false_positive_count=0`. The measured candidate reported
+  `round_sample_build_seconds=0.003361`,
+  `setup_inclusive_wall_ops_per_sec=104582819.875260`,
+  `ops_per_sec=126136486.532603`, and external `/usr/bin/time` `real=23.88s`.
+  A same-session uninstrumented baseline comparison measured `real=23.35s`,
+  but its walk timing was thermally/noise affected, so this should be treated as
+  a correctness-preserving cleanup and stricter metric, not as a promoted solver
+  throughput breakthrough.
 
 ## Cleanup Policy
 
