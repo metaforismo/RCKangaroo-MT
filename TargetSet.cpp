@@ -7,6 +7,8 @@
 #include <fstream>
 
 static constexpr size_t kTargetMapBatchSize = 32768;
+static constexpr size_t kTargetReserveSampleCount = 1024;
+static constexpr u64 kTargetReserveSlack = 1024;
 
 static bool TargetFieldIsZero(const EcInt& v)
 {
@@ -147,6 +149,13 @@ bool TTargetSet::LoadFromFile(const char* fn, EcInt& start)
 		LastError = "cannot open target file";
 		return false;
 	}
+	u64 file_size = 0;
+	fp.seekg(0, std::ios::end);
+	std::streampos end_pos = fp.tellg();
+	if (end_pos > 0)
+		file_size = (u64)end_pos;
+	fp.clear();
+	fp.seekg(0, std::ios::beg);
 
 	EcPoint neg_start;
 	bool has_start = !start.IsZero();
@@ -160,6 +169,21 @@ bool TTargetSet::LoadFromFile(const char* fn, EcInt& start)
 	std::vector<u32> pending_lines;
 	pending_points.reserve(kTargetMapBatchSize);
 	pending_lines.reserve(kTargetMapBatchSize);
+	bool target_reserve_estimated = false;
+	auto maybe_reserve_targets = [&]() {
+		if (target_reserve_estimated || !file_size || (pending_points.size() < kTargetReserveSampleCount))
+			return;
+		std::streampos pos = fp.tellg();
+		if (pos <= 0)
+			return;
+		u64 consumed = (u64)pos;
+		u64 estimate = ((file_size * (u64)pending_points.size()) / consumed) + kTargetReserveSlack;
+		if (estimate > 0xFFFFFFFFULL)
+			estimate = 0xFFFFFFFFULL;
+		if (estimate > Targets.capacity())
+			Targets.reserve((size_t)estimate);
+		target_reserve_estimated = true;
+	};
 	auto flush_pending = [&]() {
 		if (pending_points.empty())
 			return;
@@ -195,6 +219,7 @@ bool TTargetSet::LoadFromFile(const char* fn, EcInt& start)
 
 		pending_points.push_back(p);
 		pending_lines.push_back(line_no);
+		maybe_reserve_targets();
 		if (pending_points.size() >= kTargetMapBatchSize)
 			flush_pending();
 	}

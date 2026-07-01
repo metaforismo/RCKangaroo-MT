@@ -32,6 +32,28 @@ GPU work should use Metal.
 
 ## Recent Accepted Experiments
 
+### 2026-07-01 Sampled Target Vector Reservation
+
+- Accepted a small loader allocation improvement in `TTargetSet::LoadFromFile`:
+  after the first 1,024 parsed targets, the loader estimates the final target
+  count from file size and current stream position, then reserves the `Targets`
+  vector before the first 32,768-point mapping flush. If the file is not
+  seekable or the estimate is unavailable, behavior falls back to the previous
+  growth path. Parsing, source-line tracking, batch start-offset math, and result
+  records are unchanged.
+- Correctness oracle: `make check-host`; the 32,770-target batch-boundary test
+  still matches the legacy affine add oracle and preserves source lines. Paired
+  MacBook Air M3 loader probes against a binary linked with the previous
+  `TargetSet.cpp` preserved identical checksums. On the 1,048,576-target
+  uncompressed fixture with `--start 2`, candidate runs measured about
+  `2.50M` to `2.53M` targets/sec versus paired baseline runs around `2.29M` to
+  `2.47M`. On compressed input, where `sqrt mod p` still dominates, the gain was
+  intentionally treated as small: 262,144-target paired probes measured about
+  `203.5k` to `203.9k` targets/sec candidate versus `200.7k` to `202.7k`
+  baseline, and a 1,048,576-target spot check measured `203.6k` candidate versus
+  `202.5k` baseline. Keep this as a low-risk startup/memory improvement, not a
+  kernel throughput claim.
+
 ### 2026-07-01 Uncompressed Target-File Loading For Massive Lists
 
 - Accepted a benchmark/documentation improvement that makes target-file key
