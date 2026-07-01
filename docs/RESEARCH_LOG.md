@@ -5825,6 +5825,28 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `452658472970.062134`, but the next fell to `423174123107.479248` with the
   same checksum, so the extra process-global Objective-C cache was removed as
   noise rather than kept as an optimization.
+- Accepted a narrow fixed-round host-copy reduction, with a conservative speed
+  interpretation. The fixed-round target-lookup command no longer materializes
+  per-round `std::vector` slices for the already-batched Jacobian starts, XYZZ
+  Metal outputs, and packet distances before affine DP scan and validation.
+  Instead, `CpuXyzzBatchAffineDpScanRange(...)` and
+  `ValidateDynamicXyzzStateDistanceOutputsRange(...)` consume pointer/count
+  views into the existing batched buffers; the public vector wrappers remain in
+  place for the other commands. Small repeat, distinct, and distinct tag16-mix
+  smokes preserved their exact checksums, including distinct
+  `target_lookup_checksum=0xb107a63c69100191`. The 25M distinct gate preserved
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, and `hit_count=128`.
+  A same-session worktree-paired whole-process check favored the candidate:
+  candidate samples measured `421371706662.81537` and
+  `437184125632.8725` setup-inclusive wall distance/sec, while the clean
+  baseline between them measured `403170649366.641`; elapsed wall was roughly
+  `20.686s`, `22.171s`, and `21.762s`. Treat this as a real host allocation
+  and memory-traffic cleanup, not a GPU arithmetic breakthrough. The canonical
+  autoresearch metric still recorded `status=discard` with
+  `419382208002.396973`, because that metric excludes the old pre-scan slice
+  copy overhead and the M3 Air run was thermally noisy; keep both facts visible
+  when comparing future changes.
 
 ## Cleanup Policy
 

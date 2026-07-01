@@ -66,6 +66,8 @@ markers = [
     "rounds repeat base-count resolver",
     "total_round_samples",
     "batched_round_p",
+    "CpuXyzzBatchAffineDpScanRange",
+    "ValidateDynamicXyzzStateDistanceOutputsRange",
     "RunTargetLookupTag32Cpu",
     "ValidateAffineTargetLookupOutputs",
     "\"gpu_filter\"",
@@ -251,6 +253,16 @@ if "BuildJacobianPointSamplesFrom((uint64_t)round * (uint64_t)sample_count, samp
     raise SystemExit("fixed-round setup should avoid generating discarded affine q samples after round zero")
 if "ignored_q" in rounds_body:
     raise SystemExit("fixed-round setup should not generate discarded affine q samples")
+if "std::vector<CpuJacobianPoint> p(batched_round_p.begin()" in rounds_body:
+    raise SystemExit("fixed-round per-round validation should not copy jacobian input slices")
+if "std::vector<CpuXyzzPoint> state_out(batched_state_out.begin()" in rounds_body:
+    raise SystemExit("fixed-round affine scan should not copy XYZZ output slices")
+if "std::vector<uint64_t> distances_out(batched_distances_out.begin()" in rounds_body:
+    raise SystemExit("fixed-round affine scan should not copy distance output slices")
+if "CpuXyzzBatchAffineDpScanRange(round_state_out, round_distances_out, sample_count" not in rounds_body:
+    raise SystemExit("fixed-round affine scan should use range views into the batched Metal output")
+if "ValidateDynamicXyzzStateDistanceOutputsRange(round_p, sample_count" not in rounds_body:
+    raise SystemExit("fixed-round validation should use range views into the batched Metal output")
 
 distance_kernel_start = kernels.index("static bool RunJacobianDynamicXyzzDistanceKernel")
 distance_kernel_end = kernels.index("static bool RunJacobianDynamicDpStreamXyzzPersistentChainKernel", distance_kernel_start)

@@ -9058,8 +9058,9 @@ static uint64_t MixCompactDpChecksum(uint64_t checksum, uint64_t dp_term, uint32
 	return checksum ^ dp_term ^ ((uint64_t)sample_index * 0x9E3779B97F4A7C15ULL);
 }
 
-static bool CpuXyzzBatchAffineDpScanParallel(const std::vector<CpuXyzzPoint>& points,
-	const std::vector<uint64_t>& distances,
+static bool CpuXyzzBatchAffineDpScanParallelRange(const CpuXyzzPoint* points,
+	const uint64_t* distances,
+	size_t point_count,
 	unsigned int dp_bits,
 	uint64_t* dp_distance_checksum_out,
 	uint64_t* dp_checksum_out,
@@ -9068,9 +9069,9 @@ static bool CpuXyzzBatchAffineDpScanParallel(const std::vector<CpuXyzzPoint>& po
 	std::vector<TargetLookupKeyHost>* dp_keys_out,
 	std::vector<uint64_t>* dp_distances_out)
 {
-	if (points.size() != distances.size())
+	if (point_count && (!points || !distances))
 	{
-		reason = "parallel XYZZ affine scan state/distance size mismatch";
+		reason = "parallel XYZZ affine scan missing state/distance input";
 		return false;
 	}
 	if (dp_keys_out)
@@ -9078,8 +9079,8 @@ static bool CpuXyzzBatchAffineDpScanParallel(const std::vector<CpuXyzzPoint>& po
 	if (dp_distances_out)
 		dp_distances_out->clear();
 
-	unsigned int worker_count = ValidationWorkerCount(points.size());
-	if (worker_count <= 1 || points.empty())
+	unsigned int worker_count = ValidationWorkerCount(point_count);
+	if (worker_count <= 1 || point_count == 0)
 	{
 		reason = "parallel XYZZ affine scan needs multiple workers";
 		return false;
@@ -9087,13 +9088,13 @@ static bool CpuXyzzBatchAffineDpScanParallel(const std::vector<CpuXyzzPoint>& po
 
 	const uint64_t dp_mask = ProjectiveDpMask(dp_bits);
 	const FieldElement one = CpuFieldOne();
-	std::vector<FieldElement> prefixes(points.size());
-	std::vector<FieldElement> products(points.size());
-	std::vector<uint8_t> active(points.size(), 0);
+	std::vector<FieldElement> prefixes(point_count);
+	std::vector<FieldElement> products(point_count);
+	std::vector<uint8_t> active(point_count, 0);
 	std::vector<FieldElement> chunk_products(worker_count, one);
 	std::vector<unsigned int> chunk_active_counts(worker_count, 0);
 
-	ParallelForSamples(points.size(), [&](size_t begin, size_t end, unsigned int worker_index) {
+	ParallelForSamples(point_count, [&](size_t begin, size_t end, unsigned int worker_index) {
 		FieldElement local_acc = one;
 		unsigned int local_active_count = 0;
 		for (size_t i = begin; i < end; ++i)
@@ -9115,11 +9116,11 @@ static bool CpuXyzzBatchAffineDpScanParallel(const std::vector<CpuXyzzPoint>& po
 	for (unsigned int count : chunk_active_counts)
 		active_count += count;
 
-	std::vector<uint8_t> dp_flags(points.size(), 0);
-	std::vector<uint64_t> dp_terms(points.size(), 0);
+	std::vector<uint8_t> dp_flags(point_count, 0);
+	std::vector<uint64_t> dp_terms(point_count, 0);
 	std::vector<TargetLookupKeyHost> dp_keys_by_index;
 	if (dp_keys_out)
-		dp_keys_by_index.resize(points.size());
+		dp_keys_by_index.resize(point_count);
 
 	if (active_count)
 	{
@@ -9140,7 +9141,7 @@ static bool CpuXyzzBatchAffineDpScanParallel(const std::vector<CpuXyzzPoint>& po
 			inv_chunk_suffix = CpuFieldMul(inv_chunk_suffix, chunk_products[worker]);
 		}
 
-		ParallelForSamples(points.size(), [&](size_t begin, size_t end, unsigned int worker_index) {
+		ParallelForSamples(point_count, [&](size_t begin, size_t end, unsigned int worker_index) {
 			FieldElement local_inv_suffix = chunk_inv_products[worker_index];
 			for (size_t remaining = end; remaining > begin; --remaining)
 			{
@@ -9176,7 +9177,7 @@ static bool CpuXyzzBatchAffineDpScanParallel(const std::vector<CpuXyzzPoint>& po
 	uint64_t dp_distance_checksum = 0;
 	uint64_t dp_checksum = 0;
 	unsigned int dp_count = 0;
-	for (size_t remaining = points.size(); remaining > 0; --remaining)
+	for (size_t remaining = point_count; remaining > 0; --remaining)
 	{
 		size_t i = remaining - 1;
 		if (dp_flags[i])
@@ -9200,8 +9201,9 @@ static bool CpuXyzzBatchAffineDpScanParallel(const std::vector<CpuXyzzPoint>& po
 	return true;
 }
 
-static bool CpuXyzzBatchAffineDpScan(const std::vector<CpuXyzzPoint>& points,
-	const std::vector<uint64_t>& distances,
+static bool CpuXyzzBatchAffineDpScanRange(const CpuXyzzPoint* points,
+	const uint64_t* distances,
+	size_t point_count,
 	unsigned int dp_bits,
 	uint64_t* dp_distance_checksum_out,
 	uint64_t* dp_checksum_out,
@@ -9210,12 +9212,12 @@ static bool CpuXyzzBatchAffineDpScan(const std::vector<CpuXyzzPoint>& points,
 	std::vector<TargetLookupKeyHost>* dp_keys_out = NULL,
 	std::vector<uint64_t>* dp_distances_out = NULL)
 {
-	if (points.size() >= 8192 && ValidationWorkerCount(points.size()) > 1)
-		return CpuXyzzBatchAffineDpScanParallel(points, distances, dp_bits, dp_distance_checksum_out, dp_checksum_out, dp_count_out, reason, dp_keys_out, dp_distances_out);
+	if (point_count >= 8192 && ValidationWorkerCount(point_count) > 1)
+		return CpuXyzzBatchAffineDpScanParallelRange(points, distances, point_count, dp_bits, dp_distance_checksum_out, dp_checksum_out, dp_count_out, reason, dp_keys_out, dp_distances_out);
 
-	if (points.size() != distances.size())
+	if (point_count && (!points || !distances))
 	{
-		reason = "XYZZ affine scan state/distance size mismatch";
+		reason = "XYZZ affine scan missing state/distance input";
 		return false;
 	}
 	if (dp_keys_out)
@@ -9225,12 +9227,12 @@ static bool CpuXyzzBatchAffineDpScan(const std::vector<CpuXyzzPoint>& points,
 
 	const uint64_t dp_mask = ProjectiveDpMask(dp_bits);
 	const FieldElement one = CpuFieldOne();
-	std::vector<FieldElement> prefixes(points.size());
-	std::vector<FieldElement> products(points.size());
-	std::vector<uint8_t> active(points.size(), 0);
+	std::vector<FieldElement> prefixes(point_count);
+	std::vector<FieldElement> products(point_count);
+	std::vector<uint8_t> active(point_count, 0);
 	FieldElement acc = one;
 	unsigned int active_count = 0;
-	for (size_t i = 0; i < points.size(); ++i)
+	for (size_t i = 0; i < point_count; ++i)
 	{
 		const CpuXyzzPoint& p = points[i];
 		if (p.infinity || CpuFieldIsZero(p.zz) || CpuFieldIsZero(p.zzz))
@@ -9248,7 +9250,7 @@ static bool CpuXyzzBatchAffineDpScan(const std::vector<CpuXyzzPoint>& points,
 	if (active_count)
 	{
 		FieldElement inv_suffix = CpuFieldInv(acc);
-		for (size_t remaining = points.size(); remaining > 0; --remaining)
+		for (size_t remaining = point_count; remaining > 0; --remaining)
 		{
 			size_t i = remaining - 1;
 			const CpuXyzzPoint& p = points[i];
@@ -9288,7 +9290,7 @@ static bool CpuXyzzBatchAffineDpScan(const std::vector<CpuXyzzPoint>& points,
 	}
 	else
 	{
-		for (size_t i = 0; i < points.size(); ++i)
+		for (size_t i = 0; i < point_count; ++i)
 			dp_checksum = MixCompactDpChecksum(dp_checksum, 0, 0, i);
 	}
 
@@ -9299,6 +9301,24 @@ static bool CpuXyzzBatchAffineDpScan(const std::vector<CpuXyzzPoint>& points,
 	if (dp_count_out)
 		*dp_count_out = dp_count;
 	return true;
+}
+
+static bool CpuXyzzBatchAffineDpScan(const std::vector<CpuXyzzPoint>& points,
+	const std::vector<uint64_t>& distances,
+	unsigned int dp_bits,
+	uint64_t* dp_distance_checksum_out,
+	uint64_t* dp_checksum_out,
+	unsigned int* dp_count_out,
+	std::string& reason,
+	std::vector<TargetLookupKeyHost>* dp_keys_out = NULL,
+	std::vector<uint64_t>* dp_distances_out = NULL)
+{
+	if (points.size() != distances.size())
+	{
+		reason = "XYZZ affine scan state/distance size mismatch";
+		return false;
+	}
+	return CpuXyzzBatchAffineDpScanRange(points.data(), distances.data(), points.size(), dp_bits, dp_distance_checksum_out, dp_checksum_out, dp_count_out, reason, dp_keys_out, dp_distances_out);
 }
 
 static bool ValidateDynamicDpStreamOutputs(const std::vector<CpuJacobianPoint>& p,
@@ -10027,18 +10047,25 @@ static bool ValidateDynamicXyzzStateOutputs(const std::vector<CpuJacobianPoint>&
 	return true;
 }
 
-static bool ValidateDynamicXyzzStateDistanceOutputs(const std::vector<CpuJacobianPoint>& p,
+static bool ValidateDynamicXyzzStateDistanceOutputsRange(const CpuJacobianPoint* p,
+	size_t point_count,
 	const std::vector<CpuAffinePoint>& jumps,
 	const std::vector<uint64_t>& jump_distances,
 	unsigned int steps_per_sample,
-	const std::vector<CpuXyzzPoint>& state_out,
-	const std::vector<uint64_t>& distances_out,
+	const CpuXyzzPoint* state_out,
+	const uint64_t* distances_out,
+	size_t output_count,
 	std::vector<uint64_t>* jump_histogram,
 	std::string& reason)
 {
-	if (state_out.size() != p.size() || distances_out.size() != p.size())
+	if (output_count != point_count)
 	{
 		reason = "dynamic XYZZ state/distance output size mismatch";
+		return false;
+	}
+	if (point_count && (!p || !state_out || !distances_out))
+	{
+		reason = "dynamic XYZZ state/distance missing input";
 		return false;
 	}
 
@@ -10047,12 +10074,12 @@ static bool ValidateDynamicXyzzStateDistanceOutputs(const std::vector<CpuJacobia
 		bool ok = true;
 		std::string reason;
 	};
-	unsigned int worker_count = ValidationWorkerCount(p.size());
+	unsigned int worker_count = ValidationWorkerCount(point_count);
 	std::vector<ValidationResult> results(worker_count);
 	std::vector<std::vector<uint64_t> > local_jump_histograms;
 	if (jump_histogram)
 		local_jump_histograms.assign(worker_count, std::vector<uint64_t>(jump_histogram->size(), 0));
-	ParallelForSamples(p.size(), [&](size_t begin, size_t end, unsigned int worker_index) {
+	ParallelForSamples(point_count, [&](size_t begin, size_t end, unsigned int worker_index) {
 		std::vector<uint64_t>* local_jump_histogram = jump_histogram ? &local_jump_histograms[worker_index] : NULL;
 		for (size_t i = begin; i < end; ++i)
 		{
@@ -10093,6 +10120,23 @@ static bool ValidateDynamicXyzzStateDistanceOutputs(const std::vector<CpuJacobia
 				(*jump_histogram)[bucket] += local[bucket];
 	}
 	return true;
+}
+
+static bool ValidateDynamicXyzzStateDistanceOutputs(const std::vector<CpuJacobianPoint>& p,
+	const std::vector<CpuAffinePoint>& jumps,
+	const std::vector<uint64_t>& jump_distances,
+	unsigned int steps_per_sample,
+	const std::vector<CpuXyzzPoint>& state_out,
+	const std::vector<uint64_t>& distances_out,
+	std::vector<uint64_t>* jump_histogram,
+	std::string& reason)
+{
+	if (state_out.size() != p.size() || distances_out.size() != p.size())
+	{
+		reason = "dynamic XYZZ state/distance output size mismatch";
+		return false;
+	}
+	return ValidateDynamicXyzzStateDistanceOutputsRange(p.data(), p.size(), jumps, jump_distances, steps_per_sample, state_out.data(), distances_out.data(), state_out.size(), jump_histogram, reason);
 }
 
 bool RCKMetalJacobianWalkSelfTest(std::string& error)
@@ -11814,16 +11858,16 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 	for (unsigned int round = 0; round < round_count; ++round)
 	{
 		size_t round_offset = (size_t)round * (size_t)sample_count;
-		std::vector<CpuJacobianPoint> p(batched_round_p.begin() + round_offset, batched_round_p.begin() + round_offset + sample_count);
-		std::vector<CpuXyzzPoint> state_out(batched_state_out.begin() + round_offset, batched_state_out.begin() + round_offset + sample_count);
-		std::vector<uint64_t> distances_out(batched_distances_out.begin() + round_offset, batched_distances_out.begin() + round_offset + sample_count);
+		const CpuJacobianPoint* round_p = batched_round_p.data() + round_offset;
+		const CpuXyzzPoint* round_state_out = batched_state_out.data() + round_offset;
+		const uint64_t* round_distances_out = batched_distances_out.data() + round_offset;
 
 		auto scan_start = std::chrono::steady_clock::now();
 		uint64_t round_dp_distance_checksum = 0;
 		uint64_t round_dp_checksum = 0;
 		unsigned int round_dp_count = 0;
 		std::string scan_reason;
-		if (!CpuXyzzBatchAffineDpScan(state_out, distances_out, dp_bits, &round_dp_distance_checksum, &round_dp_checksum, &round_dp_count, scan_reason, &round_dp_keys[round]))
+		if (!CpuXyzzBatchAffineDpScanRange(round_state_out, round_distances_out, sample_count, dp_bits, &round_dp_distance_checksum, &round_dp_checksum, &round_dp_count, scan_reason, &round_dp_keys[round]))
 		{
 			affine_scan_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - scan_start).count();
 			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32_rounds", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits_per_round, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, 0, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, validation_seconds, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, scan_reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name, lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes, lookup_hash_seconds, lookup_gpu_seconds, lookup_exact_seconds, 0.0, "logical_query_index", target_build_seconds, target_filter_build_seconds, round_count);
@@ -11841,7 +11885,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 
 		auto validation_start = std::chrono::steady_clock::now();
 		std::string validation_reason;
-		if (!ValidateDynamicXyzzStateDistanceOutputs(p, jumps, jump_distances, steps_per_sample, state_out, distances_out, &jump_histogram, validation_reason))
+		if (!ValidateDynamicXyzzStateDistanceOutputsRange(round_p, sample_count, jumps, jump_distances, steps_per_sample, round_state_out, round_distances_out, sample_count, &jump_histogram, validation_reason))
 		{
 			validation_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - validation_start).count();
 			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32_rounds", operations ? operations : requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits_per_round, injected_hits, dp_query_count, hit_count, target_buckets.size(), target_key_bytes, target_bucket_bytes, 0, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, validation_seconds, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, validation_reason, lookup_repeat, lookup_query_mode_name, lookup_engine_name, lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes, lookup_hash_seconds, lookup_gpu_seconds, lookup_exact_seconds, 0.0, "logical_query_index", target_build_seconds, target_filter_build_seconds, round_count);
