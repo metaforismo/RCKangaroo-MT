@@ -6181,6 +6181,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   rejected: although it preserved the same checksum and reduced positive-index
   buffer size, the 16M-query paired check slowed median lookup wall time from
   `0.0143445` to `0.015679`, so it was not promoted.
+- Accepted a follow-up hash-only deterministic miss cleanup. After the tag16
+  prefilter, most generated physical misses do not need a full
+  `TargetLookupKeyHost`; they only need the deterministic query hash for the
+  GPU filter and source record. The miss builder now computes that hash
+  directly from nonce and salt, and materializes the full host key only for
+  tag16 prefilter positives that still require exact `x256 + y_parity`
+  resolution. A paired 1M-target, `--lookup-repeat 65536` physical distinct
+  check against `44fa647` preserved
+  `target_lookup_checksum=0x7c2ae959e5577a79`, `hit_count=64`, and
+  `filter_positive_count=752`. Median `distinct_miss_source_seconds` improved
+  from `0.132031` to `0.114300`; median `setup_inclusive_wall_seconds`
+  improved from `0.260315` to `0.236005`. The standard tag16, tag16-mix, and
+  Bloom64 distinct smokes all kept `correctness=true`.
 
 ## Cleanup Policy
 

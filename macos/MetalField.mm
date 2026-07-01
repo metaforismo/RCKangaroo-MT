@@ -2607,6 +2607,15 @@ static uint64_t TargetLookupHash(const TargetLookupKeyHost& key)
 	return TargetLookupMix(h ^ (uint64_t)key.parity);
 }
 
+static uint64_t DeterministicTargetLookupKeyHash(uint64_t index, uint64_t salt)
+{
+	uint64_t h = 0x9e3779b97f4a7c15ULL;
+	for (unsigned int limb = 0; limb < 4; ++limb)
+		h = TargetLookupMix(h ^ TargetLookupMix(index + salt + 0x9e3779b97f4a7c15ULL * (uint64_t)(limb + 1)));
+	uint64_t parity = TargetLookupMix(index ^ (salt << 1) ^ 0xD1B54A32D192ED03ULL) & 1ULL;
+	return TargetLookupMix(h ^ parity);
+}
+
 static uint32_t TargetLookupTag32(uint64_t hash)
 {
 	return (uint32_t)(hash >> 32);
@@ -3299,13 +3308,17 @@ static bool BuildDistinctTargetLookupMissSources(const std::vector<TargetLookupK
 				for (unsigned int salt_index = 0; salt_index < 2; ++salt_index)
 				{
 					bool retry_salt = salt_index != 0;
-					TargetLookupKeyHost miss_key = DeterministicTargetLookupKey(nonce, retry_salt ? kDistinctMissRetrySalt : kDistinctMissPrimarySalt);
-					uint64_t miss_hash = TargetLookupHash(miss_key);
+					uint64_t miss_salt = retry_salt ? kDistinctMissRetrySalt : kDistinctMissPrimarySalt;
+					uint64_t miss_hash = DeterministicTargetLookupKeyHash(nonce, miss_salt);
 					bool maybe_exact_hit = TargetLookupTag16FilterMayContainWithHash(target_filter16_buckets, miss_hash, target_filter16_mixed);
-					bool exact_hit = maybe_exact_hit &&
-						(use_parity_xonly_target_table ?
+					bool exact_hit = false;
+					if (maybe_exact_hit)
+					{
+						TargetLookupKeyHost miss_key = DeterministicTargetLookupKey(nonce, miss_salt);
+						exact_hit = use_parity_xonly_target_table ?
 							TargetLookupTag32ParityFindWithHash(target_x_keys, target_x_key_count, parity_buckets, miss_key, miss_hash, &ignored) :
-							TargetLookupTag32FindWithHash(target_keys, buckets, miss_key, miss_hash, &ignored));
+							TargetLookupTag32FindWithHash(target_keys, buckets, miss_key, miss_hash, &ignored);
+					}
 					if (!exact_hit)
 					{
 						miss_sources[i] = EncodeDistinctMissSource(nonce, retry_salt);

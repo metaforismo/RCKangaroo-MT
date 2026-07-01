@@ -92,6 +92,7 @@ markers = [
     "BuildTargetLookupQueryHashesParallel",
     "BuildRepeatedTargetLookupQueryHashes",
     "TargetLookupTag16FilterMayContainWithHash",
+    "DeterministicTargetLookupKeyHash",
     "target_lookup_tag16_hash_filter_repeat2d256",
     "target_lookup_tag16_hash_filter_repeat_base2d256",
     "target_lookup_tag16_hash_filter_repeat_base_count_by_base2d256",
@@ -274,6 +275,10 @@ if "miss_sources.assign(suffix_count, 0)" not in kernels or "ParallelForSamples(
     raise SystemExit("distinct miss-source generation should fill compact sources in parallel")
 if "TargetLookupTag16FilterMayContainWithHash(target_filter16_buckets, miss_hash, target_filter16_mixed)" not in kernels:
     raise SystemExit("distinct miss-source generation should tag16-prefilter generated misses before exact target checks")
+if "uint64_t miss_hash = DeterministicTargetLookupKeyHash(nonce, miss_salt);" not in kernels:
+    raise SystemExit("distinct miss-source generation should hash deterministic misses without first materializing full host keys")
+if "if (maybe_exact_hit)\n\t\t\t\t\t{\n\t\t\t\t\t\tTargetLookupKeyHost miss_key = DeterministicTargetLookupKey(nonce, miss_salt);" not in kernels:
+    raise SystemExit("distinct miss-source generation should materialize miss keys only for tag16 prefilter positives")
 if "TargetLookupTag32ParityFindWithHash(target_x_keys, target_x_key_count, parity_buckets, miss_key, miss_hash, &ignored)" not in kernels:
     raise SystemExit("distinct miss-source generation should preserve parity exact lookup after prefilter positives")
 if "distinct_miss_source_seconds" not in rounds_body:
