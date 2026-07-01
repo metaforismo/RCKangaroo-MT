@@ -6118,6 +6118,22 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `distinct_miss_source_seconds` in the `0.242052..0.527568` range. The discard
   is expected because previous leaderboard rows used a less complete
   setup-inclusive denominator.
+- Folded physical query hash generation into the same measured distinct
+  miss-source pass. The source builder already computes each accepted miss hash
+  while proving the key is not a target, so the old follow-on
+  decode-and-rehash pass was redundant. The distinct path now fills
+  `lookup_query_hashes` while building `distinct_miss_sources`; `lookup_hash_seconds`
+  is therefore `0.000000` for this mode, while `distinct_miss_source_seconds`
+  remains part of setup-inclusive time. A 1M distinct smoke preserved
+  `target_lookup_checksum=0x490898cb59685f2c`. A direct 25M run preserved
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, and `hit_count=128`, with
+  `distinct_miss_source_seconds=0.230111` and
+  `setup_inclusive_wall_distance_per_sec=367635602613.332275`. The updated
+  autoresearch run kept correctness on all three 25M samples and recorded
+  median `setup_inclusive_wall_distance_per_sec=194258881234.917969`, but still
+  reported `status=discard` against older stronger rows; keep this as an
+  accepted host-work cleanup, not as a whole-gate breakthrough claim.
 
 ## Cleanup Policy
 

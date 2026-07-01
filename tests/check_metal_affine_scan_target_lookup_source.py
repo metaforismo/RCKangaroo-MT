@@ -271,8 +271,10 @@ if "miss_sources.assign(suffix_count, 0)" not in kernels or "ParallelForSamples(
     raise SystemExit("distinct miss-source generation should fill compact sources in parallel")
 if "distinct_miss_source_seconds" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should measure compact miss-source generation time")
-if "BuildDistinctTargetLookupQueryHashesFromSources(aggregate_dp_keys, distinct_miss_sources, logical_query_count" not in rounds_body:
-    raise SystemExit("fixed-round distinct-misses lookup should hash compact miss sources in the measured lookup path")
+if "&lookup_query_hashes, error)" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should build compact miss sources and physical query hashes in one measured pass")
+if "BuildDistinctTargetLookupQueryHashesFromSources" in kernels:
+    raise SystemExit("fixed-round distinct-misses lookup should not keep a second compact-source decode/hash pass")
 if "ResolveTargetLookupTag32ParityFilterDistinctSourcesExpected(target_parity_buckets, target_x_keys.get(), target_x_key_count, aggregate_dp_keys, distinct_miss_sources" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should exact-resolve compact miss sources against x plus encoded parity")
 if "distinct_lookup_queries" in rounds_body:

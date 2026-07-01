@@ -3218,9 +3218,12 @@ static bool BuildDistinctTargetLookupMissSources(const std::vector<TargetLookupK
 	size_t target_x_key_count,
 	bool use_parity_xonly_target_table,
 	std::vector<uint64_t>& miss_sources,
+	std::vector<uint64_t>* query_hashes,
 	std::string& error)
 {
 	miss_sources.clear();
+	if (query_hashes)
+		query_hashes->clear();
 	if (physical_query_count < prefix_queries.size())
 	{
 		error = "distinct query count is smaller than the real DP prefix";
@@ -3233,6 +3236,7 @@ static bool BuildDistinctTargetLookupMissSources(const std::vector<TargetLookupK
 	}
 
 	size_t suffix_count = (size_t)physical_query_count - prefix_queries.size();
+	size_t query_count = (size_t)physical_query_count;
 	if ((uint64_t)suffix_count > kDistinctMissRetrySourceBit)
 	{
 		error = "distinct miss count exhausted compact source encoding";
@@ -3240,34 +3244,50 @@ static bool BuildDistinctTargetLookupMissSources(const std::vector<TargetLookupK
 	}
 
 	miss_sources.assign(suffix_count, 0);
+	if (query_hashes)
+	{
+		query_hashes->assign(query_count, 0);
+		ParallelForSamples(prefix_queries.size(), [&](size_t begin, size_t end, unsigned int worker) {
+			(void)worker;
+			for (size_t i = begin; i < end; ++i)
+				(*query_hashes)[i] = TargetLookupHash(prefix_queries[i]);
+		});
+	}
+
 	std::atomic<uint64_t> failed_index(UINT64_MAX);
 	auto build_range = [&](size_t begin, size_t end) {
 		uint32_t ignored = 0;
 		for (size_t i = begin; i < end; ++i)
 		{
-			uint64_t nonce = (uint64_t)i;
-			TargetLookupKeyHost miss_key = DeterministicTargetLookupKey(nonce, kDistinctMissPrimarySalt);
-			uint64_t miss_hash = TargetLookupHash(miss_key);
-			bool exact_hit = use_parity_xonly_target_table ?
-				TargetLookupTag32ParityFindWithHash(target_x_keys, target_x_key_count, parity_buckets, miss_key, miss_hash, &ignored) :
-				TargetLookupTag32FindWithHash(target_keys, buckets, miss_key, miss_hash, &ignored);
-			bool retry_salt = false;
-			if (exact_hit)
+			uint64_t stride = suffix_count ? (uint64_t)suffix_count : 1ULL;
+			bool stored = false;
+			for (uint64_t round = 0; !stored; ++round)
 			{
-				retry_salt = true;
-				miss_key = DeterministicTargetLookupKey(nonce, kDistinctMissRetrySalt);
-				miss_hash = TargetLookupHash(miss_key);
-				exact_hit = use_parity_xonly_target_table ?
-					TargetLookupTag32ParityFindWithHash(target_x_keys, target_x_key_count, parity_buckets, miss_key, miss_hash, &ignored) :
-					TargetLookupTag32FindWithHash(target_keys, buckets, miss_key, miss_hash, &ignored);
-				if (exact_hit)
+				if (round > (kDistinctMissRetrySourceBit - 1ULL - (uint64_t)i) / stride)
 				{
 					uint64_t expected = UINT64_MAX;
 					failed_index.compare_exchange_strong(expected, (uint64_t)i, std::memory_order_relaxed);
 					return;
 				}
+				uint64_t nonce = (uint64_t)i + round * stride;
+				for (unsigned int salt_index = 0; salt_index < 2; ++salt_index)
+				{
+					bool retry_salt = salt_index != 0;
+					TargetLookupKeyHost miss_key = DeterministicTargetLookupKey(nonce, retry_salt ? kDistinctMissRetrySalt : kDistinctMissPrimarySalt);
+					uint64_t miss_hash = TargetLookupHash(miss_key);
+					bool exact_hit = use_parity_xonly_target_table ?
+						TargetLookupTag32ParityFindWithHash(target_x_keys, target_x_key_count, parity_buckets, miss_key, miss_hash, &ignored) :
+						TargetLookupTag32FindWithHash(target_keys, buckets, miss_key, miss_hash, &ignored);
+					if (!exact_hit)
+					{
+						miss_sources[i] = EncodeDistinctMissSource(nonce, retry_salt);
+						if (query_hashes)
+							(*query_hashes)[prefix_queries.size() + i] = miss_hash;
+						stored = true;
+						break;
+					}
+				}
 			}
-			miss_sources[i] = EncodeDistinctMissSource(nonce, retry_salt);
 		}
 	};
 	if (suffix_count >= kMinParallelTargetLookupHashQueries && ValidationWorkerCount(suffix_count) > 1)
@@ -3288,46 +3308,6 @@ static bool BuildDistinctTargetLookupMissSources(const std::vector<TargetLookupK
 		error = "distinct miss source retry still resolved as a target at suffix index " + std::to_string(index);
 		return false;
 	}
-	return true;
-}
-
-static bool BuildDistinctTargetLookupQueryHashesFromSources(const std::vector<TargetLookupKeyHost>& prefix_queries,
-	const std::vector<uint64_t>& miss_sources,
-	uint64_t physical_query_count,
-	std::vector<uint64_t>& query_hashes,
-	std::string& error)
-{
-	query_hashes.clear();
-	if (physical_query_count < prefix_queries.size())
-	{
-		error = "distinct query count is smaller than the real DP prefix";
-		return false;
-	}
-	if (physical_query_count > (uint64_t)std::numeric_limits<size_t>::max())
-	{
-		error = "distinct query count exceeds host size_t capacity";
-		return false;
-	}
-	size_t query_count = (size_t)physical_query_count;
-	size_t suffix_count = query_count - prefix_queries.size();
-	if (suffix_count != miss_sources.size())
-	{
-		error = "distinct compact miss source count mismatch";
-		return false;
-	}
-
-	query_hashes.assign(query_count, 0);
-	size_t prefix_count = prefix_queries.size();
-	ParallelForSamples(query_count, [&](size_t begin, size_t end, unsigned int worker) {
-		(void)worker;
-		for (size_t i = begin; i < end; ++i)
-		{
-			TargetLookupKeyHost key = i < prefix_count ?
-				prefix_queries[i] :
-				DecodeDistinctMissSource(miss_sources[i - prefix_count]);
-			query_hashes[i] = TargetLookupHash(key);
-		}
-	});
 	return true;
 }
 
@@ -12647,7 +12627,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 	if (lookup_distinct_misses)
 	{
 		auto source_start = std::chrono::steady_clock::now();
-		if (!BuildDistinctTargetLookupMissSources(aggregate_dp_keys, logical_query_count, target_buckets, target_keys, target_parity_buckets, target_x_keys.get(), target_x_key_count, use_parity_xonly_target_table, distinct_miss_sources, error))
+		if (!BuildDistinctTargetLookupMissSources(aggregate_dp_keys, logical_query_count, target_buckets, target_keys, target_parity_buckets, target_x_keys.get(), target_x_key_count, use_parity_xonly_target_table, distinct_miss_sources, &lookup_query_hashes, error))
 		{
 			distinct_miss_source_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - source_start).count();
 			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32_rounds", requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits_per_round, injected_hits, dp_query_count, hit_count, target_table_bucket_count, target_key_bytes, target_bucket_bytes, 0, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, validation_seconds, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name, lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes, lookup_hash_seconds, lookup_gpu_seconds, lookup_exact_seconds, 0.0, "physical_query_index", target_build_seconds, target_filter_build_seconds, round_count);
@@ -12655,12 +12635,7 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 		distinct_miss_source_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - source_start).count();
 	}
 	auto hash_start = std::chrono::steady_clock::now();
-	if (lookup_distinct_misses)
-	{
-		if (!BuildDistinctTargetLookupQueryHashesFromSources(aggregate_dp_keys, distinct_miss_sources, logical_query_count, lookup_query_hashes, error))
-			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32_rounds", requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits_per_round, injected_hits, dp_query_count, hit_count, target_table_bucket_count, target_key_bytes, target_bucket_bytes, 0, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, validation_seconds, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name, lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes, lookup_hash_seconds, lookup_gpu_seconds, lookup_exact_seconds, 0.0, "physical_query_index", target_build_seconds, target_filter_build_seconds, round_count);
-	}
-	else
+	if (!lookup_distinct_misses)
 	{
 		BuildTargetLookupQueryHashesParallel(aggregate_dp_keys, lookup_query_hashes);
 	}
