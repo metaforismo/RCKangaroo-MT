@@ -286,22 +286,45 @@ if "CpuXyzzBatchAffineDpScanRange(round_state_out, round_distances_out, sample_c
     raise SystemExit("fixed-round affine scan should use range views into the batched Metal output")
 if "ValidateDynamicXyzzStateDistanceOutputsRange(round_p, sample_count" not in rounds_body:
     raise SystemExit("fixed-round validation should use range views into the batched Metal output")
+if "static void UnpackXyzzStateOutputs" not in kernels:
+    raise SystemExit("fixed-round XYZZ wrappers should share the contiguous state unpack helper")
+unpack_start = kernels.index("static void UnpackXyzzStateOutputs")
+unpack_end = kernels.index("static void PackAffineTable", unpack_start)
+unpack_body = kernels[unpack_start:unpack_end]
+if "state_out.resize(point_count);" not in unpack_body:
+    raise SystemExit("XYZZ state unpack should resize once instead of push_back")
+if "memcpy(point.x.data(), p_xyzz.data() + base, 4 * sizeof(uint64_t));" not in unpack_body:
+    raise SystemExit("XYZZ state unpack should copy contiguous limbs per coordinate")
 
 distance_kernel_start = kernels.index("static bool RunJacobianDynamicXyzzDistanceKernel")
 distance_kernel_end = kernels.index("static bool RunJacobianDynamicDpStreamXyzzPersistentChainKernel", distance_kernel_start)
 distance_kernel_body = kernels[distance_kernel_start:distance_kernel_end]
 if "bool p_no_copy = false;" not in distance_kernel_body or "bool p_inf_no_copy = false;" not in distance_kernel_body:
     raise SystemExit("fixed-round XYZZ distance wrapper should track no-copy fallback status")
+if "bool out_distances_no_copy = false;" not in distance_kernel_body:
+    raise SystemExit("fixed-round XYZZ distance wrapper should track no-copy distance-output fallback status")
 if "NewSharedMetalBufferNoCopyFallback(device, p_xyzz.data(), p_bytes, &p_no_copy)" not in distance_kernel_body:
     raise SystemExit("fixed-round XYZZ distance wrapper should avoid the initial full p_xyzz Metal buffer copy")
+if "NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(q_xy.data()), q_bytes)" not in distance_kernel_body:
+    raise SystemExit("fixed-round XYZZ distance wrapper should avoid the affine jump table Metal buffer copy")
 if "NewSharedMetalBufferNoCopyFallback(device, dynamic_p_infinity.data(), p_inf_bytes, &p_inf_no_copy)" not in distance_kernel_body:
     raise SystemExit("fixed-round XYZZ distance wrapper should avoid the initial p_infinity Metal buffer copy")
+if "NewSharedMetalBufferNoCopyFallback(device, distances.data(), distances_out_bytes, &out_distances_no_copy)" not in distance_kernel_body:
+    raise SystemExit("fixed-round XYZZ distance wrapper should write packet distances directly into host output storage")
+if "NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(jump_distances.data()), distance_bytes)" not in distance_kernel_body:
+    raise SystemExit("fixed-round XYZZ distance wrapper should avoid the jump-distance Metal buffer copy")
+if "if (!out_distances_no_copy)\n\t\t\tmemcpy(distances.data(), [out_distances_buffer contents], distances_out_bytes);" not in distance_kernel_body:
+    raise SystemExit("fixed-round XYZZ distance fallback should copy distances back only when no-copy was unavailable")
 if "if (!p_no_copy)\n\t\t\tmemcpy(p_xyzz.data(), [p_buffer contents], p_bytes);" not in distance_kernel_body:
     raise SystemExit("fixed-round XYZZ distance fallback should copy p_xyzz back only when no-copy was unavailable")
 if "if (!p_inf_no_copy)\n\t\t\tmemcpy(dynamic_p_infinity.data(), [p_inf_buffer contents], p_inf_bytes);" not in distance_kernel_body:
     raise SystemExit("fixed-round XYZZ distance fallback should copy infinity flags back only when no-copy was unavailable")
 if "distances_out = std::move(distances);" not in distance_kernel_body:
     raise SystemExit("fixed-round XYZZ distance wrapper should move packet distances instead of copying them")
+if "UnpackXyzzStateOutputs(p_xyzz, dynamic_p_infinity, p.size(), state_out);" not in distance_kernel_body:
+    raise SystemExit("fixed-round XYZZ distance wrapper should use contiguous state unpack")
+if "state_out.push_back" in distance_kernel_body:
+    raise SystemExit("fixed-round XYZZ distance wrapper should not push state outputs point-by-point")
 
 if "kernel void target_lookup_tag16_mixed_hash_filter256" not in metal_kernels:
     raise SystemExit("missing non-repeat mixed tag16 hash-filter Metal kernel")

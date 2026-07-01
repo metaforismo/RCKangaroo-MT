@@ -7012,6 +7012,41 @@ static void PackJacobianXyzzStateInputs(const std::vector<CpuJacobianPoint>& p,
 	}
 }
 
+static void UnpackJacobianStateOutputs(const std::vector<uint64_t>& p_xyz,
+	const std::vector<uint8_t>& dynamic_p_infinity,
+	size_t point_count,
+	std::vector<CpuJacobianPoint>& state_out)
+{
+	state_out.resize(point_count);
+	for (size_t i = 0; i < point_count; ++i)
+	{
+		CpuJacobianPoint& point = state_out[i];
+		size_t base = i * 12;
+		memcpy(point.x.data(), p_xyz.data() + base, 4 * sizeof(uint64_t));
+		memcpy(point.y.data(), p_xyz.data() + base + 4, 4 * sizeof(uint64_t));
+		memcpy(point.z.data(), p_xyz.data() + base + 8, 4 * sizeof(uint64_t));
+		point.infinity = dynamic_p_infinity[i] != 0;
+	}
+}
+
+static void UnpackXyzzStateOutputs(const std::vector<uint64_t>& p_xyzz,
+	const std::vector<uint8_t>& dynamic_p_infinity,
+	size_t point_count,
+	std::vector<CpuXyzzPoint>& state_out)
+{
+	state_out.resize(point_count);
+	for (size_t i = 0; i < point_count; ++i)
+	{
+		CpuXyzzPoint& point = state_out[i];
+		size_t base = i * 16;
+		memcpy(point.x.data(), p_xyzz.data() + base, 4 * sizeof(uint64_t));
+		memcpy(point.y.data(), p_xyzz.data() + base + 4, 4 * sizeof(uint64_t));
+		memcpy(point.zz.data(), p_xyzz.data() + base + 8, 4 * sizeof(uint64_t));
+		memcpy(point.zzz.data(), p_xyzz.data() + base + 12, 4 * sizeof(uint64_t));
+		point.infinity = dynamic_p_infinity[i] != 0;
+	}
+}
+
 static void PackAffineTable(const std::vector<CpuAffinePoint>& q,
 	std::vector<uint64_t>& q_xy)
 {
@@ -7915,21 +7950,7 @@ static bool RunJacobianDynamicDpStreamInplaceKernel(const std::vector<CpuJacobia
 		out_indices = indices_out;
 		out_distances = distances_out;
 		out_dp_terms = dp_terms_out;
-		state_out.clear();
-		state_out.reserve(p.size());
-		for (size_t i = 0; i < p.size(); ++i)
-		{
-			CpuJacobianPoint point;
-			size_t base = i * 12;
-			for (size_t limb = 0; limb < 4; ++limb)
-				point.x[limb] = p_xyz[base + limb];
-			for (size_t limb = 0; limb < 4; ++limb)
-				point.y[limb] = p_xyz[base + 4 + limb];
-			for (size_t limb = 0; limb < 4; ++limb)
-				point.z[limb] = p_xyz[base + 8 + limb];
-			point.infinity = dynamic_p_infinity[i] != 0;
-			state_out.push_back(point);
-		}
+		UnpackJacobianStateOutputs(p_xyz, dynamic_p_infinity, p.size(), state_out);
 		return true;
 	}
 }
@@ -8123,23 +8144,7 @@ static bool RunJacobianDynamicDpStreamXyzzKernel(const std::vector<CpuJacobianPo
 		out_indices = indices_out;
 		out_distances = distances_out;
 		out_dp_terms = dp_terms_out;
-		state_out.clear();
-		state_out.reserve(p.size());
-		for (size_t i = 0; i < p.size(); ++i)
-		{
-			CpuXyzzPoint point;
-			size_t base = i * 16;
-			for (size_t limb = 0; limb < 4; ++limb)
-				point.x[limb] = p_xyzz[base + limb];
-			for (size_t limb = 0; limb < 4; ++limb)
-				point.y[limb] = p_xyzz[base + 4 + limb];
-			for (size_t limb = 0; limb < 4; ++limb)
-				point.zz[limb] = p_xyzz[base + 8 + limb];
-			for (size_t limb = 0; limb < 4; ++limb)
-				point.zzz[limb] = p_xyzz[base + 12 + limb];
-			point.infinity = dynamic_p_infinity[i] != 0;
-			state_out.push_back(point);
-		}
+		UnpackXyzzStateOutputs(p_xyzz, dynamic_p_infinity, p.size(), state_out);
 		return true;
 	}
 }
@@ -8240,12 +8245,13 @@ static bool RunJacobianDynamicXyzzDistanceKernel(const std::vector<CpuJacobianPo
 		uint32_t jump_mask = (uint32_t)jumps.size() - 1U;
 		bool p_no_copy = false;
 		bool p_inf_no_copy = false;
+		bool out_distances_no_copy = false;
 		id<MTLBuffer> p_buffer = NewSharedMetalBufferNoCopyFallback(device, p_xyzz.data(), p_bytes, &p_no_copy);
-		id<MTLBuffer> q_buffer = [device newBufferWithBytes:q_xy.data() length:q_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> q_buffer = NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(q_xy.data()), q_bytes);
 		id<MTLBuffer> p_inf_buffer = NewSharedMetalBufferNoCopyFallback(device, dynamic_p_infinity.data(), p_inf_bytes, &p_inf_no_copy);
-		id<MTLBuffer> out_distances_buffer = [device newBufferWithLength:distances_out_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> out_distances_buffer = NewSharedMetalBufferNoCopyFallback(device, distances.data(), distances_out_bytes, &out_distances_no_copy);
 		id<MTLBuffer> count_buffer = [device newBufferWithBytes:&count length:sizeof(count) options:MTLResourceStorageModeShared];
-		id<MTLBuffer> jump_distances_buffer = [device newBufferWithBytes:jump_distances.data() length:distance_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> jump_distances_buffer = NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(jump_distances.data()), distance_bytes);
 		id<MTLBuffer> jump_mask_buffer = [device newBufferWithBytes:&jump_mask length:sizeof(jump_mask) options:MTLResourceStorageModeShared];
 		if (!p_buffer || !q_buffer || !p_inf_buffer || !out_distances_buffer || !count_buffer || !jump_distances_buffer || !jump_mask_buffer)
 		{
@@ -8286,29 +8292,14 @@ static bool RunJacobianDynamicXyzzDistanceKernel(const std::vector<CpuJacobianPo
 			return false;
 		}
 
-		memcpy(distances.data(), [out_distances_buffer contents], distances_out_bytes);
+		if (!out_distances_no_copy)
+			memcpy(distances.data(), [out_distances_buffer contents], distances_out_bytes);
 		if (!p_no_copy)
 			memcpy(p_xyzz.data(), [p_buffer contents], p_bytes);
 		if (!p_inf_no_copy)
 			memcpy(dynamic_p_infinity.data(), [p_inf_buffer contents], p_inf_bytes);
 		distances_out = std::move(distances);
-		state_out.clear();
-		state_out.reserve(p.size());
-		for (size_t i = 0; i < p.size(); ++i)
-		{
-			CpuXyzzPoint point;
-			size_t base = i * 16;
-			for (size_t limb = 0; limb < 4; ++limb)
-				point.x[limb] = p_xyzz[base + limb];
-			for (size_t limb = 0; limb < 4; ++limb)
-				point.y[limb] = p_xyzz[base + 4 + limb];
-			for (size_t limb = 0; limb < 4; ++limb)
-				point.zz[limb] = p_xyzz[base + 8 + limb];
-			for (size_t limb = 0; limb < 4; ++limb)
-				point.zzz[limb] = p_xyzz[base + 12 + limb];
-			point.infinity = dynamic_p_infinity[i] != 0;
-			state_out.push_back(point);
-		}
+		UnpackXyzzStateOutputs(p_xyzz, dynamic_p_infinity, p.size(), state_out);
 		return true;
 	}
 }
@@ -8520,23 +8511,7 @@ static bool RunJacobianDynamicDpStreamXyzzPersistentChainKernel(const std::vecto
 		out_indices = indices_out;
 		out_distances = distances_out;
 		out_dp_terms = dp_terms_out;
-		state_out.clear();
-		state_out.reserve(p.size());
-		for (size_t i = 0; i < p.size(); ++i)
-		{
-			CpuXyzzPoint point;
-			size_t base = i * 16;
-			for (size_t limb = 0; limb < 4; ++limb)
-				point.x[limb] = p_xyzz[base + limb];
-			for (size_t limb = 0; limb < 4; ++limb)
-				point.y[limb] = p_xyzz[base + 4 + limb];
-			for (size_t limb = 0; limb < 4; ++limb)
-				point.zz[limb] = p_xyzz[base + 8 + limb];
-			for (size_t limb = 0; limb < 4; ++limb)
-				point.zzz[limb] = p_xyzz[base + 12 + limb];
-			point.infinity = dynamic_p_infinity[i] != 0;
-			state_out.push_back(point);
-		}
+		UnpackXyzzStateOutputs(p_xyzz, dynamic_p_infinity, p.size(), state_out);
 		return true;
 	}
 }

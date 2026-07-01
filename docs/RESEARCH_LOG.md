@@ -5905,6 +5905,33 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `439827907194.731995`, `446454740412.935791`), so this is promoted as a
   memory/UMA transfer efficiency improvement for multi-target lookup, not as a
   kangaroo arithmetic breakthrough.
+- Extended the fixed-round XYZZ distance wrapper and shared state unpacking as
+  a conservative Apple unified-memory cleanup. The wrapper now uses
+  `NewSharedMetalBufferNoCopyFallback(...)` for the read-only affine jump table,
+  read-only jump distances, and packet-distance output vector; fallback copies
+  still run when `RCK_METAL_DISABLE_NOCOPY=1`. The repeated state-output loops
+  were replaced with `UnpackJacobianStateOutputs(...)` and
+  `UnpackXyzzStateOutputs(...)`, which resize once and copy contiguous limbs per
+  coordinate instead of rebuilding every output point with `push_back`.
+  Correctness checks stayed stable: small fixed-round distinct smoke and the
+  forced no-copy-disabled smoke both preserved
+  `target_lookup_checksum=0xb107a63c69100191`; the 25M distinct gate preserved
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, and `hit_count=128`,
+  including a forced `RCK_METAL_DISABLE_NOCOPY=1` 25M run. Direct 25M samples
+  were mixed: early same-session checks around a clean `6d12de4` worktree
+  favored the candidate (`450380619851.501343` and `448413811720.777527`
+  setup-inclusive wall distance/sec versus baseline `427537362272.823425`),
+  but the canonical autoresearch paired run recorded `status=discard` with
+  candidate median `399396664598.785522`, paired baseline
+  `421792537649.222839`, and `paired_speedup=0.946903` after large thermal
+  outliers. A focused affine-scan gate, which removes target-table build noise,
+  showed the intended host submetric improvement (`affine_scan_seconds` roughly
+  `0.002855` to `0.002995` for the candidate versus `0.003601` to `0.004621`
+  for the clean baseline) while preserving
+  `dp_checksum=0x54ccada61fd1edbc`. Treat this as a correctness-preserving
+  host/UMA cleanup that reduces measured affine-scan overhead, not as a promoted
+  whole-kangaroo throughput breakthrough.
 
 ## Cleanup Policy
 
