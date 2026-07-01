@@ -49,10 +49,14 @@ markers = [
     "TargetLookupTag32ParityBucketHost",
     "InsertTargetLookupTag32ParityBucket",
     "BuildTargetLookupTag32ParityTableFromKeysParallelInsert",
+    "ResolveTargetLookupTag32ParityFilterCandidates",
     "ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices",
     "DecodeTargetLookupParity(bucket.encoded_target_index) == (key.parity & 1U)",
     "ValidateAffineTargetLookupDedupRepeatOutputsWithExpected",
     "ValidateAffineTargetLookupRepeatBaseCountsWithExpected",
+    "lookup_distinct_misses",
+    "lookup_uses_distinct_misses",
+    "physical_query_index",
     "ValidateAffineTargetLookupSparseRepeatOutputs",
     "use_base_exact_cache",
     "base_positive_counts",
@@ -204,20 +208,28 @@ rounds_end = kernels.index("std::string RCKMetalJacobianDynamicDpCountBenchJson"
 rounds_body = kernels[rounds_start:rounds_end]
 if "RunTargetLookupTag16HashFilterRepeatBaseCountKernel(target_filter16_buckets, lookup_query_hashes, dispatch_query_count" not in rounds_body:
     raise SystemExit("fixed-round repeat lookup should route large standard tag16 repeat batches through base-count positives")
+if "RunTargetLookupTag16HashFilterKernel(target_filter16_buckets, lookup_query_hashes, positive_query_indices" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should use the physical non-repeat tag16 hash-filter kernel")
+if "ValidateTargetLookupOutputs(out_indices, distinct_expected_indices" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should validate physical query outputs against explicit expected indices")
+if 'repeat_positive_index_encoding = lookup_distinct_misses ? "physical_query_index"' not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should report physical query index positives")
 if "RunJacobianDynamicXyzzDistanceKernel(batched_round_p, jumps, jump_distances" not in rounds_body:
     raise SystemExit("fixed-round target lookup should batch distinct round walks into one Metal dispatch")
-if 'repeat_positive_index_encoding = lookup_repeat_dedup ? "base_query_index" :' not in rounds_body:
+if 'lookup_repeat_dedup ? "base_query_index" :' not in rounds_body:
     raise SystemExit("fixed-round repeat lookup should report its positive index encoding")
 if 'ValidateAffineTargetLookupRepeatBaseCountsWithExpected(aggregate_expected_indices, lookup_repeat' not in rounds_body:
     raise SystemExit("fixed-round base-count repeat lookup should preserve the repeated checksum oracle")
-if "use_parity_xonly_target_table = use_base_repeat_positive_counts" not in rounds_body:
-    raise SystemExit("fixed-round x-only target table should be limited to the standard base-count repeat path")
+if "use_parity_xonly_target_table = use_base_repeat_positive_counts || lookup_distinct_misses" not in rounds_body:
+    raise SystemExit("fixed-round x-only target table should cover base-count repeat and physical distinct-miss paths")
 if "target_x_key_count * sizeof(TargetLookupXOnlyHost)" not in rounds_body:
     raise SystemExit("fixed-round x-only target table should report compact target key bytes")
 if "BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, target_count, target_x_keys, target_x_key_count, target_parity_buckets" not in rounds_body:
     raise SystemExit("fixed-round base-count repeat lookup should build the x-only parity target table")
 if "ResolveTargetLookupTag32ParityFilterRepeatBaseCountsExpectedIndices(target_parity_buckets, target_x_keys.get(), target_x_key_count" not in rounds_body:
     raise SystemExit("fixed-round base-count repeat lookup should exact-resolve against x plus encoded parity")
+if "ResolveTargetLookupTag32ParityFilterCandidates(target_parity_buckets, target_x_keys.get(), target_x_key_count, distinct_lookup_queries" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should exact-resolve against x plus encoded parity")
 if "BuildJacobianPointSamplesFrom((uint64_t)round * (uint64_t)sample_count, sample_count, p);" not in rounds_body:
     raise SystemExit("fixed-round setup should avoid generating discarded affine q samples after round zero")
 if "ignored_q" in rounds_body:
@@ -902,6 +914,38 @@ check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_setup_inclusive.json",
     rounds_base_count_command,
     "setup_inclusive_ops_per_sec",
+)
+
+rounds_distinct_misses_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-rounds-bench",
+    "--iterations",
+    "131072",
+    "--steps",
+    "2048",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "6",
+    "--target-count",
+    "25005000",
+    "--hits",
+    "64",
+    "--lookup-repeat",
+    "1024",
+    "--lookup-query-mode",
+    "distinct-misses",
+    "--rounds",
+    "2",
+    "--lookup-tg-limit",
+    "512",
+    "--jump-schedule",
+    "power2",
+]
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_distinct_misses_distance.json",
+    rounds_distinct_misses_command,
+    "setup_inclusive_wall_distance_per_sec",
 )
 
 m3_auto_repeat_tag16_mix_command = [

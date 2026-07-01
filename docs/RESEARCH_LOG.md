@@ -5768,6 +5768,33 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `--jumps 4 --jump-schedule scaled4-balanced`. Invalid `scaled4-balanced`
   jump counts report zero distance throughput alongside the existing
   correctness failure instead of exposing a misleading schedule metric.
+- Added a physical `distinct-misses` mode to the fixed-round 25M target-lookup
+  gate. The previous fixed-round gate could stress lookup throughput only by
+  repeating the same real DP batch; the new mode keeps the real DP keys once,
+  fills the remaining physical query batch with deterministic keys verified as
+  exact misses, runs the non-repeat tag16 hash-filter kernel, and validates the
+  full output against explicit expected indices. This is a benchmark-honesty
+  and real-stream modeling improvement: it checks whether repeat-mode wins
+  survive mostly-miss distinct DP traffic instead of silently exploiting
+  repeated base queries. The path also reuses the compact x-only-plus-parity
+  target table and a new non-repeat parity resolver, so exact verification
+  remains `x256 + y_parity` while avoiding the full-key host table. Small
+  runtime smoke preserved `target_lookup_checksum=0xb107a63c69100191` with
+  `repeat_positive_index_encoding=physical_query_index`. The 25M fixed-round
+  distinct-misses gate preserved the walk oracle
+  (`dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`) and lookup oracle
+  (`target_lookup_checksum=0x5c90bdf7f12141b9`, `hit_count=128`,
+  `filter_false_positive_count=870`), with `physical_query_count=4219904`,
+  `target_key_bytes=800160000`, `exact_host_table_bytes=1068595456`, and
+  `setup_inclusive_wall_distance_per_sec=448341422373.053650`. A repeat-mode
+  guardrail on the same 25M command kept the established checksum
+  `0x923b46f156f9d59b`, `hit_count=131072`, and zero false positives. The
+  saved autoresearch recipe
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_distinct_misses_distance`
+  kept three samples on `setup_inclusive_wall_distance_per_sec`, with median
+  `440854462579.940979`, min `434461529030.060547`, max
+  `444661566891.730347`, and the same distinct checksum
+  `0x5c90bdf7f12141b9`.
 
 ## Cleanup Policy
 

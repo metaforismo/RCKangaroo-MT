@@ -1750,6 +1750,7 @@ int main(int argc, char* argv[])
 		const char* lookup_filter_bits_s = NULL;
 		const char* lookup_filter_mode_s = NULL;
 		const char* lookup_repeat_mode_s = NULL;
+		const char* lookup_query_mode_s = "repeat";
 		const char* rounds_s = NULL;
 		unsigned int iterations = 1024;
 		unsigned int steps = 256;
@@ -1811,6 +1812,7 @@ int main(int argc, char* argv[])
 				return 1;
 			}
 		}
+		ReadOption(argc, argv, "--lookup-query-mode", &lookup_query_mode_s);
 		if (ReadOption(argc, argv, "--lookup-tg-limit", &lookup_tg_s) && !ParseU32(lookup_tg_s, &lookup_threadgroup_limit))
 		{
 			PrintUsage();
@@ -1849,7 +1851,7 @@ int main(int argc, char* argv[])
 			}
 		}
 		ReadOption(argc, argv, "--jump-schedule", &jump_schedule_s);
-		printf("%s\n", RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32RoundsBenchJson(iterations, steps, jumps, rounds, target_count, hits, lookup_repeat, threadgroup_limit, dp_bits, jump_schedule_s, lookup_threadgroup_limit, lookup_filter_bits, lookup_filter_mix, lookup_repeat_dedup).c_str());
+		printf("%s\n", RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32RoundsBenchJson(iterations, steps, jumps, rounds, target_count, hits, lookup_repeat, threadgroup_limit, dp_bits, jump_schedule_s, lookup_threadgroup_limit, lookup_filter_bits, lookup_filter_mix, lookup_repeat_dedup, lookup_query_mode_s).c_str());
 	}
 	else if (strcmp(argv[1], "metal-jacobian-dynamic-dp-count-bench") == 0)
 	{
