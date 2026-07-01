@@ -5661,6 +5661,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   confirmation 2 measured `78462642.066908` versus baseline
   `77106310.387503` (`paired_speedup=1.017590`). Treat the win as a
   target-build/setup improvement; the GPU walk kernel itself is unchanged.
+- Refined the injected-hash prefilter bit selection to use low/high slices of
+  the already mixed 64-bit target hash instead of two extra `TargetLookupMix`
+  calls per filler. The no-false-negative contract is unchanged because any
+  exact hash match sets and tests the same two bit positions before falling back
+  to exact key comparison. The paired
+  `target_lookup_tag32_parallel_insert` gate against clean `main=1a4e22a` kept
+  both confirmations: confirmation 1 measured `parallel_targets_per_sec`
+  `32901579.175273` versus baseline `32478416.212303`, and confirmation 2
+  measured `57394495.386564` versus baseline `54632043.996412`
+  (`paired_speedup=1.050565`). A direct integrated 25M fixed-round check kept
+  `target_lookup_checksum=0x923b46f156f9d59b`,
+  `dp_checksum=0x7f111e78c67b5c18`, `hit_count=131072`, zero false positives,
+  and measured `target_build_seconds=0.593294` with
+  `setup_inclusive_wall_ops_per_sec=108085496.663599`.
 
 ## Cleanup Policy
 

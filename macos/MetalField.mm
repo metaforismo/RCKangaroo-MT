@@ -3231,9 +3231,9 @@ struct InjectedHashFilter
 	bool enabled;
 };
 
-static uint32_t InjectedHashFilterBit(uint64_t hash, uint64_t salt)
+static uint32_t InjectedHashFilterBit(uint64_t hash, unsigned int shift)
 {
-	return (uint32_t)(TargetLookupMix(hash ^ salt) & (uint64_t)kInjectedHashFilterBitMask);
+	return (uint32_t)((hash >> shift) & (uint64_t)kInjectedHashFilterBitMask);
 }
 
 static void InjectedHashFilterSetBit(InjectedHashFilter& filter, uint32_t bit)
@@ -3254,8 +3254,8 @@ static InjectedHashFilter BuildInjectedHashFilter(const std::vector<std::pair<ui
 	for (const std::pair<uint64_t, uint32_t>& entry : injected_hashes)
 	{
 		uint64_t hash = entry.first;
-		InjectedHashFilterSetBit(filter, InjectedHashFilterBit(hash, 0xD6E8FEB86659FD93ULL));
-		InjectedHashFilterSetBit(filter, InjectedHashFilterBit(hash, 0xA5A3564E27F886A5ULL));
+		InjectedHashFilterSetBit(filter, InjectedHashFilterBit(hash, 0));
+		InjectedHashFilterSetBit(filter, InjectedHashFilterBit(hash, 32));
 	}
 	return filter;
 }
@@ -3264,8 +3264,8 @@ static bool InjectedHashFilterMayContain(const InjectedHashFilter& filter, uint6
 {
 	if (!filter.enabled)
 		return true;
-	uint32_t bit0 = InjectedHashFilterBit(hash, 0xD6E8FEB86659FD93ULL);
-	uint32_t bit1 = InjectedHashFilterBit(hash, 0xA5A3564E27F886A5ULL);
+	uint32_t bit0 = InjectedHashFilterBit(hash, 0);
+	uint32_t bit1 = InjectedHashFilterBit(hash, 32);
 	return InjectedHashFilterTestBit(filter, bit0) && InjectedHashFilterTestBit(filter, bit1);
 }
 
