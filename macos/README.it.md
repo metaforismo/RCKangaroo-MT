@@ -262,11 +262,25 @@ non-zero, usa:
 
 ```sh
 ./macos/rck_macos target-set-load-bench --target-count 1048576 --start 2
+./macos/rck_macos target-set-load-bench --target-count 1048576 --start 2 --key-format uncompressed
 ```
 
 Il comando riporta `operation=target_set_load` e `targets_per_sec`. Isola la
 fase di startup che mappa le public key sottraendo `start*G`; non e' un
 benchmark del kangaroo walk Metal o dei GKeys/s.
+
+Per file target molto grandi, l'output `--uncompressed` puo' caricarsi piu'
+velocemente anche se occupa piu' spazio su disco:
+
+```sh
+python3 macos/prepare_targets.py stripped.txt -o targets.uncompressed.txt --uncompressed
+```
+
+I file compressi richiedono al loader runtime di recuperare `y` con una radice
+quadrata nel campo per ogni chiave. I file non compressi saltano questo passo e
+validano il punto fornito. Sul probe loader del MacBook Air M3, lo stesso fixture
+da 1.048.576 target ha prodotto checksum identici a circa `2.47M` target/sec in
+formato non compresso contro circa `198k` target/sec in formato compresso.
 
 ## Note
 

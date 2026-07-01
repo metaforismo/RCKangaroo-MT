@@ -23,7 +23,7 @@ static void PrintUsage()
 	printf("  rck_macos solve-small --range N --start HEX --pubkey PUBKEY\n");
 	printf("  rck_macos jacobian-kangaroo-small --range N --start HEX --pubkey PUBKEY [--jumps N] [--dp-bits N] [--max-steps N]\n");
 	printf("  rck_macos jacobian-kangaroo-multi-small --range N --start HEX --targets FILE [--jumps N] [--dp-bits N] [--max-steps N]\n");
-	printf("  rck_macos target-set-load-bench --target-count N [--iterations N] [--start HEX]\n");
+	printf("  rck_macos target-set-load-bench --target-count N [--iterations N] [--start HEX] [--key-format compressed|uncompressed]\n");
 	printf("  rck_macos jacobian-kangaroo-small-bench [--iterations N] [--min-ms N] [--range N] [--jumps N] [--dp-bits N] [--max-steps N] [--jump-schedule power2|scaled4-balanced] [--key-offset N]\n");
 	printf("  rck_macos jacobian-kangaroo-multi-small-bench --target-count N [--iterations N] [--min-ms N] [--range N] [--jumps N] [--dp-bits N] [--max-steps N] [--jump-schedule power2|scaled4-balanced] [--key-offset N]\n");
 	printf("  rck_macos bench --iterations N\n");
@@ -201,27 +201,34 @@ static u64 MixTargetSetLoadChecksum(u64 checksum, const EcPoint& p, u32 source_l
 	return checksum;
 }
 
-static bool WriteTargetSetLoadBenchFixture(const char* path, unsigned int target_count)
+static bool WriteTargetSetLoadBenchFixture(const char* path, unsigned int target_count, bool uncompressed_keys)
 {
-	static const char* kFixtureKeys[] = {
+	static const char* kCompressedFixtureKeys[] = {
 		"0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798",
 		"0379BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
 	};
+	static const char* kUncompressedFixtureKeys[] = {
+		"0479BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8",
+		"0479BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798B7C52588D95C3B9AA25B0403F1EEF75702E84BB7597AABE663B82F6F04EF2777"
+	};
+	const char** fixture_keys = uncompressed_keys ? kUncompressedFixtureKeys : kCompressedFixtureKeys;
 	std::ofstream out(path);
 	if (!out)
 		return false;
 	out << "# deterministic target-set load benchmark fixture\n";
 	for (unsigned int i = 0; i < target_count; i++)
-		out << kFixtureKeys[i & 1] << "\n";
+		out << fixture_keys[i & 1] << "\n";
 	return (bool)out;
 }
 
-static std::string TargetSetLoadBenchJson(unsigned int iterations, unsigned int target_count, unsigned long long start_scalar)
+static std::string TargetSetLoadBenchJson(unsigned int iterations, unsigned int target_count, unsigned long long start_scalar, const char* key_format)
 {
 	if (!iterations)
 		iterations = 1;
 	if (!target_count)
 		target_count = 1;
+	bool uncompressed_keys = strcmp(key_format, "uncompressed") == 0;
+	bool compressed_keys = strcmp(key_format, "compressed") == 0;
 
 	const char* tmpdir = getenv("TMPDIR");
 	if (!tmpdir || !tmpdir[0])
@@ -234,7 +241,12 @@ static std::string TargetSetLoadBenchJson(unsigned int iterations, unsigned int 
 
 	bool correctness = true;
 	std::string reason;
-	if (!WriteTargetSetLoadBenchFixture(fixture_path, target_count))
+	if (!compressed_keys && !uncompressed_keys)
+	{
+		correctness = false;
+		reason = "unknown key format";
+	}
+	else if (!WriteTargetSetLoadBenchFixture(fixture_path, target_count, uncompressed_keys))
 	{
 		correctness = false;
 		reason = "could not write fixture";
@@ -297,7 +309,8 @@ static std::string TargetSetLoadBenchJson(unsigned int iterations, unsigned int 
 	out << "\"operation\":\"target_set_load\",";
 	out << "\"setup_phase\":\"multi_target_start_offset_mapping\",";
 	out << "\"parser\":\"shared_target_set\",";
-	out << "\"fixture\":\"alternating_compressed_generator\",";
+	out << "\"fixture\":\"alternating_public_key_generator\",";
+	out << "\"key_format\":\"" << key_format << "\",";
 	out << "\"mapping\":\"" << (start_scalar ? "batch_inversion_chunks" : "none_start_zero") << "\",";
 	out << "\"batch_size\":32768,";
 	out << "\"metric\":\"targets_per_sec\",";
@@ -506,6 +519,7 @@ int main(int argc, char* argv[])
 		const char* iter_s = NULL;
 		const char* target_count_s = NULL;
 		const char* start_s = NULL;
+		const char* key_format_s = "compressed";
 		unsigned int iterations = 1;
 		unsigned int target_count = 65536;
 		unsigned long long start = 2;
@@ -527,7 +541,8 @@ int main(int argc, char* argv[])
 			DeInitEc();
 			return 1;
 		}
-		printf("%s\n", TargetSetLoadBenchJson(iterations, target_count, start).c_str());
+		ReadOption(argc, argv, "--key-format", &key_format_s);
+		printf("%s\n", TargetSetLoadBenchJson(iterations, target_count, start, key_format_s).c_str());
 	}
 	else if (strcmp(argv[1], "bench") == 0)
 	{

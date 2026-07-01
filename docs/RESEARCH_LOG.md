@@ -32,6 +32,24 @@ GPU work should use Metal.
 
 ## Recent Accepted Experiments
 
+### 2026-07-01 Uncompressed Target-File Loading For Massive Lists
+
+- Accepted a benchmark/documentation improvement that makes target-file key
+  format explicit in `target-set-load-bench` via `--key-format
+  compressed|uncompressed`. This does not change solver semantics: the existing
+  runtime parser already accepts both compressed and uncompressed secp256k1
+  public keys, and both formats produced identical mapped-point checksums in the
+  loader probe.
+- Result: for 1,048,576 deterministic targets with `--start 2` on the MacBook
+  Air M3, compressed input measured about `197,697` targets/sec while
+  uncompressed input measured about `2,469,993` targets/sec with the same
+  `checksum=0x3307c68deaf4bddd`. The speedup comes from avoiding one
+  `sqrt mod p` compressed-key recovery per target; the tradeoff is roughly
+  doubled target-file size. Recommendation for huge multi-target startup:
+  prepare `targets.uncompressed.txt` with `python3 macos/prepare_targets.py
+  stripped.txt -o targets.uncompressed.txt --uncompressed` when disk/network
+  transfer size is less important than loader time.
+
 ### 2026-07-01 Batched Start-Offset Mapping For Target Files
 
 - Accepted chunked batch inversion in `TTargetSet::LoadFromFile` when `-targets`
