@@ -5720,6 +5720,29 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `108859529.906798`, with similar `walk_buffer_seconds` and visible
   target-build/lookup noise. Keep treating this as a modest macOS host-buffer
   reduction, not as a mathematical walk-speed breakthrough.
+- Rejected a Metal `mulhi` field-arithmetic scout. Replacing the portable
+  32-bit-split `mul64` helper with `lo = a * b; hi = mulhi(a, b);` compiled on
+  the M3 Metal runtime and preserved `metal-field-mul-test` plus
+  `metal-field-square-test`. Isolated field benches looked tempting:
+  500 ms square runs rose to roughly `204M` to `224M ops/s`, while field-mul
+  remained noisy around `144M` to `198M ops/s`. The solver-facing XYZZ
+  affine-scan gate rejected it: baseline `steps=2048, dp_bits=8` runs measured
+  about `83.2M` to `85.2M ops/s`, while the `mulhi` candidate measured only
+  about `79.1M` to `80.8M ops/s` with identical DP checksums and correctness.
+  The change was reverted because it improves isolated arithmetic scheduling
+  but slows the real walk kernel on the MacBook Air M3 shape.
+- Rejected a Metal packet-loop `#pragma unroll 2` scout for
+  `xyzz_walk_pow2_u32_distance`. The pragma compiled on the M3 runtime and
+  preserved the XYZZ DP stream test, affine-scan DP checksums, fixed-round
+  `target_lookup_checksum=0x923b46f156f9d59b`, `dp_checksum=0x7f111e78c67b5c18`,
+  `hit_count=131072`, and zero false positives. The performance did not clear
+  the real gate: `steps=2048, dp_bits=8` affine-scan runs landed around
+  `82.6M` to `83.2M ops/s`, below the clean same-session baseline corridor of
+  about `83.2M` to `85.2M ops/s`. A 25M fixed-round run was also slower, with
+  `setup_inclusive_wall_ops_per_sec=105316950.886088` versus the preceding
+  clean direct run at `107088262.970406`, and walk wall time rising from
+  about `4.499s` to `4.555s`. The loop-control overhead is not the bottleneck;
+  keep the current compiler scheduling.
 
 ## Cleanup Policy
 
