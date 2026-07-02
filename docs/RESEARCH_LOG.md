@@ -30,6 +30,31 @@ The local target machine is a MacBook Air M3 with 16 GB RAM and a 10-core Apple
 M3 GPU. Metal is available outside the sandbox. CUDA remains NVIDIA-only; macOS
 GPU work should use Metal.
 
+## Recent Rejected Experiments
+
+### 2026-07-03 Compact Positive Buffer For Generated Distinct Misses
+
+- Rejected a generated distinct-miss lookup memory scout. The candidate changed
+  `target_lookup_tag16_hash_filter_distinct_misses256` and its mixed variant to
+  write positive query indices into a compact, conservative output buffer, while
+  keeping the atomic positive counter authoritative and retrying with a full
+  `query_count` buffer on overflow. This preserved the no-silent-drop contract:
+  if the compact buffer underestimates positives, the path reruns rather than
+  losing exact candidates.
+- Correctness stayed intact on small and medium sequential distinct-miss checks
+  (`target_lookup_checksum=0x837384d06d006c49` for the 100k shape and
+  `0x389df9896c0492a5` for the 1M shape). The 1M causal lookup-buffer field
+  improved in that local check from about `0.001416s` to `0.000687s`, but the
+  canonical 25M paired autoresearch gate did not pass promotion rules. It kept
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, and `hit_count=128`, but recorded
+  `status=discard` because candidate sample spread was `2.563181`, above the
+  allowed `1.5`. Candidate setup-inclusive wall distance samples were
+  `370325265986.5302`, `331146258782.5657`, and `144478784627.9544`; the code
+  was reverted and only the benchmark log row was kept. Do not retry this shape
+  unless the output-capacity idea is paired with a broader lookup-buffer reuse
+  strategy that removes allocation churn without increasing dispatch variance.
+
 ## Recent Accepted Experiments
 
 ### 2026-07-03 Streaming Target-List Preparation
