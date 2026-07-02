@@ -6391,6 +6391,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `345,765,569,957.2692` to `325,656,524,951.2017`. Keep the single fused
   generated-miss filter kernel unless a future cached-pipeline implementation
   can eliminate the extra dispatch/setup cost.
+- Rejected lowering the fixed-round physical `distinct-misses` lookup
+  threadgroup limit from `512` to `256` after the nonzero tag16 work. A 3-cycle
+  1M scout across `128`, `256`, `512`, `768`, and `1024` preserved
+  `target_lookup_checksum=0xb410e0bce9f56057`, `hit_count=64`, and
+  `correctness=true`; `512` had the best median causal GPU lookup
+  (`lookup_gpu_seconds=0.007834`) while `256` was only marginally close
+  (`0.007983`). A 2-pair 25M check preserved
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=128`, and
+  `correctness=true`; `256` had better noisy setup-wall distance/sec, but this
+  was not causal to the lookup setting. Median `lookup_gpu_seconds` worsened
+  from `0.0294825` at `512` to `0.0451205` at `256`, and median
+  `lookup_wall_seconds` from `0.0433645` to `0.0502510`. Keep `512` as the
+  fixed-round physical lookup cap.
 
 ## Cleanup Policy
 
