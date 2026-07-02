@@ -96,6 +96,61 @@ GPU work should use Metal.
 
 ## Recent Rejected Or Inconclusive Experiments
 
+### 2026-07-02 Fixed-Round 2048 Compact Jump-Distance Table
+
+- Rejected a Metal XYZZ fixed-round `steps=2048` variant that narrowed the
+  read-only jump-distance table from `uint64_t` to `uint32_t` after the existing
+  `CanAccumulateDistanceU32` oracle. The benchmark was not allowed to change the
+  walk, lookup mode, target count, or validation path. Correctness held on the
+  100k distinct-misses fixed-round gate
+  (`target_lookup_checksum=0x4397b90e79601136`,
+  `dp_checksum=0xbd17120591af6f74`, `dp_count=1053`, `hit_count=32`,
+  `filter_false_positive_count=5`, `correctness=true`), but the repeat run did
+  not improve real walk throughput: patched `gpu_distance_per_sec` measured
+  about `503.1B` versus the same-turn baseline around `508.1B`, and
+  `setup_inclusive_wall_distance_per_sec` was effectively flat
+  (`480.1B` versus `480.2B`). The first patched run also paid a one-time Metal
+  function load/compile wall penalty, confirming why warm repeats are required.
+  Keep the simpler `uint64_t` table; the tiny 16-entry distance table is not the
+  bottleneck on the M3 path.
+
+### 2026-07-02 Persistent Fixed-Round No-Copy Round Outputs
+
+- Rejected replacing the persistent fixed-round probe's Metal-owned round
+  output buffers with `NewSharedMetalBufferNoCopyFallback` host-vector backed
+  buffers. This was a real UMA transfer experiment, not a benchmark-only change:
+  the persistent probe still chained each walker across rounds, copied every
+  round boundary, and validated cumulative distances against the CPU oracle.
+  Correctness held on the 100k distinct-misses persistent gate
+  (`target_lookup_checksum=0x537fcf9b1aab9958`,
+  `dp_checksum=0x629ee4b4c12210d6`, `dp_count=1052`, `hit_count=32`,
+  `correctness=true`), but performance worsened. Sequential baseline persistent
+  measured about `471.3B` setup-inclusive wall distance/sec; patched repeats
+  measured about `462.9B` and `466.4B`. The likely reason is that GPU writes and
+  blits into host-backed no-copy destination storage are slower here than using
+  Metal-owned shared buffers plus one final host `memcpy`. Keep no-copy for the
+  proven read/input and packet-output buffers, but not for persistent round
+  destination buffers. Also keep GPU benchmark comparisons sequential; parallel
+  runs contend for the single M3 GPU and are invalid as performance evidence.
+
+### 2026-07-02 Four-Jump Schedule Offset Sweep
+
+- Rechecked four-jump schedule behavior as a solver-level math candidate rather
+  than a raw Metal-throughput trick. On the `range=20`, 16-target CPU tiny
+  shared-tame gate, `scaled4-balanced` remains excellent for lower and middle
+  offsets: at `key_offset=5` it solved with `avg_dp_count=7611` versus
+  `191461` for 16-jump `power2`, and at `key_offset=524288` it solved with
+  `3032` versus `14001` for `power2`. However it is not default-safe across the
+  interval: at `key_offset=900000`, the single-target reference failed within
+  `max_steps=2000000`; raising `max_steps` to `10000000` restored correctness
+  but required `2188997` DPs. Two alternative four-jump scouts were rejected:
+  `{1, 2, 16384, 16385}` solved low/mid/high but was weak at high offset
+  (`214188` DPs versus `20034` for `power2`), while `{1, 1024, 4096, 11267}`
+  solved low with `8216` DPs but exploded at the middle offset with `566742`
+  DPs. Conclusion: keep `scaled4-balanced` as an opt-in schedule probe for
+  favorable ranges, do not promote a four-jump schedule as the general default,
+  and require low/mid/high offset sweeps for every future schedule candidate.
+
 ### 2026-07-01 Target File In-Place Line Trimming
 
 - Rejected replacing `TTargetSet::NormalizeLine` plus `substr` with an
