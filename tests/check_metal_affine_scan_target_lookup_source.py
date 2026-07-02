@@ -266,6 +266,12 @@ if 'repeat_positive_index_encoding = lookup_distinct_misses ? "physical_query_in
     raise SystemExit("fixed-round distinct-misses lookup should report physical query index positives")
 if "RunJacobianDynamicXyzzDistanceKernel(batched_round_p, jumps, jump_distances" not in rounds_body:
     raise SystemExit("fixed-round target lookup should batch distinct round walks into one Metal dispatch")
+if "RunJacobianDynamicXyzzDistancePersistentRoundsKernel(base_p, jumps, jump_distances" not in rounds_body:
+    raise SystemExit("fixed-round target lookup should expose an opt-in persistent-round walk probe")
+if "ValidateDynamicXyzzPersistentRoundStateDistanceOutputsRange" not in kernels:
+    raise SystemExit("persistent fixed-round walk probe should keep a dedicated cumulative-distance CPU oracle")
+if '"round_cumulative_uint64"' not in kernels or "walk_round_mode" not in kernels:
+    raise SystemExit("persistent fixed-round walk probe should report cumulative round distance tracking")
 if 'lookup_repeat_dedup ? "base_query_index" :' not in rounds_body:
     raise SystemExit("fixed-round repeat lookup should report its positive index encoding")
 if 'ValidateAffineTargetLookupRepeatBaseCountsWithExpected(aggregate_expected_indices, lookup_repeat' not in rounds_body:

@@ -6487,6 +6487,29 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `filter_false_positive_count=411`, and reached
   `430303283808.573486`. Keep `2048/dp6` as the current mostly-miss 25M
   plateau.
+- Added an opt-in persistent fixed-round walk probe rather than promoting it as
+  a speed default. `--walk-round-mode persistent` keeps each walker state
+  resident across rounds, copies every round boundary, reports
+  `distance_tracking=round_cumulative_uint64`, and validates all boundary
+  states and cumulative distances against a CPU replay oracle. Correctness
+  smokes, including invalid-mode rejection, passed. Performance did not clear
+  the anti-cheat bar: on the medium 100k-target distinct-miss gate,
+  `independent` measured
+  `setup_inclusive_wall_distance_per_sec=471447482641.957764` with
+  `walk_wall_seconds=1.157977`, while `persistent` measured
+  `459502350146.329102` with `walk_wall_seconds=1.189558`. On the 25M physical
+  gate, setup-inclusive wall was noisy (`independent`
+  `423690260494.616272`, `persistent` `430342357418.818970`, independent
+  replica `415674607398.324219`), but walk time still favored the existing
+  independent dispatch (`4.341851` replica versus `4.461380` persistent).
+  Keep `persistent` as a solver-like research surface and keep the fixed-round
+  `2048/dp6` independent path as the current plateau.
+- Rechecked the opt-in precompiled Metal sidecar after confirming the local
+  Metal Toolchain exists. The sidecar compiled and stayed correct, but the
+  medium 100k-target distinct-miss gate with `RCK_METAL_USE_PRECOMPILED=1`
+  measured `468912015003.289612`, slightly below the adjacent source fallback
+  at `471447482641.957764`. Keep `.metallib` opt-in until a paired gate proves
+  a real end-to-end win.
 
 ## Cleanup Policy
 

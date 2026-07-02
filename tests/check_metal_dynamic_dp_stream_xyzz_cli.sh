@@ -337,6 +337,26 @@ case "$affine_lookup_rounds_output" in
 		;;
 esac
 
+affine_lookup_rounds_persistent_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-rounds-bench --iterations 64 --steps 256 --jumps 8 --dp-bits 4 --target-count 128 --hits 4 --lookup-repeat 3 --rounds 2 --walk-round-mode persistent 2>&1)"
+affine_lookup_rounds_persistent_status=$?
+if [ "$affine_lookup_rounds_persistent_status" -ne 0 ]; then
+	printf 'metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-rounds-bench persistent returned status %s\n' "$affine_lookup_rounds_persistent_status"
+	printf '%s\n' "$affine_lookup_rounds_persistent_output"
+	exit 1
+fi
+
+case "$affine_lookup_rounds_persistent_output" in
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32_rounds\""*"\"walk_round_mode\":\"persistent\""*"\"round_count\":2"*"\"steps_per_sample\":256"*"\"jump_count\":8"*"\"distance_tracking\":\"round_cumulative_uint64\""*"\"target_count\":128"*"\"requested_hits\":4"*"\"injected_hits\":8"*"\"lookup_repeat\":3"*"\"lookup_query_mode\":\"repeat\""*"\"hit_count\":24"*"\"filter_false_positive_count\":0"*"\"target_lookup_checksum\":\"0x"*"\"correctness\":true"*)
+		;;
+	*"\"backend\":\"metal\""*"\"operation\":\"jacobian_affine_scan_target_lookup_tag32_rounds\""*"\"skipped\":true"*"\"reason\":\"no Metal device available\""*)
+		;;
+	*)
+		printf '%s\n' "unexpected persistent metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-rounds-bench output"
+		printf '%s\n' "$affine_lookup_rounds_persistent_output"
+		exit 1
+		;;
+esac
+
 affine_lookup_rounds_dedup_output="$(./macos/rck_macos metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-rounds-bench --iterations 64 --steps 256 --jumps 4 --dp-bits 4 --target-count 128 --hits 4 --lookup-repeat 3 --rounds 2 --lookup-tg-limit 128 --jump-schedule scaled4-balanced --lookup-repeat-mode dedup 2>&1)"
 affine_lookup_rounds_dedup_status=$?
 if [ "$affine_lookup_rounds_dedup_status" -ne 0 ]; then
