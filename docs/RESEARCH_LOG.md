@@ -6405,6 +6405,51 @@ These did not pass the performance gate or had a correctness/architecture issue:
   from `0.0294825` at `512` to `0.0451205` at `256`, and median
   `lookup_wall_seconds` from `0.0433645` to `0.0502510`. Keep `512` as the
   fixed-round physical lookup cap.
+- Rejected changing the fixed-round physical `distinct-misses` batch/round
+  shape for the 25M M3 Air gate. All variants preserved exact correctness, but
+  the current `--iterations 131072 --rounds 2 --hits 64` shape stayed best on
+  the real setup-inclusive wall metric in this scout:
+  `target_lookup_checksum=0x5c90bdf7f12141b9`, `hit_count=128`,
+  `dp_count=4121`, `filter_false_positive_count=412`, and
+  `setup_inclusive_wall_distance_per_sec=441447445509.151367`. A single wider
+  round with the same total walk work
+  (`--iterations 262144 --rounds 1 --hits 128`) stayed correct but dropped to
+  `393461157444.092102`; four smaller rounds
+  (`--iterations 65536 --rounds 4 --hits 32`) stayed correct but reached only
+  `434428734017.722778`. This supports the current shape as a real 25M
+  plateau, not just a benchmark accident.
+- Rejected promoting an explicit walk `--tg-limit 64` for the same 25M
+  physical `distinct-misses` gate. It was correctness-preserving and slightly
+  positive in two adjacent A/B samples, but the margin was too small for a
+  default change on a thermally noisy MacBook Air: `128` measured
+  `441447445509.151367` and later `408603469319.135376`
+  setup-inclusive wall distance/sec, while `64` measured
+  `442234223330.953308` and `409329686254.146362`. `32` regressed to
+  `440938375919.902161`, and `256` regressed heavily to
+  `399922955440.234009`. Keep the current 128-thread XYZZ walk default and use
+  explicit `--tg-limit 64` only as a local diagnostic until a paired gate
+  produces a larger, stable win.
+- Added an opt-in precompiled Metal library path rather than promoting it as a
+  default. The build now extracts the raw Metal source from
+  `macos/MetalFieldKernels.h` and, when `xcrun metal` plus `xcrun metallib`
+  are available, emits ignored `macos/rck_macos.metallib` and `build/macos/*`
+  artifacts. Runtime loading is conservative: default stays on
+  `newLibraryWithSource`, while `RCK_METAL_USE_PRECOMPILED=1` or
+  `RCK_METAL_FIELD_LIB=/path/to/rck_macos.metallib` opts into sidecar loading,
+  and `RCK_METAL_DISABLE_PRECOMPILED=1` forces source fallback. Correctness
+  smokes passed on all three paths. Measurement did not justify a default
+  switch: small persistent tag16 hash-filter setup samples were mixed
+  (`metal_setup_seconds` sidecar `0.080193` then `0.034186`, source fallback
+  `0.065029` then `0.058032`), and a temporary default-sidecar 25M gate stayed
+  correct but showed poor wall behavior
+  (`setup_inclusive_wall_distance_per_sec=381320739713.753845`) versus source
+  fallback (`430391279749.730591`). After switching the sidecar path to opt-in,
+  the final default 25M gate preserved
+  `target_lookup_checksum=0x5c90bdf7f12141b9`, `dp_checksum=0x7f111e78c67b5c18`,
+  `hit_count=128`, `filter_false_positive_count=412`, and
+  `setup_inclusive_wall_distance_per_sec=435190900466.894226`. Treat
+  `.metallib` as a toolchain/cold-start experiment surface, not a kangaroo
+  throughput breakthrough.
 
 ## Cleanup Policy
 

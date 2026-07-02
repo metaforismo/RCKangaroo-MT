@@ -1,0 +1,40 @@
+from pathlib import Path
+
+
+metal = Path("macos/MetalField.mm").read_text()
+makefile = Path("Makefile").read_text()
+gitignore = Path(".gitignore").read_text()
+
+required_metal_markers = [
+    "RCK_METAL_DISABLE_PRECOMPILED",
+    "RCK_METAL_USE_PRECOMPILED",
+    "RCK_METAL_FIELD_LIB",
+    "FieldLibraryCandidatePaths",
+    "newLibraryWithURL:ns_url",
+    "return [device newLibraryWithSource:FieldSource() options:nil error:ns_error];",
+    "LoadFieldLibrary(device, &ns_error)",
+]
+
+for marker in required_metal_markers:
+    if marker not in metal:
+        raise SystemExit(f"missing precompiled Metal library marker: {marker}")
+
+if metal.count("newLibraryWithSource:FieldSource()") != 1:
+    raise SystemExit("Metal source compilation should exist only inside LoadFieldLibrary fallback")
+
+required_makefile_markers = [
+    "MACOS_METALLIB := macos/rck_macos.metallib",
+    "tools/extract_metal_kernels.py",
+    "xcrun -sdk macosx metal -c",
+    "xcrun -sdk macosx metallib",
+    "macos-build: $(MACOS_TARGET) $(MACOS_METALLIB)",
+]
+
+for marker in required_makefile_markers:
+    if marker not in makefile:
+        raise SystemExit(f"missing precompiled Metal build marker: {marker}")
+
+if "/macos/rck_macos.metallib" not in gitignore or "build/" not in gitignore:
+    raise SystemExit("generated Metal library artifacts should stay untracked")
+
+print("metal precompiled library source ok")

@@ -3,6 +3,7 @@
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 
+#include <mach-o/dyld.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +18,7 @@
 #include <memory>
 #include <new>
 #include <sstream>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -2462,6 +2464,79 @@ static std::string MetalJacobianDynamicDpCountBenchJson(const char* operation,
 static NSString* FieldSource()
 {
 	return [NSString stringWithUTF8String:RCKMetalFieldKernelsSource];
+}
+
+static bool PrecompiledMetalLibraryEnabled()
+{
+	const char* disable = getenv("RCK_METAL_DISABLE_PRECOMPILED");
+	if (disable && disable[0] != '\0' && strcmp(disable, "0") != 0)
+		return false;
+	const char* override_path = getenv("RCK_METAL_FIELD_LIB");
+	if (override_path && override_path[0] != '\0')
+		return true;
+	const char* use_precompiled = getenv("RCK_METAL_USE_PRECOMPILED");
+	return use_precompiled && use_precompiled[0] != '\0' && strcmp(use_precompiled, "0") != 0;
+}
+
+static void AddUniqueLibraryPath(std::vector<std::string>& paths, const std::string& path)
+{
+	if (path.empty())
+		return;
+	for (const std::string& existing : paths)
+	{
+		if (existing == path)
+			return;
+	}
+	paths.push_back(path);
+}
+
+static std::vector<std::string> FieldLibraryCandidatePaths()
+{
+	std::vector<std::string> paths;
+	const char* override_path = getenv("RCK_METAL_FIELD_LIB");
+	if (override_path && override_path[0] != '\0')
+		AddUniqueLibraryPath(paths, override_path);
+
+	uint32_t executable_path_size = 0;
+	_NSGetExecutablePath(NULL, &executable_path_size);
+	if (executable_path_size > 0)
+	{
+		std::vector<char> executable_path(executable_path_size + 1, '\0');
+		uint32_t writable_size = executable_path_size + 1;
+		if (_NSGetExecutablePath(executable_path.data(), &writable_size) == 0)
+		{
+			std::string executable(executable_path.data());
+			size_t slash = executable.find_last_of('/');
+			if (slash != std::string::npos)
+				AddUniqueLibraryPath(paths, executable.substr(0, slash + 1) + "rck_macos.metallib");
+		}
+	}
+
+	AddUniqueLibraryPath(paths, "macos/rck_macos.metallib");
+	AddUniqueLibraryPath(paths, "rck_macos.metallib");
+	return paths;
+}
+
+static id<MTLLibrary> LoadFieldLibrary(id<MTLDevice> device, NSError** ns_error)
+{
+	if (!device)
+		return nil;
+	if (PrecompiledMetalLibraryEnabled())
+	{
+		NSFileManager* file_manager = [NSFileManager defaultManager];
+		for (const std::string& path : FieldLibraryCandidatePaths())
+		{
+			NSString* ns_path = [NSString stringWithUTF8String:path.c_str()];
+			if (![file_manager fileExistsAtPath:ns_path])
+				continue;
+			NSError* local_error = nil;
+			NSURL* ns_url = [NSURL fileURLWithPath:ns_path];
+			id<MTLLibrary> library = [device newLibraryWithURL:ns_url error:&local_error];
+			if (library)
+				return library;
+		}
+	}
+	return [device newLibraryWithSource:FieldSource() options:nil error:ns_error];
 }
 
 static NSUInteger EffectiveThreadgroupLimit(unsigned int threadgroup_limit)
@@ -5355,7 +5430,7 @@ static bool RunTargetLookupExactKernel(const std::vector<TargetLookupBucketHost>
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -5469,7 +5544,7 @@ static bool RunTargetLookupCompactKernel(const std::vector<TargetLookupCompactBu
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -5586,7 +5661,7 @@ static bool RunTargetLookupTag32Kernel(const std::vector<TargetLookupTag32Bucket
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -5702,7 +5777,7 @@ static bool RunTargetLookupTag32FilterKernel(const std::vector<uint32_t>& filter
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -5823,7 +5898,7 @@ static bool RunTargetLookupTag16HashFilterKernelRaw(const std::vector<uint16_t>&
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -5962,7 +6037,7 @@ static bool RunTargetLookupTag16HashFilterDistinctMissesKernel(const std::vector
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -6091,7 +6166,7 @@ static bool RunTargetLookupBloom64HashFilterKernelRaw(const std::vector<uint64_t
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -6223,7 +6298,7 @@ static bool RunTargetLookupBloom64HashFilterDistinctMissesKernel(const std::vect
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -6372,7 +6447,7 @@ static bool RunTargetLookupTag16HashFilterRepeatKernel(const std::vector<uint16_
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -6515,7 +6590,7 @@ static bool RunTargetLookupTag16HashFilterRepeatBaseCountKernel(const std::vecto
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -6655,7 +6730,7 @@ static bool RunTargetLookupTag32HashFilterRepeatKernel(const std::vector<uint32_
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -6783,7 +6858,7 @@ static bool RunTargetLookupTag32PersistentKernel(const std::vector<TargetLookupT
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -6924,7 +6999,7 @@ static bool RunTargetLookupTag32FilterPersistentKernel(const std::vector<uint32_
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -7091,7 +7166,7 @@ static bool RunTargetLookupTag16FilterPersistentKernel(const std::vector<uint16_
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -7259,7 +7334,7 @@ static bool RunTargetLookupTag16HashFilterPersistentKernel(const std::vector<uin
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -7418,7 +7493,7 @@ static bool RunFieldKernel(const std::vector<FieldElement>& a,
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -7529,7 +7604,7 @@ static bool RunJacobianAddAffineKernel(const std::vector<CpuJacobianPoint>& p,
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -7777,7 +7852,7 @@ static bool RunJacobianJumpWalkKernel(const std::vector<CpuJacobianPoint>& p,
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -7946,7 +8021,7 @@ static bool RunJacobianDynamicJumpWalkKernel(const std::vector<CpuJacobianPoint>
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -8135,7 +8210,7 @@ static bool RunJacobianDynamicCompactDpKernel(const std::vector<CpuJacobianPoint
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -8287,7 +8362,7 @@ static bool RunJacobianDynamicDpStreamKernel(const std::vector<CpuJacobianPoint>
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -8478,7 +8553,7 @@ static bool RunJacobianDynamicDpStreamInplaceKernel(const std::vector<CpuJacobia
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -8660,7 +8735,7 @@ static bool RunJacobianDynamicDpStreamXyzzKernel(const std::vector<CpuJacobianPo
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -8850,7 +8925,7 @@ static bool RunJacobianDynamicXyzzDistanceKernel(const std::vector<CpuJacobianPo
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -9014,7 +9089,7 @@ static bool RunJacobianDynamicDpStreamXyzzPersistentChainKernel(const std::vecto
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);
@@ -9229,7 +9304,7 @@ static bool RunJacobianDynamicDpCountKernel(const std::vector<CpuJacobianPoint>&
 		}
 
 		NSError* ns_error = nil;
-		id<MTLLibrary> library = [device newLibraryWithSource:FieldSource() options:nil error:&ns_error];
+		id<MTLLibrary> library = LoadFieldLibrary(device, &ns_error);
 		if (!library)
 		{
 			error = NSErrorToString(ns_error);

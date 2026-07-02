@@ -1,8 +1,10 @@
 .worktrees/
+build/
 __pycache__/
 *.o
 rckangaroo
 /macos/rck_macos
+/macos/rck_macos.metallib
 RESULTS.TXT
 /benchmarks.jsonl
 run.log
