@@ -6450,6 +6450,43 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `setup_inclusive_wall_distance_per_sec=435190900466.894226`. Treat
   `.metallib` as a toolchain/cold-start experiment surface, not a kangaroo
   throughput breakthrough.
+- Rejected direct `q_xy[jump_index].x*/y*` field loads in the common XYZZ
+  distance loop. This revisited a code-generation pattern that helped the
+  public precomputed DP4 kernel but had mixed stream results. The candidate
+  removed `AffineJumpValue jump = q_xy[jump_index]` from
+  `xyzz_walk_pow2_u32_distance` and passed direct `q_xy[jump_index]` fields
+  into `jacobian_add_affine_xyzz_values`. Small XYZZ CLI checks and the 25M
+  physical `distinct-misses` gate stayed correct:
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `hit_count=128`, and
+  `filter_false_positive_count=414`. The same-session A/B did not justify a
+  source change: candidate `setup_inclusive_wall_distance_per_sec` was
+  `451476450975.343689`, while the restored baseline reached
+  `452366754533.433350` with the same checksum and `hit_count=128`. Keep the
+  local `AffineJumpValue` row load in the XYZZ distance loop.
+- Rechecked persistent-chain packet/round geometry sequentially after
+  discarding concurrent GPU runs as invalid performance evidence. All
+  `131072 x 512 x 4` variants preserved the same cumulative oracle
+  (`dp_distance_checksum=0x2fc17b9313fc0204`,
+  `dp_checksum=0x2b1728330fd9cdc6`, `dp_count=2042`,
+  `correctness=true`). Sequential throughput stayed too close for a new
+  default: `packets=1,rounds=4` measured `126626408.818945` ops/sec,
+  `packets=2,rounds=2` measured `126875578.351441`, and
+  `packets=4,rounds=1` measured `126051154.657748`. Keep the existing
+  `2 x 2` persistent-chain recipe as the sanest architecture probe, but do not
+  claim a new solver throughput win.
+- Reconfirmed the fixed-round physical `distinct-misses` packet cadence after
+  the latest lookup/filter work. Same-total-work alternatives stayed correct
+  but slower than the promoted `2048/dp6` shape. `1024/dp7` with
+  `--iterations 262144 --rounds 2` preserved correctness but measured only
+  `417478090005.532532` setup-inclusive wall distance/sec. `4096/dp5` with
+  `--iterations 65536 --rounds 2` preserved correctness but measured only
+  `420308056100.361206`. The adjacent `2048/dp6` baseline preserved
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=128`,
+  `filter_false_positive_count=411`, and reached
+  `430303283808.573486`. Keep `2048/dp6` as the current mostly-miss 25M
+  plateau.
 
 ## Cleanup Policy
 
