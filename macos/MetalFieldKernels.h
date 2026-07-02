@@ -2475,6 +2475,16 @@ static inline ulong target_lookup_hash(thread const TargetLookupKey& key) {
   return target_lookup_mix(h ^ (ulong)key.parity);
 }
 
+static inline ulong target_lookup_deterministic_key_hash(ulong index, ulong salt) {
+  ulong h = 0x9e3779b97f4a7c15UL;
+  for (uint limb = 0; limb < 4; limb++) {
+    ulong x = target_lookup_mix(index + salt + 0x9e3779b97f4a7c15UL * (ulong)(limb + 1));
+    h = target_lookup_mix(h ^ x);
+  }
+  ulong parity = target_lookup_mix(index ^ (salt << 1) ^ 0xD1B54A32D192ED03UL) & 1UL;
+  return target_lookup_mix(h ^ parity);
+}
+
 static inline uint target_lookup_filter_tag(ulong hash) {
   return ((uint)(hash >> 32)) | 1U;
 }
@@ -2697,6 +2707,72 @@ kernel void target_lookup_tag16_mixed_hash_filter256(device const ushort* target
   }
 }
 
+kernel void target_lookup_tag16_hash_filter_distinct_misses256(device const ushort* target_filter_buckets [[buffer(0)]],
+                                                               device const ulong* prefix_query_hashes [[buffer(1)]],
+                                                               device uint* out_positive_query_indices [[buffer(2)]],
+                                                               device atomic_uint* out_filter_positive_count [[buffer(3)]],
+                                                               constant uint& bucket_count [[buffer(4)]],
+                                                               constant uint& prefix_query_count [[buffer(5)]],
+                                                               constant uint& query_count [[buffer(6)]],
+                                                               uint id [[thread_position_in_grid]]) {
+  if (id >= query_count) return;
+  ulong hash = id < prefix_query_count
+    ? prefix_query_hashes[id]
+    : target_lookup_deterministic_key_hash((ulong)(id - prefix_query_count), 0xD1571A57BEEFUL);
+  ushort filter_tag = target_lookup_filter_tag16(hash);
+  uint slot = (uint)(hash & (ulong)(bucket_count - 1));
+  uint probes = 0;
+
+  while (probes < bucket_count) {
+    ushort bucket_tag = target_filter_buckets[slot];
+    if (bucket_tag == (ushort)0U) {
+      break;
+    }
+    if (bucket_tag == filter_tag) {
+      uint out_slot = atomic_fetch_add_explicit(out_filter_positive_count, 1U, memory_order_relaxed);
+      if (out_slot < query_count) {
+        out_positive_query_indices[out_slot] = id;
+      }
+      break;
+    }
+    slot = (slot + 1U) & (bucket_count - 1U);
+    probes++;
+  }
+}
+
+kernel void target_lookup_tag16_mixed_hash_filter_distinct_misses256(device const ushort* target_filter_buckets [[buffer(0)]],
+                                                                     device const ulong* prefix_query_hashes [[buffer(1)]],
+                                                                     device uint* out_positive_query_indices [[buffer(2)]],
+                                                                     device atomic_uint* out_filter_positive_count [[buffer(3)]],
+                                                                     constant uint& bucket_count [[buffer(4)]],
+                                                                     constant uint& prefix_query_count [[buffer(5)]],
+                                                                     constant uint& query_count [[buffer(6)]],
+                                                                     uint id [[thread_position_in_grid]]) {
+  if (id >= query_count) return;
+  ulong hash = id < prefix_query_count
+    ? prefix_query_hashes[id]
+    : target_lookup_deterministic_key_hash((ulong)(id - prefix_query_count), 0xD1571A57BEEFUL);
+  ushort filter_tag = target_lookup_filter_tag16_mixed(hash);
+  uint slot = (uint)(hash & (ulong)(bucket_count - 1));
+  uint probes = 0;
+
+  while (probes < bucket_count) {
+    ushort bucket_tag = target_filter_buckets[slot];
+    if (bucket_tag == (ushort)0U) {
+      break;
+    }
+    if (bucket_tag == filter_tag) {
+      uint out_slot = atomic_fetch_add_explicit(out_filter_positive_count, 1U, memory_order_relaxed);
+      if (out_slot < query_count) {
+        out_positive_query_indices[out_slot] = id;
+      }
+      break;
+    }
+    slot = (slot + 1U) & (bucket_count - 1U);
+    probes++;
+  }
+}
+
 kernel void target_lookup_bloom64_hash_filter256(device const ulong* target_filter_words [[buffer(0)]],
                                                  device const ulong* query_hashes [[buffer(1)]],
                                                  device uint* out_positive_query_indices [[buffer(2)]],
@@ -2706,6 +2782,29 @@ kernel void target_lookup_bloom64_hash_filter256(device const ulong* target_filt
                                                  uint id [[thread_position_in_grid]]) {
   if (id >= query_count) return;
   ulong hash = query_hashes[id];
+  ulong mask = target_lookup_bloom64_mask(hash);
+  uint slot = (uint)(hash & (ulong)(word_count - 1));
+
+  if ((target_filter_words[slot] & mask) == mask) {
+    uint out_slot = atomic_fetch_add_explicit(out_filter_positive_count, 1U, memory_order_relaxed);
+    if (out_slot < query_count) {
+      out_positive_query_indices[out_slot] = id;
+    }
+  }
+}
+
+kernel void target_lookup_bloom64_hash_filter_distinct_misses256(device const ulong* target_filter_words [[buffer(0)]],
+                                                                 device const ulong* prefix_query_hashes [[buffer(1)]],
+                                                                 device uint* out_positive_query_indices [[buffer(2)]],
+                                                                 device atomic_uint* out_filter_positive_count [[buffer(3)]],
+                                                                 constant uint& word_count [[buffer(4)]],
+                                                                 constant uint& prefix_query_count [[buffer(5)]],
+                                                                 constant uint& query_count [[buffer(6)]],
+                                                                 uint id [[thread_position_in_grid]]) {
+  if (id >= query_count) return;
+  ulong hash = id < prefix_query_count
+    ? prefix_query_hashes[id]
+    : target_lookup_deterministic_key_hash((ulong)(id - prefix_query_count), 0xD1571A57BEEFUL);
   ulong mask = target_lookup_bloom64_mask(hash);
   uint slot = (uint)(hash & (ulong)(word_count - 1));
 

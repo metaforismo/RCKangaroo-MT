@@ -97,7 +97,10 @@ markers = [
     "target_lookup_tag16_hash_filter_repeat_base2d256",
     "target_lookup_tag16_hash_filter_repeat_base_count_by_base2d256",
     "target_lookup_tag16_mixed_hash_filter256",
+    "target_lookup_tag16_hash_filter_distinct_misses256",
+    "target_lookup_tag16_mixed_hash_filter_distinct_misses256",
     "target_lookup_bloom64_hash_filter256",
+    "target_lookup_bloom64_hash_filter_distinct_misses256",
     "target_lookup_tag16_mixed_hash_filter_repeat_base_count2d256",
     "target_lookup_tag16_hash_filter_repeat_packed2d256",
     "target_lookup_tag16_mixed_hash_filter_repeat2d256",
@@ -222,15 +225,21 @@ rounds_body = kernels[rounds_start:rounds_end]
 if "RunTargetLookupTag16HashFilterRepeatBaseCountKernel(target_filter16_buckets, lookup_query_hashes, dispatch_query_count" not in rounds_body:
     raise SystemExit("fixed-round repeat lookup should route large standard tag16 repeat batches through base-count positives")
 if "RunTargetLookupTag16HashFilterKernelRaw(target_filter16_buckets, lookup_query_hash_data, lookup_query_hash_count, positive_query_indices" not in rounds_body:
-    raise SystemExit("fixed-round distinct-misses lookup should use the physical non-repeat tag16 hash-filter kernel without rewrapping hashes")
+    raise SystemExit("fixed-round distinct-misses fallback should preserve the physical non-repeat tag16 hash-filter kernel without rewrapping hashes")
+if "RunTargetLookupTag16HashFilterDistinctMissesKernel(target_filter16_buckets, lookup_query_hashes, dispatch_query_count, positive_query_indices" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should generate deterministic miss hashes in the Metal tag16 filter kernel")
 if "use_tag16_mixed_hash_filter" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should preserve the tag16-mix filter choice")
 if "BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, target_count, target_x_keys, target_x_key_count, target_parity_buckets, error, fuse_tag16_filter ? &target_filter16_buckets : NULL, use_tag16_mixed_hash_filter, use_bloom64_hash_filter ? &target_bloom64_filter_words : NULL)" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should fuse standard or mixed tag16 filters into the compact parity table")
 if "RunTargetLookupTag16HashFilterKernelRaw(target_filter16_buckets, lookup_query_hash_data, lookup_query_hash_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, use_tag16_mixed_hash_filter)" not in rounds_body:
-    raise SystemExit("fixed-round distinct-misses lookup should pass the mixed tag selector to the non-repeat hash-filter kernel")
+    raise SystemExit("fixed-round distinct-misses fallback should pass the mixed tag selector to the non-repeat hash-filter kernel")
+if "RunTargetLookupTag16HashFilterDistinctMissesKernel(target_filter16_buckets, lookup_query_hashes, dispatch_query_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, use_tag16_mixed_hash_filter)" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses generated path should pass the mixed tag selector to the generated-miss kernel")
 if "RunTargetLookupBloom64HashFilterKernelRaw(target_bloom64_filter_words, lookup_query_hash_data, lookup_query_hash_count, positive_query_indices" not in rounds_body:
-    raise SystemExit("fixed-round bloom64 distinct-misses lookup should use the physical non-repeat bloom64 hash-filter kernel without rewrapping hashes")
+    raise SystemExit("fixed-round bloom64 distinct-misses fallback should use the physical non-repeat bloom64 hash-filter kernel without rewrapping hashes")
+if "RunTargetLookupBloom64HashFilterDistinctMissesKernel(target_bloom64_filter_words, lookup_query_hashes, dispatch_query_count, positive_query_indices" not in rounds_body:
+    raise SystemExit("fixed-round bloom64 distinct-misses lookup should generate deterministic miss hashes in the Metal bloom64 filter kernel")
 if "NewSharedMetalBufferNoCopyFallback(device, const_cast<uint16_t*>(filter_buckets.data()), bucket_bytes)" not in kernels:
     raise SystemExit("non-repeat tag16 hash-filter lookup should avoid copying the large filter bucket buffer on unified memory")
 if "NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(query_hashes), hash_bytes)" not in kernels:
@@ -241,6 +250,8 @@ if 'lookup_distinct_misses ?\n\t\t(use_bloom64_hash_filter ? "gpu_filter_bloom64
     raise SystemExit("fixed-round distinct-misses should report standard versus mixed tag16 hash engines separately")
 if "lookup_uses_tag16_mixed_hash_repeat_filter" not in kernels:
     raise SystemExit("JSON query_input reporting should distinguish mixed hash repeat from mixed hash distinct")
+if '"hash64_prefix_gpu_miss"' not in kernels:
+    raise SystemExit("JSON query_input reporting should expose GPU-generated distinct miss hashes")
 if "fixed-round distinct-misses currently supports tag16 hash filters only" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses should reject only tag32 filters")
 if "fixed-round bloom64 filter currently requires distinct-misses query mode" not in rounds_body:
@@ -293,12 +304,18 @@ if kernels.count("if (!strict_miss_exact && query_index >= prefix_queries.size()
     raise SystemExit("distinct resolver should skip exact CPU lookup only for already-validated compact miss sources")
 if "distinct_miss_source_seconds" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should measure compact miss-source generation time")
+if "BuildDistinctTargetLookupPrimaryMissValidation(aggregate_dp_keys, logical_query_count" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should validate primary miss sources before GPU-generating suffix hashes")
+if "generated_distinct_miss_hashes = !primary_miss_collision;" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should use GPU-generated suffix hashes only when primary misses are exact-validated")
 if "&distinct_lookup_query_hashes, error)" not in rounds_body:
-    raise SystemExit("fixed-round distinct-misses lookup should build compact miss sources and physical query hashes in one measured pass")
+    raise SystemExit("fixed-round distinct-misses fallback should still build compact miss sources and physical query hashes in one measured pass")
 if "TargetLookupHashBuffer distinct_lookup_query_hashes;" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should use an uninitialized raw hash buffer instead of zero-filling a vector")
 if "target_query_hash_bytes = lookup_query_hash_count * sizeof(uint64_t)" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should report raw hash-buffer bytes")
+if "physical_query_count = lookup_distinct_misses ? logical_query_count" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should keep physical query count logical when only prefix hashes are transferred")
 if "BuildDistinctTargetLookupQueryHashesFromSources" in kernels:
     raise SystemExit("fixed-round distinct-misses lookup should not keep a second compact-source decode/hash pass")
 if "ResolveTargetLookupTag32ParityFilterDistinctSourcesExpected(target_parity_buckets, target_x_keys.get(), target_x_key_count, aggregate_dp_keys, distinct_miss_sources" not in rounds_body:
@@ -361,10 +378,16 @@ if "state_out.push_back" in distance_kernel_body:
 
 if "kernel void target_lookup_tag16_mixed_hash_filter256" not in metal_kernels:
     raise SystemExit("missing non-repeat mixed tag16 hash-filter Metal kernel")
+if "kernel void target_lookup_tag16_hash_filter_distinct_misses256" not in metal_kernels:
+    raise SystemExit("missing generated-miss tag16 hash-filter Metal kernel")
+if "target_lookup_deterministic_key_hash((ulong)(id - prefix_query_count), 0xD1571A57BEEFUL)" not in metal_kernels:
+    raise SystemExit("generated-miss Metal kernels should derive suffix hashes from the primary distinct miss salt")
 if "target_lookup_filter_tag16_mixed(hash)" not in metal_kernels:
     raise SystemExit("non-repeat mixed tag16 hash-filter kernel should derive mixed tags from query hashes")
 if "kernel void target_lookup_bloom64_hash_filter256" not in metal_kernels:
     raise SystemExit("missing non-repeat bloom64 hash-filter Metal kernel")
+if "kernel void target_lookup_bloom64_hash_filter_distinct_misses256" not in metal_kernels:
+    raise SystemExit("missing generated-miss bloom64 hash-filter Metal kernel")
 if "target_lookup_bloom64_mask(hash)" not in metal_kernels:
     raise SystemExit("bloom64 hash-filter kernel should derive blocked masks from query hashes")
 

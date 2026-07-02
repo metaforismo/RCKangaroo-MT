@@ -6257,6 +6257,27 @@ These did not pass the performance gate or had a correctness/architecture issue:
   a strict oracle for this comparison: repeated `81669f1` baseline rows on the
   M3 Air varied from `1001/873` to `1016/888` filter-positive/false-positive
   counts while preserving checksum and hits.
+- Accepted GPU-generated deterministic suffix miss hashes for fixed-round
+  physical `distinct-misses`. The host still validates that every primary
+  deterministic miss is not an exact target before enabling the path; if a
+  primary miss ever collides with the target table, the code falls back to the
+  previous raw physical hash buffer with retry-source generation. In the common
+  validated-primary case, Metal receives only the real DP-prefix hashes and
+  derives suffix miss hashes inside the tag16/Bloom64 filter kernel, reported as
+  `query_input=hash64_prefix_gpu_miss`. A 5-pair 1M-target,
+  `--lookup-repeat 65536` gate against `9a08ceb` preserved
+  `target_lookup_checksum=0x7c2ae959e5577a79`, `hit_count=64`,
+  `filter_positive_count=752`, and `filter_false_positive_count=688`.
+  Transferred query-hash bytes fell from `131596288` to `2008`; median
+  `distinct_miss_source_seconds` improved from `0.190788` to `0.140939`, median
+  `lookup_wall_seconds` from `0.025486` to `0.022698`, and median
+  `setup_inclusive_wall_seconds` from `0.325024` to `0.283446`. One candidate
+  row was slower, so keep this as a memory-traffic architecture improvement, not
+  a universal speed claim. Fresh default, strict audit, Bloom64 diagnostic, and
+  25M correctness/memory smokes kept `correctness=true`; the 25M row preserved
+  `target_lookup_checksum=0x5c90bdf7f12141b9`, `dp_checksum=0x7f111e78c67b5c18`,
+  `dp_count=4121`, and `hit_count=128`, with query-hash bytes reduced to
+  `32968`.
 - Rejected direct x-only deterministic filler generation for the parity target
   builder. The candidate generated filler `x`, `y` parity, and hash in one pass
   and wrote `TargetLookupXOnlyHost` directly into the target buffer instead of
