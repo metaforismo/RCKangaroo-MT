@@ -6234,6 +6234,29 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_count=4121`, `hit_count=128`, `filter_positive_count=1006`, and
   `filter_false_positive_count=878`; treat that row as correctness and memory
   evidence because host validation dominated wall time.
+- Accepted a raw uninitialized hash buffer for fixed-round physical
+  `distinct-misses`. The previous builder used `std::vector::assign` for the
+  physical `hash64` query buffer, which zero-filled the entire buffer before the
+  builder wrote every element. The distinct path now allocates an uninitialized
+  `TargetLookupHashBuffer`, writes each hash exactly once, and calls raw
+  pointer/count variants of the tag16 and Bloom64 filter kernels; the vector
+  wrappers remain for the standard repeat paths. A 5-pair 1M-target,
+  `--lookup-repeat 65536` gate against `81669f1` preserved
+  `target_lookup_checksum=0x7c2ae959e5577a79`, `hit_count=64`,
+  `filter_positive_count=752`, and `filter_false_positive_count=688`. Median
+  `distinct_miss_source_seconds` improved from `0.117578` to `0.108306`, median
+  `lookup_wall_seconds` from `0.018260` to `0.017396`, and median
+  `setup_inclusive_wall_seconds` from `0.242744` to `0.231332`. Treat this as a
+  moderate host-memory-traffic keep, not a mathematical breakthrough: one paired
+  candidate row was slower, but the median and causal source-build metric moved
+  in the right direction. Fresh 100k default, 1M strict audit, and Bloom64
+  diagnostic smokes all kept `correctness=true`. A direct 25M correctness and
+  memory smoke also kept `correctness=true`,
+  `target_lookup_checksum=0x5c90bdf7f12141b9`, `dp_checksum=0x7f111e78c67b5c18`,
+  `dp_count=4121`, and `hit_count=128`. Do not use 25M false-positive count as
+  a strict oracle for this comparison: repeated `81669f1` baseline rows on the
+  M3 Air varied from `1001/873` to `1016/888` filter-positive/false-positive
+  counts while preserving checksum and hits.
 - Rejected direct x-only deterministic filler generation for the parity target
   builder. The candidate generated filler `x`, `y` parity, and hash in one pass
   and wrote `TargetLookupXOnlyHost` directly into the target buffer instead of

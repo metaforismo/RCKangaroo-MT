@@ -15,6 +15,7 @@
 #include <cstring>
 #include <iomanip>
 #include <memory>
+#include <new>
 #include <sstream>
 #include <thread>
 #include <utility>
@@ -77,6 +78,53 @@ struct TargetLookupKeyHost
 struct TargetLookupXOnlyHost
 {
 	uint64_t x[4];
+};
+
+struct TargetLookupHashBuffer
+{
+	std::unique_ptr<uint64_t[]> values;
+	size_t count = 0;
+
+	void clear()
+	{
+		values.reset();
+		count = 0;
+	}
+
+	bool allocate_uninitialized(size_t n, std::string& error)
+	{
+		clear();
+		if (!n)
+			return true;
+		values.reset(new (std::nothrow) uint64_t[n]);
+		if (!values)
+		{
+			error = "failed to allocate target lookup query hash buffer";
+			return false;
+		}
+		count = n;
+		return true;
+	}
+
+	uint64_t* data()
+	{
+		return values.get();
+	}
+
+	const uint64_t* data() const
+	{
+		return values.get();
+	}
+
+	size_t size() const
+	{
+		return count;
+	}
+
+	bool empty() const
+	{
+		return count == 0;
+	}
 };
 
 struct TargetLookupBucketHost
@@ -3260,7 +3308,7 @@ static bool BuildDistinctTargetLookupMissSources(const std::vector<TargetLookupK
 	bool target_filter16_mixed,
 	bool store_miss_sources,
 	std::vector<uint64_t>& miss_sources,
-	std::vector<uint64_t>* query_hashes,
+	TargetLookupHashBuffer* query_hashes,
 	std::string& error)
 {
 	miss_sources.clear();
@@ -3289,11 +3337,13 @@ static bool BuildDistinctTargetLookupMissSources(const std::vector<TargetLookupK
 		miss_sources.assign(suffix_count, 0);
 	if (query_hashes)
 	{
-		query_hashes->assign(query_count, 0);
+		if (!query_hashes->allocate_uninitialized(query_count, error))
+			return false;
+		uint64_t* query_hash_data = query_hashes->data();
 		ParallelForSamples(prefix_queries.size(), [&](size_t begin, size_t end, unsigned int worker) {
 			(void)worker;
 			for (size_t i = begin; i < end; ++i)
-				(*query_hashes)[i] = TargetLookupHash(prefix_queries[i]);
+				query_hash_data[i] = TargetLookupHash(prefix_queries[i]);
 		});
 	}
 
@@ -3332,7 +3382,7 @@ static bool BuildDistinctTargetLookupMissSources(const std::vector<TargetLookupK
 						if (store_miss_sources)
 							miss_sources[i] = EncodeDistinctMissSource(nonce, retry_salt);
 						if (query_hashes)
-							(*query_hashes)[prefix_queries.size() + i] = miss_hash;
+							query_hashes->data()[prefix_queries.size() + i] = miss_hash;
 						stored = true;
 						break;
 					}
@@ -5688,8 +5738,9 @@ static bool RunTargetLookupTag32FilterKernel(const std::vector<uint32_t>& filter
 	}
 }
 
-static bool RunTargetLookupTag16HashFilterKernel(const std::vector<uint16_t>& filter_buckets,
-	const std::vector<uint64_t>& query_hashes,
+static bool RunTargetLookupTag16HashFilterKernelRaw(const std::vector<uint16_t>& filter_buckets,
+	const uint64_t* query_hashes,
+	size_t query_hash_count,
 	std::vector<uint32_t>& positive_query_indices,
 	uint32_t& filter_positive_count,
 	std::string& error,
@@ -5700,7 +5751,7 @@ static bool RunTargetLookupTag16HashFilterKernel(const std::vector<uint16_t>& fi
 {
 	if (dispatch_stats)
 		dispatch_stats->threadgroup_limit = (unsigned int)EffectiveTargetLookupThreadgroupLimit(threadgroup_limit);
-	if (filter_buckets.empty() || query_hashes.empty())
+	if (filter_buckets.empty() || !query_hashes || query_hash_count == 0 || query_hash_count > UINT32_MAX)
 	{
 		error = "invalid tag16 hash-filter target lookup input";
 		return false;
@@ -5752,13 +5803,13 @@ static bool RunTargetLookupTag16HashFilterKernel(const std::vector<uint16_t>& fi
 		}
 
 		size_t bucket_bytes = filter_buckets.size() * sizeof(uint16_t);
-		size_t hash_bytes = query_hashes.size() * sizeof(uint64_t);
-		size_t positive_bytes = query_hashes.size() * sizeof(uint32_t);
+		size_t hash_bytes = query_hash_count * sizeof(uint64_t);
+		size_t positive_bytes = query_hash_count * sizeof(uint32_t);
 		uint32_t zero = 0;
 		uint32_t bucket_count = (uint32_t)filter_buckets.size();
-		uint32_t query_count = (uint32_t)query_hashes.size();
+		uint32_t query_count = (uint32_t)query_hash_count;
 		id<MTLBuffer> buckets_buffer = NewSharedMetalBufferNoCopyFallback(device, const_cast<uint16_t*>(filter_buckets.data()), bucket_bytes);
-		id<MTLBuffer> query_hashes_buffer = NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(query_hashes.data()), hash_bytes);
+		id<MTLBuffer> query_hashes_buffer = NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(query_hashes), hash_bytes);
 		id<MTLBuffer> positive_buffer = [device newBufferWithLength:positive_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> positive_count_buffer = [device newBufferWithBytes:&zero length:sizeof(zero) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> bucket_count_buffer = [device newBufferWithBytes:&bucket_count length:sizeof(bucket_count) options:MTLResourceStorageModeShared];
@@ -5801,7 +5852,7 @@ static bool RunTargetLookupTag16HashFilterKernel(const std::vector<uint16_t>& fi
 		}
 
 		memcpy(&filter_positive_count, [positive_count_buffer contents], sizeof(filter_positive_count));
-		if (filter_positive_count > query_hashes.size())
+		if (filter_positive_count > query_hash_count)
 		{
 			error = "tag16 hash-filter positive count overflow";
 			return false;
@@ -5813,8 +5864,22 @@ static bool RunTargetLookupTag16HashFilterKernel(const std::vector<uint16_t>& fi
 	}
 }
 
-static bool RunTargetLookupBloom64HashFilterKernel(const std::vector<uint64_t>& filter_words,
+static bool RunTargetLookupTag16HashFilterKernel(const std::vector<uint16_t>& filter_buckets,
 	const std::vector<uint64_t>& query_hashes,
+	std::vector<uint32_t>& positive_query_indices,
+	uint32_t& filter_positive_count,
+	std::string& error,
+	double* seconds,
+	unsigned int threadgroup_limit = 0,
+	MetalDispatchStats* dispatch_stats = NULL,
+	bool mixed_filter_tag = false)
+{
+	return RunTargetLookupTag16HashFilterKernelRaw(filter_buckets, query_hashes.data(), query_hashes.size(), positive_query_indices, filter_positive_count, error, seconds, threadgroup_limit, dispatch_stats, mixed_filter_tag);
+}
+
+static bool RunTargetLookupBloom64HashFilterKernelRaw(const std::vector<uint64_t>& filter_words,
+	const uint64_t* query_hashes,
+	size_t query_hash_count,
 	std::vector<uint32_t>& positive_query_indices,
 	uint32_t& filter_positive_count,
 	std::string& error,
@@ -5824,7 +5889,7 @@ static bool RunTargetLookupBloom64HashFilterKernel(const std::vector<uint64_t>& 
 {
 	if (dispatch_stats)
 		dispatch_stats->threadgroup_limit = (unsigned int)EffectiveTargetLookupThreadgroupLimit(threadgroup_limit);
-	if (filter_words.empty() || query_hashes.empty() || filter_words.size() > 0xFFFFFFFFULL)
+	if (filter_words.empty() || !query_hashes || query_hash_count == 0 || query_hash_count > UINT32_MAX || filter_words.size() > 0xFFFFFFFFULL)
 	{
 		error = "invalid bloom64 hash-filter target lookup input";
 		return false;
@@ -5871,13 +5936,13 @@ static bool RunTargetLookupBloom64HashFilterKernel(const std::vector<uint64_t>& 
 		}
 
 		size_t filter_bytes = filter_words.size() * sizeof(uint64_t);
-		size_t hash_bytes = query_hashes.size() * sizeof(uint64_t);
-		size_t positive_bytes = query_hashes.size() * sizeof(uint32_t);
+		size_t hash_bytes = query_hash_count * sizeof(uint64_t);
+		size_t positive_bytes = query_hash_count * sizeof(uint32_t);
 		uint32_t zero = 0;
 		uint32_t word_count = (uint32_t)filter_words.size();
-		uint32_t query_count = (uint32_t)query_hashes.size();
+		uint32_t query_count = (uint32_t)query_hash_count;
 		id<MTLBuffer> filter_buffer = NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(filter_words.data()), filter_bytes);
-		id<MTLBuffer> query_hashes_buffer = NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(query_hashes.data()), hash_bytes);
+		id<MTLBuffer> query_hashes_buffer = NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(query_hashes), hash_bytes);
 		id<MTLBuffer> positive_buffer = [device newBufferWithLength:positive_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> positive_count_buffer = [device newBufferWithBytes:&zero length:sizeof(zero) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> word_count_buffer = [device newBufferWithBytes:&word_count length:sizeof(word_count) options:MTLResourceStorageModeShared];
@@ -5920,7 +5985,7 @@ static bool RunTargetLookupBloom64HashFilterKernel(const std::vector<uint64_t>& 
 		}
 
 		memcpy(&filter_positive_count, [positive_count_buffer contents], sizeof(filter_positive_count));
-		if (filter_positive_count > query_hashes.size())
+		if (filter_positive_count > query_hash_count)
 		{
 			error = "bloom64 hash-filter positive count overflow";
 			return false;
@@ -5930,6 +5995,18 @@ static bool RunTargetLookupBloom64HashFilterKernel(const std::vector<uint64_t>& 
 			memcpy(positive_query_indices.data(), [positive_buffer contents], (size_t)filter_positive_count * sizeof(uint32_t));
 		return true;
 	}
+}
+
+static bool RunTargetLookupBloom64HashFilterKernel(const std::vector<uint64_t>& filter_words,
+	const std::vector<uint64_t>& query_hashes,
+	std::vector<uint32_t>& positive_query_indices,
+	uint32_t& filter_positive_count,
+	std::string& error,
+	double* seconds,
+	unsigned int threadgroup_limit = 0,
+	MetalDispatchStats* dispatch_stats = NULL)
+{
+	return RunTargetLookupBloom64HashFilterKernelRaw(filter_words, query_hashes.data(), query_hashes.size(), positive_query_indices, filter_positive_count, error, seconds, threadgroup_limit, dispatch_stats);
 }
 
 static bool RunTargetLookupTag16HashFilterRepeatKernel(const std::vector<uint16_t>& filter_buckets,
@@ -12723,18 +12800,19 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 			uint32_t expected = i < round_injected_hits[round] ? round_target_offsets[round] + (uint32_t)i : kTargetLookupEmptyIndex;
 			aggregate_expected_indices.push_back(expected);
 		}
-	}
-	std::vector<uint64_t> lookup_query_hashes;
-	std::vector<uint64_t> distinct_miss_sources;
-	if (lookup_distinct_misses)
-	{
-		auto source_start = std::chrono::steady_clock::now();
-		const std::vector<uint16_t>* distinct_source_filter16 = target_filter16_buckets.empty() ? NULL : &target_filter16_buckets;
-		bool store_distinct_miss_sources = StrictDistinctMissResolve();
-		if (!BuildDistinctTargetLookupMissSources(aggregate_dp_keys, logical_query_count, target_buckets, target_keys, target_parity_buckets, target_x_keys.get(), target_x_key_count, use_parity_xonly_target_table, distinct_source_filter16, use_tag16_mixed_hash_filter, store_distinct_miss_sources, distinct_miss_sources, &lookup_query_hashes, error))
+		}
+		std::vector<uint64_t> lookup_query_hashes;
+		TargetLookupHashBuffer distinct_lookup_query_hashes;
+		std::vector<uint64_t> distinct_miss_sources;
+		if (lookup_distinct_misses)
 		{
-			distinct_miss_source_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - source_start).count();
-			return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32_rounds", requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits_per_round, injected_hits, dp_query_count, hit_count, target_table_bucket_count, target_key_bytes, target_bucket_bytes, 0, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, validation_seconds, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name, lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes, lookup_hash_seconds, lookup_gpu_seconds, lookup_exact_seconds, 0.0, "physical_query_index", target_build_seconds, target_filter_build_seconds, round_count);
+			auto source_start = std::chrono::steady_clock::now();
+			const std::vector<uint16_t>* distinct_source_filter16 = target_filter16_buckets.empty() ? NULL : &target_filter16_buckets;
+			bool store_distinct_miss_sources = StrictDistinctMissResolve();
+			if (!BuildDistinctTargetLookupMissSources(aggregate_dp_keys, logical_query_count, target_buckets, target_keys, target_parity_buckets, target_x_keys.get(), target_x_key_count, use_parity_xonly_target_table, distinct_source_filter16, use_tag16_mixed_hash_filter, store_distinct_miss_sources, distinct_miss_sources, &distinct_lookup_query_hashes, error))
+			{
+				distinct_miss_source_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - source_start).count();
+				return MetalAffineScanTargetLookupTag32BenchJson("jacobian_affine_scan_target_lookup_tag32_rounds", requested_operations, sample_count, steps_per_sample, jump_count, jump_index_mode, kDynamicJumpMixerName, jump_schedule_name, 0, 0, 0, dp_distance_checksum, dp_bits, dp_count, dp_checksum, target_count, requested_hits_per_round, injected_hits, dp_query_count, hit_count, target_table_bucket_count, target_key_bytes, target_bucket_bytes, 0, walk_stats, lookup_stats, walk_seconds, affine_scan_seconds, lookup_seconds, validation_seconds, 0.0, 0.0, 0.0, target_lookup_checksum, false, false, error, lookup_repeat, lookup_query_mode_name, lookup_engine_name, lookup_engine_name, filter_positive_count, filter_false_positive_count, target_filter_bucket_bytes, target_query_hash_bytes, lookup_hash_seconds, lookup_gpu_seconds, lookup_exact_seconds, 0.0, "physical_query_index", target_build_seconds, target_filter_build_seconds, round_count);
 		}
 		distinct_miss_source_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - source_start).count();
 	}
@@ -12744,12 +12822,14 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 		BuildTargetLookupQueryHashesParallel(aggregate_dp_keys, lookup_query_hashes);
 	}
 	lookup_hash_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - hash_start).count();
-	target_query_hash_bytes = lookup_query_hashes.size() * sizeof(uint64_t);
+	const uint64_t* lookup_query_hash_data = lookup_distinct_misses ? distinct_lookup_query_hashes.data() : lookup_query_hashes.data();
+	size_t lookup_query_hash_count = lookup_distinct_misses ? distinct_lookup_query_hashes.size() : lookup_query_hashes.size();
+	target_query_hash_bytes = lookup_query_hash_count * sizeof(uint64_t);
 
 	std::vector<uint32_t> positive_query_indices;
 	std::vector<uint32_t> base_positive_counts;
 	double filter_seconds = 0.0;
-	uint64_t physical_query_count = (lookup_repeat_dedup || lookup_distinct_misses) ? lookup_query_hashes.size() : logical_query_count;
+	uint64_t physical_query_count = (lookup_repeat_dedup || lookup_distinct_misses) ? lookup_query_hash_count : logical_query_count;
 	repeat_positive_index_encoding = lookup_distinct_misses ? "physical_query_index" :
 		(lookup_repeat_dedup ? "base_query_index" :
 		(use_base_repeat_positive_counts ? "base_query_count_repeated" :
@@ -12759,8 +12839,8 @@ std::string RCKMetalJacobianDynamicDpStreamXyzzAffineScanTargetLookupTag32Rounds
 	auto filter_wall_start = std::chrono::steady_clock::now();
 	bool filter_ok = lookup_distinct_misses ?
 		(use_bloom64_hash_filter ?
-			RunTargetLookupBloom64HashFilterKernel(target_bloom64_filter_words, lookup_query_hashes, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats) :
-			RunTargetLookupTag16HashFilterKernel(target_filter16_buckets, lookup_query_hashes, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, use_tag16_mixed_hash_filter)) :
+			RunTargetLookupBloom64HashFilterKernelRaw(target_bloom64_filter_words, lookup_query_hash_data, lookup_query_hash_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats) :
+			RunTargetLookupTag16HashFilterKernelRaw(target_filter16_buckets, lookup_query_hash_data, lookup_query_hash_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, use_tag16_mixed_hash_filter)) :
 		(use_base_repeat_positive_counts ?
 		RunTargetLookupTag16HashFilterRepeatBaseCountKernel(target_filter16_buckets, lookup_query_hashes, dispatch_query_count, base_positive_counts, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, false) :
 		(use_tag32_hash_filter ?
