@@ -6353,6 +6353,44 @@ These did not pass the performance gate or had a correctness/architecture issue:
   1024` versus `512`: median `lookup_gpu_seconds` moved from `0.010771` to
   `0.012169`, median `lookup_wall_seconds` from `0.011515` to `0.012995`, and
   median `setup_inclusive_wall_seconds` from `0.277139` to `0.284782`.
+- Rejected adding a tag32 hash-filter variant to fixed-round physical
+  `distinct-misses`. The candidate was correctness-preserving and used the same
+  exact `x256 + y_parity` resolver after the filter, with a rare raw-hash
+  fallback for generated-miss collisions. It eliminated tag16 false positives
+  but doubled the target filter bytes and lost the causal lookup gate on the M3
+  Air. A 5-pair 1M scout preserved
+  `target_lookup_checksum=0xb410e0bce9f56057`, `hit_count=64`, and
+  `correctness=true`; median `filter_false_positive_count` moved from `216` to
+  `0`, but median `lookup_gpu_seconds` worsened from `0.008073` to `0.011312`
+  and median `lookup_wall_seconds` from `0.008983` to `0.011960`. A 3-pair 25M
+  gate preserved `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=128`, and
+  `correctness=true`; median `filter_false_positive_count` moved from `414` to
+  `0`, but median `lookup_gpu_seconds` worsened from `0.025858` to `0.033856`
+  and median `lookup_wall_seconds` from `0.030379` to `0.034655`, while filter
+  bytes doubled from `67,108,864` to `134,217,728`. Do not promote tag32 for
+  physical `distinct-misses` unless a future Apple GPU or a different table
+  layout reverses the memory-bandwidth tradeoff.
+- Rejected splitting fixed-round physical `distinct-misses` tag16 filtering
+  into a raw DP-prefix kernel plus a suffix-only generated-miss kernel. The
+  candidate removed the `id < prefix_query_count` branch from the millions of
+  deterministic suffix miss threads and kept the same exact `x256 + y_parity`
+  resolver. It preserved correctness but did not win the real M3 Air 25M gate,
+  likely because the second Metal dispatch/pipeline path outweighed the branch
+  removal. A 3-pair 1M scout preserved
+  `target_lookup_checksum=0xb410e0bce9f56057`, `hit_count=64`, and
+  `correctness=true`; median `lookup_gpu_seconds` improved from `0.012849` to
+  `0.007964`, but median `lookup_wall_seconds` worsened from `0.013454` to
+  `0.014558` and median `setup_inclusive_wall_seconds` from `0.311784` to
+  `0.331059`. A 3-pair 25M gate preserved
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=128`, and
+  `correctness=true`; median `lookup_gpu_seconds` worsened from `0.025368` to
+  `0.030766`, median `lookup_wall_seconds` from `0.032941` to `0.035552`, and
+  median `setup_inclusive_wall_distance_per_sec` from
+  `345,765,569,957.2692` to `325,656,524,951.2017`. Keep the single fused
+  generated-miss filter kernel unless a future cached-pipeline implementation
+  can eliminate the extra dispatch/setup cost.
 
 ## Cleanup Policy
 
