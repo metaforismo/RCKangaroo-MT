@@ -2683,12 +2683,20 @@ static uint32_t TargetLookupFilterTag32(uint64_t hash)
 
 static uint16_t TargetLookupFilterTag16(uint64_t hash)
 {
-	return (uint16_t)(((uint16_t)(hash >> 48)) | (uint16_t)1U);
+	uint16_t tag = (uint16_t)(hash >> 48);
+	return tag ? tag : (uint16_t)1U;
+}
+
+static uint16_t TargetLookupFilterTag16FromTag32(uint32_t tag32)
+{
+	uint16_t tag = (uint16_t)(tag32 >> 16);
+	return tag ? tag : (uint16_t)1U;
 }
 
 static uint16_t TargetLookupFilterTag16MixedFromTag32(uint32_t tag32)
 {
-	return (uint16_t)((tag32 ^ (tag32 >> 16)) | 1U);
+	uint16_t tag = (uint16_t)(tag32 ^ (tag32 >> 16));
+	return tag ? tag : (uint16_t)1U;
 }
 
 static uint16_t TargetLookupFilterTag16Mixed(uint64_t hash)
@@ -3175,7 +3183,7 @@ static bool BuildTargetLookupTag16FilterTableFromTag32Buckets(const std::vector<
 				index_out_of_range.store(true, std::memory_order_relaxed);
 				continue;
 			}
-			filter_buckets[slot] = (uint16_t)(((uint16_t)(bucket.tag >> 16)) | (uint16_t)1U);
+			filter_buckets[slot] = TargetLookupFilterTag16FromTag32(bucket.tag);
 		}
 	};
 	if (tag32_buckets.size() >= kMinParallelTargetLookupFilterBuckets && ValidationWorkerCount(tag32_buckets.size()) > 1)
@@ -3810,7 +3818,7 @@ static bool InsertTargetLookupTag32PrehashedTable(const std::vector<TargetLookup
 				if (fused_tag16_filter_buckets)
 					(*fused_tag16_filter_buckets)[slot] = fused_tag16_filter_mixed ?
 						TargetLookupFilterTag16MixedFromTag32(tag) :
-						(uint16_t)(((uint16_t)(tag >> 16)) | (uint16_t)1U);
+						TargetLookupFilterTag16FromTag32(tag);
 				break;
 			}
 			slot = (slot + 1U) & mask;
@@ -3861,7 +3869,7 @@ static bool InsertTargetLookupTag32PrehashedTableParallel(const std::vector<Targ
 					if (fused_tag16_filter_buckets)
 						(*fused_tag16_filter_buckets)[slot] = fused_tag16_filter_mixed ?
 							TargetLookupFilterTag16MixedFromTag32(tag) :
-							(uint16_t)(((uint16_t)(tag >> 16)) | (uint16_t)1U);
+							TargetLookupFilterTag16FromTag32(tag);
 					inserted = true;
 					break;
 				}
@@ -4060,7 +4068,7 @@ static bool InsertTargetLookupTag32ParityBucket(std::vector<TargetLookupTag32Par
 			if (fused_tag16_filter_buckets)
 				(*fused_tag16_filter_buckets)[slot] = fused_tag16_filter_mixed ?
 					TargetLookupFilterTag16MixedFromTag32(tag) :
-					(uint16_t)(((uint16_t)(tag >> 16)) | (uint16_t)1U);
+					TargetLookupFilterTag16FromTag32(tag);
 			return true;
 		}
 		slot = (slot + 1U) & mask;

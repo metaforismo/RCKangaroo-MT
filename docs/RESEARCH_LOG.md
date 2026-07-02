@@ -6300,6 +6300,25 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `distinct_miss_source_seconds=0.000922`. Treat this as a real host-work and
   memory-traffic improvement for physical `distinct-misses`, not a change to the
   kangaroo algorithm's asymptotic collision search.
+- Accepted nonzero-preserving tag16 filter tags. The old tag16 filter used
+  `tag | 1` to avoid the zero sentinel, which made every stored tag odd and
+  discarded one bit of filter entropy. The new mapping keeps non-zero 16-bit
+  tags unchanged and maps only zero to one, with the same exact `x256 + y_parity`
+  resolver behind the filter. Host table builders, fused parity-table builders,
+  and Metal lookup kernels now share the same nonzero-preserving tag rule. A
+  5-pair 1M-target, `--lookup-repeat 65536` gate preserved
+  `target_lookup_checksum=0xb410e0bce9f56057`, `hit_count=64`, and
+  `correctness=true`; median `filter_false_positive_count` fell from `429` to
+  `216`, median `lookup_exact_seconds` from `0.000070` to `0.000041`, and median
+  `lookup_wall_seconds` from `0.014315` to `0.013082`. A 3-pair 25M fixed-round
+  `distinct-misses` gate preserved
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=128`, and
+  `correctness=true`; median `filter_false_positive_count` fell from `877` to
+  `412`, median `lookup_exact_seconds` from `0.000212` to `0.000127`, and median
+  `lookup_wall_seconds` from `0.028973` to `0.025458`. Treat this as a real
+  lookup-quality improvement, not a guaranteed setup-inclusive wall-clock win:
+  25M setup wall remained dominated by walk/buffer noise on the M3 Air.
 - Rejected direct x-only deterministic filler generation for the parity target
   builder. The candidate generated filler `x`, `y` parity, and hash in one pass
   and wrote `TargetLookupXOnlyHost` directly into the target buffer instead of
@@ -6311,6 +6330,29 @@ These did not pass the performance gate or had a correctness/architecture issue:
   inconclusive and noisy. Conclusion: keep the current full-key filler path;
   on the M3 Air, the direct x-only rewrite appears to hurt code generation or
   memory behavior more than it saves.
+- Rejected manual unrolling of Metal deterministic miss-hash generation. The
+  candidate replaced the fixed four-iteration limb loop in
+  `target_lookup_deterministic_key_hash` with four explicit mix calls, preserving
+  `target_lookup_checksum=0x5c90bdf7f12141b9`, `dp_checksum=0x7f111e78c67b5c18`,
+  `dp_count=4121`, `hit_count=128`, and `correctness=true` on every 25M
+  fixed-round `distinct-misses` row. A 3-pair alternating 25M gate against
+  `0dea683` rejected it: median `lookup_gpu_seconds` moved from `0.027936` to
+  `0.029561`, median `lookup_wall_seconds` from `0.029411` to `0.033300`,
+  median `setup_inclusive_wall_seconds` from `5.229511` to `5.432048`, and
+  median `gpu_lookup_lookups_per_sec` from `151,056,355.396869` to
+  `142,754,221.197962`. Conclusion: leave the loop; the Metal compiler/runtime
+  already handles this pattern better than the manual source rewrite on the M3
+  Air.
+- Rejected changing the default fixed-round distinct lookup filter mode or
+  lookup threadgroup cap after the nonzero tag16 work. A 25M scout kept tag16 as
+  the best default: tag16-mix was correct but slower
+  (`lookup_gpu_seconds=0.055978`, `setup_inclusive_wall_seconds=6.132666`), and
+  Bloom64 was correct but produced far more exact candidates
+  (`filter_false_positive_count=21745`, `setup_inclusive_wall_seconds=6.830114`).
+  A 5-pair 1M-target `--lookup-repeat 65536` scout rejected `--lookup-tg-limit
+  1024` versus `512`: median `lookup_gpu_seconds` moved from `0.010771` to
+  `0.012169`, median `lookup_wall_seconds` from `0.011515` to `0.012995`, and
+  median `setup_inclusive_wall_seconds` from `0.277139` to `0.284782`.
 
 ## Cleanup Policy
 

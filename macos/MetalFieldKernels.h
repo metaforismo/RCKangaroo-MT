@@ -2490,12 +2490,14 @@ static inline uint target_lookup_filter_tag(ulong hash) {
 }
 
 static inline ushort target_lookup_filter_tag16(ulong hash) {
-  return ((ushort)(hash >> 48)) | (ushort)1U;
+  ushort tag = (ushort)(hash >> 48);
+  return tag == (ushort)0U ? (ushort)1U : tag;
 }
 
 static inline ushort target_lookup_filter_tag16_mixed(ulong hash) {
   uint tag32 = (uint)(hash >> 32);
-  return (ushort)((tag32 ^ (tag32 >> 16)) | 1U);
+  ushort tag = (ushort)(tag32 ^ (tag32 >> 16));
+  return tag == (ushort)0U ? (ushort)1U : tag;
 }
 
 static inline ulong target_lookup_bloom64_mask(ulong hash) {
