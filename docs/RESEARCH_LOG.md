@@ -6510,6 +6510,24 @@ These did not pass the performance gate or had a correctness/architecture issue:
   measured `468912015003.289612`, slightly below the adjacent source fallback
   at `471447482641.957764`. Keep `.metallib` opt-in until a paired gate proves
   a real end-to-end win.
+- Rejected fixed-round host setup allocation cleanups and a fresh walk
+  threadgroup scout on the physical 25M `distinct-misses` gate. The
+  cross-round affine-scan merge looked attractive on the 100k gate, but the
+  25M causal affine phase worsened (`affine_scan_seconds=0.011045` versus the
+  adjacent baseline `0.007841`), so it was reverted. A later round-start
+  cleanup that generated later starts in-place preserved
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=128`, and
+  `correctness=true`, but worsened `round_sample_build_seconds` to `0.004696`
+  on 25M; the hybrid builder also failed (`0.004825`), and the isolated
+  `round_dp_keys` reserve-only path did not show a stable setup-wall win
+  (`setup_inclusive_wall_distance_per_sec=424911420083.937683`). A fresh
+  25M `--tg-limit 64` check also stayed correctness-preserving but did not
+  beat the current 128-thread walk cap: `64` measured
+  `288203789270.342499` then `425444221561.834045`, while `128` measured
+  `425990587857.186157` then `423686998486.525757`. Conclusion: keep the
+  current fixed-round 2048/dp6/128-thread/lookup512 plateau and treat these as
+  rejected anti-cheat evidence, not latent speedups.
 
 ## Cleanup Policy
 
