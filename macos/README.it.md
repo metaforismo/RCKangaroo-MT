@@ -247,7 +247,8 @@ Lo script:
 - valida ogni punto sulla curva secp256k1;
 - rimuove righe vuote, commenti e commenti inline con `#`;
 - scrive di default public key compresse normalizzate;
-- rimuove i duplicati, a meno di usare `--keep-duplicates`.
+- rimuove i duplicati, a meno di usare `--keep-duplicates`;
+- legge e scrive in streaming, poi promuove l'output solo dopo la validazione.
 
 Opzioni utili:
 
@@ -281,6 +282,10 @@ velocemente anche se occupa piu' spazio su disco:
 ```sh
 python3 macos/prepare_targets.py stripped.txt -o targets.uncompressed.txt --uncompressed
 ```
+
+Se l'input e' gia deduplicato, aggiungi `--keep-duplicates` per evitare il set
+di tracciamento duplicati del preparer e ridurre la memoria durante lo streaming.
+Senza `--keep-duplicates`, la rimozione duplicati resta esatta e deterministica.
 
 I file compressi richiedono al loader runtime di recuperare `y` con una radice
 quadrata nel campo per ogni chiave. I file non compressi saltano questo passo e

@@ -32,6 +32,27 @@ GPU work should use Metal.
 
 ## Recent Accepted Experiments
 
+### 2026-07-03 Streaming Target-List Preparation
+
+- Accepted a macOS target-preparation memory improvement in
+  `macos/prepare_targets.py`: the tool now streams input lines, writes normalized
+  keys through a same-directory temporary output file, and atomically promotes
+  the file only after validation succeeds. It no longer keeps the entire input
+  file or normalized output list in memory, avoids building a dedupe set when
+  `--keep-duplicates` is requested, and stores only the first invalid examples
+  plus a count. Normalization, curve validation, duplicate-removal semantics,
+  `--skip-invalid`, and `--stats-only` output remain unchanged.
+- Correctness oracle: `python3 -m py_compile macos/prepare_targets.py`,
+  `sh tests/check_target_parser.sh`, explicit invalid-file failure cleanup, and
+  the same 100,000-line duplicate-heavy compressed fixture with
+  `--uncompressed --keep-duplicates` still wrote exactly 100,000 normalized
+  lines. On the MacBook Air M3, that fixture moved from about `61,407,232`
+  bytes max RSS and `59,064,776` peak memory footprint to about `20,676,608`
+  bytes max RSS and `11,944,368` peak memory footprint, with similar wall time
+  (`12.69s` baseline versus `12.45s` streaming). Treat this as a real
+  25M-target preparation scalability and robustness improvement, not a kangaroo
+  GKeys/s claim.
+
 ### 2026-07-01 Sampled Target Vector Reservation
 
 - Accepted a small loader allocation improvement in `TTargetSet::LoadFromFile`:

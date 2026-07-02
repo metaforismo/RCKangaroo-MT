@@ -132,6 +132,12 @@ Valida e normalizza una lista target su macOS:
 python3 macos/prepare_targets.py stripped.txt -o targets.cleaned.txt
 ```
 
+Per file target enormi, il preparer legge e scrive in streaming, promuove
+l'output in modo atomico solo dopo la validazione, e con `--keep-duplicates`
+evita anche la memoria del set duplicati quando la lista e' gia deduplicata.
+Per accelerare il caricamento runtime puoi produrre chiavi non compresse con
+`python3 macos/prepare_targets.py stripped.txt -o targets.uncompressed.txt --uncompressed`.
+
 Build e test del percorso nativo macOS:
 
 ```sh

@@ -245,7 +245,8 @@ The script:
 - validates every point against the secp256k1 curve;
 - removes blank lines, comment lines, and inline `# comments`;
 - writes normalized compressed public keys by default;
-- removes duplicate targets unless `--keep-duplicates` is used.
+- removes duplicate targets unless `--keep-duplicates` is used;
+- streams input and output, then atomically promotes the output after validation.
 
 Useful options:
 
@@ -279,6 +280,10 @@ though it is larger on disk:
 ```sh
 python3 macos/prepare_targets.py stripped.txt -o targets.uncompressed.txt --uncompressed
 ```
+
+If your input has already been deduplicated, add `--keep-duplicates` to avoid
+the preparer's duplicate-tracking set and minimize memory use while streaming.
+Without `--keep-duplicates`, duplicate removal is still exact and deterministic.
 
 Compressed target files require the runtime loader to recover `y` with a field
 square root for each key. Uncompressed files skip that step and only validate the

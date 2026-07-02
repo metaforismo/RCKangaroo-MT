@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -65,53 +66,86 @@ def _clean_line(line: str) -> str:
     return line.split("#", 1)[0].strip()
 
 
+def _temp_output_path(path: Path) -> Path:
+    return path.with_name(f".{path.name}.{os.getpid()}.tmp")
+
+
 def prepare_targets(args: argparse.Namespace) -> int:
-    seen: set[str] = set()
-    output: list[str] = []
-    invalid: list[str] = []
+    seen: set[str] | None = None if args.keep_duplicates else set()
+    invalid_examples: list[str] = []
+    invalid_count = 0
     comments_or_blank = 0
     duplicates = 0
+    valid_count = 0
 
-    for line_no, raw_line in enumerate(args.input.read_text(encoding="utf-8").splitlines(), start=1):
-        value = _clean_line(raw_line)
-        if not value:
-            comments_or_blank += 1
-            continue
-        try:
-            point = _parse_public_key(value)
-        except ValueError as exc:
-            invalid.append(f"line {line_no}: {exc}")
-            if args.skip_invalid:
-                continue
-            continue
+    temp_output: Path | None = None
+    output_file = None
 
-        normalized = _uncompress(point) if args.uncompressed else _compress(point)
-        dedupe_key = _compress(point)
-        if not args.keep_duplicates and dedupe_key in seen:
-            duplicates += 1
-            continue
-        seen.add(dedupe_key)
-        output.append(normalized)
+    try:
+        if not args.stats_only:
+            temp_output = _temp_output_path(args.output)
+            output_file = temp_output.open("w", encoding="utf-8")
 
-    if invalid and not args.skip_invalid:
-        print("Invalid target file:", file=sys.stderr)
-        for item in invalid[:20]:
-            print(f"  {item}", file=sys.stderr)
-        if len(invalid) > 20:
-            print(f"  ... {len(invalid) - 20} more", file=sys.stderr)
-        return 1
+        with args.input.open("r", encoding="utf-8") as input_file:
+            for line_no, raw_line in enumerate(input_file, start=1):
+                value = _clean_line(raw_line)
+                if not value:
+                    comments_or_blank += 1
+                    continue
+                try:
+                    point = _parse_public_key(value)
+                except ValueError as exc:
+                    invalid_count += 1
+                    if len(invalid_examples) < 20:
+                        invalid_examples.append(f"line {line_no}: {exc}")
+                    continue
 
-    if not output:
-        print("No valid targets found.", file=sys.stderr)
-        return 1
+                normalized = _uncompress(point) if args.uncompressed else _compress(point)
+                if seen is not None:
+                    dedupe_key = _compress(point)
+                    if dedupe_key in seen:
+                        duplicates += 1
+                        continue
+                    seen.add(dedupe_key)
 
-    if not args.stats_only:
-        args.output.write_text("\n".join(output) + "\n", encoding="utf-8")
+                valid_count += 1
+                if output_file is not None:
+                    output_file.write(normalized)
+                    output_file.write("\n")
 
-    print(f"valid targets: {len(output)}")
+        if output_file is not None:
+            output_file.close()
+            output_file = None
+
+        if invalid_count and not args.skip_invalid:
+            print("Invalid target file:", file=sys.stderr)
+            for item in invalid_examples:
+                print(f"  {item}", file=sys.stderr)
+            if invalid_count > len(invalid_examples):
+                print(f"  ... {invalid_count - len(invalid_examples)} more", file=sys.stderr)
+            return 1
+
+        if not valid_count:
+            print("No valid targets found.", file=sys.stderr)
+            return 1
+
+        if temp_output is not None:
+            temp_output.replace(args.output)
+            temp_output = None
+
+    finally:
+        if output_file is not None:
+            output_file.close()
+        if temp_output is not None:
+            try:
+                temp_output.unlink()
+            except FileNotFoundError:
+                pass
+
+    print(f"valid targets: {valid_count}")
     print(f"blank/comment lines: {comments_or_blank}")
     print(f"duplicates skipped: {duplicates}")
-    print(f"invalid skipped: {len(invalid) if args.skip_invalid else 0}")
+    print(f"invalid skipped: {invalid_count if args.skip_invalid else 0}")
     if not args.stats_only:
         print(f"written: {args.output}")
     return 0
