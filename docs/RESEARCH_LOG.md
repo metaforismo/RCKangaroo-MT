@@ -6278,6 +6278,28 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `target_lookup_checksum=0x5c90bdf7f12141b9`, `dp_checksum=0x7f111e78c67b5c18`,
   `dp_count=4121`, and `hit_count=128`, with query-hash bytes reduced to
   `32968`.
+- Accepted lazy exact validation for GPU-generated deterministic suffix misses.
+  After `d05fb31`, the remaining default-path cost was the host scan that
+  exact-validated every primary deterministic miss before the GPU filter. The
+  new path sends only DP-prefix hashes as before, lets Metal filter every
+  physical query, and materializes/exact-checks generated suffix misses only
+  when the GPU filter marks them positive. This keeps the exact
+  `x256 + y_parity` oracle on the only suffixes that could affect output. If a
+  generated suffix ever resolves as an exact target, the code reruns the lookup
+  through the older raw physical hash-buffer retry-source path. A 5-pair
+  1M-target, `--lookup-repeat 65536` gate against `d05fb31` preserved
+  `target_lookup_checksum=0x7c2ae959e5577a79`, `hit_count=64`, and
+  `filter_false_positive_count=688`. Median `distinct_miss_source_seconds`
+  dropped from `0.092062` to `0.000003`; median `lookup_exact_seconds`
+  increased from `0.000006` to `0.000091` because suffix positives are now
+  checked lazily, but median `lookup_wall_seconds` still improved from
+  `0.017892` to `0.013743`, and median `setup_inclusive_wall_seconds` from
+  `0.202464` to `0.109529`. A direct 25M correctness/memory smoke preserved
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, and `hit_count=128`, with
+  `distinct_miss_source_seconds=0.000922`. Treat this as a real host-work and
+  memory-traffic improvement for physical `distinct-misses`, not a change to the
+  kangaroo algorithm's asymptotic collision search.
 - Rejected direct x-only deterministic filler generation for the parity target
   builder. The candidate generated filler `x`, `y` parity, and hash in one pass
   and wrote `TargetLookupXOnlyHost` directly into the target buffer instead of

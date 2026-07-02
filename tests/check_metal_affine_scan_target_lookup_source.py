@@ -232,9 +232,9 @@ if "use_tag16_mixed_hash_filter" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should preserve the tag16-mix filter choice")
 if "BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, target_count, target_x_keys, target_x_key_count, target_parity_buckets, error, fuse_tag16_filter ? &target_filter16_buckets : NULL, use_tag16_mixed_hash_filter, use_bloom64_hash_filter ? &target_bloom64_filter_words : NULL)" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should fuse standard or mixed tag16 filters into the compact parity table")
-if "RunTargetLookupTag16HashFilterKernelRaw(target_filter16_buckets, lookup_query_hash_data, lookup_query_hash_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, use_tag16_mixed_hash_filter)" not in rounds_body:
+if "RunTargetLookupTag16HashFilterKernelRaw(target_filter16_buckets, lookup_query_hash_data, lookup_query_hash_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds_attempt, effective_lookup_threadgroup_limit, &lookup_stats, use_tag16_mixed_hash_filter)" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses fallback should pass the mixed tag selector to the non-repeat hash-filter kernel")
-if "RunTargetLookupTag16HashFilterDistinctMissesKernel(target_filter16_buckets, lookup_query_hashes, dispatch_query_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds, effective_lookup_threadgroup_limit, &lookup_stats, use_tag16_mixed_hash_filter)" not in rounds_body:
+if "RunTargetLookupTag16HashFilterDistinctMissesKernel(target_filter16_buckets, lookup_query_hashes, dispatch_query_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds_attempt, effective_lookup_threadgroup_limit, &lookup_stats, use_tag16_mixed_hash_filter)" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses generated path should pass the mixed tag selector to the generated-miss kernel")
 if "RunTargetLookupBloom64HashFilterKernelRaw(target_bloom64_filter_words, lookup_query_hash_data, lookup_query_hash_count, positive_query_indices" not in rounds_body:
     raise SystemExit("fixed-round bloom64 distinct-misses fallback should use the physical non-repeat bloom64 hash-filter kernel without rewrapping hashes")
@@ -300,14 +300,20 @@ if "RCK_STRICT_DISTINCT_MISS_RESOLVE" not in kernels:
     raise SystemExit("distinct resolver should keep an env-gated strict exact audit mode")
 if "DistinctTargetLookupValidatedMissSourceIndex" not in kernels:
     raise SystemExit("distinct resolver should validate compact miss-source indices before skipping exact miss lookups")
-if kernels.count("if (!strict_miss_exact && query_index >= prefix_queries.size())\n\t\t{\n\t\t\tif (!DistinctTargetLookupValidatedMissSourceIndex") < 2:
-    raise SystemExit("distinct resolver should skip exact CPU lookup only for already-validated compact miss sources")
+if "DeterministicTargetLookupKey((uint64_t)miss_index, kDistinctMissPrimarySalt)" not in kernels:
+    raise SystemExit("distinct resolver should materialize GPU-generated primary miss sources only for filter positives")
+if kernels.count("if (!strict_miss_exact && suffix_query && !generated_primary_miss_sources)\n\t\t{\n\t\t\tif (!DistinctTargetLookupValidatedMissSourceIndex") < 2:
+    raise SystemExit("distinct resolver should skip exact CPU lookup only for raw already-validated compact miss sources")
+if kernels.count("if (generated_primary_miss_sources && suffix_query)\n\t\t\t\t\tgenerated_miss_collision = true;") < 2:
+    raise SystemExit("distinct resolver should detect exact collisions from GPU-generated suffix misses")
 if "distinct_miss_source_seconds" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should measure compact miss-source generation time")
-if "BuildDistinctTargetLookupPrimaryMissValidation(aggregate_dp_keys, logical_query_count" not in rounds_body:
-    raise SystemExit("fixed-round distinct-misses lookup should validate primary miss sources before GPU-generating suffix hashes")
-if "generated_distinct_miss_hashes = !primary_miss_collision;" not in rounds_body:
-    raise SystemExit("fixed-round distinct-misses lookup should use GPU-generated suffix hashes only when primary misses are exact-validated")
+if "BuildDistinctTargetLookupGeneratedMissPrefixHashes(aggregate_dp_keys, logical_query_count, lookup_query_hashes, error)" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should build only DP-prefix hashes before GPU-generating suffix hashes")
+if "generated_distinct_miss_hashes = true;" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should enable GPU-generated suffix hashes without host-scanning every miss")
+if "rebuild_distinct_retry_hashes" not in rounds_body or "generated_miss_collision" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses lookup should retry with raw compact miss sources if lazy exact validation finds a suffix collision")
 if "&distinct_lookup_query_hashes, error)" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses fallback should still build compact miss sources and physical query hashes in one measured pass")
 if "TargetLookupHashBuffer distinct_lookup_query_hashes;" not in rounds_body:
