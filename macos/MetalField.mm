@@ -9083,7 +9083,7 @@ static bool RunJacobianDynamicXyzzDistancePersistentRoundsKernel(const std::vect
 	dynamic_p_infinity.reserve(p_infinity.size());
 	for (uint32_t p_infinity_value : p_infinity)
 		dynamic_p_infinity.push_back(p_infinity_value ? 1U : 0U);
-	std::vector<uint64_t> packet_distances(p.size(), 0);
+	std::vector<uint64_t> cumulative_distances(p.size(), 0);
 	std::vector<uint64_t> round_p_xyzz(total_output_count64 * 16ULL);
 	std::vector<uint8_t> round_p_infinity(total_output_count64);
 	std::vector<uint64_t> round_distances(total_output_count64, 0);
@@ -9106,14 +9106,14 @@ static bool RunJacobianDynamicXyzzDistancePersistentRoundsKernel(const std::vect
 		}
 
 		const char* function_name = steps_per_sample == 4096
-			? "jacobian_affine_walk_dynamic_xyzz_steps4096_pow2_u32_distance"
+			? "jacobian_affine_walk_dynamic_xyzz_store_round_steps4096_pow2_u32_distance"
 			: (steps_per_sample == 2048
-				? "jacobian_affine_walk_dynamic_xyzz_steps2048_pow2_u32_distance"
+				? "jacobian_affine_walk_dynamic_xyzz_store_round_steps2048_pow2_u32_distance"
 				: (steps_per_sample == 1024
-					? "jacobian_affine_walk_dynamic_xyzz_steps1024_pow2_u32_distance"
+					? "jacobian_affine_walk_dynamic_xyzz_store_round_steps1024_pow2_u32_distance"
 					: (steps_per_sample == 512
-						? "jacobian_affine_walk_dynamic_xyzz_steps512_pow2_u32_distance"
-						: "jacobian_affine_walk_dynamic_xyzz_steps256_pow2_u32_distance")));
+						? "jacobian_affine_walk_dynamic_xyzz_store_round_steps512_pow2_u32_distance"
+						: "jacobian_affine_walk_dynamic_xyzz_store_round_steps256_pow2_u32_distance")));
 		id<MTLFunction> function = [library newFunctionWithName:[NSString stringWithUTF8String:function_name]];
 		if (!function)
 		{
@@ -9140,26 +9140,24 @@ static bool RunJacobianDynamicXyzzDistancePersistentRoundsKernel(const std::vect
 		size_t p_bytes = p_xyzz.size() * sizeof(uint64_t);
 		size_t q_bytes = q_xy.size() * sizeof(uint64_t);
 		size_t p_inf_bytes = dynamic_p_infinity.size() * sizeof(uint8_t);
+		size_t cumulative_bytes = cumulative_distances.size() * sizeof(uint64_t);
 		size_t distance_bytes = jump_distances.size() * sizeof(uint64_t);
-		size_t packet_distances_bytes = packet_distances.size() * sizeof(uint64_t);
 		size_t round_p_bytes = round_p_xyzz.size() * sizeof(uint64_t);
 		size_t round_inf_bytes = round_p_infinity.size() * sizeof(uint8_t);
 		size_t round_distances_bytes = round_distances.size() * sizeof(uint64_t);
 		uint32_t count = (uint32_t)p.size();
 		uint32_t jump_mask = (uint32_t)jumps.size() - 1U;
-		bool p_no_copy = false;
-		bool p_inf_no_copy = false;
-		id<MTLBuffer> p_buffer = NewSharedMetalBufferNoCopyFallback(device, p_xyzz.data(), p_bytes, &p_no_copy);
+		id<MTLBuffer> p_buffer = NewSharedMetalBufferNoCopyFallback(device, p_xyzz.data(), p_bytes);
 		id<MTLBuffer> q_buffer = NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(q_xy.data()), q_bytes);
-		id<MTLBuffer> p_inf_buffer = NewSharedMetalBufferNoCopyFallback(device, dynamic_p_infinity.data(), p_inf_bytes, &p_inf_no_copy);
-		id<MTLBuffer> packet_distances_buffer = [device newBufferWithLength:packet_distances_bytes options:MTLResourceStorageModeShared];
+		id<MTLBuffer> p_inf_buffer = NewSharedMetalBufferNoCopyFallback(device, dynamic_p_infinity.data(), p_inf_bytes);
+		id<MTLBuffer> cumulative_distances_buffer = [device newBufferWithBytes:cumulative_distances.data() length:cumulative_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> round_p_buffer = [device newBufferWithLength:round_p_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> round_inf_buffer = [device newBufferWithLength:round_inf_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> round_distances_buffer = [device newBufferWithLength:round_distances_bytes options:MTLResourceStorageModeShared];
 		id<MTLBuffer> count_buffer = [device newBufferWithBytes:&count length:sizeof(count) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> jump_distances_buffer = NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(jump_distances.data()), distance_bytes);
 		id<MTLBuffer> jump_mask_buffer = [device newBufferWithBytes:&jump_mask length:sizeof(jump_mask) options:MTLResourceStorageModeShared];
-		if (!p_buffer || !q_buffer || !p_inf_buffer || !packet_distances_buffer || !round_p_buffer || !round_inf_buffer || !round_distances_buffer || !count_buffer || !jump_distances_buffer || !jump_mask_buffer)
+		if (!p_buffer || !q_buffer || !p_inf_buffer || !cumulative_distances_buffer || !round_p_buffer || !round_inf_buffer || !round_distances_buffer || !count_buffer || !jump_distances_buffer || !jump_mask_buffer)
 		{
 			error = "failed to allocate Metal jacobian dynamic XYZZ persistent-round buffers";
 			return false;
@@ -9180,19 +9178,17 @@ static bool RunJacobianDynamicXyzzDistancePersistentRoundsKernel(const std::vect
 			[encoder setBuffer:p_buffer offset:0 atIndex:0];
 			[encoder setBuffer:q_buffer offset:0 atIndex:1];
 			[encoder setBuffer:p_inf_buffer offset:0 atIndex:2];
-			[encoder setBuffer:packet_distances_buffer offset:0 atIndex:4];
+			[encoder setBuffer:cumulative_distances_buffer offset:0 atIndex:3];
+			[encoder setBuffer:round_p_buffer offset:0 atIndex:4];
+			[encoder setBuffer:round_inf_buffer offset:0 atIndex:5];
 			[encoder setBuffer:count_buffer offset:0 atIndex:6];
+			[encoder setBuffer:round_distances_buffer offset:0 atIndex:7];
 			[encoder setBuffer:jump_distances_buffer offset:0 atIndex:8];
 			[encoder setBuffer:jump_mask_buffer offset:0 atIndex:11];
+			[encoder setBytes:&round length:sizeof(round) atIndex:12];
 			NSUInteger threadgroup_count = (count + threads_per_threadgroup - 1) / threads_per_threadgroup;
 			[encoder dispatchThreadgroups:MTLSizeMake(threadgroup_count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
 			[encoder endEncoding];
-
-			id<MTLBlitCommandEncoder> blit = [command_buffer blitCommandEncoder];
-			[blit copyFromBuffer:p_buffer sourceOffset:0 toBuffer:round_p_buffer destinationOffset:(NSUInteger)round * p_bytes size:p_bytes];
-			[blit copyFromBuffer:p_inf_buffer sourceOffset:0 toBuffer:round_inf_buffer destinationOffset:(NSUInteger)round * p_inf_bytes size:p_inf_bytes];
-			[blit copyFromBuffer:packet_distances_buffer sourceOffset:0 toBuffer:round_distances_buffer destinationOffset:(NSUInteger)round * packet_distances_bytes size:packet_distances_bytes];
-			[blit endEncoding];
 		}
 
 		auto start = std::chrono::steady_clock::now();
@@ -9211,21 +9207,6 @@ static bool RunJacobianDynamicXyzzDistancePersistentRoundsKernel(const std::vect
 		memcpy(round_p_xyzz.data(), [round_p_buffer contents], round_p_bytes);
 		memcpy(round_p_infinity.data(), [round_inf_buffer contents], round_inf_bytes);
 		memcpy(round_distances.data(), [round_distances_buffer contents], round_distances_bytes);
-		if (!p_no_copy)
-			memcpy(p_xyzz.data(), [p_buffer contents], p_bytes);
-		if (!p_inf_no_copy)
-			memcpy(dynamic_p_infinity.data(), [p_inf_buffer contents], p_inf_bytes);
-
-		std::vector<uint64_t> cumulative_distances(p.size(), 0);
-		for (uint32_t round = 0; round < round_count; ++round)
-		{
-			size_t round_offset = (size_t)round * p.size();
-			for (size_t i = 0; i < p.size(); ++i)
-			{
-				cumulative_distances[i] += round_distances[round_offset + i];
-				round_distances[round_offset + i] = cumulative_distances[i];
-			}
-		}
 
 		distances_out = std::move(round_distances);
 		UnpackXyzzStateOutputs(round_p_xyzz, round_p_infinity, (size_t)total_output_count64, state_out);

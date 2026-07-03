@@ -2015,6 +2015,127 @@ kernel void jacobian_affine_walk_dynamic_xyzz_steps4096_pow2_u32_distance(device
   out_distances[id] = (ulong)out.distance;
 }
 
+inline void store_xyzz_round_distance_value(device ulong* round_p_xyzz,
+                                            device uchar* round_p_infinity,
+                                            device ulong* round_distances,
+                                            uint count,
+                                            uint round,
+                                            uint id,
+                                            XyzzDistanceValue value,
+                                            ulong cumulative_distance) {
+  uint output_index = round * count + id;
+  uint out_base = output_index << 4;
+  round_p_xyzz[out_base + 0] = value.x0; round_p_xyzz[out_base + 1] = value.x1; round_p_xyzz[out_base + 2] = value.x2; round_p_xyzz[out_base + 3] = value.x3;
+  round_p_xyzz[out_base + 4] = value.y0; round_p_xyzz[out_base + 5] = value.y1; round_p_xyzz[out_base + 6] = value.y2; round_p_xyzz[out_base + 7] = value.y3;
+  round_p_xyzz[out_base + 8] = value.zz0; round_p_xyzz[out_base + 9] = value.zz1; round_p_xyzz[out_base + 10] = value.zz2; round_p_xyzz[out_base + 11] = value.zz3;
+  round_p_xyzz[out_base + 12] = value.zzz0; round_p_xyzz[out_base + 13] = value.zzz1; round_p_xyzz[out_base + 14] = value.zzz2; round_p_xyzz[out_base + 15] = value.zzz3;
+  round_p_infinity[output_index] = value.inf ? 1 : 0;
+  round_distances[output_index] = cumulative_distance;
+}
+
+inline void xyzz_store_round_pow2_u32_distance(device ulong* p_xyzz,
+                                               constant AffineJumpValue* q_xy,
+                                               device uchar* p_infinity,
+                                               device ulong* cumulative_distances,
+                                               device ulong* round_p_xyzz,
+                                               device uchar* round_p_infinity,
+                                               device ulong* round_distances,
+                                               constant ulong* jump_distances,
+                                               uint count,
+                                               uint jump_mask,
+                                               uint steps_per_sample,
+                                               uint round_index,
+                                               uint id) {
+  if (id >= count) return;
+  uint p_base = id << 4;
+  XyzzDistanceValue out = xyzz_walk_pow2_u32_distance(p_xyzz[p_base + 0], p_xyzz[p_base + 1], p_xyzz[p_base + 2], p_xyzz[p_base + 3],
+                                                     p_xyzz[p_base + 4], p_xyzz[p_base + 5], p_xyzz[p_base + 6], p_xyzz[p_base + 7],
+                                                     p_xyzz[p_base + 8], p_xyzz[p_base + 9], p_xyzz[p_base + 10], p_xyzz[p_base + 11],
+                                                     p_xyzz[p_base + 12], p_xyzz[p_base + 13], p_xyzz[p_base + 14], p_xyzz[p_base + 15],
+                                                     p_infinity[id], q_xy, jump_distances, jump_mask, steps_per_sample);
+  store_xyzz_distance_value(p_xyzz, p_base, out);
+  p_infinity[id] = out.inf ? 1 : 0;
+
+  ulong cumulative_distance = cumulative_distances[id] + (ulong)out.distance;
+  cumulative_distances[id] = cumulative_distance;
+  store_xyzz_round_distance_value(round_p_xyzz, round_p_infinity, round_distances, count, round_index, id, out, cumulative_distance);
+}
+
+kernel void jacobian_affine_walk_dynamic_xyzz_store_round_steps256_pow2_u32_distance(device ulong* p_xyzz [[buffer(0)]],
+                                                                                     constant AffineJumpValue* q_xy [[buffer(1)]],
+                                                                                     device uchar* p_infinity [[buffer(2)]],
+                                                                                     device ulong* cumulative_distances [[buffer(3)]],
+                                                                                     device ulong* round_p_xyzz [[buffer(4)]],
+                                                                                     device uchar* round_p_infinity [[buffer(5)]],
+                                                                                     constant uint& count [[buffer(6)]],
+                                                                                     device ulong* round_distances [[buffer(7)]],
+                                                                                     constant ulong* jump_distances [[buffer(8)]],
+                                                                                     constant uint& jump_mask [[buffer(11)]],
+                                                                                     constant uint& round_index [[buffer(12)]],
+                                                                                     uint id [[thread_position_in_grid]]) {
+  xyzz_store_round_pow2_u32_distance(p_xyzz, q_xy, p_infinity, cumulative_distances, round_p_xyzz, round_p_infinity, round_distances, jump_distances, count, jump_mask, 256, round_index, id);
+}
+
+kernel void jacobian_affine_walk_dynamic_xyzz_store_round_steps512_pow2_u32_distance(device ulong* p_xyzz [[buffer(0)]],
+                                                                                     constant AffineJumpValue* q_xy [[buffer(1)]],
+                                                                                     device uchar* p_infinity [[buffer(2)]],
+                                                                                     device ulong* cumulative_distances [[buffer(3)]],
+                                                                                     device ulong* round_p_xyzz [[buffer(4)]],
+                                                                                     device uchar* round_p_infinity [[buffer(5)]],
+                                                                                     constant uint& count [[buffer(6)]],
+                                                                                     device ulong* round_distances [[buffer(7)]],
+                                                                                     constant ulong* jump_distances [[buffer(8)]],
+                                                                                     constant uint& jump_mask [[buffer(11)]],
+                                                                                     constant uint& round_index [[buffer(12)]],
+                                                                                     uint id [[thread_position_in_grid]]) {
+  xyzz_store_round_pow2_u32_distance(p_xyzz, q_xy, p_infinity, cumulative_distances, round_p_xyzz, round_p_infinity, round_distances, jump_distances, count, jump_mask, 512, round_index, id);
+}
+
+kernel void jacobian_affine_walk_dynamic_xyzz_store_round_steps1024_pow2_u32_distance(device ulong* p_xyzz [[buffer(0)]],
+                                                                                      constant AffineJumpValue* q_xy [[buffer(1)]],
+                                                                                      device uchar* p_infinity [[buffer(2)]],
+                                                                                      device ulong* cumulative_distances [[buffer(3)]],
+                                                                                      device ulong* round_p_xyzz [[buffer(4)]],
+                                                                                      device uchar* round_p_infinity [[buffer(5)]],
+                                                                                      constant uint& count [[buffer(6)]],
+                                                                                      device ulong* round_distances [[buffer(7)]],
+                                                                                      constant ulong* jump_distances [[buffer(8)]],
+                                                                                      constant uint& jump_mask [[buffer(11)]],
+                                                                                      constant uint& round_index [[buffer(12)]],
+                                                                                      uint id [[thread_position_in_grid]]) {
+  xyzz_store_round_pow2_u32_distance(p_xyzz, q_xy, p_infinity, cumulative_distances, round_p_xyzz, round_p_infinity, round_distances, jump_distances, count, jump_mask, 1024, round_index, id);
+}
+
+kernel void jacobian_affine_walk_dynamic_xyzz_store_round_steps2048_pow2_u32_distance(device ulong* p_xyzz [[buffer(0)]],
+                                                                                      constant AffineJumpValue* q_xy [[buffer(1)]],
+                                                                                      device uchar* p_infinity [[buffer(2)]],
+                                                                                      device ulong* cumulative_distances [[buffer(3)]],
+                                                                                      device ulong* round_p_xyzz [[buffer(4)]],
+                                                                                      device uchar* round_p_infinity [[buffer(5)]],
+                                                                                      constant uint& count [[buffer(6)]],
+                                                                                      device ulong* round_distances [[buffer(7)]],
+                                                                                      constant ulong* jump_distances [[buffer(8)]],
+                                                                                      constant uint& jump_mask [[buffer(11)]],
+                                                                                      constant uint& round_index [[buffer(12)]],
+                                                                                      uint id [[thread_position_in_grid]]) {
+  xyzz_store_round_pow2_u32_distance(p_xyzz, q_xy, p_infinity, cumulative_distances, round_p_xyzz, round_p_infinity, round_distances, jump_distances, count, jump_mask, 2048, round_index, id);
+}
+
+kernel void jacobian_affine_walk_dynamic_xyzz_store_round_steps4096_pow2_u32_distance(device ulong* p_xyzz [[buffer(0)]],
+                                                                                      constant AffineJumpValue* q_xy [[buffer(1)]],
+                                                                                      device uchar* p_infinity [[buffer(2)]],
+                                                                                      device ulong* cumulative_distances [[buffer(3)]],
+                                                                                      device ulong* round_p_xyzz [[buffer(4)]],
+                                                                                      device uchar* round_p_infinity [[buffer(5)]],
+                                                                                      constant uint& count [[buffer(6)]],
+                                                                                      device ulong* round_distances [[buffer(7)]],
+                                                                                      constant ulong* jump_distances [[buffer(8)]],
+                                                                                      constant uint& jump_mask [[buffer(11)]],
+                                                                                      constant uint& round_index [[buffer(12)]],
+                                                                                      uint id [[thread_position_in_grid]]) {
+  xyzz_store_round_pow2_u32_distance(p_xyzz, q_xy, p_infinity, cumulative_distances, round_p_xyzz, round_p_infinity, round_distances, jump_distances, count, jump_mask, 4096, round_index, id);
+}
+
 kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_pow2_u32_distance(device ulong* p_xyzz [[buffer(0)]],
                                                                                    constant AffineJumpValue* q_xy [[buffer(1)]],
                                                                                    device uchar* p_infinity [[buffer(2)]],

@@ -30,6 +30,46 @@ The local target machine is a MacBook Air M3 with 16 GB RAM and a 10-core Apple
 M3 GPU. Metal is available outside the sandbox. CUDA remains NVIDIA-only; macOS
 GPU work should use Metal.
 
+## Recent Kept Experiments
+
+### 2026-07-03 Persistent Fixed-Round Direct Store Boundaries
+
+- Kept a direct-store implementation for the opt-in fixed-round
+  `--walk-round-mode persistent` path. The Metal round kernel now advances the
+  same walker states across rounds and writes each round boundary plus
+  cumulative distance directly into the round output buffers. This removes the
+  previous compute-dispatch plus blit-copy boundary path and the host-side
+  post-pass that accumulated packet distances, while preserving the same
+  cumulative CPU replay oracle and JSON contract
+  (`walk_round_mode=persistent`, `distance_tracking=round_cumulative_uint64`).
+- Correctness stayed intact on source checks and the small Metal CLI smoke.
+  The medium 100k physical `distinct-misses` probe preserved
+  `target_lookup_checksum=0xb026683d12ad24e2`,
+  `dp_checksum=0x629ee4b4c12210d6`, `dp_count=1052`, `hit_count=32`, and
+  `filter_false_positive_count=14`. After warmup, persistent direct-store
+  measured `walk_wall_seconds=1.830405` and
+  `setup_inclusive_wall_distance_per_sec=298430781650.9096`, versus an adjacent
+  independent sample at `walk_wall_seconds=1.846858` and
+  `295348567646.9439`.
+- The 25M physical gate remained close rather than decisive, so this is not a
+  default promotion. Two persistent direct-store samples preserved
+  `target_lookup_checksum=0x6dfe3471804b6ec8`,
+  `dp_checksum=0x968788f668167aef`, `dp_count=4115`, and `hit_count=128`,
+  with setup-wall distance/sec `255102156866.27435` and
+  `261004976699.91547`; the same-turn independent reference preserved
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, and `hit_count=128`,
+  measuring `252487405953.88675`. Keep direct-store for the solver-like
+  persistent probe, but keep the promoted fixed-round default on
+  `independent` until a paired 25M gate clears the configured improvement rule.
+- Rejected and removed a single-kernel fused persistent-round prototype. It kept
+  the same persistent checksum and oracle, and a warm 100k sample looked
+  promising, but the real 25M physical gate was slower on causal walk time:
+  fused measured `walk_wall_seconds=7.548327` then `7.675932`, while adjacent
+  persistent samples measured `7.353116` and `7.623343`. The long per-thread
+  kernel likely reduced the parallelism benefit on M3; do not reintroduce it
+  without a stronger paired gate.
+
 ## Recent Rejected Experiments
 
 ### 2026-07-03 Fixed-Round Threadgroup And Balanced8 Schedule Recheck

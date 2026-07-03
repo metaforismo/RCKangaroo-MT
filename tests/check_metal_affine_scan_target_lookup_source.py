@@ -272,6 +272,17 @@ if "ValidateDynamicXyzzPersistentRoundStateDistanceOutputsRange" not in kernels:
     raise SystemExit("persistent fixed-round walk probe should keep a dedicated cumulative-distance CPU oracle")
 if '"round_cumulative_uint64"' not in kernels or "walk_round_mode" not in kernels:
     raise SystemExit("persistent fixed-round walk probe should report cumulative round distance tracking")
+if "jacobian_affine_walk_dynamic_xyzz_store_round_steps2048_pow2_u32_distance" not in metal_kernels:
+    raise SystemExit("persistent fixed-round walk should have a direct store-round Metal kernel for the 2048-step gate")
+persistent_start = kernels.index("static bool RunJacobianDynamicXyzzDistancePersistentRoundsKernel")
+persistent_end = kernels.index("static bool RunJacobianDynamicDpStreamXyzzPersistentChainKernel", persistent_start)
+persistent_body = kernels[persistent_start:persistent_end]
+if "blitCommandEncoder" in persistent_body or "copyFromBuffer" in persistent_body:
+    raise SystemExit("persistent fixed-round walk should store round boundaries directly instead of blitting them")
+if "cumulative_distances_buffer" not in persistent_body:
+    raise SystemExit("persistent fixed-round walk should keep cumulative distances on the GPU")
+if "[encoder setBytes:&round length:sizeof(round) atIndex:12]" not in persistent_body:
+    raise SystemExit("persistent fixed-round walk should bind the round index per dispatch")
 if 'lookup_repeat_dedup ? "base_query_index" :' not in rounds_body:
     raise SystemExit("fixed-round repeat lookup should report its positive index encoding")
 if 'ValidateAffineTargetLookupRepeatBaseCountsWithExpected(aggregate_expected_indices, lookup_repeat' not in rounds_body:
