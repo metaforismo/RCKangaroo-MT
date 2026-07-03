@@ -32,6 +32,24 @@ GPU work should use Metal.
 
 ## Recent Rejected Experiments
 
+### 2026-07-03 Power2 Jump Count Scout For Physical Distinct Misses
+
+- Rejected a no-code jump-count scout on the 100k generated physical
+  distinct-miss shape. `--jumps 8 --jump-schedule power2` preserved correctness
+  but reduced the mean jump distance to `31.875`, so setup-inclusive wall
+  distance/sec fell to `1,945,936,962.623681` despite the same exact lookup
+  oracle. The current `--jumps 16` shape preserved
+  `target_lookup_checksum=0x837384d06d006c49`, `hit_count=16`, and
+  `correctness=true`, reaching `167,184,223,990.781097` in the adjacent noisy
+  sample. `--jumps 32` was rejected by the current Metal packet-distance
+  contract with `correctness=false` and reason
+  `XYZZ dynamic distance packet exceeds uint32 accumulator`.
+- Do not add a 64-bit packet-distance accumulator merely to unlock larger
+  benchmark distance numbers. A `jumps=32` schedule reports
+  `mean_jump_distance=134217727.968750`, but it needs a solver-level schedule
+  gate before it can be treated as real kangaroo progress rather than distance
+  metric inflation.
+
 ### 2026-07-03 Compact Positive Buffer For Generated Distinct Misses
 
 - Rejected a generated distinct-miss lookup memory scout. The candidate changed
@@ -56,6 +74,24 @@ GPU work should use Metal.
   strategy that removes allocation churn without increasing dispatch variance.
 
 ## Recent Accepted Experiments
+
+### 2026-07-03 Nonzero-Preserving Tag32 Filter Tags
+
+- Accepted a small filter-quality cleanup for the explicit tag32 filter paths.
+  The host `TargetLookupFilterTag32(...)`, the derived tag32 filter builder, and
+  the Metal `target_lookup_filter_tag(...)` helper now preserve every non-zero
+  32-bit tag and map only the zero sentinel to `1`. The old `tag | 1` rule
+  discarded one bit of tag entropy, mirroring the pre-fix tag16 behavior.
+- This is not promoted as a new 25M physical distinct-miss default: that gate
+  intentionally keeps the smaller tag16 filter. It is a correctness-preserving
+  diagnostic improvement for explicit tag32-filter runs. Source and CLI gates
+  passed, `target-lookup-filter-build-bench --target-count 1048576` kept
+  `tag32_byte_equal=true` and `tag16_byte_equal=true`, and tag32 Metal smokes
+  preserved `target_lookup_checksum=0xb1b3481393cb00b6`, `hit_count=64`,
+  `filter_false_positive_count=0`, and `correctness=true`. A small integrated
+  repeat-mode tag32-filter smoke preserved
+  `target_lookup_checksum=0xf8b641c19f7d178d`, `hit_count=128`, and
+  `correctness=true`.
 
 ### 2026-07-03 Streaming Target-List Preparation
 

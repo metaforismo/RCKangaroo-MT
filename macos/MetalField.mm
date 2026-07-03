@@ -2755,7 +2755,8 @@ static uint32_t TargetLookupTag32(uint64_t hash)
 
 static uint32_t TargetLookupFilterTag32(uint64_t hash)
 {
-	return TargetLookupTag32(hash) | 1U;
+	uint32_t tag = TargetLookupTag32(hash);
+	return tag ? tag : 1U;
 }
 
 static uint16_t TargetLookupFilterTag16(uint64_t hash)
@@ -3213,7 +3214,7 @@ static bool BuildTargetLookupTag32FilterTableFromTag32Buckets(const std::vector<
 				index_out_of_range.store(true, std::memory_order_relaxed);
 				continue;
 			}
-			filter_buckets[slot] = bucket.tag | 1U;
+			filter_buckets[slot] = bucket.tag ? bucket.tag : 1U;
 		}
 	};
 	if (tag32_buckets.size() >= kMinParallelTargetLookupFilterBuckets && ValidationWorkerCount(tag32_buckets.size()) > 1)

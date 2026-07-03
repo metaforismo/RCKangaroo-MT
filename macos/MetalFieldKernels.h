@@ -2486,7 +2486,8 @@ static inline ulong target_lookup_deterministic_key_hash(ulong index, ulong salt
 }
 
 static inline uint target_lookup_filter_tag(ulong hash) {
-  return ((uint)(hash >> 32)) | 1U;
+  uint tag = (uint)(hash >> 32);
+  return tag == 0U ? 1U : tag;
 }
 
 static inline ushort target_lookup_filter_tag16(ulong hash) {
