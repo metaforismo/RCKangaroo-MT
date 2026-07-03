@@ -72,6 +72,27 @@ GPU work should use Metal.
 
 ## Recent Rejected Experiments
 
+### 2026-07-03 Power2 Shift Distance Scout
+
+- Rejected a tableless distance variant for the 2048-step fixed-round Metal
+  walk. The candidate replaced the exact power-of-two distance-table read with
+  `1U << jump_index` only when the actual host distance table matched that
+  schedule, so the point walk and packet-distance semantics were unchanged.
+  Source checks and the small CLI smoke passed, and the medium independent
+  100k physical `distinct-misses` probe preserved
+  `target_lookup_checksum=0x0b2ca2d54e249c02`,
+  `dp_checksum=0xbd17120591af6f74`, `dp_count=1053`, `hit_count=32`, and
+  `filter_false_positive_count=14`.
+- The speed signal rejected it before spending a 25M gate. Adjacent independent
+  baseline samples measured setup-wall distance/sec `289813431888.9112`,
+  `265674805393.77963`, and `294400796058.76825`; candidate samples measured
+  `183057998638.73538`, `280989657374.20996`, and `288498101249.05365`.
+  The persistent-round path also rejected the idea under thermal/noisy
+  conditions: one adjacent baseline measured `289848856413.0768`, while the
+  active candidate measured `124033791843.74048` before both modes dropped
+  into throttled samples. The candidate kernels and selector were removed;
+  keep the existing distance-table path.
+
 ### 2026-07-03 Fixed-Round Threadgroup And Balanced8 Schedule Recheck
 
 - Rejected changing the fixed-round physical `distinct-misses` lookup
