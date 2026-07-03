@@ -32,6 +32,22 @@ GPU work should use Metal.
 
 ## Recent Rejected Experiments
 
+### 2026-07-03 Target Loader And Builder Scouts
+
+- Rejected a 512-word injected-hash prefilter follow-up for the host target
+  table builders. The parity-builder oracle stayed intact
+  (`semantic_checksum=0x388d492ffb8b482f`, `all_keys_found=true`), but the 25M
+  parity-builder probe slowed from the restored 256-word baseline
+  `parallel_targets_per_sec=28,120,471.731085` to
+  `24,044,260.478527`. Keep the accepted 256-word filter shape.
+- Rejected reusing target start-offset mapping scratch vectors plus an
+  all-active fast path inside `TTargetSet::LoadFromFile`. Host correctness
+  checks passed and loader checksums stayed identical, but the longer
+  uncompressed 1,048,576-target `--iterations 3 --start 2` comparison favored
+  the clean baseline (`1,452,144.755944` and `1,387,213.327131` targets/sec)
+  over the candidate (`1,384,560.079154` and `1,380,206.571740`). Keep the
+  simpler batch-inversion scratch spelling.
+
 ### 2026-07-03 Power2 Jump Count Scout For Physical Distinct Misses
 
 - Rejected a no-code jump-count scout on the 100k generated physical
@@ -74,6 +90,28 @@ GPU work should use Metal.
   strategy that removes allocation churn without increasing dispatch variance.
 
 ## Recent Accepted Experiments
+
+### 2026-07-03 ASCII Hex Nibble Parser
+
+- Accepted a parser-level target loader speedup in `Ec.cpp`. `parse_u8` now
+  decodes ASCII hex nibbles directly instead of calling `toupper` for both
+  characters in every parsed byte. The accepted behavior is unchanged for
+  uppercase and lowercase hex; `tests/ec_vector_check.cpp` now checks lowercase
+  compressed public-key and scalar parsing explicitly.
+- Correctness oracle: `make check-host` and `make macos-check` passed. Paired
+  MacBook Air M3 loader probes against clean `HEAD=c0af1b3` preserved identical
+  checksums. On uncompressed 1,048,576-target parser-only loads
+  (`--start 0 --iterations 3`), clean baseline measured
+  `1,797,085.923688` and `1,817,313.968639` targets/sec, while the candidate
+  measured `3,524,244.978602` and `3,580,969.304563`. On uncompressed
+  start-offset loads (`--start 2 --iterations 3`), baseline measured
+  `1,441,769.322170`, `1,465,827.903085`, and `1,476,586.008897` targets/sec,
+  while the candidate measured `2,160,016.211822`, `2,370,933.355919`, and
+  `2,429,417.960203`. Compressed 262,144-target `--start 2` checks stayed
+  neutral-to-slightly-positive with the same checksum, as expected because
+  square-root recovery dominates that path. Treat this as a real target-file
+  startup improvement, especially for the recommended uncompressed 25M-target
+  workflow; it does not change GPU kangaroo walk throughput.
 
 ### 2026-07-03 Nonzero-Preserving Tag32 Filter Tags
 

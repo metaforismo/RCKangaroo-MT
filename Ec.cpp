@@ -21,17 +21,32 @@ u8* GTable = NULL; //16x16-bit table
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+static inline bool parse_hex_nibble(char c, u8* res)
+{
+	if ((c >= '0') && (c <= '9'))
+	{
+		*res = (u8)(c - '0');
+		return true;
+	}
+	if ((c >= 'A') && (c <= 'F'))
+	{
+		*res = (u8)(c - 'A' + 10);
+		return true;
+	}
+	if ((c >= 'a') && (c <= 'f'))
+	{
+		*res = (u8)(c - 'a' + 10);
+		return true;
+	}
+	return false;
+}
+
 bool parse_u8(const char* s, u8* res)
 {
-	char cl = toupper(s[1]);
-	char ch = toupper(s[0]);
-	if (((cl < '0') || (cl > '9')) && ((cl < 'A') || (cl > 'F')))
+	u8 h, l;
+	if (!parse_hex_nibble(s[0], &h) || !parse_hex_nibble(s[1], &l))
 		return false;
-	if (((ch < '0') || (ch > '9')) && ((ch < 'A') || (ch > 'F')))
-		return false;
-	u8 l = ((cl >= '0') && (cl <= '9')) ? (cl - '0') : (cl - 'A' + 10);
-	u8 h = ((ch >= '0') && (ch <= '9')) ? (ch - '0') : (ch - 'A' + 10);
-	*res = l + (h << 4);
+	*res = (u8)(l + (h << 4));
 	return true;
 }
 
