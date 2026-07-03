@@ -32,6 +32,40 @@ GPU work should use Metal.
 
 ## Recent Rejected Experiments
 
+### 2026-07-03 Fixed-Round Threadgroup And Balanced8 Schedule Recheck
+
+- Rejected changing the fixed-round physical `distinct-misses` lookup
+  threadgroup policy after a fresh same-binary M3 Air scout. A bare 25M command
+  still reports the generic `64` lookup cap, while the canonical physical
+  distinct-miss recipe remains the explicit `--lookup-tg-limit 512` gate. A
+  direct 25M sweep across `64`, `128`, `256`, `512`, and `1024` preserved
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, and `hit_count=128`, but
+  did not separate a new default from noise: the single pass had `128` best on
+  causal `lookup_gpu_seconds` (`0.020407`) while `512` measured `0.029609` and
+  `1024` regressed. A smaller three-cycle 1M sweep preserved
+  `target_lookup_checksum=0x28a09f8982d36dc0`,
+  `dp_checksum=0xbd17120591af6f74`, `dp_count=1053`, and `hit_count=128`;
+  median setup-wall distance slightly favored `512` over `128`, while the
+  causal lookup field stayed noisy. Keep explicit `--lookup-tg-limit 512` for
+  the plateau recipe and do not promote a default-threadgroup change from this
+  scout.
+- Rejected an opt-in `balanced8-mean4096` jump-schedule prototype before
+  keeping any source changes. The schedule used eight distances with exact mean
+  `4096`, gcd `1`, and lower variance than the 16-jump power-of-two table. It
+  passed small Metal and CPU kangaroo correctness smokes, and a 1M
+  distinct-miss scout looked mildly positive (`236.7B` setup-wall distance/sec
+  versus `228.9B` for adjacent `power16`, both with `hit_count=128`). The real
+  25M sandwich rejected it: `power16` preserved
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, and measured `192.8B`
+  then `204.6B` setup-wall distance/sec, while `balanced8` was correct but
+  changed the walk oracle (`target_lookup_checksum=0x2018cb62447b3a03`,
+  `dp_checksum=0x67300f4c66416c4e`, `dp_count=4003`) and fell to `160.2B`.
+  Walk wall time also worsened (`12.583761s` versus `9.876021s` and
+  `9.535814s`). The prototype was removed; keep the current `power2`
+  16-jump schedule for the 25M physical plateau.
+
 ### 2026-07-03 Target Loader And Builder Scouts
 
 - Rejected a 512-word injected-hash prefilter follow-up for the host target
