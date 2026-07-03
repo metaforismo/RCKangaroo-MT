@@ -93,6 +93,29 @@ GPU work should use Metal.
   into throttled samples. The candidate kernels and selector were removed;
   keep the existing distance-table path.
 
+### 2026-07-03 Persistent Round Output No-Copy Scout
+
+- Rejected routing the persistent fixed-round round-output buffers through
+  `newBufferWithBytesNoCopy`. The candidate was limited to
+  `--walk-round-mode persistent`, kept the direct-store round kernels, and had
+  a dedicated kill switch for same-binary A/B. Correctness was unchanged on
+  source checks, the XYZZ CLI smoke, and the integrated persistent
+  `distinct-misses` probe: the 32k-shape rows preserved
+  `target_lookup_checksum=0xb026683d12ad24e2`, `dp_checksum=0x629ee4b4c12210d6`,
+  `dp_count=1052`, `hit_count=32`, and `filter_false_positive_count=14`;
+  the 65k-shape rows preserved
+  `target_lookup_checksum=0x9bf2a411d17e5d08`, `dp_checksum=0xc7be3b2845cbf3d4`,
+  `dp_count=2092`, `hit_count=64`, and `filter_false_positive_count=25`.
+- The speed signal rejected it. On the 32k shape, same-binary samples were
+  within noise: baseline setup-wall distance/sec measured
+  `205824065267.513245` and `224266374393.118225`, while candidate samples
+  measured `208792232478.748596` and `210244889035.725250`. On the larger 65k
+  shape, the candidate lowered reported `walk_buffer_seconds` from `0.068722`
+  to `0.056754` but worsened Metal walk time enough to lose the real score:
+  baseline `setup_inclusive_wall_distance_per_sec=271646990602.385101`,
+  candidate `255957089168.264893`. The code was removed; keep the current
+  Metal-owned round output buffers plus explicit host copies.
+
 ### 2026-07-03 Fixed-Round Threadgroup And Balanced8 Schedule Recheck
 
 - Rejected changing the fixed-round physical `distinct-misses` lookup
