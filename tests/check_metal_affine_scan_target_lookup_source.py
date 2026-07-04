@@ -361,13 +361,45 @@ if "ValidateDynamicXyzzStateDistanceOutputsRange(round_p, sample_count" not in r
     raise SystemExit("fixed-round validation should use range views into the batched Metal output")
 if "static void UnpackXyzzStateOutputs" not in kernels:
     raise SystemExit("fixed-round XYZZ wrappers should share the contiguous state unpack helper")
+for marker in [
+    "static_assert(sizeof(FieldElement) == 4 * sizeof(uint64_t)",
+    "static_assert(std::is_trivially_copyable<CpuJacobianPoint>::value",
+    "static_assert(std::is_trivially_copyable<CpuAffinePoint>::value",
+    "static_assert(std::is_trivially_copyable<CpuXyzzPoint>::value",
+    "static_assert(offsetof(CpuJacobianPoint, y) == sizeof(FieldElement)",
+    "static_assert(offsetof(CpuJacobianPoint, z) == 2 * sizeof(FieldElement)",
+    "static_assert(offsetof(CpuJacobianPoint, infinity) >= 3 * sizeof(FieldElement)",
+    "static_assert(offsetof(CpuAffinePoint, y) == sizeof(FieldElement)",
+    "static_assert(offsetof(CpuXyzzPoint, y) == sizeof(FieldElement)",
+    "static_assert(offsetof(CpuXyzzPoint, zz) == 2 * sizeof(FieldElement)",
+    "static_assert(offsetof(CpuXyzzPoint, zzz) == 3 * sizeof(FieldElement)",
+    "static_assert(offsetof(CpuXyzzPoint, infinity) >= 4 * sizeof(FieldElement)",
+]:
+    if marker not in kernels:
+        raise SystemExit("bulk point packing should be guarded by layout invariant: " + marker)
 unpack_start = kernels.index("static void UnpackXyzzStateOutputs")
 unpack_end = kernels.index("static void PackAffineTable", unpack_start)
 unpack_body = kernels[unpack_start:unpack_end]
 if "state_out.resize(point_count);" not in unpack_body:
     raise SystemExit("XYZZ state unpack should resize once instead of push_back")
-if "memcpy(point.x.data(), p_xyzz.data() + base, 4 * sizeof(uint64_t));" not in unpack_body:
-    raise SystemExit("XYZZ state unpack should copy contiguous limbs per coordinate")
+if "memcpy(&point, p_xyzz.data() + base, 16 * sizeof(uint64_t));" not in unpack_body:
+    raise SystemExit("XYZZ state unpack should bulk-copy the contiguous limb payload")
+
+pack_xyzz_start = kernels.index("static void PackJacobianXyzzStateInputs")
+pack_xyzz_end = kernels.index("static void UnpackJacobianStateOutputs", pack_xyzz_start)
+pack_xyzz_body = kernels[pack_xyzz_start:pack_xyzz_end]
+if "p_xyzz.resize(p.size() * 16);" not in pack_xyzz_body:
+    raise SystemExit("XYZZ input packing should size the packed limb buffer once")
+if "memcpy(p_xyzz.data() + i * 16, &xyzz, 16 * sizeof(uint64_t));" not in pack_xyzz_body:
+    raise SystemExit("XYZZ input packing should bulk-copy the contiguous limb payload")
+
+pack_affine_start = kernels.index("static void PackAffineTable")
+pack_affine_end = kernels.index("static uint64_t ProjectiveDpMask", pack_affine_start)
+pack_affine_body = kernels[pack_affine_start:pack_affine_end]
+if "q_xy.resize(q.size() * 8);" not in pack_affine_body:
+    raise SystemExit("affine table packing should size the packed limb buffer once")
+if "memcpy(q_xy.data() + i * 8, &q[i], 8 * sizeof(uint64_t));" not in pack_affine_body:
+    raise SystemExit("affine table packing should bulk-copy the contiguous limb payload")
 
 distance_kernel_start = kernels.index("static bool RunJacobianDynamicXyzzDistanceKernel")
 distance_kernel_end = kernels.index("static bool RunJacobianDynamicDpStreamXyzzPersistentChainKernel", distance_kernel_start)

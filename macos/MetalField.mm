@@ -20,6 +20,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -513,6 +514,22 @@ struct CpuXyzzPoint
 	FieldElement zzz;
 	bool infinity = false;
 };
+
+static_assert(sizeof(FieldElement) == 4 * sizeof(uint64_t), "field element layout drifted");
+static_assert(std::is_trivially_copyable<CpuJacobianPoint>::value, "jacobian point bulk copies require trivial layout");
+static_assert(std::is_trivially_copyable<CpuAffinePoint>::value, "affine point bulk copies require trivial layout");
+static_assert(std::is_trivially_copyable<CpuXyzzPoint>::value, "XYZZ point bulk copies require trivial layout");
+static_assert(offsetof(CpuJacobianPoint, x) == 0, "jacobian x offset drifted");
+static_assert(offsetof(CpuJacobianPoint, y) == sizeof(FieldElement), "jacobian y offset drifted");
+static_assert(offsetof(CpuJacobianPoint, z) == 2 * sizeof(FieldElement), "jacobian z offset drifted");
+static_assert(offsetof(CpuJacobianPoint, infinity) >= 3 * sizeof(FieldElement), "jacobian infinity offset drifted");
+static_assert(offsetof(CpuAffinePoint, x) == 0, "affine x offset drifted");
+static_assert(offsetof(CpuAffinePoint, y) == sizeof(FieldElement), "affine y offset drifted");
+static_assert(offsetof(CpuXyzzPoint, x) == 0, "XYZZ x offset drifted");
+static_assert(offsetof(CpuXyzzPoint, y) == sizeof(FieldElement), "XYZZ y offset drifted");
+static_assert(offsetof(CpuXyzzPoint, zz) == 2 * sizeof(FieldElement), "XYZZ zz offset drifted");
+static_assert(offsetof(CpuXyzzPoint, zzz) == 3 * sizeof(FieldElement), "XYZZ zzz offset drifted");
+static_assert(offsetof(CpuXyzzPoint, infinity) >= 4 * sizeof(FieldElement), "XYZZ infinity offset drifted");
 
 static bool CpuFieldIsZero(const FieldElement& v)
 {
@@ -7704,19 +7721,12 @@ static void PackJacobianStateInputs(const std::vector<CpuJacobianPoint>& p,
 	std::vector<uint64_t>& p_xyz,
 	std::vector<uint32_t>& p_infinity)
 {
-	p_xyz.clear();
-	p_infinity.clear();
-	p_xyz.reserve(p.size() * 12);
-	p_infinity.reserve(p.size());
+	p_xyz.resize(p.size() * 12);
+	p_infinity.resize(p.size());
 	for (size_t i = 0; i < p.size(); ++i)
 	{
-		for (uint64_t limb : p[i].x)
-			p_xyz.push_back(limb);
-		for (uint64_t limb : p[i].y)
-			p_xyz.push_back(limb);
-		for (uint64_t limb : p[i].z)
-			p_xyz.push_back(limb);
-		p_infinity.push_back(p[i].infinity ? 1U : 0U);
+		memcpy(p_xyz.data() + i * 12, &p[i], 12 * sizeof(uint64_t));
+		p_infinity[i] = p[i].infinity ? 1U : 0U;
 	}
 }
 
@@ -7724,22 +7734,13 @@ static void PackJacobianXyzzStateInputs(const std::vector<CpuJacobianPoint>& p,
 	std::vector<uint64_t>& p_xyzz,
 	std::vector<uint32_t>& p_infinity)
 {
-	p_xyzz.clear();
-	p_infinity.clear();
-	p_xyzz.reserve(p.size() * 16);
-	p_infinity.reserve(p.size());
+	p_xyzz.resize(p.size() * 16);
+	p_infinity.resize(p.size());
 	for (size_t i = 0; i < p.size(); ++i)
 	{
 		CpuXyzzPoint xyzz = CpuXyzzFromJacobian(p[i]);
-		for (uint64_t limb : xyzz.x)
-			p_xyzz.push_back(limb);
-		for (uint64_t limb : xyzz.y)
-			p_xyzz.push_back(limb);
-		for (uint64_t limb : xyzz.zz)
-			p_xyzz.push_back(limb);
-		for (uint64_t limb : xyzz.zzz)
-			p_xyzz.push_back(limb);
-		p_infinity.push_back(xyzz.infinity ? 1U : 0U);
+		memcpy(p_xyzz.data() + i * 16, &xyzz, 16 * sizeof(uint64_t));
+		p_infinity[i] = xyzz.infinity ? 1U : 0U;
 	}
 }
 
@@ -7753,9 +7754,7 @@ static void UnpackJacobianStateOutputs(const std::vector<uint64_t>& p_xyz,
 	{
 		CpuJacobianPoint& point = state_out[i];
 		size_t base = i * 12;
-		memcpy(point.x.data(), p_xyz.data() + base, 4 * sizeof(uint64_t));
-		memcpy(point.y.data(), p_xyz.data() + base + 4, 4 * sizeof(uint64_t));
-		memcpy(point.z.data(), p_xyz.data() + base + 8, 4 * sizeof(uint64_t));
+		memcpy(&point, p_xyz.data() + base, 12 * sizeof(uint64_t));
 		point.infinity = dynamic_p_infinity[i] != 0;
 	}
 }
@@ -7770,10 +7769,7 @@ static void UnpackXyzzStateOutputs(const std::vector<uint64_t>& p_xyzz,
 	{
 		CpuXyzzPoint& point = state_out[i];
 		size_t base = i * 16;
-		memcpy(point.x.data(), p_xyzz.data() + base, 4 * sizeof(uint64_t));
-		memcpy(point.y.data(), p_xyzz.data() + base + 4, 4 * sizeof(uint64_t));
-		memcpy(point.zz.data(), p_xyzz.data() + base + 8, 4 * sizeof(uint64_t));
-		memcpy(point.zzz.data(), p_xyzz.data() + base + 12, 4 * sizeof(uint64_t));
+		memcpy(&point, p_xyzz.data() + base, 16 * sizeof(uint64_t));
 		point.infinity = dynamic_p_infinity[i] != 0;
 	}
 }
@@ -7781,15 +7777,9 @@ static void UnpackXyzzStateOutputs(const std::vector<uint64_t>& p_xyzz,
 static void PackAffineTable(const std::vector<CpuAffinePoint>& q,
 	std::vector<uint64_t>& q_xy)
 {
-	q_xy.clear();
-	q_xy.reserve(q.size() * 8);
+	q_xy.resize(q.size() * 8);
 	for (size_t i = 0; i < q.size(); ++i)
-	{
-		for (uint64_t limb : q[i].x)
-			q_xy.push_back(limb);
-		for (uint64_t limb : q[i].y)
-			q_xy.push_back(limb);
-	}
+		memcpy(q_xy.data() + i * 8, &q[i], 8 * sizeof(uint64_t));
 }
 
 static uint64_t ProjectiveDpMask(unsigned int dp_bits);

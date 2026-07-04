@@ -6851,6 +6851,31 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `128`, `156923218737.933228` for `160`, and `158853276324.076050` for
   `192`. The tested intermediate caps did not justify a paired 25M run; keep
   the current 128-thread XYZZ walk cap.
+- Accepted a guarded host pack/unpack bulk-copy cleanup for the macOS Metal
+  path. The change replaces per-limb/per-coordinate loops in Jacobian, XYZZ,
+  and affine table packing with sized bulk copies, and does the same for
+  Jacobian/XYZZ unpack after the Metal walk. It is protected by
+  `static_assert` layout checks for the field-element size, point trivial
+  copyability, coordinate offsets, and the `infinity` flag boundary, so it does
+  not change the walk, jump schedule, DP predicate, target table, or exact
+  lookup oracle. Source checks and XYZZ/stream CLI smokes passed. A warm 100k
+  fixed-round physical `distinct-misses` A/B kept the full oracle
+  (`target_lookup_checksum=0xee979a62d7d765dc`,
+  `dp_checksum=0xbd17120591af6f74`, `dp_count=1053`, `hit_count=128`,
+  `filter_false_positive_count=5`, `correctness=true`) and favored the
+  candidate: baseline median
+  `setup_inclusive_wall_distance_per_sec=132642475494.215790` versus
+  candidate median `171181013585.767517`. The real 25M gate was noisy but kept
+  the target oracle (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=128`,
+  `correctness=true`) and showed a causal walk-wall improvement in both
+  paired orders: baseline/candidate `walk_wall_seconds` were
+  `19.954278/18.502057` in the first pair and `17.641097/9.355385` in the
+  reversed pair. Setup-inclusive wall remained thermally noisy:
+  baseline/candidate distance/sec were `93404448918.6498/92770288120.68428`
+  in the first pair and `107154064339.5284/203545260968.242` in the reversed
+  pair. Treat this as a real guarded host/UMA cleanup, not a mathematical
+  kangaroo breakthrough or a cross-machine speed guarantee.
 
 ## Cleanup Policy
 
