@@ -6821,6 +6821,36 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `425990587857.186157` then `423686998486.525757`. Conclusion: keep the
   current fixed-round 2048/dp6/128-thread/lookup512 plateau and treat these as
   rejected anti-cheat evidence, not latent speedups.
+- Rechecked local `-mcpu=native` as a host-build candidate on the medium
+  100k-target fixed-round physical `distinct-misses` gate after the newer lazy
+  suffix-miss work. The native build compiled and preserved the same oracle on
+  all samples (`target_lookup_checksum=0xcb38405cd10f441d`,
+  `dp_checksum=0xbd17120591af6f74`, `hit_count=64`,
+  `filter_false_positive_count=14`, `correctness=true`). The three native
+  setup-inclusive wall distance/sec samples were `118466072159.420380`,
+  `73943204545.428711`, and `99150745937.740021`; the adjacent default build
+  measured `88226253675.174484`, `95485668438.533203`, and
+  `92766575070.211731`. The tiny native median edge is not causal: variance was
+  dominated by `walk_wall_seconds`, and an older 25M `-mcpu=native` scout had
+  already regressed against the same-session default build. Do not promote
+  native CPU flags as a default speed win; keep explicit `MACOS_CXXFLAGS`
+  overrides for local diagnostics only.
+- Recorded a correctness guardrail for projective distinguished-point ideas.
+  A projective-only DP predicate would avoid affine normalization, but it is
+  not a safe kangaroo shortcut by default: two walks can reach the same affine
+  curve point with different projective `Z` values, so a predicate over raw
+  `X/ZZ/ZZZ` can miss true collisions. Any future GPU-DP breakthrough must
+  either derive the predicate from affine-normalized data, prove an invariant
+  representation for both sides of the collision, or carry a separate oracle
+  showing no false negatives across independently generated tame/wild paths.
+- Rechecked intermediate Metal walk threadgroup caps on the medium 100k-target
+  fixed-round physical `distinct-misses` gate. All caps preserved the same
+  target oracle (`target_lookup_checksum=0xcb38405cd10f441d`, `hit_count=64`,
+  `correctness=true`). Single-sample setup-inclusive wall distance/sec was
+  `156653201011.690399` for `--tg-limit 96`, `161888180706.425018` for
+  `128`, `156923218737.933228` for `160`, and `158853276324.076050` for
+  `192`. The tested intermediate caps did not justify a paired 25M run; keep
+  the current 128-thread XYZZ walk cap.
 
 ## Cleanup Policy
 
