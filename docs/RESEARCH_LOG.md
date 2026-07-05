@@ -7144,6 +7144,18 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `dp_distance_checksum=0x894123b96acf0de5`, `dp_count=4121`,
   `hit_count=128`, `correctness=true`) and measured
   `setup_inclusive_wall_distance_per_sec=400925110184.823242`.
+- Rejected three post-sidecar 25M physical distinct-miss scouts. The
+  `--walk-round-mode persistent` path stayed correct but changed the cumulative
+  walk oracle as expected (`dp_checksum=0x968788f668167aef`, `dp_count=4115`)
+  and was much slower end-to-end
+  (`setup_inclusive_wall_distance_per_sec=340012381431.816040`), mainly from
+  extra walk wall/buffer time. A temporary sidecar built with
+  `-finline-functions -funroll-loops` preserved the canonical oracle but
+  measured only `396578724661.101807`. A temporary sidecar built with
+  `-finline-functions -fno-unroll-loops` also preserved the canonical oracle and
+  improved raw dispatch slightly, but wall/setup-inclusive throughput collapsed
+  to `351036951332.087036`. Keep the hash-guarded
+  `MACOS_METAL_FLAGS ?= -finline-functions` default.
 
 ## Cleanup Policy
 
