@@ -7086,6 +7086,33 @@ These did not pass the performance gate or had a correctness/architecture issue:
   count unchanged, separates `target_setup_workers` from `validation_workers` in
   JSON, and lets future paired gates tune only target-table construction with
   `RCK_TARGET_SETUP_WORKERS=N` instead of also slowing validation/replay.
+- Kept the precompiled Metal sidecar opt-in instead of making it default. The
+  local toolchain now builds `macos/rck_macos.metallib`, and all rows preserved
+  the 25M distinct-miss oracle (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`,
+  `dp_distance_checksum=0x894123b96acf0de5`, `dp_count=4121`,
+  `hit_count=128`, `correctness=true`). Early rows looked mildly positive
+  (`405.19/404.93B` setup-inclusive wall distance/sec for precompiled versus
+  source rows around `397.19/400.74/402.09B`), but the latest same-gate pair was
+  effectively tied: source `401170612558.548767` versus precompiled
+  `401602833438.545044`. Keep `RCK_METAL_USE_PRECOMPILED=1` as an explicit
+  measurement switch until the advantage is stable across order-reversed gates.
+- Rejected two jump-schedule scouts for promotion on the strict physical
+  distinct-miss multi-target gate. `--jumps 4 --jump-schedule scaled4-balanced`
+  was correct but measured `402159794128.965454` setup-inclusive wall
+  distance/sec, below an adjacent 16-jump power2 row at
+  `405621169111.810364`. `--jumps 8 --jump-schedule power2` was also correct,
+  but its `mean_jump_distance=31.875000` made the raw operation rate
+  non-comparable to the promoted solver-distance gate. Keep the 16-jump power2
+  schedule as the canonical 25M baseline until a schedule improves effective
+  distance/sec with the full oracle intact.
+- Added explicit anti-cheat telemetry for packet-boundary DP gates:
+  `dp_sampling=packet_endpoint`, `dp_normalization=host_batch_affine`, and, for
+  the multi-target affine scan, `target_lookup_scope=packet_endpoint_dp_keys`.
+  This is telemetry only, not a performance change; it records that current
+  fast gates normalize packet endpoints on the host and makes future per-step or
+  GPU-normalized pipelines declare their sampling scope instead of silently
+  changing the oracle.
 
 ## Cleanup Policy
 

@@ -1845,6 +1845,9 @@ static std::string MetalAffineScanTargetLookupTag32BenchJson(const char* operati
 	oss << "\"distance_tracking\":\"" << ((walk_round_mode && strcmp(walk_round_mode, "persistent") == 0) ? "round_cumulative_uint64" : "packet_distance_uint64") << "\",";
 	oss << "\"dp_distance_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << dp_distance_checksum << std::dec << std::setfill(' ') << "\",";
 	oss << "\"dp_tracking\":\"affine_x256_y_parity_cpu_batch\",";
+	oss << "\"dp_sampling\":\"packet_endpoint\",";
+	oss << "\"dp_normalization\":\"host_batch_affine\",";
+	oss << "\"target_lookup_scope\":\"packet_endpoint_dp_keys\",";
 	oss << "\"dp_bits\":" << dp_bits << ",";
 	oss << "\"dp_count\":" << dp_count << ",";
 	oss << "\"dp_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << dp_checksum << std::dec << std::setfill(' ') << "\",";
@@ -2290,6 +2293,8 @@ static std::string MetalJacobianDynamicDpStreamXyzzAffineScanBenchJson(const cha
 	oss << "\"distance_tracking\":\"packet_distance_uint64\",";
 	oss << "\"dp_distance_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << dp_distance_checksum << std::dec << std::setfill(' ') << "\",";
 	oss << "\"dp_tracking\":\"affine_x_limb0_cpu_batch\",";
+	oss << "\"dp_sampling\":\"packet_endpoint\",";
+	oss << "\"dp_normalization\":\"host_batch_affine\",";
 	oss << "\"dp_bits\":" << dp_bits << ",";
 	oss << "\"dp_count\":" << dp_count << ",";
 	oss << "\"dp_checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << dp_checksum << std::dec << std::setfill(' ') << "\",";

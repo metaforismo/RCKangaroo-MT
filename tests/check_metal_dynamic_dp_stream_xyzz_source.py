@@ -82,6 +82,8 @@ required_host_markers = (
     "affine_scan_mode",
     "cpu_batch_prod_zz_zzz",
     "affine_scan_seconds",
+    "\\\"dp_sampling\\\":\\\"packet_endpoint\\\"",
+    "\\\"dp_normalization\\\":\\\"host_batch_affine\\\"",
     "\\\"dp_tracking\\\":\\\"affine_x_limb0_cpu_batch\\\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp8_pow2_u32_distance\"",
     "\"jacobian_affine_walk_dynamic_dp_stream_xyzz_steps512_dp8_pow2_u32_distance\"",
