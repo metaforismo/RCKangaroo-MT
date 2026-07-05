@@ -6876,6 +6876,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   in the first pair and `107154064339.5284/203545260968.242` in the reversed
   pair. Treat this as a real guarded host/UMA cleanup, not a mathematical
   kangaroo breakthrough or a cross-machine speed guarantee.
+- Rejected a split suffix-only generated-miss Metal filter scout for physical
+  `distinct-misses`. The hypothesis was that, because real DP prefix hashes are
+  tiny compared with the generated suffix-miss bulk, a separate suffix-only
+  kernel could avoid the per-thread prefix/suffix branch in
+  `target_lookup_tag16_hash_filter_distinct_misses256` while preserving the
+  same physical query indices. The prototype kept the exact oracle on the
+  1M-target physical distinct gate
+  (`target_lookup_checksum=0x6383f1f084229e4d`, `hit_count=60`,
+  `filter_positive_count=146`, `filter_false_positive_count=86`, and
+  `correctness=true`), but the causal GPU lookup metric did not improve.
+  Alternating clean-baseline/candidate samples measured median
+  `lookup_gpu_seconds=0.003387` for baseline versus `0.003608` for the split
+  candidate, and median `lookup_wall_seconds=0.005700` versus `0.007103`.
+  A noisy setup-inclusive wall metric briefly favored the candidate, but that
+  contradicted the direct lookup timing and the same checksum/count oracle, so
+  the code was removed. Keep the monolithic generated-miss filter kernel until
+  a single-dispatch variant or compiler-level evidence shows a real win.
 
 ## Cleanup Policy
 
