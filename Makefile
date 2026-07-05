@@ -32,7 +32,7 @@ $(TARGET): $(CPP_OBJECTS) $(CU_OBJECTS)
 	$(NVCC) $(NVCCFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(CPP_OBJECTS) $(CU_OBJECTS) $(MACOS_TARGET) $(MACOS_METALLIB)
+	rm -f $(CPP_OBJECTS) $(CU_OBJECTS) $(MACOS_TARGET) $(MACOS_METALLIB) $(MACOS_METALLIB_META)
 	rm -rf $(MACOS_METAL_BUILD_DIR)
 
 check-host: check-portable-ec check-quality-gates check-benchforge-rckmetal check-target-assignment check-cuda-loop-table-layout
@@ -83,6 +83,7 @@ MACOS_SRC := macos/rck_macos.cpp macos/RCKMac.cpp macos/CpuField.cpp macos/Metal
 MACOS_HEADERS := macos/RCKMac.h macos/CpuField.h macos/MetalSmoke.h macos/MetalField.h macos/MetalFieldKernels.h Ec.h utils.h TargetSet.h
 MACOS_METAL_BUILD_DIR := build/macos
 MACOS_METALLIB := macos/rck_macos.metallib
+MACOS_METALLIB_META := macos/rck_macos.metallib.meta
 MACOS_LTO_FLAGS ?= -flto=thin
 MACOS_CXXFLAGS ?= -std=c++17 -O3 -I. $(MACOS_LTO_FLAGS)
 MACOS_LDFLAGS := -framework Foundation -framework Metal
@@ -158,14 +159,15 @@ macos-metal-affine-scan-target-lookup-source-check:
 $(MACOS_TARGET): $(MACOS_SRC) $(MACOS_HEADERS)
 	$(CXX) $(MACOS_CXXFLAGS) $(MACOS_SRC) -o $(MACOS_TARGET) $(MACOS_LDFLAGS)
 
-$(MACOS_METALLIB): macos/MetalFieldKernels.h tools/extract_metal_kernels.py
+$(MACOS_METALLIB): macos/MetalFieldKernels.h tools/extract_metal_kernels.py tools/write_metal_library_meta.py
 	@if xcrun --find metal >/dev/null 2>&1 && xcrun --find metallib >/dev/null 2>&1; then \
 		mkdir -p $(MACOS_METAL_BUILD_DIR); \
 		python3 tools/extract_metal_kernels.py macos/MetalFieldKernels.h $(MACOS_METAL_BUILD_DIR)/MetalFieldKernels.metal; \
 		xcrun -sdk macosx metal $(MACOS_METAL_FLAGS) -c $(MACOS_METAL_BUILD_DIR)/MetalFieldKernels.metal -o $(MACOS_METAL_BUILD_DIR)/MetalFieldKernels.air; \
 		xcrun -sdk macosx metallib $(MACOS_METAL_BUILD_DIR)/MetalFieldKernels.air -o $(MACOS_METALLIB); \
+		python3 tools/write_metal_library_meta.py $(MACOS_METAL_BUILD_DIR)/MetalFieldKernels.metal "$(MACOS_METAL_FLAGS)" $(MACOS_METALLIB_META); \
 	else \
-		rm -f $(MACOS_METALLIB); \
+		rm -f $(MACOS_METALLIB) $(MACOS_METALLIB_META); \
 		printf '%s\n' "macOS Metal toolchain unavailable; rck_macos will use runtime source compilation"; \
 	fi
 

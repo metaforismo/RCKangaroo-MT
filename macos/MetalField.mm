@@ -14,6 +14,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstring>
+#include <fstream>
 #include <iomanip>
 #include <memory>
 #include <new>
@@ -2526,16 +2527,101 @@ static NSString* FieldSource()
 	return [NSString stringWithUTF8String:RCKMetalFieldKernelsSource];
 }
 
-static bool PrecompiledMetalLibraryEnabled()
+static uint64_t FieldSourceFnv1a64()
+{
+	const uint64_t offset = 0xcbf29ce484222325ULL;
+	const uint64_t prime = 0x100000001b3ULL;
+	uint64_t value = offset;
+	const unsigned char* source = reinterpret_cast<const unsigned char*>(RCKMetalFieldKernelsSource);
+	while (*source)
+	{
+		value ^= static_cast<uint64_t>(*source);
+		value *= prime;
+		source++;
+	}
+	return value;
+}
+
+static bool PrecompiledMetalLibraryDisabled()
 {
 	const char* disable = getenv("RCK_METAL_DISABLE_PRECOMPILED");
-	if (disable && disable[0] != '\0' && strcmp(disable, "0") != 0)
-		return false;
+	return disable && disable[0] != '\0' && strcmp(disable, "0") != 0;
+}
+
+static bool ExplicitPrecompiledMetalLibraryEnabled()
+{
 	const char* override_path = getenv("RCK_METAL_FIELD_LIB");
 	if (override_path && override_path[0] != '\0')
 		return true;
 	const char* use_precompiled = getenv("RCK_METAL_USE_PRECOMPILED");
 	return use_precompiled && use_precompiled[0] != '\0' && strcmp(use_precompiled, "0") != 0;
+}
+
+static std::string MetalLibraryMetaPath(const std::string& path)
+{
+	return path + ".meta";
+}
+
+static bool HexDigitValue(char c, uint64_t* out)
+{
+	if (c >= '0' && c <= '9')
+	{
+		*out = static_cast<uint64_t>(c - '0');
+		return true;
+	}
+	if (c >= 'a' && c <= 'f')
+	{
+		*out = static_cast<uint64_t>(10 + c - 'a');
+		return true;
+	}
+	if (c >= 'A' && c <= 'F')
+	{
+		*out = static_cast<uint64_t>(10 + c - 'A');
+		return true;
+	}
+	return false;
+}
+
+static bool ParseFnv64Value(const std::string& raw, uint64_t* out)
+{
+	size_t index = 0;
+	if (raw.size() >= 2 && raw[0] == '0' && (raw[1] == 'x' || raw[1] == 'X'))
+		index = 2;
+	if (index >= raw.size())
+		return false;
+	uint64_t value = 0;
+	bool have_digit = false;
+	for (; index < raw.size(); index++)
+	{
+		uint64_t digit = 0;
+		if (!HexDigitValue(raw[index], &digit))
+			return false;
+		value = (value << 4) | digit;
+		have_digit = true;
+	}
+	if (!have_digit)
+		return false;
+	*out = value;
+	return true;
+}
+
+static bool MetalLibraryMetaMatchesSource(const std::string& path)
+{
+	std::ifstream meta(MetalLibraryMetaPath(path));
+	if (!meta.good())
+		return false;
+	const std::string prefix = "source_fnv64=";
+	std::string line;
+	while (std::getline(meta, line))
+	{
+		if (line.compare(0, prefix.size(), prefix) != 0)
+			continue;
+		uint64_t meta_hash = 0;
+		if (!ParseFnv64Value(line.substr(prefix.size()), &meta_hash))
+			return false;
+		return meta_hash == FieldSourceFnv1a64();
+	}
+	return false;
 }
 
 static void AddUniqueLibraryPath(std::vector<std::string>& paths, const std::string& path)
@@ -2581,13 +2667,16 @@ static id<MTLLibrary> LoadFieldLibrary(id<MTLDevice> device, NSError** ns_error)
 {
 	if (!device)
 		return nil;
-	if (PrecompiledMetalLibraryEnabled())
+	if (!PrecompiledMetalLibraryDisabled())
 	{
+		const bool explicit_precompiled = ExplicitPrecompiledMetalLibraryEnabled();
 		NSFileManager* file_manager = [NSFileManager defaultManager];
 		for (const std::string& path : FieldLibraryCandidatePaths())
 		{
 			NSString* ns_path = [NSString stringWithUTF8String:path.c_str()];
 			if (![file_manager fileExistsAtPath:ns_path])
+				continue;
+			if (!explicit_precompiled && !MetalLibraryMetaMatchesSource(path))
 				continue;
 			NSError* local_error = nil;
 			NSURL* ns_url = [NSURL fileURLWithPath:ns_path];

@@ -66,9 +66,10 @@ Do not repeat these without new compiler evidence or a different oracle:
 - Threadgroup-caching the small jump table. Correct, but not a real M3 win.
 - Retuning fixed-round walk threadgroups to 64 or 256 as a default. No stable
   improvement over the current 128-thread M3 policy.
-- Making the precompiled `.metallib` default. It is useful as an opt-in
-  toolchain surface, and the sidecar is built with `-finline-functions`, but
-  source-vs-sidecar pairs are still too close for automatic runtime promotion.
+- Unguarded automatic `.metallib` loading. The sidecar is useful as a Metal
+  toolchain surface and is built with `-finline-functions`, but default loading
+  must stay hash-guarded so stale kernels cannot silently replace the embedded
+  source.
 - Promoting `scaled4-balanced`, `balanced8`, or smaller jump counts from raw
   operation rate. Schedule claims must compare effective distance/sec and keep
   DP density, false positives, and exact target checksums visible.
@@ -109,9 +110,9 @@ These are the remaining high-leverage areas.
 
 5. Metal compiler/codegen evidence.
 
-   Try toolchain flags or attributes only as explicit opt-in experiments. Keep
-   source compilation as the default unless order-reversed 25M gates prove a
-   stable win.
+   Try toolchain flags or attributes as measured experiments. The runtime may
+   auto-load a matching sidecar for startup/codegen ergonomics, but speed claims
+   still require order-reversed 25M gates and the canonical oracle.
 
 ## Promotion Checklist
 

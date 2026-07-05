@@ -7128,6 +7128,22 @@ These did not pass the performance gate or had a correctness/architecture issue:
   build `macos/rck_macos.metallib` with `MACOS_METAL_FLAGS ?= -finline-functions`
   so `RCK_METAL_USE_PRECOMPILED=1` and `RCK_METAL_FIELD_LIB=...` use the better
   opt-in toolchain surface.
+- Promoted the Metal sidecar loader only behind a source-hash guard. The build
+  now writes ignored metadata next to `macos/rck_macos.metallib`, including the
+  FNV-1a-64 hash of the extracted `MetalFieldKernels.h` source and the Metal
+  compiler flags. The runtime auto-loads the sidecar only when that metadata
+  hash matches the embedded source; stale or missing metadata falls back to
+  `newLibraryWithSource`. Explicit experiments still work with
+  `RCK_METAL_USE_PRECOMPILED=1` or `RCK_METAL_FIELD_LIB=...`, and
+  `RCK_METAL_DISABLE_PRECOMPILED=1` still forces the source path. Treat this as
+  a safety and reproducibility upgrade for the accepted sidecar toolchain
+  surface, not as a new standalone performance claim. A default-runtime 25M
+  physical distinct-miss gate with matching metadata preserved the canonical
+  oracle (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`,
+  `dp_distance_checksum=0x894123b96acf0de5`, `dp_count=4121`,
+  `hit_count=128`, `correctness=true`) and measured
+  `setup_inclusive_wall_distance_per_sec=400925110184.823242`.
 
 ## Cleanup Policy
 

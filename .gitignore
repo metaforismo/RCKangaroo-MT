@@ -5,6 +5,7 @@ __pycache__/
 rckangaroo
 /macos/rck_macos
 /macos/rck_macos.metallib
+/macos/rck_macos.metallib.meta
 RESULTS.TXT
 /benchmarks.jsonl
 run.log
