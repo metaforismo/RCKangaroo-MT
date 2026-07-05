@@ -6945,6 +6945,23 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `setup_inclusive_wall_seconds` `4.856785/4.868689` in the first pair and
   `4.831889/4.924307` in the reversed pair. Keep the explicit zeroed host
   cumulative-distance buffer.
+- Rejected an uninitialized raw host output-buffer scout for fixed-round XYZZ
+  round states. The hypothesis was that `std::vector<uint64_t>(N)` was paying
+  an avoidable zero-fill for roughly 32 MiB of round-state limbs at the
+  131072-sample, 2-round gate, even though Metal overwrites every output limb
+  before the host unpack. The prototype used RAII raw arrays for round `XYZZ`
+  limbs and infinity flags, then unpacked from pointer spans after the same
+  Metal-owned output-buffer copy. Correctness stayed identical
+  (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_distance_checksum=0x894123b96acf0de5`,
+  `dp_count=4121`, `hit_count=128`, `correctness=true`), but the A/B was not
+  stable enough to promote: first alternating samples were mildly favorable
+  (`setup_inclusive_wall_seconds` `4.925913/4.838190` and
+  `4.847391/4.874056`), while the confirmation cycle produced
+  `5.456828/4.951744`, `4.914456` for the adjacent baseline, and a slow
+  candidate outlier at `6.503942`. The code was reverted; keep the simpler
+  vector-backed output staging until a larger structural change removes the
+  whole round-state materialization cost.
 
 ## Cleanup Policy
 
