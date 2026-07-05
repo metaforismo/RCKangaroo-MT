@@ -39,6 +39,12 @@ Apple Silicon/macOS cannot run CUDA kernels on the Apple GPU. This repo now incl
 | Autoresearch | Working | Runs fixed-gate checks and benchmarks, then logs keep/discard/skip experiment rows. |
 | Benchforge | Working | Local-first challenge loop for Metal benchmarks, notes, submissions, verifier JSON, and static leaderboard export. |
 
+## Research Map
+
+- `docs/RESEARCH_LOG.md` is the detailed experiment ledger.
+- `docs/BREAKTHROUGH_MAP.md` is the compact map of the canonical macOS gate,
+  dead ends, remaining high-leverage directions, and promotion checklist.
+
 ## Build on Linux CUDA
 
 Edit `CUDA_PATH` in `Makefile` if your CUDA installation is not in `/usr/local/cuda-12.0`.
