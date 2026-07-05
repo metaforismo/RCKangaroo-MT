@@ -7022,6 +7022,18 @@ These did not pass the performance gate or had a correctness/architecture issue:
   and extra candidate-index staging without stable wall-clock benefit, the code
   was reverted. Keep the single `zz*zzz` batch inversion until a larger design
   removes host affine scanning entirely or proves a better GPU/CPU split.
+- Rejected fixed-round XYZZ distance-kernel threadgroup changes for the
+  131072-sample, 2048-step, 2-round multi-target gate. This rechecked the GPU
+  dispatch width on the exact integrated path after earlier XYZZ packet sweeps
+  had kept the 128-thread default. All rows preserved the physical oracle
+  (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_distance_checksum=0x894123b96acf0de5`,
+  `dp_count=4121`, `hit_count=128`, `correctness=true`). Explicit
+  `--tg-limit 256` measured `setup_inclusive_wall_seconds=4.865126` versus an
+  adjacent default-128 row at `4.858643`. Explicit `--tg-limit 64` first
+  measured `4.848563`, but the follow-up `64/128` pair reversed on the walk
+  itself: `walk_wall_seconds=4.951492` for 64 versus `4.780773` for 128.
+  Keep the default 128-thread walk dispatch for this fixed-round GPU path.
 
 ## Cleanup Policy
 
