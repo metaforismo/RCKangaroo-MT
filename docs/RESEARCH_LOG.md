@@ -7034,6 +7034,24 @@ These did not pass the performance gate or had a correctness/architecture issue:
   measured `4.848563`, but the follow-up `64/128` pair reversed on the walk
   itself: `walk_wall_seconds=4.951492` for 64 versus `4.780773` for 128.
   Keep the default 128-thread walk dispatch for this fixed-round GPU path.
+- Rejected a direct deterministic x-only filler helper for the tag32/parity
+  multi-target builder. The hypothesis was that deterministic filler rows could
+  avoid constructing a full `TargetLookupKeyHost` and then converting it to
+  x-only: generate x-only limbs, parity, and the same hash directly, and only
+  materialize a full key after the injected-hash filter for the rare exact
+  duplicate check. Source guards and correctness checks passed, and the semantic
+  oracle stayed stable (`semantic_checksum=0xe88c7d7f5e84c830` at 4M,
+  `0x23c141ee9316df09` at 25M). The isolated 25M builder scout looked promising
+  in the clean sequential sandwich: baseline/candidate `build_seconds`
+  `0.700324/0.598978`, then candidate/baseline `0.611029/0.679609`. However,
+  the real integrated 25M GPU walk+lookup path did not improve: candidate rows
+  kept the full oracle (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_distance_checksum=0x894123b96acf0de5`,
+  `dp_count=4121`, `hit_count=128`, `correctness=true`) but measured
+  `target_build_seconds=0.709990` and `0.769020` around an adjacent baseline at
+  `0.681497`. The code was reverted. Treat direct x-only filler generation as a
+  benchmark-attractive but real-path-negative scout unless paired with a broader
+  integrated setup redesign.
 
 ## Cleanup Policy
 
