@@ -7163,6 +7163,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `406190965735.081360`; spread ratio `1.020856`). The runner marked the row
   `discard` only because an older dirty keep in the same ledger remains higher
   (`440854462579.941`), not because correctness or stability failed.
+- Checked whether the older 440B-class rows were simply a runtime-source versus
+  sidecar effect. A source-forced 25M run with
+  `RCK_METAL_DISABLE_PRECOMPILED=1` preserved the canonical oracle and measured
+  `setup_inclusive_wall_distance_per_sec=401866253384.233337`, essentially in
+  the same band as the hash-guarded auto-sidecar rows. Treat the old 440B dirty
+  rows as historical noisy highs until a clean, order-reversed gate reproduces
+  them.
 
 ## Cleanup Policy
 
