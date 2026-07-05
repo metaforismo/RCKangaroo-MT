@@ -7113,6 +7113,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
   fast gates normalize packet endpoints on the host and makes future per-step or
   GPU-normalized pipelines declare their sampling scope instead of silently
   changing the oracle.
+- Accepted `-finline-functions` for the ignored opt-in Metal sidecar build, not
+  for automatic runtime promotion. A temporary
+  `/tmp/rck_macos_inline.metallib` was built from the extracted
+  `MetalFieldKernels.h` source with `xcrun metal -finline-functions`. Two
+  25M physical distinct-miss order checks preserved the canonical oracle
+  (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`,
+  `dp_distance_checksum=0x894123b96acf0de5`, `dp_count=4121`,
+  `hit_count=128`, `correctness=true`). Source then inline-sidecar measured
+  `397250328004.8454` versus `402602879300.09326` setup-inclusive wall
+  distance/sec. Inline-sidecar then source measured `404335886884.2423` versus
+  `399672860019.6474`. Keep source compilation as the runtime default, but
+  build `macos/rck_macos.metallib` with `MACOS_METAL_FLAGS ?= -finline-functions`
+  so `RCK_METAL_USE_PRECOMPILED=1` and `RCK_METAL_FIELD_LIB=...` use the better
+  opt-in toolchain surface.
 
 ## Cleanup Policy
 

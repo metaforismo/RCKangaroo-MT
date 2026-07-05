@@ -86,6 +86,7 @@ MACOS_METALLIB := macos/rck_macos.metallib
 MACOS_LTO_FLAGS ?= -flto=thin
 MACOS_CXXFLAGS ?= -std=c++17 -O3 -I. $(MACOS_LTO_FLAGS)
 MACOS_LDFLAGS := -framework Foundation -framework Metal
+MACOS_METAL_FLAGS ?= -finline-functions
 
 macos-lto-flags-check:
 	@if [ "$(origin MACOS_CXXFLAGS)" = "command line" ] || [ "$(origin MACOS_LTO_FLAGS)" = "command line" ]; then \
@@ -161,7 +162,7 @@ $(MACOS_METALLIB): macos/MetalFieldKernels.h tools/extract_metal_kernels.py
 	@if xcrun --find metal >/dev/null 2>&1 && xcrun --find metallib >/dev/null 2>&1; then \
 		mkdir -p $(MACOS_METAL_BUILD_DIR); \
 		python3 tools/extract_metal_kernels.py macos/MetalFieldKernels.h $(MACOS_METAL_BUILD_DIR)/MetalFieldKernels.metal; \
-		xcrun -sdk macosx metal -c $(MACOS_METAL_BUILD_DIR)/MetalFieldKernels.metal -o $(MACOS_METAL_BUILD_DIR)/MetalFieldKernels.air; \
+		xcrun -sdk macosx metal $(MACOS_METAL_FLAGS) -c $(MACOS_METAL_BUILD_DIR)/MetalFieldKernels.metal -o $(MACOS_METAL_BUILD_DIR)/MetalFieldKernels.air; \
 		xcrun -sdk macosx metallib $(MACOS_METAL_BUILD_DIR)/MetalFieldKernels.air -o $(MACOS_METALLIB); \
 	else \
 		rm -f $(MACOS_METALLIB); \

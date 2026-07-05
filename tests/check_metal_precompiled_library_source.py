@@ -24,8 +24,9 @@ if metal.count("newLibraryWithSource:FieldSource()") != 1:
 
 required_makefile_markers = [
     "MACOS_METALLIB := macos/rck_macos.metallib",
+    "MACOS_METAL_FLAGS ?= -finline-functions",
     "tools/extract_metal_kernels.py",
-    "xcrun -sdk macosx metal -c",
+    "xcrun -sdk macosx metal $(MACOS_METAL_FLAGS) -c",
     "xcrun -sdk macosx metallib",
     "macos-build: $(MACOS_TARGET) $(MACOS_METALLIB)",
 ]

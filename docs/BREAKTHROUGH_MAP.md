@@ -67,7 +67,8 @@ Do not repeat these without new compiler evidence or a different oracle:
 - Retuning fixed-round walk threadgroups to 64 or 256 as a default. No stable
   improvement over the current 128-thread M3 policy.
 - Making the precompiled `.metallib` default. It is useful as an opt-in
-  toolchain surface, but current source-vs-sidecar pairs are too close.
+  toolchain surface, and the sidecar is built with `-finline-functions`, but
+  source-vs-sidecar pairs are still too close for automatic runtime promotion.
 - Promoting `scaled4-balanced`, `balanced8`, or smaller jump counts from raw
   operation rate. Schedule claims must compare effective distance/sec and keep
   DP density, false positives, and exact target checksums visible.
@@ -125,4 +126,3 @@ Every speed candidate must answer:
 - Did it run paired against current `main`, preferably with alternate order?
 - Did it improve setup-inclusive wall distance/sec, not just a submetric?
 - Did the research log record both the positive and negative evidence?
-
