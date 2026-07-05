@@ -7006,6 +7006,22 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `correctness=true`) and reported `target_build_seconds=0.630644`. Treat this
   as a real large-table setup improvement, not a GPU arithmetic or kangaroo
   algorithm breakthrough.
+- Rejected a two-phase affine DP scan for XYZZ round outputs. The hypothesis
+  was to batch-invert `zz` for every point, test the affine-x DP predicate,
+  and then batch-invert `zzz` only for the points that actually passed the DP
+  mask, reducing full-field multiplies when `dp_bits` is small. The prototype
+  preserved the exact fixed-round oracle
+  (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_distance_checksum=0x894123b96acf0de5`,
+  `dp_count=4121`, `hit_count=128`, `correctness=true`) and correctly reported
+  the candidate mode as `cpu_batch_zz_then_dp_zzz`, but it did not improve the
+  warmed 131072-sample, 2048-step, 2-round gate. Baseline/candidate
+  `affine_scan_seconds` were `0.013747/0.011448` on the first cold/warm pair,
+  then reversed to `0.008047` for the warmed baseline and `0.012730` for a
+  follow-up candidate row. Since the candidate added a second batch inversion
+  and extra candidate-index staging without stable wall-clock benefit, the code
+  was reverted. Keep the single `zz*zzz` batch inversion until a larger design
+  removes host affine scanning entirely or proves a better GPU/CPU split.
 
 ## Cleanup Policy
 
