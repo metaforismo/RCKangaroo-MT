@@ -2708,7 +2708,13 @@ static TargetLookupXOnlyHost TargetLookupXOnlyFromKey(const TargetLookupKeyHost&
 
 static TargetLookupXOnlyHostBuffer AllocateTargetLookupXOnlyBuffer(size_t target_count)
 {
-	return TargetLookupXOnlyHostBuffer((TargetLookupXOnlyHost*)malloc(target_count * sizeof(TargetLookupXOnlyHost)));
+	if (target_count > SIZE_MAX / sizeof(TargetLookupXOnlyHost))
+		return TargetLookupXOnlyHostBuffer((TargetLookupXOnlyHost*)NULL);
+	size_t byte_count = target_count * sizeof(TargetLookupXOnlyHost);
+	void* ptr = NULL;
+	if (byte_count && posix_memalign(&ptr, 64, byte_count) != 0)
+		ptr = malloc(byte_count);
+	return TargetLookupXOnlyHostBuffer((TargetLookupXOnlyHost*)ptr);
 }
 
 static bool TargetLookupXOnlyEquals(const TargetLookupXOnlyHost* target_x_keys,

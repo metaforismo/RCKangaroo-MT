@@ -6893,6 +6893,31 @@ These did not pass the performance gate or had a correctness/architecture issue:
   contradicted the direct lookup timing and the same checksum/count oracle, so
   the code was removed. Keep the monolithic generated-miss filter kernel until
   a single-dispatch variant or compiler-level evidence shows a real win.
+- Accepted a guarded 64-byte aligned allocation for the compact x-only target
+  key buffer used by the fixed-round tag32/parity multi-target builder. This
+  changes only host-side target setup: the target hash layout, bucket CAS,
+  parity resolver, GPU walk, DP predicate, and exact key-equality oracle are
+  unchanged. The allocator now checks the byte-size multiplication before
+  allocation, asks `posix_memalign` for cache-line alignment, and falls back to
+  `malloc` if aligned allocation is unavailable. Source guardrails and the full
+  macOS check suite passed, and a 1M integrated walk+lookup smoke preserved the
+  oracle (`target_lookup_checksum=0x2f9e738645eecec9`, `hit_count=32`,
+  `filter_false_positive_count=49`, `correctness=true`). The small 4M
+  target-builder A/B was only a marginal signal: baseline median
+  `parallel_targets_per_sec=35873273.178338` versus candidate median
+  `36121485.477668`, with the same semantic checksum
+  `0xe88c7d7f5e84c830`. The larger 25M setup gate was positive in both paired
+  orders and preserved `semantic_checksum=0x388d492ffb8b482f` with
+  `correctness=true`: baseline/candidate target-build throughput was
+  `15222610.905138/16635307.067112` in the first pair and
+  `13570167.718834/14225502.322612` in the reversed pair. Treat this as a real
+  large multi-target setup improvement for M3 UMA/cache behavior. A
+  candidate-only 25M integrated walk+lookup smoke also preserved the normal
+  physical oracle (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=128`,
+  `target_build_seconds=0.899724`, `correctness=true`). This is not a
+  kangaroo mathematics breakthrough and not a guaranteed cross-machine GPU
+  walk speedup.
 
 ## Cleanup Policy
 

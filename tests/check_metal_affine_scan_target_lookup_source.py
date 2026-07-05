@@ -457,6 +457,10 @@ if "target_x_keys.resize" in parity_builder_body:
     raise SystemExit("x-only parity target builder should avoid value-initializing the full target key array")
 if "AllocateTargetLookupXOnlyBuffer(target_count)" not in parity_builder_body:
     raise SystemExit("x-only parity target builder should allocate an uninitialized x-only target buffer")
+if "target_count > SIZE_MAX / sizeof(TargetLookupXOnlyHost)" not in kernels:
+    raise SystemExit("x-only target key allocation should guard byte-size overflow")
+if "posix_memalign(&ptr, 64, byte_count)" not in kernels:
+    raise SystemExit("x-only target key allocation should use a cache-line aligned host buffer")
 if "InsertTargetLookupTag32ParityBucket(buckets" not in parity_builder_body:
     raise SystemExit("x-only parity target builder should stream bucket insertion while filling target keys")
 if "__atomic_compare_exchange_n(&bucket_words[slot]" not in kernels:
