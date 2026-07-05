@@ -7156,6 +7156,13 @@ These did not pass the performance gate or had a correctness/architecture issue:
   improved raw dispatch slightly, but wall/setup-inclusive throughput collapsed
   to `351036951332.087036`. Keep the hash-guarded
   `MACOS_METAL_FLAGS ?= -finline-functions` default.
+- Added a clean autoresearch ledger row for the post-sidecar canonical
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_distinct_misses_distance`
+  gate at commit `7abb6a4`. Three 25M samples preserved the canonical oracle
+  and had low spread (`397892463063.590881`, `403818789921.076172`,
+  `406190965735.081360`; spread ratio `1.020856`). The runner marked the row
+  `discard` only because an older dirty keep in the same ledger remains higher
+  (`440854462579.941`), not because correctness or stability failed.
 
 ## Cleanup Policy
 
