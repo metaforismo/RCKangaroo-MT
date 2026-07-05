@@ -6931,6 +6931,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `4.876225/5.087189` in the first pair and `6.670491/6.882174` in the
   reversed pair. The code was reverted; keep Metal-owned output buffers plus
   explicit host copies for this round-state path.
+- Rejected a first-round zero-origin cumulative-distance buffer scout for the
+  same fixed-round XYZZ store-round path. The idea was mathematically
+  equivalent: round 0 can write `cumulative_distance=out.distance` without
+  reading an initialized zero buffer, allowing the host to allocate the Metal
+  cumulative-distance buffer with `newBufferWithLength` instead of
+  `newBufferWithBytes`. The prototype preserved the exact oracle
+  (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_distance_checksum=0x894123b96acf0de5`,
+  `dp_count=4121`, `hit_count=128`, `correctness=true`), but the isolated
+  131072-sample, 2048-step, 2-round fixed-round gate did not improve
+  setup-inclusive wall time. Alternating baseline/candidate samples measured
+  `setup_inclusive_wall_seconds` `4.856785/4.868689` in the first pair and
+  `4.831889/4.924307` in the reversed pair. Keep the explicit zeroed host
+  cumulative-distance buffer.
 
 ## Cleanup Policy
 
