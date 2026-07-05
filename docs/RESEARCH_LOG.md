@@ -6918,6 +6918,19 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `target_build_seconds=0.899724`, `correctness=true`). This is not a
   kangaroo mathematics breakthrough and not a guaranteed cross-machine GPU
   walk speedup.
+- Rejected a no-copy output-buffer scout for the fixed-round XYZZ store-round
+  path. The hypothesis was that Apple Silicon UMA could write round states,
+  round infinity flags, and round distances directly into the host vectors via
+  `NewSharedMetalBufferNoCopyFallback`, avoiding the final three `memcpy`
+  calls before affine scan. The prototype preserved the exact physical oracle
+  in both A/B orders (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=128`,
+  `correctness=true`), but it did not improve end-to-end wall time on the
+  isolated 131072-sample, 2048-step, 2-round fixed-round gate. Alternating
+  baseline/candidate samples measured `setup_inclusive_wall_seconds`
+  `4.876225/5.087189` in the first pair and `6.670491/6.882174` in the
+  reversed pair. The code was reverted; keep Metal-owned output buffers plus
+  explicit host copies for this round-state path.
 
 ## Cleanup Policy
 
