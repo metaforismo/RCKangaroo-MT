@@ -6983,6 +6983,29 @@ These did not pass the performance gate or had a correctness/architecture issue:
   reported `target_build_seconds=0.667466`. Treat this as a small real setup
   cleanup for large x-only multi-target tables on the M3 Air, not a GPU walk or
   kangaroo-math breakthrough.
+- Accepted fused deterministic target key+hash generation for target-table
+  filler rows. The previous hot path generated a deterministic
+  `TargetLookupKeyHost` and then re-read it through `TargetLookupHash`; the new
+  helper derives the same four x limbs, parity bit, and final table hash in one
+  pass, and the parity x-only builder is guarded to use that fused generator.
+  This does not change deterministic target identity, target hash values,
+  injected-key duplicate checks, bucket insertion, filter construction, parity
+  lookup, GPU walk, DP predicate, or exact resolver semantics. The 4M parity
+  builder gate preserved `semantic_checksum=0x15840d1c53c1914e` and favored the
+  candidate strongly: baseline/candidate `build_seconds` were
+  `0.117216/0.093662`, followed by candidate/baseline `0.091413/0.132523`.
+  The 25M builder gate kept `semantic_checksum=0x388d492ffb8b482f`; the first
+  sandwich was mixed, with baseline/candidate `0.839265/0.676030` followed by
+  candidate/baseline `0.851785/0.578981`, but the confirmation sandwich was
+  positive in both orders (`0.937881/0.663347` and
+  `1.077561/0.822283`). Across those four 25M rows, median build time improved
+  from about `0.888573s` to `0.749157s`. A candidate-only 25M integrated
+  walk+lookup smoke preserved the normal physical oracle
+  (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=128`,
+  `correctness=true`) and reported `target_build_seconds=0.630644`. Treat this
+  as a real large-table setup improvement, not a GPU arithmetic or kangaroo
+  algorithm breakthrough.
 
 ## Cleanup Policy
 

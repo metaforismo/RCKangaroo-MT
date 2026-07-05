@@ -2668,12 +2668,26 @@ static uint64_t TargetLookupMix(uint64_t v)
 	return v;
 }
 
+static void DeterministicTargetLookupKeyAndHash(uint64_t index,
+	uint64_t salt,
+	TargetLookupKeyHost& key,
+	uint64_t& hash)
+{
+	uint64_t h = 0x9e3779b97f4a7c15ULL;
+	for (unsigned int limb = 0; limb < 4; ++limb)
+	{
+		key.x[limb] = TargetLookupMix(index + salt + 0x9e3779b97f4a7c15ULL * (uint64_t)(limb + 1));
+		h = TargetLookupMix(h ^ key.x[limb]);
+	}
+	key.parity = (uint32_t)(TargetLookupMix(index ^ (salt << 1) ^ 0xD1B54A32D192ED03ULL) & 1ULL);
+	hash = TargetLookupMix(h ^ (uint64_t)key.parity);
+}
+
 static TargetLookupKeyHost DeterministicTargetLookupKey(uint64_t index, uint64_t salt)
 {
 	TargetLookupKeyHost key;
-	for (unsigned int limb = 0; limb < 4; ++limb)
-		key.x[limb] = TargetLookupMix(index + salt + 0x9e3779b97f4a7c15ULL * (uint64_t)(limb + 1));
-	key.parity = (uint32_t)(TargetLookupMix(index ^ (salt << 1) ^ 0xD1B54A32D192ED03ULL) & 1ULL);
+	uint64_t hash = 0;
+	DeterministicTargetLookupKeyAndHash(index, salt, key, hash);
 	return key;
 }
 
@@ -2763,11 +2777,10 @@ static uint64_t TargetLookupHash(const TargetLookupKeyHost& key)
 
 static uint64_t DeterministicTargetLookupKeyHash(uint64_t index, uint64_t salt)
 {
-	uint64_t h = 0x9e3779b97f4a7c15ULL;
-	for (unsigned int limb = 0; limb < 4; ++limb)
-		h = TargetLookupMix(h ^ TargetLookupMix(index + salt + 0x9e3779b97f4a7c15ULL * (uint64_t)(limb + 1)));
-	uint64_t parity = TargetLookupMix(index ^ (salt << 1) ^ 0xD1B54A32D192ED03ULL) & 1ULL;
-	return TargetLookupMix(h ^ parity);
+	TargetLookupKeyHost key;
+	uint64_t hash = 0;
+	DeterministicTargetLookupKeyAndHash(index, salt, key, hash);
+	return hash;
 }
 
 static uint32_t TargetLookupTag32(uint64_t hash)
@@ -4032,8 +4045,9 @@ static bool BuildTargetLookupTag32TableFromKeysPrehashed(const std::vector<Targe
 	auto fill_range = [&](size_t begin, size_t end) {
 		for (size_t offset = begin; offset < end; ++offset)
 		{
-			TargetLookupKeyHost key = DeterministicTargetLookupKey((uint64_t)offset, 0xA1171E5CAFULL);
-			uint64_t hash = TargetLookupHash(key);
+			TargetLookupKeyHost key;
+			uint64_t hash = 0;
+			DeterministicTargetLookupKeyAndHash((uint64_t)offset, 0xA1171E5CAFULL, key, hash);
 			if (!injected_hashes.empty() && TargetLookupHashMatchesInjectedFiltered(key, hash, injected_keys, injected_hashes, injected_filter))
 				duplicate_filler.store(true, std::memory_order_relaxed);
 			size_t out_index = injected_count + offset;
@@ -4104,8 +4118,9 @@ static bool BuildTargetLookupTag32TableFromKeysParallelInsert(const std::vector<
 	auto fill_range = [&](size_t begin, size_t end) {
 		for (size_t offset = begin; offset < end; ++offset)
 		{
-			TargetLookupKeyHost key = DeterministicTargetLookupKey((uint64_t)offset, 0xA1171E5CAFULL);
-			uint64_t hash = TargetLookupHash(key);
+			TargetLookupKeyHost key;
+			uint64_t hash = 0;
+			DeterministicTargetLookupKeyAndHash((uint64_t)offset, 0xA1171E5CAFULL, key, hash);
 			if (!injected_hashes.empty() && TargetLookupHashMatchesInjectedFiltered(key, hash, injected_keys, injected_hashes, injected_filter))
 				duplicate_filler.store(true, std::memory_order_relaxed);
 			size_t out_index = injected_count + offset;
@@ -4243,8 +4258,9 @@ static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert(const std::v
 	auto fill_range = [&](size_t begin, size_t end) {
 		for (size_t offset = begin; offset < end; ++offset)
 		{
-			TargetLookupKeyHost key = DeterministicTargetLookupKey((uint64_t)offset, 0xA1171E5CAFULL);
-			uint64_t hash = TargetLookupHash(key);
+			TargetLookupKeyHost key;
+			uint64_t hash = 0;
+			DeterministicTargetLookupKeyAndHash((uint64_t)offset, 0xA1171E5CAFULL, key, hash);
 			if (!injected_hashes.empty() && TargetLookupHashMatchesInjectedFiltered(key, hash, injected_keys, injected_hashes, injected_filter))
 				duplicate_filler.store(true, std::memory_order_relaxed);
 			size_t out_index = injected_count + offset;

@@ -459,6 +459,10 @@ if "AllocateTargetLookupXOnlyBuffer(target_count)" not in parity_builder_body:
     raise SystemExit("x-only parity target builder should allocate an uninitialized x-only target buffer")
 if "memcpy(out.x, key.x, sizeof(out.x));" not in kernels:
     raise SystemExit("x-only target key conversion should bulk-copy the four x limbs")
+if "static void DeterministicTargetLookupKeyAndHash" not in kernels:
+    raise SystemExit("deterministic target filler should expose fused key+hash generation")
+if "DeterministicTargetLookupKeyAndHash((uint64_t)offset, 0xA1171E5CAFULL, key, hash);" not in parity_builder_body:
+    raise SystemExit("x-only parity target builder should fuse deterministic key and hash generation")
 if "target_count > SIZE_MAX / sizeof(TargetLookupXOnlyHost)" not in kernels:
     raise SystemExit("x-only target key allocation should guard byte-size overflow")
 if "posix_memalign(&ptr, 64, byte_count)" not in kernels:
