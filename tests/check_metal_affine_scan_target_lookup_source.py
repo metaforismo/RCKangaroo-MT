@@ -137,6 +137,7 @@ markers = [
     "\\\"lookup_hash_seconds\\\":",
     "\\\"lookup_gpu_seconds\\\":",
     "\\\"lookup_exact_seconds\\\":",
+    "\\\"target_setup_workers\\\":",
     "\\\"walk_wall_seconds\\\":",
     "\\\"walk_buffer_seconds\\\":",
     "\\\"lookup_wall_seconds\\\":",

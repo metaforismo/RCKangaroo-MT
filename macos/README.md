@@ -110,7 +110,7 @@ make macos-metal-target-lookup-tag32-persistent-bench
 ./macos/rck_macos metal-target-lookup-tag32-persistent-bench --target-count 1048576 --query-count 1048576 --hits 4096 --min-ms 500
 ./macos/rck_macos metal-target-lookup-tag32-persistent-bench --target-count 25005000 --query-count 1082368 --hits 64 --min-ms 700
 ./macos/rck_macos target-lookup-tag32-cpu-bench --target-count 25005000 --query-count 1057 --hits 64 --min-ms 50
-RCK_VALIDATION_WORKERS=6 ./macos/rck_macos target-lookup-tag32-parallel-insert-bench --target-count 25005000 --injected-count 64 --iterations 1
+RCK_TARGET_SETUP_WORKERS=6 ./macos/rck_macos target-lookup-tag32-parallel-insert-bench --target-count 25005000 --injected-count 64 --iterations 1
 ./macos/rck_macos metal-field-sub-test
 make macos-metal-field-sub-bench
 ./macos/rck_macos metal-field-double-test
@@ -185,13 +185,13 @@ The standard integrated repeat lookup also accepts `--lookup-filter-mode tag16-m
 
 `metal-target-lookup-tag32-persistent-bench` keeps the Metal tag32 target table, keys, queries, output, and pipeline resident while repeating dispatches for the requested `--min-ms`. Its JSON separates `metal_setup_seconds`, warmed `dispatch_seconds`, setup-inclusive `lookups_per_sec`, and `dispatch_lookups_per_sec`. The default threadgroup cap remains 64 below 16,777,216 targets, but large diagnostic tables use 1024 by default on M3 after paired 25M-target checks; explicit `--tg-limit N` always overrides this adaptive default. This is a diagnostic for long-lived GPU target-table economics, not a replacement for the integrated affine-scan target-lookup gate.
 
-On Apple Silicon setup-heavy target-table runs, `RCK_VALIDATION_WORKERS=6` is
-an explicit reproducible tuning knob for the 25M tag32 parallel-insert gate. It
-keeps `target_keys_equal`, `all_keys_found`, and `correctness` in the JSON
-oracle, but remains opt-in until more hardware tracks reproduce it. It did not
-transfer to the integrated affine-scan target-lookup gate in paired local runs,
-so leave that path on its default worker count unless a new paired gate proves
-otherwise.
+On setup-heavy target-table runs, `RCK_TARGET_SETUP_WORKERS=N` is an explicit
+reproducible tuning knob for table construction only. It does not change the
+validation/replay worker count unless `RCK_VALIDATION_WORKERS` is also set. The
+JSON reports `target_setup_workers` beside `validation_workers`, so paired gates
+can tell whether a target-table tuning changed the real path. Local M3 checks
+did not justify a new automatic worker default; leave the default worker count
+alone unless a paired gate for the exact command proves otherwise.
 
 `metal-target-lookup-tag32-filter-persistent-bench` keeps the compact 4-byte tag filter, query batch, positive-index output buffer, and pipeline resident, then verifies only the compact positives on CPU with exact `x256 + y_parity` equality after each dispatch. Its JSON reports `buffer_lifetime=persistent`, `filter_positive_count`, `filter_false_positive_count`, `metal_setup_seconds`, `dispatch_seconds`, `exact_verify_seconds`, setup-inclusive `lookups_per_sec`, no-setup `dispatch_lookups_per_sec`, and pure Metal `gpu_dispatch_lookups_per_sec`. The no-setup metric includes exact CPU verification time; the GPU metric is dispatch-only, and `--min-ms` is bounded by accumulated Metal dispatch time. Large filter tables use a 512-thread default on M3, while explicit `--tg-limit N` overrides it.
 

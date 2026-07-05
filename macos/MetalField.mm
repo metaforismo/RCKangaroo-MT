@@ -189,9 +189,9 @@ static_assert(offsetof(TargetLookupTag32ParityBucketHost, encoded_target_index) 
 static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "packed tag32 parity CAS expects little-endian bucket words");
 #endif
 
-static unsigned int ValidationWorkerOverride()
+static unsigned int WorkerOverrideFromEnv(const char* name)
 {
-	const char* raw = getenv("RCK_VALIDATION_WORKERS");
+	const char* raw = getenv(name);
 	if (!raw || !*raw)
 		return 0;
 
@@ -202,6 +202,11 @@ static unsigned int ValidationWorkerOverride()
 	if (parsed > 1024UL)
 		parsed = 1024UL;
 	return (unsigned int)parsed;
+}
+
+static unsigned int ValidationWorkerOverride()
+{
+	return WorkerOverrideFromEnv("RCK_VALIDATION_WORKERS");
 }
 
 static unsigned int ValidationWorkerCount(size_t sample_count)
@@ -219,10 +224,26 @@ static unsigned int ValidationWorkerCount(size_t sample_count)
 	return worker_count == 0 ? 1 : worker_count;
 }
 
-template <typename Func>
-static void ParallelForSamples(size_t sample_count, Func func)
+static unsigned int TargetSetupWorkerCount(size_t sample_count)
 {
-	unsigned int worker_count = ValidationWorkerCount(sample_count);
+	unsigned int worker_count = WorkerOverrideFromEnv("RCK_TARGET_SETUP_WORKERS");
+	if (worker_count == 0)
+		worker_count = ValidationWorkerOverride();
+	if (worker_count == 0)
+		worker_count = std::thread::hardware_concurrency();
+	if (worker_count == 0)
+		worker_count = 1;
+	size_t sample_limited_workers = sample_count / kMinValidationSamplesPerWorker;
+	if (sample_limited_workers == 0)
+		sample_limited_workers = 1;
+	if ((size_t)worker_count > sample_limited_workers)
+		worker_count = (unsigned int)sample_limited_workers;
+	return worker_count == 0 ? 1 : worker_count;
+}
+
+template <typename Func>
+static void ParallelForSamplesWithWorkerCount(size_t sample_count, unsigned int worker_count, Func func)
+{
 	if (worker_count <= 1 || sample_count == 0)
 	{
 		func(0, sample_count, 0);
@@ -244,6 +265,18 @@ static void ParallelForSamples(size_t sample_count, Func func)
 	func(begin, sample_count, worker_count - 1);
 	for (std::thread& worker : workers)
 		worker.join();
+}
+
+template <typename Func>
+static void ParallelForSamples(size_t sample_count, Func func)
+{
+	ParallelForSamplesWithWorkerCount(sample_count, ValidationWorkerCount(sample_count), func);
+}
+
+template <typename Func>
+static void ParallelForTargetSetup(size_t sample_count, Func func)
+{
+	ParallelForSamplesWithWorkerCount(sample_count, TargetSetupWorkerCount(sample_count), func);
 }
 
 static const FieldElement kSecp256k1P = {
@@ -1576,6 +1609,7 @@ static std::string TargetLookupTag32ParallelInsertBenchJson(const char* operatio
 	oss << "\"parallel_seconds\":" << parallel_seconds << ",";
 	oss << "\"seconds\":" << parallel_seconds << ",";
 	oss << "\"speedup\":" << speedup << ",";
+	oss << "\"target_setup_workers\":" << TargetSetupWorkerCount(target_count) << ",";
 	oss << "\"serial_targets_per_sec\":" << serial_targets_per_sec << ",";
 	oss << "\"parallel_targets_per_sec\":" << parallel_targets_per_sec << ",";
 	oss << "\"ops_per_sec\":" << speedup << ",";
@@ -1626,6 +1660,7 @@ static std::string TargetLookupTag32ParityParallelInsertBenchJson(const char* op
 	oss << "\"min_ms\":0,";
 	oss << "\"build_seconds\":" << build_seconds << ",";
 	oss << "\"seconds\":" << build_seconds << ",";
+	oss << "\"target_setup_workers\":" << TargetSetupWorkerCount(target_count) << ",";
 	oss << "\"parallel_targets_per_sec\":" << targets_per_sec << ",";
 	oss << "\"ops_per_sec\":" << targets_per_sec << ",";
 	oss << "\"checksum\":\"0x" << std::hex << std::setw(16) << std::setfill('0') << checksum << std::dec << std::setfill(' ') << "\",";
@@ -1864,6 +1899,7 @@ static std::string MetalAffineScanTargetLookupTag32BenchJson(const char* operati
 	oss << "\"lookup_hash_seconds\":" << lookup_hash_seconds << ",";
 	oss << "\"lookup_gpu_seconds\":" << lookup_gpu_seconds << ",";
 	oss << "\"lookup_exact_seconds\":" << lookup_exact_seconds << ",";
+	oss << "\"target_setup_workers\":" << TargetSetupWorkerCount(target_count) << ",";
 	oss << "\"validation_workers\":" << ValidationWorkerCount(sample_count) << ",";
 	oss << "\"validation_seconds\":" << validation_seconds << ",";
 	oss << "\"gpu_ops_per_sec\":" << gpu_ops_per_sec << ",";
@@ -3252,9 +3288,9 @@ static bool BuildTargetLookupTag32FilterTableFromTag32Buckets(const std::vector<
 			filter_buckets[slot] = bucket.tag ? bucket.tag : 1U;
 		}
 	};
-	if (tag32_buckets.size() >= kMinParallelTargetLookupFilterBuckets && ValidationWorkerCount(tag32_buckets.size()) > 1)
+	if (tag32_buckets.size() >= kMinParallelTargetLookupFilterBuckets && TargetSetupWorkerCount(tag32_buckets.size()) > 1)
 	{
-		ParallelForSamples(tag32_buckets.size(), [&](size_t begin, size_t end, unsigned int worker) {
+		ParallelForTargetSetup(tag32_buckets.size(), [&](size_t begin, size_t end, unsigned int worker) {
 			(void)worker;
 			fill_range(begin, end);
 		});
@@ -3299,9 +3335,9 @@ static bool BuildTargetLookupTag16FilterTableFromTag32Buckets(const std::vector<
 			filter_buckets[slot] = TargetLookupFilterTag16FromTag32(bucket.tag);
 		}
 	};
-	if (tag32_buckets.size() >= kMinParallelTargetLookupFilterBuckets && ValidationWorkerCount(tag32_buckets.size()) > 1)
+	if (tag32_buckets.size() >= kMinParallelTargetLookupFilterBuckets && TargetSetupWorkerCount(tag32_buckets.size()) > 1)
 	{
-		ParallelForSamples(tag32_buckets.size(), [&](size_t begin, size_t end, unsigned int worker) {
+		ParallelForTargetSetup(tag32_buckets.size(), [&](size_t begin, size_t end, unsigned int worker) {
 			(void)worker;
 			fill_range(begin, end);
 		});
@@ -3346,9 +3382,9 @@ static bool BuildTargetLookupTag16MixedFilterTableFromTag32Buckets(const std::ve
 			filter_buckets[slot] = TargetLookupFilterTag16MixedFromTag32(bucket.tag);
 		}
 	};
-	if (tag32_buckets.size() >= kMinParallelTargetLookupFilterBuckets && ValidationWorkerCount(tag32_buckets.size()) > 1)
+	if (tag32_buckets.size() >= kMinParallelTargetLookupFilterBuckets && TargetSetupWorkerCount(tag32_buckets.size()) > 1)
 	{
-		ParallelForSamples(tag32_buckets.size(), [&](size_t begin, size_t end, unsigned int worker) {
+		ParallelForTargetSetup(tag32_buckets.size(), [&](size_t begin, size_t end, unsigned int worker) {
 			(void)worker;
 			fill_range(begin, end);
 		});
@@ -3965,7 +4001,7 @@ static bool InsertTargetLookupTag32PrehashedTableParallel(const std::vector<Targ
 		fused_tag16_filter_buckets->assign(bucket_count, 0U);
 	uint32_t mask = bucket_count - 1U;
 	std::atomic<bool> insertion_failed(false);
-	ParallelForSamples(target_keys.size(), [&](size_t begin, size_t end, unsigned int worker) {
+	ParallelForTargetSetup(target_keys.size(), [&](size_t begin, size_t end, unsigned int worker) {
 		(void)worker;
 		for (size_t i = begin; i < end; ++i)
 		{
@@ -4055,9 +4091,9 @@ static bool BuildTargetLookupTag32TableFromKeysPrehashed(const std::vector<Targe
 			target_hashes[out_index] = hash;
 		}
 	};
-	if (filler_count >= kMinParallelTargetLookupHashQueries && ValidationWorkerCount(filler_count) > 1)
+	if (filler_count >= kMinParallelTargetLookupHashQueries && TargetSetupWorkerCount(filler_count) > 1)
 	{
-		ParallelForSamples(filler_count, [&](size_t begin, size_t end, unsigned int worker) {
+		ParallelForTargetSetup(filler_count, [&](size_t begin, size_t end, unsigned int worker) {
 			(void)worker;
 			fill_range(begin, end);
 		});
@@ -4089,7 +4125,7 @@ static bool BuildTargetLookupTag32TableFromKeysParallelInsert(const std::vector<
 	}
 	if (fused_tag16_filter_buckets)
 		fused_tag16_filter_buckets->clear();
-	if (target_count < kMinParallelTargetLookupHashQueries || ValidationWorkerCount(target_count) <= 1)
+	if (target_count < kMinParallelTargetLookupHashQueries || TargetSetupWorkerCount(target_count) <= 1)
 		return BuildTargetLookupTag32TableFromKeysPrehashed(injected_keys, target_count, target_keys, buckets, error, fused_tag16_filter_buckets, fused_tag16_filter_mixed);
 
 	std::vector<uint64_t> target_hashes(target_count);
@@ -4128,9 +4164,9 @@ static bool BuildTargetLookupTag32TableFromKeysParallelInsert(const std::vector<
 			target_hashes[out_index] = hash;
 		}
 	};
-	if (filler_count >= kMinParallelTargetLookupHashQueries && ValidationWorkerCount(filler_count) > 1)
+	if (filler_count >= kMinParallelTargetLookupHashQueries && TargetSetupWorkerCount(filler_count) > 1)
 	{
-		ParallelForSamples(filler_count, [&](size_t begin, size_t end, unsigned int worker) {
+		ParallelForTargetSetup(filler_count, [&](size_t begin, size_t end, unsigned int worker) {
 			(void)worker;
 			fill_range(begin, end);
 		});
@@ -4274,9 +4310,9 @@ static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert(const std::v
 				TargetLookupBloom64InsertAtomic(*fused_bloom64_filter_words, hash);
 		}
 	};
-	if (filler_count >= kMinParallelTargetLookupHashQueries && ValidationWorkerCount(filler_count) > 1)
+	if (filler_count >= kMinParallelTargetLookupHashQueries && TargetSetupWorkerCount(filler_count) > 1)
 	{
-		ParallelForSamples(filler_count, [&](size_t begin, size_t end, unsigned int worker) {
+		ParallelForTargetSetup(filler_count, [&](size_t begin, size_t end, unsigned int worker) {
 			(void)worker;
 			fill_range(begin, end);
 		});

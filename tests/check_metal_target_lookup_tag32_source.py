@@ -64,10 +64,13 @@ for marker in (
     "InsertTargetLookupTag32PrehashedTableParallel",
     "fused_tag16_filter_buckets",
     "(*fused_tag16_filter_buckets)[slot]",
+    "RCK_TARGET_SETUP_WORKERS",
+    "TargetSetupWorkerCount",
+    "ParallelForTargetSetup",
     "TargetLookupHashMatchesInjected",
     "TargetLookupTag32TablesEqual",
     "TargetLookupTag32TableFindsAllKeys",
-    "target_count < kMinParallelTargetLookupHashQueries || ValidationWorkerCount(target_count) <= 1",
+    "target_count < kMinParallelTargetLookupHashQueries || TargetSetupWorkerCount(target_count) <= 1",
     "__atomic_compare_exchange(&buckets[slot]",
     "\\\"setup_phase\\\":\\\"host_tag32_build_from_injected_keys\\\"",
     "\\\"setup_phase\\\":\\\"host_tag32_parallel_insert_probe\\\"",
@@ -75,6 +78,7 @@ for marker in (
     "\\\"candidate_verification\\\":\\\"prehashed_serial_vs_parallel_semantic_find_all_keys\\\"",
     "\\\"prehashed_seconds\\\":",
     "\\\"parallel_seconds\\\":",
+    "\\\"target_setup_workers\\\":",
     "\\\"prehashed_checksum\\\":",
     "\\\"parallel_checksum\\\":",
     "\\\"table_equal\\\":",
@@ -139,7 +143,7 @@ for marker in (
     if marker not in host_source:
         raise SystemExit("missing tag32 target lookup host marker: " + marker)
 
-if host_source.count("ParallelForSamples(tag32_buckets.size()") < 2:
+if host_source.count("ParallelForTargetSetup(tag32_buckets.size()") < 2:
     raise SystemExit("derived tag32/tag16 filter builders should parallelize large bucket scans")
 if host_source.count("std::atomic<bool> index_out_of_range(false)") < 2:
     raise SystemExit("parallel derived filter builders should preserve index-range error detection")

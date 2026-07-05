@@ -7066,6 +7066,26 @@ These did not pass the performance gate or had a correctness/architecture issue:
   reverted before running the expensive 25M integrated gate. Keep the generic
   runtime `jump_mask` load for the 2048-step fixed-round walk until a broader
   specialization changes more than one scalar mask constant.
+- Added target-table setup worker telemetry and a narrow
+  `RCK_TARGET_SETUP_WORKERS` override, while rejecting an automatic 6-worker
+  Apple Silicon target-setup default. The hypothesis was that the M3 Air's
+  memory-bound 25M target-table builder might prefer fewer than all 8 logical
+  CPUs. The initial isolated parity-builder sandwich was mixed but plausible
+  (`build_seconds` auto/6/auto/6:
+  `0.698311/0.658014/0.710347/0.691518`), and the first integrated
+  distinct-miss pair also looked positive (`setup_inclusive_wall_distance_per_sec`
+  `400720291796.487488` for default versus `407032517982.193726` for
+  `RCK_VALIDATION_WORKERS=6`, with the same
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_distance_checksum=0x894123b96acf0de5`,
+  `dp_count=4121`, `hit_count=128`, `correctness=true`). The stricter
+  same-binary comparison rejected the automatic cap: a default-6 prototype
+  measured `401429474878.613708`, while explicit 8 target-setup workers measured
+  `406354482132.494812` and had lower `target_build_seconds`
+  (`0.634324` versus `0.699380`). The retained code keeps the default worker
+  count unchanged, separates `target_setup_workers` from `validation_workers` in
+  JSON, and lets future paired gates tune only target-table construction with
+  `RCK_TARGET_SETUP_WORKERS=N` instead of also slowing validation/replay.
 
 ## Cleanup Policy
 
