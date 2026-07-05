@@ -2701,8 +2701,7 @@ static bool TargetLookupKeyEquals(const TargetLookupKeyHost& a, const TargetLook
 static TargetLookupXOnlyHost TargetLookupXOnlyFromKey(const TargetLookupKeyHost& key)
 {
 	TargetLookupXOnlyHost out;
-	for (unsigned int limb = 0; limb < 4; ++limb)
-		out.x[limb] = key.x[limb];
+	memcpy(out.x, key.x, sizeof(out.x));
 	return out;
 }
 

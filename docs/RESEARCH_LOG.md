@@ -6962,6 +6962,27 @@ These did not pass the performance gate or had a correctness/architecture issue:
   candidate outlier at `6.503942`. The code was reverted; keep the simpler
   vector-backed output staging until a larger structural change removes the
   whole round-state materialization cost.
+- Accepted bulk-copy conversion from full target keys to compact x-only target
+  keys in the fixed-round tag32/parity multi-target builder. This replaces the
+  four-limb scalar copy in `TargetLookupXOnlyFromKey` with one sized `memcpy`
+  and adds a source guard so the x-only conversion remains bulk-copied. It
+  changes only host-side target setup; target generation, target hashes, bucket
+  insertion, tag16 filter semantics, parity decoding, lookup resolution, GPU
+  walk, DP predicate, and exact equality oracle are unchanged. Correctness
+  stayed exact on every A/B row (`semantic_checksum=0x388d492ffb8b482f`,
+  `all_keys_found=true`) and on the 25M integrated walk+lookup smoke
+  (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`, `dp_count=4121`, `hit_count=128`,
+  `correctness=true`). The 4M builder scout was noisy but its second sandwich
+  favored the candidate in both orders: baseline/candidate `build_seconds`
+  `0.111022/0.092877` and `0.102870/0.098030`. The 25M builder gate was mixed
+  in the first sandwich (`0.759318/0.660032`, then `0.840187/0.828374`) and
+  positive in the confirmation sandwich (`0.735764/0.609596` and
+  `0.949572/0.789731`); across the four 25M rows, median build time improved
+  from about `0.793846s` to `0.724882s`. A candidate-only 25M integrated row
+  reported `target_build_seconds=0.667466`. Treat this as a small real setup
+  cleanup for large x-only multi-target tables on the M3 Air, not a GPU walk or
+  kangaroo-math breakthrough.
 
 ## Cleanup Policy
 
