@@ -7052,6 +7052,20 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `0.681497`. The code was reverted. Treat direct x-only filler generation as a
   benchmark-attractive but real-path-negative scout unless paired with a broader
   integrated setup redesign.
+- Rejected a fixed-round XYZZ 2048-step/16-jump Metal specialization that
+  hardcoded the power-of-two jump mask to `15` inside a dedicated
+  `jacobian_affine_walk_dynamic_xyzz_steps2048_j16_u32_distance` kernel. This
+  preserved the affine-scan oracle
+  (`dp_distance_checksum=0xf31d7766e1607041`,
+  `dp_checksum=0x54ccada61fd1edbc`, `dp_count=2087`, `correctness=true`) and
+  left the generic kernel available for other jump counts, but the GPU timing
+  did not hold up in an order-reversed micro-gate. Candidate/baseline
+  `seconds` measured `2.353402/2.381785` in the first pair, then
+  baseline/candidate reversed to `2.371291/2.402888`. Since the benefit was
+  below noise and became negative when order was inverted, the code was
+  reverted before running the expensive 25M integrated gate. Keep the generic
+  runtime `jump_mask` load for the 2048-step fixed-round walk until a broader
+  specialization changes more than one scalar mask constant.
 
 ## Cleanup Policy
 
