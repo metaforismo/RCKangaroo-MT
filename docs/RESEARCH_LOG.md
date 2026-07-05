@@ -7170,6 +7170,30 @@ These did not pass the performance gate or had a correctness/architecture issue:
   the same band as the hash-guarded auto-sidecar rows. Treat the old 440B dirty
   rows as historical noisy highs until a clean, order-reversed gate reproduces
   them.
+- Rejected a fixed-round XYZZ `uint32_t` Metal jump-distance table candidate.
+  The hypothesis was that the current `u32_distance` kernels load each
+  `jump_distances[jump_index]` as a `ulong` and immediately cast it to `uint`,
+  while all valid fixed-round schedules already fit each per-step jump distance
+  in 32 bits. A scoped prototype used a separate `constant uint*` helper for
+  the fixed-round distance/store-round kernels and packed a guarded
+  `std::vector<uint32_t>` on the host, leaving distance accumulation,
+  cumulative packet distances, DP keys, target lookup, and exact validation
+  unchanged. Correctness stayed intact on the small fixed-round smoke and on
+  every 25M physical distinct-miss row
+  (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`,
+  `dp_distance_checksum=0x894123b96acf0de5`, `dp_count=4121`,
+  `hit_count=128`, `correctness=true`). The best manual warm candidate row
+  improved raw dispatch (`gpu_distance_per_sec=491923384110.940063`) and
+  measured `setup_inclusive_wall_distance_per_sec=385332267871.363464`, only
+  slightly above the adjacent pre-change baseline in this hot session
+  (`380655498603.483032`) and below the clean post-sidecar 400B band. The
+  follow-up autoresearch batch preserved the oracle but collapsed under M3 Air
+  thermals (`144958969785.817841`, `226271435558.653534`,
+  `304005052211.044739`; median row recorded as `discard`). The code was
+  reverted. Revisit only with a clean, cooled, order-reversed baseline/candidate
+  gate or a stronger compiler/codegen reason; do not promote this based on raw
+  dispatch alone.
 
 ## Cleanup Policy
 
