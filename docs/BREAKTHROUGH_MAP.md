@@ -186,6 +186,10 @@ Do not repeat these without new compiler evidence or a different oracle:
   compiler evidence. `static inline`, `always_inline`, and internal
   `bool`/`uint`/`uchar` infinity-flag rewrites preserved the oracle but slowed
   the 1M fixed-round gate sharply.
+- Removing the local `av[4]` array from `field_mul_values`. The source change
+  was correct and one paired 1M physical distinct-miss gate measured
+  `1.007896x`, but that is below the 1% promotion threshold and was not
+  repeat-confirmed; the code was reverted and only the evidence row was kept.
 - Promoting `--walk-round-mode persistent` as the fixed-round default from the
   1M physical distinct-miss gate. A same-tree command A/B stayed correct, but
   persistent lost both confirmations: `0.973113x` and `0.971031x` versus the

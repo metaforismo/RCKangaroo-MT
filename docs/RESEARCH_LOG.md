@@ -240,6 +240,24 @@ GPU work should use Metal.
   time. Do not promote any of these without a new paired gate and a reason the
   lookup path, not the walk, has become the bottleneck.
 
+### 2026-07-07 Metal Field Mul Local-Array Removal Scout
+
+- Rejected removing the local `av[4]` array from `field_mul_values`. The
+  candidate passed Metal kernel compilation, `selftest`, `metal-field-mul-test`,
+  `metal-field-square-test`, and preserved the 1M fixed-round physical
+  distinct-miss oracle:
+  `target_lookup_checksum=0xcb38405cd10f441d`,
+  `dp_checksum=0xbd17120591af6f74`,
+  `dp_distance_checksum=0x9eca239fc5687305`, `dp_count=1053`,
+  `hit_count=64`, and `correctness=true`.
+- A direct `metal-field-mul-bench --iterations 1048576 --min-ms 250` smoke
+  measured `27271170.012618` ops/sec, and the macro fixed-round paired gate
+  measured candidate `470474223199.067688` versus baseline
+  `466788556389.958374` setup-inclusive wall distance/sec
+  (`paired_speedup=1.007896`). That is positive but below the declared 1%
+  promotion threshold and not repeat-confirmed, so the code change was
+  reverted and only the evidence row was kept.
+
 ### 2026-07-07 Fixed-Round Direct Round-Start Fill
 
 - Rejected direct-fill construction for fixed-round batched round starts. The
