@@ -665,6 +665,62 @@ assert paired_confirmation_metrics[0][1]["ops_per_sec"] == 110.0
 assert paired_confirmation_metrics[1][0]["ops_per_sec"] == 125.0
 assert paired_confirmation_metrics[1][1]["ops_per_sec"] == 130.0
 
+paired_command_diff_calls: list[tuple[Path, list[str]]] = []
+paired_command_diff_ops = {
+    "baseline": [100.0],
+    "candidate": [120.0],
+}
+
+
+def fake_paired_command_diff_runner(args: list[str], timeout: int, cwd: Path = runner.ROOT) -> subprocess.CompletedProcess[str]:
+    paired_command_diff_calls.append((cwd, args))
+    if args[:3] == ["git", "worktree", "add"]:
+        return subprocess.CompletedProcess(args, 0, stdout="added baseline\n")
+    if args[:3] == ["git", "worktree", "remove"]:
+        return subprocess.CompletedProcess(args, 0, stdout="removed baseline\n")
+    if args == ["git", "status", "--porcelain"] or args == ["git", "rev-parse", "HEAD^{tree}"]:
+        raise AssertionError("different paired commands should not run same-tree noise detection")
+    if args == ["make", "macos-check"]:
+        return subprocess.CompletedProcess(args, 0, stdout="checked baseline\n")
+    if args == ["make", "macos-build"]:
+        return subprocess.CompletedProcess(args, 0, stdout="built once\n")
+    if args == ["./macos/rck_macos", "baseline-bench"]:
+        ops = paired_command_diff_ops["baseline"].pop(0)
+        payload = dict(metrics, ops_per_sec=ops, iterations=int(ops))
+        return subprocess.CompletedProcess(args, 0, stdout=f"{runner.json.dumps(payload)}\n")
+    if args == ["./macos/rck_macos", "candidate-bench"]:
+        ops = paired_command_diff_ops["candidate"].pop(0)
+        payload = dict(metrics, ops_per_sec=ops, iterations=int(ops))
+        return subprocess.CompletedProcess(args, 0, stdout=f"{runner.json.dumps(payload)}\n")
+    raise AssertionError(f"unexpected paired command-diff command: {args!r}")
+
+
+runner.run_command = fake_paired_command_diff_runner
+runner.git_commit = lambda cwd=runner.ROOT: "base123"
+try:
+    with contextlib.redirect_stdout(io.StringIO()):
+        paired_command_diff_metrics = runner.run_paired_baseline_and_candidate_confirmations(
+            dict(
+                experiment,
+                build_target="macos-build",
+                paired_baseline_command=["./macos/rck_macos", "baseline-bench"],
+                bench_command=["./macos/rck_macos", "candidate-bench"],
+                sample_runs=1,
+            ),
+            timeout=10,
+            ref="main",
+            candidate_cwd=candidate_cwd,
+            confirm_runs=1,
+        )
+finally:
+    runner.run_command = original_run_command
+    runner.git_commit = original_git_commit
+
+assert len(paired_command_diff_metrics) == 1
+assert paired_command_diff_metrics[0][0]["ops_per_sec"] == 100.0
+assert paired_command_diff_metrics[0][1]["ops_per_sec"] == 120.0
+assert "same_tree_paired_baseline" not in paired_command_diff_metrics[0][1]
+
 confirmation_rows = [
     runner.build_benchmark_row(
         experiment=experiment,

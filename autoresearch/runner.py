@@ -261,7 +261,7 @@ def build_benchmark_row(
         row["reason"] = f"{reason}; {spread_reason}" if reason else spread_reason
     if paired_baseline is not None and same_tree_paired_baseline:
         reason = str(row.get("reason", ""))
-        same_tree_reason = "paired baseline ref resolves to the same clean candidate tree; treating this row as a noise sentinel"
+        same_tree_reason = "paired baseline ref resolves to the same clean candidate tree and benchmark command; treating this row as a noise sentinel"
         row["reason"] = f"{reason}; {same_tree_reason}" if reason else same_tree_reason
         row["same_tree_paired_baseline"] = True
     if paired_baseline is not None:
@@ -388,9 +388,10 @@ def run_paired_baseline_and_candidate_confirmations(experiment: dict, timeout: i
         if add.returncode != 0:
             raise RuntimeError(add.stdout)
         try:
-            same_tree_paired_baseline = same_clean_tree(worktree_path, candidate_cwd)
+            same_command_paired_baseline = experiment_bench_command(experiment, "paired_baseline_command") == experiment_bench_command(experiment)
+            same_tree_paired_baseline = same_command_paired_baseline and same_clean_tree(worktree_path, candidate_cwd)
             if same_tree_paired_baseline:
-                print("paired baseline resolves to the same clean candidate tree; rows will be discarded as noise sentinels")
+                print("paired baseline resolves to the same clean candidate tree and command; rows will be discarded as noise sentinels")
             check = run_command(["make", "macos-check"], timeout=timeout, cwd=worktree_path)
             if check.returncode != 0:
                 raise RuntimeError(check.stdout)

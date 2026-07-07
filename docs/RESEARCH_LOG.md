@@ -7430,9 +7430,11 @@ These did not pass the performance gate or had a correctness/architecture issue:
 - The misleading generated `keep` row was removed from
   `autoresearch/results.tsv` and `autoresearch/benchmarks.jsonl` so it cannot
   become a future `best_previous` threshold. The runner now marks identical
-  clean-tree paired baselines with `same_tree_paired_baseline=true` and forces
-  `status=discard`, preserving the row only as a noise sentinel when such a run
-  is intentionally recorded.
+  clean-tree and identical-command paired baselines with
+  `same_tree_paired_baseline=true` and forces `status=discard`, preserving the
+  row only as a noise sentinel when such a run is intentionally recorded.
+  Same-tree command A/B experiments remain valid when `paired_baseline_command`
+  differs from the candidate command.
 - This is a methodology hardening change. It does not improve Metal throughput,
   but it protects future GPU and math experiments from self-comparison noise.
 

@@ -53,16 +53,19 @@ distinct-miss lookup, exact target verification, and setup-inclusive wall
 distance metric. It is a candidate filter, not a promotion gate.
 
 Same-tree paired baseline rule: if `--paired-baseline-ref` resolves to the same
-clean candidate tree, the runner must record the row as `discard` with
+clean candidate tree and the paired baseline command is identical to the
+candidate benchmark command, the runner must record the row as `discard` with
 `same_tree_paired_baseline=true`. Such a row is a noise sentinel, not a speed
-candidate, and must not become a best previous score.
+candidate, and must not become a best previous score. Same-tree command A/B
+experiments remain valid when `paired_baseline_command` is explicitly different.
 
 ## Latest Accepted Change
 
 2026-07-07: same-tree paired baseline guard for autoresearch.
 
 - Change: paired autoresearch now compares the baseline worktree tree id with
-  the clean candidate tree id. If they are identical, candidate rows are
+  the clean candidate tree id when the paired baseline command is the same as
+  the candidate command. If tree and command are identical, candidate rows are
   forced to `discard`, even when timing noise makes the candidate appear faster.
 - Motivation: a same-code `HEAD` versus `HEAD` 1M Metal fast-falsifier scout
   produced an apparent `keep` at
@@ -233,6 +236,7 @@ Every speed candidate must answer:
 - Did the candidate keep the canonical checksum fields stable or explain why a
   solver-equivalent oracle changed?
 - Did it run paired against current `main`, preferably with alternate order?
-- Did the paired baseline resolve to a different clean tree than the candidate?
+- Did the paired baseline resolve to a different clean tree, or is it an
+  explicit same-tree command A/B via `paired_baseline_command`?
 - Did it improve setup-inclusive wall distance/sec, not just a submetric?
 - Did the research log record both the positive and negative evidence?
