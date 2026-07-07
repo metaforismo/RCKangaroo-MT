@@ -205,8 +205,12 @@ def build_benchmark_row(
     same_tree_paired_baseline = bool(metrics.get("same_tree_paired_baseline"))
     paired_ops: float | None = None
     paired_usable = False
+    paired_baseline_spread_too_high = False
+    paired_baseline_spread_ratio = 1.0
     if paired_baseline is not None:
         paired_ops = float(paired_baseline.get("ops_per_sec", 0.0))
+        paired_baseline_spread_ratio = float(paired_baseline.get("sample_spread_ratio", 1.0) or 1.0)
+        paired_baseline_spread_too_high = max_spread_ratio > 0.0 and paired_baseline_spread_ratio > max_spread_ratio
         paired_usable = (
             bool(paired_baseline.get("correctness"))
             and not bool(paired_baseline.get("skipped"))
@@ -218,6 +222,8 @@ def build_benchmark_row(
     elif not correctness:
         status = "crash"
     elif spread_too_high:
+        status = "discard"
+    elif paired_usable and paired_baseline_spread_too_high:
         status = "discard"
     elif paired_usable and same_tree_paired_baseline:
         status = "discard"
@@ -259,6 +265,11 @@ def build_benchmark_row(
         reason = str(row.get("reason", ""))
         spread_reason = f"sample spread ratio {sample_spread_ratio:.6f} exceeds max {max_spread_ratio:.6f}"
         row["reason"] = f"{reason}; {spread_reason}" if reason else spread_reason
+    if paired_baseline is not None and paired_baseline_spread_too_high:
+        reason = str(row.get("reason", ""))
+        spread_reason = f"paired baseline sample spread ratio {paired_baseline_spread_ratio:.6f} exceeds max {max_spread_ratio:.6f}"
+        row["reason"] = f"{reason}; {spread_reason}" if reason else spread_reason
+        row["paired_baseline_sample_spread_ratio"] = paired_baseline_spread_ratio
     if paired_baseline is not None and same_tree_paired_baseline:
         reason = str(row.get("reason", ""))
         same_tree_reason = "paired baseline ref resolves to the same clean candidate tree and benchmark command; treating this row as a noise sentinel"

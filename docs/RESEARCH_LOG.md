@@ -7575,6 +7575,21 @@ These did not pass the performance gate or had a correctness/architecture issue:
 - This is a methodology hardening change. It does not improve Metal throughput,
   but it protects future GPU and math experiments from self-comparison noise.
 
+### Paired Baseline Spread Guard
+
+- Added paired-baseline sample-spread rejection to autoresearch. A paired
+  candidate can no longer keep merely because the baseline median was depressed
+  by noisy samples when `max_sample_spread_ratio` is set. If
+  `paired_baseline.sample_spread_ratio > max_sample_spread_ratio`, the candidate
+  row is forced to `discard` and records `paired_baseline_sample_spread_ratio`.
+- Motivation: the 25M M3 Metal gates can show order-sensitive and thermal noise,
+  as seen during the square double-product scout. This change does not improve
+  runtime speed directly, but it prevents unstable baselines from becoming false
+  promotion evidence for real multi-target kangaroo work.
+- Unit coverage now checks that a candidate with an apparent `1.1x`
+  `paired_speedup` is still discarded when the paired baseline spread ratio is
+  `3.0` under a configured maximum of `2.0`.
+
 ## Cleanup Policy
 
 - After a feature is merged to `main` and pushed, remove only its clean accepted

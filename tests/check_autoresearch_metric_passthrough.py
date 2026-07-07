@@ -173,6 +173,22 @@ assert spread_row["status"] == "discard"
 assert spread_row["max_sample_spread_ratio"] == 2.0
 assert "sample spread ratio 3.000000 exceeds max 2.000000" in spread_row["reason"]
 
+paired_baseline_spread_row = runner.build_benchmark_row(
+    experiment=dict(experiment, max_sample_spread_ratio=2.0),
+    metrics=dict(metrics, ops_per_sec=110.0, sample_spread_ratio=1.0),
+    budget_sec=5,
+    commit="abc127",
+    machine="test-machine",
+    previous=None,
+    paired_baseline=dict(metrics, ops_per_sec=100.0, sample_spread_ratio=3.0),
+    paired_baseline_ref="main",
+    timestamp="2026-01-01T00:00:05Z",
+)
+assert paired_baseline_spread_row["status"] == "discard"
+assert paired_baseline_spread_row["paired_speedup"] == 1.1
+assert paired_baseline_spread_row["paired_baseline_sample_spread_ratio"] == 3.0
+assert "paired baseline sample spread ratio 3.000000 exceeds max 2.000000" in paired_baseline_spread_row["reason"]
+
 lookup_samples = [
     dict(metrics, operation="target_lookup_exact256", lookups_per_sec=10.0, ops_per_sec=0.0),
     dict(metrics, operation="target_lookup_exact256", lookups_per_sec=20.0, ops_per_sec=0.0),

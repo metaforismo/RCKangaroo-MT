@@ -59,9 +59,30 @@ candidate benchmark command, the runner must record the row as `discard` with
 candidate, and must not become a best previous score. Same-tree command A/B
 experiments remain valid when `paired_baseline_command` is explicitly different.
 
+Paired baseline spread rule: when an experiment defines
+`max_sample_spread_ratio`, the paired baseline sample spread is part of the
+oracle. If `paired_baseline.sample_spread_ratio` exceeds that limit, the runner
+must discard the candidate and record `paired_baseline_sample_spread_ratio`,
+even when the candidate median appears faster. A noisy depressed baseline is not
+promotion evidence.
+
 ## Latest Accepted Change
 
-2026-07-07: same-tree paired baseline guard for autoresearch.
+2026-07-07: paired baseline spread guard for autoresearch.
+
+- Change: paired autoresearch now applies the configured
+  `max_sample_spread_ratio` to the paired baseline sample set as well as to the
+  candidate. Rows with an unstable paired baseline are forced to `discard` and
+  include `paired_baseline_sample_spread_ratio` plus a reason string.
+- Motivation: the 25M square double-product scout produced noisy paired samples
+  while the 1M gate looked strongly positive. This guard prevents a thermally
+  depressed or order-sensitive baseline median from turning into false
+  promotion evidence.
+- Scope: this is a benchmark integrity improvement. It does not claim a new
+  GKeys/s or distance/sec speedup, but it makes future M3 Metal promotion gates
+  stricter and more reproducible.
+
+Earlier 2026-07-07: same-tree paired baseline guard for autoresearch.
 
 - Change: paired autoresearch now compares the baseline worktree tree id with
   the clean candidate tree id when the paired baseline command is the same as
