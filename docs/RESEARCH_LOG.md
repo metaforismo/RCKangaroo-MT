@@ -32,6 +32,28 @@ GPU work should use Metal.
 
 ## Recent Kept Experiments
 
+### 2026-07-07 Metal Static Jump Distance Accumulation
+
+- Kept a Metal kernel specialization for the Benchforge score path
+  `metal-jacobian-jump-walk-bench --iterations 16384 --steps 8 --jumps 16
+  --dp-bits 4 --min-ms 50`. The `steps8_dp4` static jump-table kernel now
+  computes the power-of-two distance contribution as `1UL << jump_index` instead
+  of reading `jump_distances[jump_index]`. This is valid for the static Metal
+  jump-walk path because `BuildJacobianJumpDistances` defines distances as
+  powers of two and the jump count is normalized to at most 32.
+- Correctness oracle stayed exact: `distance_checksum=0xa45f471493cace2f`,
+  `dp_count=1000`, `dp_checksum=0x30a7914972cba014`, `correctness=true`, and
+  `skipped=false` on the challenge command. `tests/check_metal_kernels.sh` now
+  guards this specialization explicitly, while the generic and dynamic kernels
+  keep table-loaded distances for non-static schedules.
+- Paired dirty scout against clean `791cbc8` on the same MacBook Air M3 stayed
+  noisy but favorable. With `min-ms 200`, alternating samples were baseline
+  `19.51M`, current `20.22M`, baseline `29.06M`, current `47.17M`, baseline
+  `39.17M`, current `61.15M` ops/sec. The final sequential local Benchforge
+  run after full checks reported a three-sample median of `56.63M` ops/sec with
+  samples `56.63M`, `53.80M`, and `58.80M`. Treat this as a small real kernel
+  hot-path cleanup, not a broad solver breakthrough.
+
 ### 2026-07-07 CPU Tiny Schedule Portfolio Probe
 
 - Added opt-in `--jump-schedule scaled4-probe-power2` for the CPU tiny
