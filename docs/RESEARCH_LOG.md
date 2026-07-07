@@ -51,8 +51,10 @@ GPU work should use Metal.
   `19.51M`, current `20.22M`, baseline `29.06M`, current `47.17M`, baseline
   `39.17M`, current `61.15M` ops/sec. The final sequential local Benchforge
   run after full checks reported a three-sample median of `56.63M` ops/sec with
-  samples `56.63M`, `53.80M`, and `58.80M`. Treat this as a small real kernel
-  hot-path cleanup, not a broad solver breakthrough.
+  samples `56.63M`, `53.80M`, and `58.80M`; a later clean rerun on the same
+  kept commit reported `32.85M` with samples `32.65M`, `32.85M`, and `37.75M`.
+  Treat this as a small real kernel hot-path cleanup, not a broad solver
+  breakthrough.
 
 ### 2026-07-07 CPU Tiny Schedule Portfolio Probe
 
