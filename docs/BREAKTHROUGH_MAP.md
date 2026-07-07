@@ -52,6 +52,35 @@ This 1M-target gate keeps the same fixed-round `2048/dp6`, physical
 distinct-miss lookup, exact target verification, and setup-inclusive wall
 distance metric. It is a candidate filter, not a promotion gate.
 
+## Latest Accepted Change
+
+2026-07-07: lazy deterministic filler x-key storage for physical
+distinct-miss parity target tables.
+
+- Change: the tag32 parity target table still stores all bucket entries, tags,
+  indices, parity bits, and fused filters, but the exact x-only key array stores
+  only injected target keys for `lookup_distinct_misses`. Deterministic filler
+  x/parity keys are reconstructed only when an exact CPU verification reaches a
+  filler index after a filter positive.
+- Correctness oracle: unchanged canonical 25M checksums
+  (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`,
+  `dp_distance_checksum=0x894123b96acf0de5`, `dp_count=4121`,
+  `hit_count=128`, `correctness=true`). The strict resolver gate also passed
+  on the 1M physical distinct-miss oracle.
+- Scale effect: on the 25M gate, `target_key_bytes` drops from `800160000` to
+  `4096`, and `exact_host_table_bytes` drops from `1068595456` to `268439552`.
+- Speed evidence: the 1M fast falsifier was noisy and ended `discard`
+  (`confirmation_status=discard`), so do not cite it as a speed win. The 25M
+  paired promotion run against `HEAD` ended `keep` with
+  `setup_inclusive_wall_distance_per_sec=174531285283.435028`,
+  paired baseline `171624904725.976135`, speedup `1.016934`, and sample spread
+  `1.057247`.
+- Interpretation: this is a real memory-pressure improvement with a small 25M
+  end-to-end win on the local MacBook Air M3. It is not a mathematical kangaroo
+  breakthrough, and it does not move the main bottleneck away from the XYZZ
+  Metal walk.
+
 ## Current Bottleneck
 
 The 25M physical gate is dominated by the XYZZ Metal walk. Lookup and target
@@ -61,7 +90,7 @@ they are no longer the main MacBook Air M3 bottleneck.
 Typical current shape:
 
 - GPU walk wall time: several seconds and the dominant component.
-- Target setup: secondary, usually subsecond but still included.
+- Target setup: secondary, usually around one second at 25M but still included.
 - Affine scan and lookup: small but kept visible to prevent hidden costs.
 
 ## Dead Ends

@@ -7370,6 +7370,25 @@ These did not pass the performance gate or had a correctness/architecture issue:
   reverted. Revisit only with a clean, cooled, order-reversed baseline/candidate
   gate or a stronger compiler/codegen reason; do not promote this based on raw
   dispatch alone.
+- Accepted lazy deterministic filler x-key storage for the physical
+  distinct-miss tag32 parity table on 2026-07-07. The table still inserts every
+  target bucket and fused filter entry, but when `lookup_distinct_misses` uses
+  the parity x-only table the host x-key buffer stores only injected targets;
+  deterministic filler keys are reconstructed inside exact CPU verification
+  only after a filter positive reaches a filler index. This preserved the 1M
+  strict resolver oracle and the canonical 25M oracle
+  (`target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`,
+  `dp_distance_checksum=0x894123b96acf0de5`, `dp_count=4121`,
+  `hit_count=128`, `correctness=true`). The 1M paired fast falsifier was not a
+  speed win (`confirmation_status=discard`), but the 25M paired promotion gate
+  ended `keep`: `setup_inclusive_wall_distance_per_sec=174531285283.435028`
+  versus baseline `171624904725.976135` (`paired_speedup=1.016934`,
+  spread ratio `1.057247`). The large-scale memory effect is the main value:
+  `target_key_bytes` drops from `800160000` to `4096`, and
+  `exact_host_table_bytes` drops from `1068595456` to `268439552`. Treat this
+  as a real MacBook Air M3 memory-pressure improvement with a small 25M
+  end-to-end win, not as a new kangaroo-math breakthrough.
 
 ## Cleanup Policy
 

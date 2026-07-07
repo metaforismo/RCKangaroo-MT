@@ -234,7 +234,9 @@ if "RunTargetLookupTag16HashFilterDistinctMissesKernel(target_filter16_buckets, 
     raise SystemExit("fixed-round distinct-misses lookup should generate deterministic miss hashes in the Metal tag16 filter kernel")
 if "use_tag16_mixed_hash_filter" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should preserve the tag16-mix filter choice")
-if "BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, target_count, target_x_keys, target_x_key_count, target_parity_buckets, error, fuse_tag16_filter ? &target_filter16_buckets : NULL, use_tag16_mixed_hash_filter, use_bloom64_hash_filter ? &target_bloom64_filter_words : NULL)" not in rounds_body:
+if "lazy_parity_filler_x_keys = use_parity_xonly_target_table && lookup_distinct_misses" not in rounds_body:
+    raise SystemExit("fixed-round distinct-misses should expose a guarded lazy filler x-key storage mode")
+if "BuildTargetLookupTag32ParityTableFromKeysParallelInsert(injected_keys, target_count, target_x_keys, target_x_key_count, target_parity_buckets, error, fuse_tag16_filter ? &target_filter16_buckets : NULL, use_tag16_mixed_hash_filter, use_bloom64_hash_filter ? &target_bloom64_filter_words : NULL, !lazy_parity_filler_x_keys)" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses lookup should fuse standard or mixed tag16 filters into the compact parity table")
 if "RunTargetLookupTag16HashFilterKernelRaw(target_filter16_buckets, lookup_query_hash_data, lookup_query_hash_count, positive_query_indices, local_filter_positive_count, error, &filter_seconds_attempt, effective_lookup_threadgroup_limit, &lookup_stats, use_tag16_mixed_hash_filter)" not in rounds_body:
     raise SystemExit("fixed-round distinct-misses fallback should pass the mixed tag selector to the non-repeat hash-filter kernel")
@@ -315,8 +317,8 @@ if "uint64_t miss_hash = DeterministicTargetLookupKeyHash(nonce, miss_salt);" no
     raise SystemExit("distinct miss-source generation should hash deterministic misses without first materializing full host keys")
 if "if (maybe_exact_hit)\n\t\t\t\t\t{\n\t\t\t\t\t\tTargetLookupKeyHost miss_key = DeterministicTargetLookupKey(nonce, miss_salt);" not in kernels:
     raise SystemExit("distinct miss-source generation should materialize miss keys only for tag16 prefilter positives")
-if "TargetLookupTag32ParityFindWithHash(target_x_keys, target_x_key_count, parity_buckets, miss_key, miss_hash, &ignored)" not in kernels:
-    raise SystemExit("distinct miss-source generation should preserve parity exact lookup after prefilter positives")
+if "TargetLookupTag32ParityFindWithHash(target_x_keys, target_x_key_count, parity_buckets, miss_key, miss_hash, &ignored,\n\t\t\t\t\t\t\t\tlogical_target_count, injected_target_count, deterministic_filler_x_keys)" not in kernels:
+    raise SystemExit("distinct miss-source generation should preserve lazy-aware parity exact lookup after prefilter positives")
 if "RCK_STRICT_DISTINCT_MISS_RESOLVE" not in kernels:
     raise SystemExit("distinct resolver should keep an env-gated strict exact audit mode")
 if "DistinctTargetLookupValidatedMissSourceIndex" not in kernels:
@@ -459,14 +461,22 @@ if "std::vector<uint8_t> target_parities" in parity_builder_body:
     raise SystemExit("x-only parity target builder should not materialize per-target parity temporaries")
 if "target_x_keys.resize" in parity_builder_body:
     raise SystemExit("x-only parity target builder should avoid value-initializing the full target key array")
-if "AllocateTargetLookupXOnlyBuffer(target_count)" not in parity_builder_body:
-    raise SystemExit("x-only parity target builder should allocate an uninitialized x-only target buffer")
+if "size_t stored_x_key_count = store_filler_x_keys ? (size_t)target_count : injected_keys.size();" not in parity_builder_body:
+    raise SystemExit("x-only parity target builder should support storing only injected x keys")
+if "AllocateTargetLookupXOnlyBuffer(stored_x_key_count)" not in parity_builder_body:
+    raise SystemExit("x-only parity target builder should allocate an uninitialized x-only target buffer sized by storage mode")
+if "if (store_filler_x_keys)\n\t\t\t\ttarget_x_keys.get()[out_index] = TargetLookupXOnlyFromKey(key);" not in parity_builder_body:
+    raise SystemExit("x-only parity target builder should skip filler x-key writes in lazy mode")
 if "memcpy(out.x, key.x, sizeof(out.x));" not in kernels:
     raise SystemExit("x-only target key conversion should bulk-copy the four x limbs")
 if "static void DeterministicTargetLookupKeyAndHash" not in kernels:
     raise SystemExit("deterministic target filler should expose fused key+hash generation")
-if "DeterministicTargetLookupKeyAndHash((uint64_t)offset, 0xA1171E5CAFULL, key, hash);" not in parity_builder_body:
+if "kTargetLookupFillerSalt = 0xA1171E5CAFULL" not in kernels:
+    raise SystemExit("deterministic target filler salt should be named for lazy exact reconstruction")
+if "DeterministicTargetLookupKeyAndHash((uint64_t)offset, kTargetLookupFillerSalt, key, hash);" not in parity_builder_body:
     raise SystemExit("x-only parity target builder should fuse deterministic key and hash generation")
+if "TargetLookupKeyEquals(filler_key, query)" not in kernels:
+    raise SystemExit("lazy parity target equality should reconstruct and exactly compare deterministic filler keys")
 if "target_count > SIZE_MAX / sizeof(TargetLookupXOnlyHost)" not in kernels:
     raise SystemExit("x-only target key allocation should guard byte-size overflow")
 if "posix_memalign(&ptr, 64, byte_count)" not in kernels:
