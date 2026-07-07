@@ -39,6 +39,19 @@ Do not promote a change from `ops_per_sec`, `lookups_per_sec`, field
 microbenchmarks, or repeat-mode-only wins unless it also survives this gate or a
 clearly documented solver-equivalent gate.
 
+Fast falsifier before spending the full 25M run:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter1m_rounds_distinct_misses_distance \
+  --budget-sec 180 \
+  --paired-baseline-ref HEAD \
+  --confirm-runs 2
+```
+
+This 1M-target gate keeps the same fixed-round `2048/dp6`, physical
+distinct-miss lookup, exact target verification, and setup-inclusive wall
+distance metric. It is a candidate filter, not a promotion gate.
+
 ## Current Bottleneck
 
 The 25M physical gate is dominated by the XYZZ Metal walk. Lookup and target

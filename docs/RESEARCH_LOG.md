@@ -32,6 +32,28 @@ GPU work should use Metal.
 
 ## Recent Kept Experiments
 
+### 2026-07-07 Medium Fixed-Round Distinct-Miss Falsifier
+
+- Added an autoresearch medium gate for fast candidate falsification:
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter1m_rounds_distinct_misses_distance`.
+  It uses the same fixed-round walk shape as the canonical 25M gate
+  (`steps=2048`, `dp_bits=6`, `rounds=2`, `jumps=16`, `lookup_repeat=1024`,
+  physical `distinct-misses`, `lookup_tg_limit=512`) and the same primary
+  metric, `setup_inclusive_wall_distance_per_sec`, but with 1,048,576 targets.
+  This is a pre-25M falsifier, not a promotion gate.
+- Manual clean baseline on the local M3 Air preserved exact correctness with
+  `target_lookup_checksum=0xcb38405cd10f441d`,
+  `dp_checksum=0xbd17120591af6f74`, `dp_distance_checksum=0x9eca239fc5687305`,
+  `dp_count=1053`, `hit_count=64`, and `correctness=true`, measuring
+  `setup_inclusive_wall_distance_per_sec=402946015614.159119`.
+- The adjacent `--walk-round-mode persistent` scout stayed correct but did not
+  beat the independent default on this medium gate. It reported
+  `target_lookup_checksum=0xdd2a2f23ab08c29b`,
+  `dp_checksum=0x629ee4b4c12210d6`, `dp_distance_checksum=0xa5baca18c951809a`,
+  `dp_count=1052`, `hit_count=64`, `correctness=true`, and
+  `setup_inclusive_wall_distance_per_sec=401213883145.498718`. Keep persistent
+  as an opt-in solver-like probe; do not promote it from this row.
+
 ### 2026-07-07 Metal Static Jump Distance Accumulation
 
 - Kept a Metal kernel specialization for the Benchforge score path

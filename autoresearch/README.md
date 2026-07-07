@@ -95,6 +95,7 @@ python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyz
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_batched_walk --budget-sec 540 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_setup_inclusive --budget-sec 540 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_setup_wall --budget-sec 540 --paired-baseline-ref HEAD --confirm-runs 2
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter1m_rounds_distinct_misses_distance --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_auto_repeat --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_sparse_repeat_exact --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
 python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter_m3_sparse_repeat_exact_cache --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
@@ -597,6 +598,19 @@ hide a changed hit count, false-positive count, or lookup result.
 The `scaled4_j4_setup` variant keeps the same 2048/dp6 target-lookup shape and
 scores `--jumps 4 --jump-schedule scaled4-balanced` against the 16-jump
 `power2` baseline with the same setup-inclusive metric.
+
+For faster falsification before spending a full 25M run, use the medium
+fixed-round physical distinct-miss gate:
+
+```sh
+python3 autoresearch/runner.py --experiment metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter1m_rounds_distinct_misses_distance --budget-sec 180 --paired-baseline-ref HEAD --confirm-runs 2
+```
+
+It keeps the fixed-round `steps=2048, dp_bits=6, rounds=2` walk, physical
+distinct-miss lookup, exact `x256+y_parity` verification, and the same
+`setup_inclusive_wall_distance_per_sec` metric as the canonical 25M gate, but
+uses 1,048,576 targets so noisy or obviously slower Metal candidates can be
+discarded quickly.
 
 Run the large-table tag32 GPU filter lookup gate:
 

@@ -1166,6 +1166,38 @@ check_experiment(
     "setup_inclusive_wall_distance_per_sec",
 )
 
+rounds_distinct_misses_1m_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-rounds-bench",
+    "--iterations",
+    "32768",
+    "--steps",
+    "2048",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "6",
+    "--target-count",
+    "1048576",
+    "--hits",
+    "32",
+    "--lookup-repeat",
+    "1024",
+    "--lookup-query-mode",
+    "distinct-misses",
+    "--rounds",
+    "2",
+    "--lookup-tg-limit",
+    "512",
+    "--jump-schedule",
+    "power2",
+]
+check_experiment(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter1m_rounds_distinct_misses_distance.json",
+    rounds_distinct_misses_1m_command,
+    "setup_inclusive_wall_distance_per_sec",
+)
+
 m3_auto_repeat_tag16_mix_command = [
     "./macos/rck_macos",
     "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench",
