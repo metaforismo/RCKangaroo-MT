@@ -211,6 +211,10 @@ Do not repeat these without new compiler evidence or a different oracle:
   was correct and one paired 1M physical distinct-miss gate measured
   `1.007896x`, but that is below the 1% promotion threshold and was not
   repeat-confirmed; the code was reverted and only the evidence row was kept.
+- Replacing `field_mul_values` local limb arrays with a direct-limb
+  `mul256_by_64_values` helper. The candidate preserved the 1M physical
+  distinct-miss oracle, but paired confirmations were slower and the final
+  recorded speedup was `0.821769x`; the code was reverted.
 - Rewriting the fixed-round XYZZ store-round path to avoid the outer
   `XyzzDistanceValue` struct return. The candidate preserved the 1M physical
   distinct-miss oracle, but paired confirmations were `0.991582x` and

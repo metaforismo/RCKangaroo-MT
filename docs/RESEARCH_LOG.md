@@ -258,6 +258,26 @@ GPU work should use Metal.
   promotion threshold and not repeat-confirmed, so the code change was
   reverted and only the evidence row was kept.
 
+### 2026-07-07 Metal Field Mul Direct-Limb Helper Scout
+
+- Rejected replacing the `field_mul_values` local `av[4]`/`bv[4]` arrays with a
+  direct-limb `mul256_by_64_values` helper. The candidate preserved the 1M
+  fixed-round physical distinct-miss oracle:
+  `target_lookup_checksum=0xcb38405cd10f441d`,
+  `dp_checksum=0xbd17120591af6f74`,
+  `dp_distance_checksum=0x9eca239fc5687305`, `dp_count=1053`,
+  `hit_count=64`, `filter_false_positive_count=28`, and `correctness=true`.
+- Performance rejected the source-shape change decisively on the 1M M3 gate:
+  confirmation 1 measured candidate `108718060029.861649` versus paired
+  baseline `128535593794.307846`; confirmation 2 measured candidate
+  `157380676707.838654` versus paired baseline `191514442261.434723`
+  (`paired_speedup=0.821769`). The paired baseline spread guard also flagged
+  noisy baselines above the configured `1.5` ratio, so the result is useful
+  negative evidence rather than a speed claim.
+- The code was reverted. Do not retry direct-limb field multiplication helpers
+  unless Metal codegen evidence shows lower register pressure for the hot
+  fixed-round XYZZ module.
+
 ### 2026-07-07 Fixed-Round XYZZ In-Place Return Scout
 
 - Rejected an in-place fixed-round XYZZ helper that avoided the outer
