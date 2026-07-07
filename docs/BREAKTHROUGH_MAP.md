@@ -77,7 +77,31 @@ variants.
 
 ## Latest Accepted Change
 
-2026-07-07: canonical required-metrics guard for autoresearch.
+2026-07-07: bounded generated-miss positive buffers for Metal distinct-miss
+lookup.
+
+- Change: generated distinct-miss Metal filter kernels now separate
+  `query_count` from positive-output capacity. The default capacity is bounded
+  to the DP prefix plus a 65,536-entry slack window, and the host wrapper
+  automatically retries with full `query_count` capacity if the actual positive
+  count exceeds the bounded buffer. `RCK_METAL_DISABLE_BOUNDED_POSITIVE_BUFFER=1`
+  keeps a same-binary A/B escape hatch.
+- Correctness oracle: the 1M fixed-round physical distinct-miss command
+  preserved `target_lookup_checksum=0xcb38405cd10f441d`,
+  `dp_checksum=0xbd17120591af6f74`,
+  `dp_distance_checksum=0x9eca239fc5687305`, `dp_count=1053`,
+  `hit_count=64`, `filter_false_positive_count=28`, and `correctness=true`.
+- Speed evidence: a lookup-stressed same-binary A/B on the M3 Air
+  (`8192` walkers, `lookup_repeat=8192`, 1M targets) preserved the same oracle
+  and reduced lookup wall time from `0.064865s` with full positive capacity to
+  `0.020340s` with bounded capacity. The broader setup-inclusive score was
+  still dominated by walk, target build, and validation noise, so do not cite
+  this as a full 25M kangaroo throughput breakthrough.
+- Scope: this is a real allocation/memory-pressure improvement on the
+  multi-target distinct-miss lookup path. The XYZZ walk remains the main M3
+  bottleneck.
+
+Earlier 2026-07-07: canonical required-metrics guard for autoresearch.
 
 - Change: autoresearch experiments can now declare `required_metrics`. The
   runner marks rows as failed for that gate when the benchmark is internally

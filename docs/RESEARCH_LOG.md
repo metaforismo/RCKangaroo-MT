@@ -32,6 +32,39 @@ GPU work should use Metal.
 
 ## Recent Kept Experiments
 
+### 2026-07-07 Bounded Generated-Miss Positive Buffers
+
+- Kept a bounded positive-output buffer for generated distinct-miss Metal
+  filter kernels. The tag16/mixed-tag16 and Bloom64 generated-miss kernels now
+  receive a separate `positive_capacity` constant instead of using
+  `query_count` as both dispatch size and output capacity. Host wrappers default
+  to `prefix_query_count + 65536` positive slots, expose
+  `RCK_METAL_DISABLE_BOUNDED_POSITIVE_BUFFER=1` for same-binary A/B checks, and
+  automatically retry with full `query_count` capacity if the real positive
+  count exceeds the bounded buffer.
+- Correctness stayed exact on the 1M fixed-round physical distinct-miss oracle:
+  `target_lookup_checksum=0xcb38405cd10f441d`,
+  `dp_checksum=0xbd17120591af6f74`,
+  `dp_distance_checksum=0x9eca239fc5687305`, `dp_count=1053`,
+  `hit_count=64`, `filter_false_positive_count=28`, and `correctness=true`.
+  A lookup-stressed 1M run with `--iterations 8192`, `--hits 8`, and
+  `--lookup-repeat 8192` also stayed correct with
+  `target_lookup_checksum=0xd3067521868c8f57`, `dp_count=255`,
+  `hit_count=16`, and `filter_false_positive_count=55`.
+- Same-binary A/B evidence on the lookup-stressed command isolated the intended
+  effect: bounded capacity measured `lookup_wall_seconds=0.020340` and
+  `lookup_buffer_seconds=0.011400`; forced full capacity measured
+  `lookup_wall_seconds=0.064865` and `lookup_buffer_seconds=0.033000`.
+  Setup-inclusive wall distance/sec also favored bounded capacity
+  (`71439440316.858917` versus `61920138700.895264`), but the machine was hot
+  and target-build/validation noise was large, so treat this as a
+  lookup/allocation win rather than a broad Metal walk breakthrough.
+- A full autoresearch 1M paired gate was intentionally interrupted after the
+  first baseline sample because the local M3 Air was no longer in a useful fast
+  falsifier regime: that baseline sample reported
+  `target_build_seconds=5.235664` and `validation_seconds=92.300335`. Do not
+  use that partial row as speed evidence.
+
 ### 2026-07-07 Medium Fixed-Round Distinct-Miss Falsifier
 
 - Added an autoresearch medium gate for fast candidate falsification:

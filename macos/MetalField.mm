@@ -73,6 +73,24 @@ static bool StrictDistinctMissResolve()
 	return raw && raw[0] != '\0' && strcmp(raw, "0") != 0;
 }
 
+static bool DisableBoundedPositiveBuffer()
+{
+	const char* raw = getenv("RCK_METAL_DISABLE_BOUNDED_POSITIVE_BUFFER");
+	return raw && raw[0] != '\0' && strcmp(raw, "0") != 0;
+}
+
+static uint32_t GeneratedMissPositiveCapacity(uint32_t query_count, size_t prefix_query_count)
+{
+	if (DisableBoundedPositiveBuffer())
+		return query_count;
+	uint64_t capacity = (uint64_t)prefix_query_count + 65536ULL;
+	if (capacity < 65536ULL)
+		capacity = 65536ULL;
+	if (capacity > (uint64_t)query_count)
+		capacity = query_count;
+	return (uint32_t)capacity;
+}
+
 struct TargetLookupKeyHost
 {
 	uint64_t x[4];
@@ -6282,18 +6300,14 @@ static bool RunTargetLookupTag16HashFilterDistinctMissesKernel(const std::vector
 		const void* prefix_data = prefix_query_hashes.empty() ? (const void*)&empty_prefix_hash : (const void*)prefix_query_hashes.data();
 		size_t prefix_bytes = prefix_query_hashes.empty() ? sizeof(empty_prefix_hash) : prefix_query_hashes.size() * sizeof(uint64_t);
 		size_t bucket_bytes = filter_buckets.size() * sizeof(uint16_t);
-		size_t positive_bytes = (size_t)query_count * sizeof(uint32_t);
-		uint32_t zero = 0;
 		uint32_t bucket_count = (uint32_t)filter_buckets.size();
 		uint32_t prefix_query_count = (uint32_t)prefix_query_hashes.size();
 		id<MTLBuffer> buckets_buffer = NewSharedMetalBufferNoCopyFallback(device, const_cast<uint16_t*>(filter_buckets.data()), bucket_bytes);
 		id<MTLBuffer> prefix_hashes_buffer = NewSharedMetalBufferNoCopyFallback(device, const_cast<void*>(prefix_data), prefix_bytes);
-		id<MTLBuffer> positive_buffer = [device newBufferWithLength:positive_bytes options:MTLResourceStorageModeShared];
-		id<MTLBuffer> positive_count_buffer = [device newBufferWithBytes:&zero length:sizeof(zero) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> bucket_count_buffer = [device newBufferWithBytes:&bucket_count length:sizeof(bucket_count) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> prefix_count_buffer = [device newBufferWithBytes:&prefix_query_count length:sizeof(prefix_query_count) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> query_count_buffer = [device newBufferWithBytes:&query_count length:sizeof(query_count) options:MTLResourceStorageModeShared];
-		if (!buckets_buffer || !prefix_hashes_buffer || !positive_buffer || !positive_count_buffer || !bucket_count_buffer || !prefix_count_buffer || !query_count_buffer)
+		if (!buckets_buffer || !prefix_hashes_buffer || !bucket_count_buffer || !prefix_count_buffer || !query_count_buffer)
 		{
 			error = "failed to allocate Metal tag16 generated-miss hash-filter target lookup buffers";
 			return false;
@@ -6306,41 +6320,71 @@ static bool RunTargetLookupTag16HashFilterDistinctMissesKernel(const std::vector
 			return false;
 		}
 
-		id<MTLCommandBuffer> command_buffer = [queue commandBuffer];
-		id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
-		[encoder setComputePipelineState:pipeline];
-		[encoder setBuffer:buckets_buffer offset:0 atIndex:0];
-		[encoder setBuffer:prefix_hashes_buffer offset:0 atIndex:1];
-		[encoder setBuffer:positive_buffer offset:0 atIndex:2];
-		[encoder setBuffer:positive_count_buffer offset:0 atIndex:3];
-		[encoder setBuffer:bucket_count_buffer offset:0 atIndex:4];
-		[encoder setBuffer:prefix_count_buffer offset:0 atIndex:5];
-		[encoder setBuffer:query_count_buffer offset:0 atIndex:6];
-		[encoder dispatchThreads:MTLSizeMake(query_count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
-		[encoder endEncoding];
-		auto start = std::chrono::steady_clock::now();
-		[command_buffer commit];
-		[command_buffer waitUntilCompleted];
-		auto end = std::chrono::steady_clock::now();
-		if (seconds)
-			*seconds = std::chrono::duration<double>(end - start).count();
-
-		if ([command_buffer status] != MTLCommandBufferStatusCompleted)
+		uint32_t bounded_positive_capacity = GeneratedMissPositiveCapacity(query_count, prefix_query_hashes.size());
+		bool force_full_capacity = bounded_positive_capacity >= query_count;
+		double total_seconds = 0.0;
+		for (;;)
 		{
-			error = NSErrorToString([command_buffer error]);
-			return false;
-		}
+			uint32_t positive_capacity = force_full_capacity ? query_count : bounded_positive_capacity;
+			size_t positive_bytes = (size_t)positive_capacity * sizeof(uint32_t);
+			uint32_t zero = 0;
+			id<MTLBuffer> positive_buffer = [device newBufferWithLength:positive_bytes options:MTLResourceStorageModeShared];
+			id<MTLBuffer> positive_count_buffer = [device newBufferWithBytes:&zero length:sizeof(zero) options:MTLResourceStorageModeShared];
+			id<MTLBuffer> positive_capacity_buffer = [device newBufferWithBytes:&positive_capacity length:sizeof(positive_capacity) options:MTLResourceStorageModeShared];
+			if (!positive_buffer || !positive_count_buffer || !positive_capacity_buffer)
+			{
+				error = "failed to allocate Metal tag16 generated-miss positive buffers";
+				return false;
+			}
 
-		memcpy(&filter_positive_count, [positive_count_buffer contents], sizeof(filter_positive_count));
-		if (filter_positive_count > query_count)
-		{
-			error = "tag16 generated-miss hash-filter positive count overflow";
-			return false;
+			id<MTLCommandBuffer> command_buffer = [queue commandBuffer];
+			id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+			[encoder setComputePipelineState:pipeline];
+			[encoder setBuffer:buckets_buffer offset:0 atIndex:0];
+			[encoder setBuffer:prefix_hashes_buffer offset:0 atIndex:1];
+			[encoder setBuffer:positive_buffer offset:0 atIndex:2];
+			[encoder setBuffer:positive_count_buffer offset:0 atIndex:3];
+			[encoder setBuffer:bucket_count_buffer offset:0 atIndex:4];
+			[encoder setBuffer:prefix_count_buffer offset:0 atIndex:5];
+			[encoder setBuffer:query_count_buffer offset:0 atIndex:6];
+			[encoder setBuffer:positive_capacity_buffer offset:0 atIndex:7];
+			[encoder dispatchThreads:MTLSizeMake(query_count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
+			[encoder endEncoding];
+			auto start = std::chrono::steady_clock::now();
+			[command_buffer commit];
+			[command_buffer waitUntilCompleted];
+			auto end = std::chrono::steady_clock::now();
+			total_seconds += std::chrono::duration<double>(end - start).count();
+
+			if ([command_buffer status] != MTLCommandBufferStatusCompleted)
+			{
+				error = NSErrorToString([command_buffer error]);
+				return false;
+			}
+
+			memcpy(&filter_positive_count, [positive_count_buffer contents], sizeof(filter_positive_count));
+			if (filter_positive_count > query_count)
+			{
+				error = "tag16 generated-miss hash-filter positive count overflow";
+				return false;
+			}
+			if (filter_positive_count > positive_capacity && positive_capacity < query_count)
+			{
+				force_full_capacity = true;
+				continue;
+			}
+			if (filter_positive_count > positive_capacity)
+			{
+				error = "tag16 generated-miss hash-filter bounded positive buffer overflow";
+				return false;
+			}
+			if (seconds)
+				*seconds = total_seconds;
+			positive_query_indices.resize(filter_positive_count);
+			if (filter_positive_count)
+				memcpy(positive_query_indices.data(), [positive_buffer contents], (size_t)filter_positive_count * sizeof(uint32_t));
+			return true;
 		}
-		positive_query_indices.resize(filter_positive_count);
-		if (filter_positive_count)
-			memcpy(positive_query_indices.data(), [positive_buffer contents], (size_t)filter_positive_count * sizeof(uint32_t));
-		return true;
 	}
 }
 
@@ -6538,18 +6582,14 @@ static bool RunTargetLookupBloom64HashFilterDistinctMissesKernel(const std::vect
 		const void* prefix_data = prefix_query_hashes.empty() ? (const void*)&empty_prefix_hash : (const void*)prefix_query_hashes.data();
 		size_t prefix_bytes = prefix_query_hashes.empty() ? sizeof(empty_prefix_hash) : prefix_query_hashes.size() * sizeof(uint64_t);
 		size_t filter_bytes = filter_words.size() * sizeof(uint64_t);
-		size_t positive_bytes = (size_t)query_count * sizeof(uint32_t);
-		uint32_t zero = 0;
 		uint32_t word_count = (uint32_t)filter_words.size();
 		uint32_t prefix_query_count = (uint32_t)prefix_query_hashes.size();
 		id<MTLBuffer> filter_buffer = NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(filter_words.data()), filter_bytes);
 		id<MTLBuffer> prefix_hashes_buffer = NewSharedMetalBufferNoCopyFallback(device, const_cast<void*>(prefix_data), prefix_bytes);
-		id<MTLBuffer> positive_buffer = [device newBufferWithLength:positive_bytes options:MTLResourceStorageModeShared];
-		id<MTLBuffer> positive_count_buffer = [device newBufferWithBytes:&zero length:sizeof(zero) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> word_count_buffer = [device newBufferWithBytes:&word_count length:sizeof(word_count) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> prefix_count_buffer = [device newBufferWithBytes:&prefix_query_count length:sizeof(prefix_query_count) options:MTLResourceStorageModeShared];
 		id<MTLBuffer> query_count_buffer = [device newBufferWithBytes:&query_count length:sizeof(query_count) options:MTLResourceStorageModeShared];
-		if (!filter_buffer || !prefix_hashes_buffer || !positive_buffer || !positive_count_buffer || !word_count_buffer || !prefix_count_buffer || !query_count_buffer)
+		if (!filter_buffer || !prefix_hashes_buffer || !word_count_buffer || !prefix_count_buffer || !query_count_buffer)
 		{
 			error = "failed to allocate Metal bloom64 generated-miss hash-filter target lookup buffers";
 			return false;
@@ -6562,41 +6602,71 @@ static bool RunTargetLookupBloom64HashFilterDistinctMissesKernel(const std::vect
 			return false;
 		}
 
-		id<MTLCommandBuffer> command_buffer = [queue commandBuffer];
-		id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
-		[encoder setComputePipelineState:pipeline];
-		[encoder setBuffer:filter_buffer offset:0 atIndex:0];
-		[encoder setBuffer:prefix_hashes_buffer offset:0 atIndex:1];
-		[encoder setBuffer:positive_buffer offset:0 atIndex:2];
-		[encoder setBuffer:positive_count_buffer offset:0 atIndex:3];
-		[encoder setBuffer:word_count_buffer offset:0 atIndex:4];
-		[encoder setBuffer:prefix_count_buffer offset:0 atIndex:5];
-		[encoder setBuffer:query_count_buffer offset:0 atIndex:6];
-		[encoder dispatchThreads:MTLSizeMake(query_count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
-		[encoder endEncoding];
-		auto start = std::chrono::steady_clock::now();
-		[command_buffer commit];
-		[command_buffer waitUntilCompleted];
-		auto end = std::chrono::steady_clock::now();
-		if (seconds)
-			*seconds = std::chrono::duration<double>(end - start).count();
-
-		if ([command_buffer status] != MTLCommandBufferStatusCompleted)
+		uint32_t bounded_positive_capacity = GeneratedMissPositiveCapacity(query_count, prefix_query_hashes.size());
+		bool force_full_capacity = bounded_positive_capacity >= query_count;
+		double total_seconds = 0.0;
+		for (;;)
 		{
-			error = NSErrorToString([command_buffer error]);
-			return false;
-		}
+			uint32_t positive_capacity = force_full_capacity ? query_count : bounded_positive_capacity;
+			size_t positive_bytes = (size_t)positive_capacity * sizeof(uint32_t);
+			uint32_t zero = 0;
+			id<MTLBuffer> positive_buffer = [device newBufferWithLength:positive_bytes options:MTLResourceStorageModeShared];
+			id<MTLBuffer> positive_count_buffer = [device newBufferWithBytes:&zero length:sizeof(zero) options:MTLResourceStorageModeShared];
+			id<MTLBuffer> positive_capacity_buffer = [device newBufferWithBytes:&positive_capacity length:sizeof(positive_capacity) options:MTLResourceStorageModeShared];
+			if (!positive_buffer || !positive_count_buffer || !positive_capacity_buffer)
+			{
+				error = "failed to allocate Metal bloom64 generated-miss positive buffers";
+				return false;
+			}
 
-		memcpy(&filter_positive_count, [positive_count_buffer contents], sizeof(filter_positive_count));
-		if (filter_positive_count > query_count)
-		{
-			error = "bloom64 generated-miss hash-filter positive count overflow";
-			return false;
+			id<MTLCommandBuffer> command_buffer = [queue commandBuffer];
+			id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+			[encoder setComputePipelineState:pipeline];
+			[encoder setBuffer:filter_buffer offset:0 atIndex:0];
+			[encoder setBuffer:prefix_hashes_buffer offset:0 atIndex:1];
+			[encoder setBuffer:positive_buffer offset:0 atIndex:2];
+			[encoder setBuffer:positive_count_buffer offset:0 atIndex:3];
+			[encoder setBuffer:word_count_buffer offset:0 atIndex:4];
+			[encoder setBuffer:prefix_count_buffer offset:0 atIndex:5];
+			[encoder setBuffer:query_count_buffer offset:0 atIndex:6];
+			[encoder setBuffer:positive_capacity_buffer offset:0 atIndex:7];
+			[encoder dispatchThreads:MTLSizeMake(query_count, 1, 1) threadsPerThreadgroup:MTLSizeMake(threads_per_threadgroup, 1, 1)];
+			[encoder endEncoding];
+			auto start = std::chrono::steady_clock::now();
+			[command_buffer commit];
+			[command_buffer waitUntilCompleted];
+			auto end = std::chrono::steady_clock::now();
+			total_seconds += std::chrono::duration<double>(end - start).count();
+
+			if ([command_buffer status] != MTLCommandBufferStatusCompleted)
+			{
+				error = NSErrorToString([command_buffer error]);
+				return false;
+			}
+
+			memcpy(&filter_positive_count, [positive_count_buffer contents], sizeof(filter_positive_count));
+			if (filter_positive_count > query_count)
+			{
+				error = "bloom64 generated-miss hash-filter positive count overflow";
+				return false;
+			}
+			if (filter_positive_count > positive_capacity && positive_capacity < query_count)
+			{
+				force_full_capacity = true;
+				continue;
+			}
+			if (filter_positive_count > positive_capacity)
+			{
+				error = "bloom64 generated-miss hash-filter bounded positive buffer overflow";
+				return false;
+			}
+			if (seconds)
+				*seconds = total_seconds;
+			positive_query_indices.resize(filter_positive_count);
+			if (filter_positive_count)
+				memcpy(positive_query_indices.data(), [positive_buffer contents], (size_t)filter_positive_count * sizeof(uint32_t));
+			return true;
 		}
-		positive_query_indices.resize(filter_positive_count);
-		if (filter_positive_count)
-			memcpy(positive_query_indices.data(), [positive_buffer contents], (size_t)filter_positive_count * sizeof(uint32_t));
-		return true;
 	}
 }
 

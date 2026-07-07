@@ -38,6 +38,8 @@ markers = [
     "NewSharedMetalBufferNoCopyFallback",
     "newBufferWithBytesNoCopy",
     "RCK_METAL_DISABLE_NOCOPY",
+    "RCK_METAL_DISABLE_BOUNDED_POSITIVE_BUFFER",
+    "GeneratedMissPositiveCapacity",
     "ResolveTargetLookupTag32FilterCandidates",
     "ResolveTargetLookupTag32FilterRepeatCandidates",
     "ResolveTargetLookupTag32FilterRepeatPackedCandidates",
@@ -252,6 +254,16 @@ if "NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(query_hashe
     raise SystemExit("non-repeat hash-filter lookup should avoid copying the large raw query hash buffer on unified memory")
 if "NewSharedMetalBufferNoCopyFallback(device, const_cast<uint64_t*>(filter_words.data()), filter_bytes)" not in kernels:
     raise SystemExit("bloom64 hash-filter lookup should avoid copying the large filter word buffer on unified memory")
+if "constant uint& positive_capacity [[buffer(7)]]" not in metal_kernels:
+    raise SystemExit("generated distinct-miss kernels should separate query_count from positive output capacity")
+if metal_kernels.count("out_slot < positive_capacity") < 3:
+    raise SystemExit("generated distinct-miss kernels should bound positive-index writes by positive_capacity")
+if "[encoder setBuffer:positive_capacity_buffer offset:0 atIndex:7]" not in kernels:
+    raise SystemExit("generated distinct-miss host wrappers should pass positive_capacity to Metal")
+if "filter_positive_count > positive_capacity && positive_capacity < query_count" not in kernels:
+    raise SystemExit("generated distinct-miss host wrappers should retry with full positive capacity on overflow")
+if "positive_capacity = force_full_capacity ? query_count : bounded_positive_capacity" not in kernels:
+    raise SystemExit("generated distinct-miss host wrappers should keep a full-capacity fallback path")
 if 'lookup_distinct_misses ?\n\t\t(use_bloom64_hash_filter ? "gpu_filter_bloom64_hash" :' not in rounds_body:
     raise SystemExit("fixed-round distinct-misses should report standard versus mixed tag16 hash engines separately")
 if "lookup_uses_tag16_mixed_hash_repeat_filter" not in kernels:

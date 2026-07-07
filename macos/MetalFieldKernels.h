@@ -2840,6 +2840,7 @@ kernel void target_lookup_tag16_hash_filter_distinct_misses256(device const usho
                                                                constant uint& bucket_count [[buffer(4)]],
                                                                constant uint& prefix_query_count [[buffer(5)]],
                                                                constant uint& query_count [[buffer(6)]],
+                                                               constant uint& positive_capacity [[buffer(7)]],
                                                                uint id [[thread_position_in_grid]]) {
   if (id >= query_count) return;
   ulong hash = id < prefix_query_count
@@ -2856,7 +2857,7 @@ kernel void target_lookup_tag16_hash_filter_distinct_misses256(device const usho
     }
     if (bucket_tag == filter_tag) {
       uint out_slot = atomic_fetch_add_explicit(out_filter_positive_count, 1U, memory_order_relaxed);
-      if (out_slot < query_count) {
+      if (out_slot < positive_capacity) {
         out_positive_query_indices[out_slot] = id;
       }
       break;
@@ -2873,6 +2874,7 @@ kernel void target_lookup_tag16_mixed_hash_filter_distinct_misses256(device cons
                                                                      constant uint& bucket_count [[buffer(4)]],
                                                                      constant uint& prefix_query_count [[buffer(5)]],
                                                                      constant uint& query_count [[buffer(6)]],
+                                                                     constant uint& positive_capacity [[buffer(7)]],
                                                                      uint id [[thread_position_in_grid]]) {
   if (id >= query_count) return;
   ulong hash = id < prefix_query_count
@@ -2889,7 +2891,7 @@ kernel void target_lookup_tag16_mixed_hash_filter_distinct_misses256(device cons
     }
     if (bucket_tag == filter_tag) {
       uint out_slot = atomic_fetch_add_explicit(out_filter_positive_count, 1U, memory_order_relaxed);
-      if (out_slot < query_count) {
+      if (out_slot < positive_capacity) {
         out_positive_query_indices[out_slot] = id;
       }
       break;
@@ -2926,6 +2928,7 @@ kernel void target_lookup_bloom64_hash_filter_distinct_misses256(device const ul
                                                                  constant uint& word_count [[buffer(4)]],
                                                                  constant uint& prefix_query_count [[buffer(5)]],
                                                                  constant uint& query_count [[buffer(6)]],
+                                                                 constant uint& positive_capacity [[buffer(7)]],
                                                                  uint id [[thread_position_in_grid]]) {
   if (id >= query_count) return;
   ulong hash = id < prefix_query_count
@@ -2936,7 +2939,7 @@ kernel void target_lookup_bloom64_hash_filter_distinct_misses256(device const ul
 
   if ((target_filter_words[slot] & mask) == mask) {
     uint out_slot = atomic_fetch_add_explicit(out_filter_positive_count, 1U, memory_order_relaxed);
-    if (out_slot < query_count) {
+    if (out_slot < positive_capacity) {
       out_positive_query_indices[out_slot] = id;
     }
   }
