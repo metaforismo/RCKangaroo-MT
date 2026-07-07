@@ -31,6 +31,7 @@ The current oracle to preserve is:
 - `dp_distance_checksum=0x894123b96acf0de5`
 - `dp_count=4121`
 - `hit_count=128`
+- `filter_false_positive_count=414`
 - `correctness=true`
 
 Primary score: `setup_inclusive_wall_distance_per_sec`.
@@ -197,6 +198,12 @@ Do not repeat these without new compiler evidence or a different oracle:
 - Threadgroup-caching the small jump table. Correct, but not a real M3 win.
 - Retuning fixed-round walk threadgroups to 64 or 256 as a default. No stable
   improvement over the current 128-thread M3 policy.
+- Retuning the fixed-round 2048-step walk threadgroup around the current
+  128-thread policy. A 2026-07-07 affine-scan falsifier with the same
+  correctness oracle rejected `96`, `160`, `192`, and `224`; `128` remained
+  best (`ops_per_sec=55083908.963496`) versus `192` (`51927751.398594`), `160`
+  (`47751440.594485`), `224` (`43282581.803594`), and `96`
+  (`33772353.650596`).
 - Unguarded automatic `.metallib` loading. The sidecar is useful as a Metal
   toolchain surface and is built with `-finline-functions`, but default loading
   must stay hash-guarded so stale kernels cannot silently replace the embedded

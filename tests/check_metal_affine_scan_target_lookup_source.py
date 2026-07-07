@@ -554,6 +554,13 @@ def check_experiment(path: str, expected_command: list[str], metric: str) -> Non
         raise SystemExit(f"{path} should keep sample_runs >= 3")
 
 
+def check_required_metrics(path: str, expected_metrics: dict) -> None:
+    experiment = Path(path)
+    payload = json.loads(experiment.read_text(encoding="utf-8"))
+    if payload.get("required_metrics") != expected_metrics:
+        raise SystemExit(f"{path} required_metrics drifted")
+
+
 base_command = [
     "./macos/rck_macos",
     command,
@@ -1181,6 +1188,19 @@ check_experiment(
     rounds_distinct_misses_command,
     "setup_inclusive_wall_distance_per_sec",
 )
+check_required_metrics(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_distinct_misses_distance.json",
+    {
+        "jump_mixer": "avalanche64",
+        "jump_schedule": "power2",
+        "target_lookup_checksum": "0x5c90bdf7f12141b9",
+        "dp_checksum": "0x7f111e78c67b5c18",
+        "dp_distance_checksum": "0x894123b96acf0de5",
+        "dp_count": 4121,
+        "hit_count": 128,
+        "filter_false_positive_count": 414,
+    },
+)
 
 rounds_distinct_misses_1m_command = [
     "./macos/rck_macos",
@@ -1212,6 +1232,19 @@ check_experiment(
     "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter1m_rounds_distinct_misses_distance.json",
     rounds_distinct_misses_1m_command,
     "setup_inclusive_wall_distance_per_sec",
+)
+check_required_metrics(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter1m_rounds_distinct_misses_distance.json",
+    {
+        "jump_mixer": "avalanche64",
+        "jump_schedule": "power2",
+        "target_lookup_checksum": "0xcb38405cd10f441d",
+        "dp_checksum": "0xbd17120591af6f74",
+        "dp_distance_checksum": "0x9eca239fc5687305",
+        "dp_count": 1053,
+        "hit_count": 64,
+        "filter_false_positive_count": 28,
+    },
 )
 
 rounds_distinct_misses_1m_bloom64_command = [

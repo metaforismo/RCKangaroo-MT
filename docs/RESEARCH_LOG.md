@@ -162,6 +162,27 @@ GPU work should use Metal.
 
 ## Recent Rejected Experiments
 
+### 2026-07-07 Fixed-Round Walk Threadgroup Sweep
+
+- Rejected changing the fixed-round 2048-step XYZZ walk threadgroup policy
+  after a same-binary M3 Air affine-scan falsifier. The sweep used
+  `metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-bench --iterations 8192
+  --steps 2048 --jumps 16 --dp-bits 6 --min-ms 0 --jump-schedule power2` with
+  explicit `--tg-limit` values.
+- Correctness stayed identical for all tested values:
+  `dp_distance_checksum=0x12a7cb683b2d8972`,
+  `dp_checksum=0xf8227704310e28c2`, `dp_count=137`, and
+  `correctness=true`. The current 128-thread policy remained best on the
+  causal fixed-round walk+affine falsifier: `128` measured
+  `ops_per_sec=55083908.963496`, `192` measured `51927751.398594`, `160`
+  measured `47751440.594485`, `224` measured `43282581.803594`, and `96`
+  measured `33772353.650596`.
+- A reduced integrated 1M target-lookup command also preserved correctness but
+  spent `161.637045s` in validation, so it is too heavy for quick threadgroup
+  scouting. Keep the affine-scan falsifier for cheap walk threadgroup checks
+  and spend the 1M/25M physical distinct-miss gates only after a candidate
+  decisively beats 128 there.
+
 ### 2026-07-07 Persistent Fixed-Round 1M Command A/B
 
 - Added
