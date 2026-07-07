@@ -88,6 +88,9 @@ Do not repeat these without new compiler evidence or a different oracle:
   DP density, false positives, and exact target checksums visible.
 - Broad no-copy walk-buffer rewrites. The current fixed-round path already uses
   no-copy buffers where they survived gates.
+- Direct-filling fixed-round batched round starts to avoid per-round temporary
+  vectors. Correct on the 1M oracle, but repeat paired confirmation was noisy
+  and failed the gate.
 - Changing the opt-in Metal sidecar flags away from `-finline-functions`.
   `-O3`, `-O2`, `-Os`, forced unroll, disabled unroll, and disabled vectorizers
   all preserved the 1M fixed-round oracle but did not beat the current flag
@@ -142,7 +145,11 @@ These are the remaining high-leverage areas.
 
    Try toolchain flags or attributes as measured experiments. The runtime may
    auto-load a matching sidecar for startup/codegen ergonomics, but speed claims
-   still require order-reversed 25M gates and the canonical oracle.
+   still require order-reversed 25M gates and the canonical oracle. On the local
+   M3 Air toolchain, `metal-objdump --metallib --disassemble` exposes AIR
+   modules by `source_filename`; the hot
+   `jacobian_affine_walk_dynamic_xyzz_steps2048_pow2_u32_distance` module is
+   visible and can be filtered for codegen diffs before spending long gates.
 
 ## Promotion Checklist
 

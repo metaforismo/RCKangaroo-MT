@@ -162,6 +162,25 @@ GPU work should use Metal.
 
 ## Recent Rejected Experiments
 
+### 2026-07-07 Fixed-Round Direct Round-Start Fill
+
+- Rejected direct-fill construction for fixed-round batched round starts. The
+  candidate resized `batched_round_p` once and filled later round starts
+  directly, avoiding per-round temporary vectors while preserving the exact
+  1M fixed-round oracle: `target_lookup_checksum=0xcb38405cd10f441d`,
+  `dp_checksum=0xbd17120591af6f74`,
+  `dp_distance_checksum=0x9eca239fc5687305`, `dp_count=1053`,
+  `hit_count=64`, and `correctness=true`.
+- It did not survive repeat confirmation on the M3 Air falsifier. The first
+  paired run against clean `main=1edced1` kept with candidate
+  `setup_inclusive_wall_distance_per_sec=157315104425.454163` versus baseline
+  `142459694236.068146` (`paired_speedup=1.104278`), but the second paired
+  run discarded with candidate `234743244634.231079` versus baseline
+  `238032504535.732239` (`paired_speedup=0.986181`) and
+  `sample_spread_ratio=1.732139` above the 1.5 limit.
+- The code was removed; keep the current fixed-round setup unless a larger gate
+  proves otherwise.
+
 ### 2026-07-07 Fixed-Round Metal Threadgroup Attribute Scout
 
 - Rejected adding `[[max_total_threads_per_threadgroup(128)]]` to the
