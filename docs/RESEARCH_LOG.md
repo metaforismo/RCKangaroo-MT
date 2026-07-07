@@ -273,6 +273,22 @@ GPU work should use Metal.
   bottleneck, or the compiler already scalarizes it well enough. The code was
   reverted and only the evidence rows were kept.
 
+### 2026-07-07 Metal Square Double-Product Single-Pass Scout
+
+- Rejected replacing the two identical `add128_to_512` calls in
+  `add_double_mul64_to_512` with a single 129-bit doubled-product accumulation.
+  The arithmetic candidate passed `make macos-check` and preserved the 1M and
+  25M fixed-round physical distinct-miss oracles, including
+  `target_lookup_checksum=0xcb38405cd10f441d` for 1M and
+  `target_lookup_checksum=0x5c90bdf7f12141b9` for 25M.
+- The 1M fast falsifier looked genuinely promising: two paired confirmations
+  were `keep`, with setup-inclusive wall distance/sec speedups of about
+  `1.062368x` and `1.045004x`. The canonical 25M gate did not confirm the
+  improvement: confirmation 1 discarded below baseline, and confirmation 2 was
+  only `1.011823x`; aggregate `confirmation_status=discard`. Because the 25M
+  gate is the promotion oracle for real large multi-target M3 behavior, the
+  code was reverted and only the evidence rows were kept.
+
 ### 2026-07-07 Fixed-Round Direct Round-Start Fill
 
 - Rejected direct-fill construction for fixed-round batched round starts. The
