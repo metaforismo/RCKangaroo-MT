@@ -32,3 +32,14 @@ case "$offset_output" in
 		exit 1
 		;;
 esac
+
+portfolio_output="$(./macos/rck_macos jacobian-kangaroo-small-bench --iterations 1 --min-ms 0 --range 20 --jumps 4 --dp-bits 4 --max-steps 2000000 --jump-schedule scaled4-probe-power2 --key-offset 7 2>&1)"
+case "$portfolio_output" in
+	*"\"operation\":\"jacobian_kangaroo_small\""*"\"jump_schedule\":\"scaled4_probe_power2\""*"\"portfolio_probe_jump_schedule\":\"scaled4_balanced\""*"\"portfolio_probe_max_steps\":10000"*"\"portfolio_fallback_jump_schedule\":\"power2\""*"\"portfolio_fallback_jump_count\":16"*"\"portfolio_probe_hits\":1"*"\"portfolio_fallback_runs\":0"*"\"key_offset\":7"*"\"expected_private_key\":\"0x7\""*"\"found_target_index\":0"*"\"found_private_key\":\"0x7\""*"\"correctness\":true"*)
+		;;
+	*)
+		printf '%s\n' "$portfolio_output"
+		printf '%s\n' "unexpected scaled4-probe-power2 single-target output"
+		exit 1
+		;;
+esac

@@ -18,6 +18,7 @@ This fork keeps the original single-target, benchmark, and tames workflows, and 
 - Target loader for compressed `02...` / `03...` and uncompressed `04...` secp256k1 public keys.
 - Per-DP target metadata so solved collisions can be verified against the matching target.
 - macOS CPU oracle for tiny-range correctness checks, local benchmarks, and limb-level field arithmetic.
+- Opt-in CPU tiny-solver schedule portfolio probe (`scaled4-probe-power2`) for testing target-window ideas with explicit fallback telemetry.
 - Metal smoke plus secp256k1 field-add, field-sub, field-double, field-mul4, field-neg, field-mul, and field-square microkernel checks for Apple Silicon runtime verification.
 - Experimental Apple Silicon Metal Jacobian/XYZZ walk probes, including runtime-DP sparse streams, cumulative multi-packet XYZZ chain benchmarks, and exact multi-target lookup gates with setup-inclusive metrics.
 - Autoresearch runner for fixed-gate optimization experiments.

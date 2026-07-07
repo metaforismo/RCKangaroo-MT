@@ -32,6 +32,34 @@ GPU work should use Metal.
 
 ## Recent Kept Experiments
 
+### 2026-07-07 CPU Tiny Schedule Portfolio Probe
+
+- Added opt-in `--jump-schedule scaled4-probe-power2` for the CPU tiny
+  kangaroo benchmarks. It keeps default `power2` unchanged, accepts `--jumps 4`
+  as the probe table shape, runs a short `scaled4-balanced` attempt with
+  `portfolio_probe_max_steps=min(max_steps, max(10000, max_steps / 200))`, and
+  falls back to a 16-jump `power2` table if the probe does not solve. The
+  fallback is explicitly reported through `portfolio_fallback_runs`,
+  `portfolio_fallback_jump_count`, and `last_portfolio_probe_dp_count`, and the
+  fallback row's `dp_count` includes the failed probe DP count so the probe cost
+  is not hidden.
+- Correctness oracle: the same tiny CPU full-point collision verification,
+  range check, target-index check, and found-private-key check as the existing
+  shared-tame multi-target benchmark. A high-offset regression test now covers
+  the case where `scaled4-balanced` alone fails but the portfolio fallback still
+  finds `0xdbba2` at `key_offset=900000`.
+- Source-guided low/mid/high scout on `range=20`, `target_count=16`,
+  `dp_bits=4`, `max_steps=2000000`, and `min_ms=0` showed why this is a
+  solver-level portfolio candidate rather than a new static default. At
+  `key_offset=5`, portfolio solved in the probe with `avg_dp_count=7611`
+  versus `191461` for adjacent `power2`. At `key_offset=524288`, portfolio
+  solved in the probe with `3032` DPs versus `14001` for `power2`. At
+  `key_offset=900000`, portfolio used fallback and reported `last_dp_count=30654`
+  including `last_portfolio_probe_dp_count=10620`, while adjacent `power2`
+  solved with `20034` DPs. Treat this as a target-window/adaptive-scheduling
+  research surface for the tiny solver, not as a Metal walk breakthrough or a
+  general default schedule.
+
 ### 2026-07-03 Persistent Fixed-Round Direct Store Boundaries
 
 - Kept a direct-store implementation for the opt-in fixed-round

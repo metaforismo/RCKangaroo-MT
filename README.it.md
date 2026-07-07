@@ -18,6 +18,7 @@ Questo fork mantiene single-target, benchmark e tames del progetto originale, e 
 - Loader target per public key secp256k1 compresse `02...` / `03...` e non compresse `04...`.
 - Metadati target per ogni distinguished point, cosi' la collisione risolta viene verificata contro il target corretto.
 - Oracle CPU macOS per tiny-range, test di correttezza e benchmark locali.
+- Probe portfolio opt-in per il tiny solver CPU (`scaled4-probe-power2`) per testare idee target-window con telemetria esplicita del fallback.
 - Backend Metal smoke e microkernel field-add/field-sub/field-double/field-mul4/field-neg/field-mul/field-square per verificare il runtime Apple Silicon.
 - Probe sperimentali Metal su Apple Silicon per walk Jacobian/XYZZ, inclusi stream DP sparsi, benchmark chain XYZZ multi-packet e gate lookup multi-target esatti con metriche inclusive del setup.
 - Runner autoresearch per esperimenti con gate fissi e risultati misurabili.

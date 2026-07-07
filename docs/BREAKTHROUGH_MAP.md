@@ -94,6 +94,13 @@ These are the remaining high-leverage areas.
    These must be measured with a solver-level oracle, not only with lookup
    microbenchmarks.
 
+   Current opt-in CPU-tiny surface: `--jump-schedule scaled4-probe-power2`
+   first tests a short `scaled4-balanced` schedule and then falls back to
+   16-jump `power2`. It is promising for target-window/portfolio research
+   because lower and middle tiny-range offsets solve much faster while high
+   offsets remain correct through fallback. It is not a Metal default and must
+   be swept across low/mid/high offsets before any larger solver claim.
+
 3. GPU-side affine normalization.
 
    Moving batch affine recovery from CPU to Metal is useful only if it keeps the

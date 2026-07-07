@@ -130,6 +130,7 @@ enum class KangarooJumpSchedule
 {
 	Power2,
 	Scaled4Balanced,
+	Scaled4ProbePower2,
 	Invalid
 };
 
@@ -139,11 +140,15 @@ static KangarooJumpSchedule ParseKangarooJumpSchedule(const char* raw)
 		return KangarooJumpSchedule::Power2;
 	if (strcmp(raw, "scaled4-balanced") == 0 || strcmp(raw, "scaled4_balanced") == 0)
 		return KangarooJumpSchedule::Scaled4Balanced;
+	if (strcmp(raw, "scaled4-probe-power2") == 0 || strcmp(raw, "scaled4_probe_power2") == 0)
+		return KangarooJumpSchedule::Scaled4ProbePower2;
 	return KangarooJumpSchedule::Invalid;
 }
 
 static const char* KangarooJumpScheduleName(KangarooJumpSchedule schedule)
 {
+	if (schedule == KangarooJumpSchedule::Scaled4ProbePower2)
+		return "scaled4_probe_power2";
 	if (schedule == KangarooJumpSchedule::Scaled4Balanced)
 		return "scaled4_balanced";
 	if (schedule == KangarooJumpSchedule::Invalid)
@@ -154,15 +159,41 @@ static const char* KangarooJumpScheduleName(KangarooJumpSchedule schedule)
 static bool KangarooJumpScheduleAllowed(KangarooJumpSchedule schedule, unsigned int jump_count)
 {
 	return schedule == KangarooJumpSchedule::Power2 ||
-		(schedule == KangarooJumpSchedule::Scaled4Balanced && jump_count == 4);
+		((schedule == KangarooJumpSchedule::Scaled4Balanced || schedule == KangarooJumpSchedule::Scaled4ProbePower2) && jump_count == 4);
 }
 
 static u64 ScheduledJumpDistance(KangarooJumpSchedule schedule, unsigned int jump_count, unsigned int index)
 {
 	static const u64 scaled4_distances[] = {1, 2, 8192, 8193};
-	if (schedule == KangarooJumpSchedule::Scaled4Balanced && jump_count == 4)
+	if ((schedule == KangarooJumpSchedule::Scaled4Balanced || schedule == KangarooJumpSchedule::Scaled4ProbePower2) && jump_count == 4)
 		return scaled4_distances[index];
 	return JumpDistance(index);
+}
+
+static bool KangarooJumpScheduleIsPortfolio(KangarooJumpSchedule schedule)
+{
+	return schedule == KangarooJumpSchedule::Scaled4ProbePower2;
+}
+
+static unsigned int KangarooPortfolioProbeMaxSteps(unsigned int max_steps)
+{
+	if (!max_steps)
+		return 0;
+	unsigned int probe = max_steps / 200;
+	if (probe < 10000)
+		probe = 10000;
+	return probe < max_steps ? probe : max_steps;
+}
+
+static unsigned int KangarooPortfolioFallbackJumpCount(KangarooJumpSchedule schedule)
+{
+	return schedule == KangarooJumpSchedule::Scaled4ProbePower2 ? 16 : 0;
+}
+
+static unsigned int AddKangarooDpCounts(unsigned int a, unsigned int b)
+{
+	unsigned int max_value = ~0U;
+	return max_value - a < b ? max_value : a + b;
 }
 
 static constexpr unsigned int kAutoBenchKeyOffset = 0xFFFFFFFFU;
@@ -1264,6 +1295,26 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooWithJumps(const EcPoint&
 	return result;
 }
 
+static RCKSmallSolveResult RCKSolveSmallJacobianKangarooPortfolioWithJumps(const EcPoint& target,
+	const KangarooRangeContext& range,
+	const KangarooJumpTable& probe_jumps,
+	const KangarooJumpTable& fallback_jumps,
+	KangarooSolveScratch& scratch,
+	unsigned int dp_bits,
+	unsigned int probe_max_steps,
+	unsigned int fallback_max_steps)
+{
+	RCKSmallSolveResult probe = RCKSolveSmallJacobianKangarooWithJumps(target, range, probe_jumps, scratch, dp_bits, probe_max_steps);
+	probe.portfolio_probe_dp_count = probe.dp_count;
+	if (probe.found)
+		return probe;
+	RCKSmallSolveResult fallback = RCKSolveSmallJacobianKangarooWithJumps(target, range, fallback_jumps, scratch, dp_bits, fallback_max_steps);
+	fallback.portfolio_probe_dp_count = probe.dp_count;
+	fallback.portfolio_fallback_used = true;
+	fallback.dp_count = AddKangarooDpCounts(fallback.dp_count, probe.dp_count);
+	return fallback;
+}
+
 RCKSmallSolveResult RCKSolveSmallJacobianKangaroo(const EcPoint& target, unsigned long long start, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
 {
 	KangarooRangeContext range = BuildKangarooRangeContext(start, range_bits);
@@ -1360,6 +1411,26 @@ static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiWithJumps(const std
 	return result;
 }
 
+static RCKSmallSolveResult RCKSolveSmallJacobianKangarooMultiPortfolioWithJumps(const std::vector<EcPoint>& targets,
+	const KangarooRangeContext& range,
+	const KangarooJumpTable& probe_jumps,
+	const KangarooJumpTable& fallback_jumps,
+	KangarooSolveScratch& scratch,
+	unsigned int dp_bits,
+	unsigned int probe_max_steps,
+	unsigned int fallback_max_steps)
+{
+	RCKSmallSolveResult probe = RCKSolveSmallJacobianKangarooMultiWithJumps(targets, range, probe_jumps, scratch, dp_bits, probe_max_steps);
+	probe.portfolio_probe_dp_count = probe.dp_count;
+	if (probe.found)
+		return probe;
+	RCKSmallSolveResult fallback = RCKSolveSmallJacobianKangarooMultiWithJumps(targets, range, fallback_jumps, scratch, dp_bits, fallback_max_steps);
+	fallback.portfolio_probe_dp_count = probe.dp_count;
+	fallback.portfolio_fallback_used = true;
+	fallback.dp_count = AddKangarooDpCounts(fallback.dp_count, probe.dp_count);
+	return fallback;
+}
+
 RCKSmallSolveResult RCKSolveSmallJacobianKangarooMulti(const std::vector<EcPoint>& targets, unsigned long long start, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps)
 {
 	KangarooRangeContext range = BuildKangarooRangeContext(start, range_bits);
@@ -1421,7 +1492,20 @@ static KangarooSingleBenchReference MeasureSingleTargetKangarooSmall(unsigned in
 	solved_k.Set(solved_private_key);
 	EcPoint target = Ec::MultiplyG(solved_k);
 	KangarooRangeContext range = BuildKangarooRangeContext(start, range_bits);
-	KangarooJumpTable jumps = BuildKangarooJumpTable(jump_count, jump_schedule);
+	bool use_portfolio = KangarooJumpScheduleIsPortfolio(jump_schedule);
+	KangarooJumpTable jumps;
+	KangarooJumpTable probe_jumps;
+	KangarooJumpTable fallback_jumps;
+	unsigned int probe_max_steps = KangarooPortfolioProbeMaxSteps(max_steps);
+	if (use_portfolio)
+	{
+		probe_jumps = BuildKangarooJumpTable(4, KangarooJumpSchedule::Scaled4Balanced);
+		fallback_jumps = BuildKangarooJumpTable(KangarooPortfolioFallbackJumpCount(jump_schedule), KangarooJumpSchedule::Power2);
+	}
+	else
+	{
+		jumps = BuildKangarooJumpTable(jump_count, jump_schedule);
+	}
 	KangarooSolveScratch scratch;
 
 	u64 operations = 0;
@@ -1431,7 +1515,9 @@ static KangarooSingleBenchReference MeasureSingleTargetKangarooSmall(unsigned in
 	{
 		for (unsigned int i = 0; i < iterations; i++)
 		{
-			RCKSmallSolveResult result = RCKSolveSmallJacobianKangarooWithJumps(target, range, jumps, scratch, dp_bits, max_steps);
+			RCKSmallSolveResult result = use_portfolio ?
+				RCKSolveSmallJacobianKangarooPortfolioWithJumps(target, range, probe_jumps, fallback_jumps, scratch, dp_bits, probe_max_steps, max_steps) :
+				RCKSolveSmallJacobianKangarooWithJumps(target, range, jumps, scratch, dp_bits, max_steps);
 			operations++;
 			if (!result.found || (result.private_key != solved_private_key) || (result.target_index != 0))
 			{
@@ -1484,8 +1570,22 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 		target = Ec::MultiplyG(solved_k);
 	}
 	KangarooJumpTable jumps;
+	KangarooJumpTable probe_jumps;
+	KangarooJumpTable fallback_jumps;
+	unsigned int probe_max_steps = KangarooPortfolioProbeMaxSteps(max_steps);
+	bool use_portfolio = KangarooJumpScheduleIsPortfolio(jump_schedule);
 	if (limit && correctness)
-		jumps = BuildKangarooJumpTable(jump_count, jump_schedule);
+	{
+		if (use_portfolio)
+		{
+			probe_jumps = BuildKangarooJumpTable(4, KangarooJumpSchedule::Scaled4Balanced);
+			fallback_jumps = BuildKangarooJumpTable(KangarooPortfolioFallbackJumpCount(jump_schedule), KangarooJumpSchedule::Power2);
+		}
+		else
+		{
+			jumps = BuildKangarooJumpTable(jump_count, jump_schedule);
+		}
+	}
 	KangarooRangeContext range;
 	if (limit)
 		range = BuildKangarooRangeContext(start, range_bits);
@@ -1494,6 +1594,9 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	u64 operations = 0;
 	u64 total_dp_count = 0;
 	unsigned int last_dp_count = 0;
+	unsigned int last_probe_dp_count = 0;
+	unsigned int portfolio_probe_hits = 0;
+	unsigned int portfolio_fallback_runs = 0;
 	unsigned int found_target_index = 0;
 	u64 found_private_key = 0;
 	auto t0 = std::chrono::steady_clock::now();
@@ -1504,10 +1607,20 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 		{
 			for (unsigned int i = 0; i < iterations; i++)
 			{
-				RCKSmallSolveResult result = RCKSolveSmallJacobianKangarooWithJumps(target, range, jumps, scratch, dp_bits, max_steps);
+				RCKSmallSolveResult result = use_portfolio ?
+					RCKSolveSmallJacobianKangarooPortfolioWithJumps(target, range, probe_jumps, fallback_jumps, scratch, dp_bits, probe_max_steps, max_steps) :
+					RCKSolveSmallJacobianKangarooWithJumps(target, range, jumps, scratch, dp_bits, max_steps);
 				operations++;
 				last_dp_count = result.dp_count;
 				total_dp_count += result.dp_count;
+				if (use_portfolio)
+				{
+					last_probe_dp_count = result.portfolio_probe_dp_count;
+					if (result.portfolio_fallback_used)
+						portfolio_fallback_runs++;
+					else
+						portfolio_probe_hits++;
+				}
 				found_target_index = result.target_index;
 				found_private_key = result.private_key;
 				if (!result.found || (result.private_key != solved_private_key) || (result.target_index != 0))
@@ -1548,6 +1661,18 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	out << "\"jump_index\":\"" << JumpIndexMode(jump_count) << "\",";
 	out << "\"jump_table\":\"precomputed\",";
 	out << "\"jump_schedule\":\"" << KangarooJumpScheduleName(jump_schedule) << "\",";
+	if (use_portfolio)
+	{
+		out << "\"portfolio_probe_jump_schedule\":\"scaled4_balanced\",";
+		out << "\"portfolio_probe_jump_count\":4,";
+		out << "\"portfolio_probe_max_steps\":" << probe_max_steps << ",";
+		out << "\"portfolio_fallback_jump_schedule\":\"power2\",";
+		out << "\"portfolio_fallback_jump_count\":" << KangarooPortfolioFallbackJumpCount(jump_schedule) << ",";
+		out << "\"portfolio_fallback_max_steps\":" << max_steps << ",";
+		out << "\"portfolio_probe_hits\":" << portfolio_probe_hits << ",";
+		out << "\"portfolio_fallback_runs\":" << portfolio_fallback_runs << ",";
+		out << "\"last_portfolio_probe_dp_count\":" << last_probe_dp_count << ",";
+	}
 	out << "\"scratch\":\"reused\",";
 	out << "\"range_context\":\"precomputed\",";
 	out << "\"iterations\":" << operations << ",";
@@ -1613,8 +1738,22 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	if (limit)
 		targets = BuildSyntheticMultiTargets(target_count, start, limit, solved_private_key);
 	KangarooJumpTable jumps;
+	KangarooJumpTable probe_jumps;
+	KangarooJumpTable fallback_jumps;
+	unsigned int probe_max_steps = KangarooPortfolioProbeMaxSteps(max_steps);
+	bool use_portfolio = KangarooJumpScheduleIsPortfolio(jump_schedule);
 	if (limit && correctness)
-		jumps = BuildKangarooJumpTable(jump_count, jump_schedule);
+	{
+		if (use_portfolio)
+		{
+			probe_jumps = BuildKangarooJumpTable(4, KangarooJumpSchedule::Scaled4Balanced);
+			fallback_jumps = BuildKangarooJumpTable(KangarooPortfolioFallbackJumpCount(jump_schedule), KangarooJumpSchedule::Power2);
+		}
+		else
+		{
+			jumps = BuildKangarooJumpTable(jump_count, jump_schedule);
+		}
+	}
 	KangarooRangeContext range;
 	if (limit)
 		range = BuildKangarooRangeContext(start, range_bits);
@@ -1632,6 +1771,9 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	u64 operations = 0;
 	u64 total_dp_count = 0;
 	unsigned int last_dp_count = 0;
+	unsigned int last_probe_dp_count = 0;
+	unsigned int portfolio_probe_hits = 0;
+	unsigned int portfolio_fallback_runs = 0;
 	unsigned int found_target_index = 0;
 	u64 found_private_key = 0;
 	KangarooSolveScratch scratch;
@@ -1643,10 +1785,20 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 		{
 			for (unsigned int i = 0; i < iterations; i++)
 			{
-				RCKSmallSolveResult result = RCKSolveSmallJacobianKangarooMultiWithJumps(targets, range, jumps, scratch, dp_bits, max_steps);
+				RCKSmallSolveResult result = use_portfolio ?
+					RCKSolveSmallJacobianKangarooMultiPortfolioWithJumps(targets, range, probe_jumps, fallback_jumps, scratch, dp_bits, probe_max_steps, max_steps) :
+					RCKSolveSmallJacobianKangarooMultiWithJumps(targets, range, jumps, scratch, dp_bits, max_steps);
 				operations++;
 				last_dp_count = result.dp_count;
 				total_dp_count += result.dp_count;
+				if (use_portfolio)
+				{
+					last_probe_dp_count = result.portfolio_probe_dp_count;
+					if (result.portfolio_fallback_used)
+						portfolio_fallback_runs++;
+					else
+						portfolio_probe_hits++;
+				}
 				found_target_index = result.target_index;
 				found_private_key = result.private_key;
 				if (!result.found || (result.private_key != solved_private_key) || (result.target_index != target_count - 1))
@@ -1696,6 +1848,18 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	out << "\"jump_index\":\"" << JumpIndexMode(jump_count) << "\",";
 	out << "\"jump_table\":\"precomputed\",";
 	out << "\"jump_schedule\":\"" << KangarooJumpScheduleName(jump_schedule) << "\",";
+	if (use_portfolio)
+	{
+		out << "\"portfolio_probe_jump_schedule\":\"scaled4_balanced\",";
+		out << "\"portfolio_probe_jump_count\":4,";
+		out << "\"portfolio_probe_max_steps\":" << probe_max_steps << ",";
+		out << "\"portfolio_fallback_jump_schedule\":\"power2\",";
+		out << "\"portfolio_fallback_jump_count\":" << KangarooPortfolioFallbackJumpCount(jump_schedule) << ",";
+		out << "\"portfolio_fallback_max_steps\":" << max_steps << ",";
+		out << "\"portfolio_probe_hits\":" << portfolio_probe_hits << ",";
+		out << "\"portfolio_fallback_runs\":" << portfolio_fallback_runs << ",";
+		out << "\"last_portfolio_probe_dp_count\":" << last_probe_dp_count << ",";
+	}
 	out << "\"scratch\":\"reused\",";
 	out << "\"range_context\":\"precomputed\",";
 	out << "\"iterations\":" << operations << ",";

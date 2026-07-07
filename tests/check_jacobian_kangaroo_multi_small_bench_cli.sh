@@ -44,6 +44,17 @@ case "$scaled_mid_output" in
 		;;
 esac
 
+portfolio_high_output="$(./macos/rck_macos jacobian-kangaroo-multi-small-bench --target-count 16 --iterations 1 --min-ms 0 --range 20 --jumps 4 --dp-bits 4 --max-steps 2000000 --jump-schedule scaled4-probe-power2 --key-offset 900000 2>&1)"
+case "$portfolio_high_output" in
+	*"\"operation\":\"jacobian_kangaroo_multi_small\""*"\"jump_schedule\":\"scaled4_probe_power2\""*"\"portfolio_probe_jump_schedule\":\"scaled4_balanced\""*"\"portfolio_probe_max_steps\":10000"*"\"portfolio_fallback_jump_schedule\":\"power2\""*"\"portfolio_fallback_jump_count\":16"*"\"portfolio_fallback_runs\":1"*"\"last_portfolio_probe_dp_count\":"*"\"key_offset\":900000"*"\"expected_private_key\":\"0xdbba2\""*"\"found_target_index\":15"*"\"found_private_key\":\"0xdbba2\""*"\"correctness\":true"*)
+		;;
+	*)
+		printf '%s\n' "$portfolio_high_output"
+		printf '%s\n' "unexpected high-offset scaled4-probe-power2 portfolio output"
+		exit 1
+		;;
+esac
+
 invalid_output="$(./macos/rck_macos jacobian-kangaroo-multi-small-bench --target-count 16 --iterations 1 --min-ms 0 --range 20 --jumps 16 --dp-bits 4 --max-steps 500000 --jump-schedule scaled4-balanced 2>&1)"
 case "$invalid_output" in
 	*"\"jump_schedule\":\"scaled4_balanced\""*"\"correctness\":false"*"\"reason\":\"jump schedule requires --jumps 4\""*)
@@ -51,6 +62,17 @@ case "$invalid_output" in
 	*)
 		printf '%s\n' "$invalid_output"
 		printf '%s\n' "unexpected invalid scaled4-balanced guard output"
+		exit 1
+		;;
+esac
+
+invalid_portfolio_output="$(./macos/rck_macos jacobian-kangaroo-multi-small-bench --target-count 16 --iterations 1 --min-ms 0 --range 20 --jumps 16 --dp-bits 4 --max-steps 500000 --jump-schedule scaled4-probe-power2 2>&1)"
+case "$invalid_portfolio_output" in
+	*"\"jump_schedule\":\"scaled4_probe_power2\""*"\"correctness\":false"*"\"reason\":\"jump schedule requires --jumps 4\""*)
+		;;
+	*)
+		printf '%s\n' "$invalid_portfolio_output"
+		printf '%s\n' "unexpected invalid scaled4-probe-power2 guard output"
 		exit 1
 		;;
 esac

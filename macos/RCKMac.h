@@ -14,6 +14,8 @@ struct RCKSmallSolveResult
 	unsigned int tame_state_count = 0;
 	unsigned int wild_state_count = 0;
 	unsigned int dp_count = 0;
+	unsigned int portfolio_probe_dp_count = 0;
+	bool portfolio_fallback_used = false;
 };
 
 bool RCKSelfTest(std::string& error);
