@@ -279,7 +279,12 @@ Mac, run:
 
 The command reports `operation=target_set_load` and `targets_per_sec`. It
 isolates the startup phase that maps loaded public keys by subtracting
-`start*G`; it is not a Metal kangaroo-walk or GKeys/s benchmark.
+`start*G`; it is not a Metal kangaroo-walk or GKeys/s benchmark. It also
+reports `target_record_bytes`, `target_storage_bytes`, `source_line_storage`,
+`source_line_base`, and `explicit_source_line_bytes`. Dense stripped files use
+`dense_index_plus_one`; files with only an initial header/comment offset use
+`dense_index_plus_base`; files with non-dense source lines use `explicit_u32`
+and preserve the old per-target line reporting exactly.
 
 For very large target files, `--uncompressed` output can be faster to load even
 though it is larger on disk:

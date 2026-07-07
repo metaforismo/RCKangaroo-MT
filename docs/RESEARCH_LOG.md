@@ -7389,6 +7389,30 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `exact_host_table_bytes` drops from `1068595456` to `268439552`. Treat this
   as a real MacBook Air M3 memory-pressure improvement with a small 25M
   end-to-end win, not as a new kangaroo-math breakthrough.
+- Accepted dense source-line storage for real target files on 2026-07-07.
+  The previous `TTargetPoint` stored a full 64-byte affine point plus a `u32`
+  source line in every target record. The new loader keeps the record at
+  exactly 64 bytes and reconstructs source lines from `index + 1` for stripped
+  files or `index + 1 + source_line_base` for files with only an initial
+  header/comment offset. It falls back to an explicit `u32` side array only
+  when comments, blanks, or other gaps make source lines non-dense. This keeps
+  `GetPoint()` full-affine and avoids the rejected `x+parity` default idea,
+  which would save more memory but would require expensive field square roots
+  when materializing active wild targets. Correctness gates covered stripped,
+  header-only, and non-dense middle-comment files; source-line reporting,
+  batch `-start` mapping, and exact point equality all stayed intact.
+  `target-set-load-bench` now reports `target_record_bytes`,
+  `target_storage_bytes`, `source_line_storage`, `source_line_base`, and
+  `explicit_source_line_bytes`. On the 1,048,576-target compressed
+  header-fixture gate, the checksum stayed
+  `0x1b6099d07874199b`, storage fell from the old logical
+  `71,303,168` bytes (`68 * target_count`) to `67,108,864` bytes, explicit
+  source-line bytes were `0`, and throughput measured
+  `200,658.748317` targets/sec versus the pre-change adjacent baseline
+  `198,868.683259` targets/sec. At 25,005,000 targets, stripped/header-only
+  files avoid about `100,020,000` bytes of source-line storage. This is a real
+  multi-target loader memory reduction, not a Metal GKeys/s claim and not a
+  mathematical kangaroo breakthrough.
 
 ## Cleanup Policy
 

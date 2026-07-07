@@ -10,6 +10,16 @@ static constexpr size_t kTargetMapBatchSize = 32768;
 static constexpr size_t kTargetReserveSampleCount = 1024;
 static constexpr u64 kTargetReserveSlack = 1024;
 
+static void MaterializeSourceLines(std::vector<u32>& source_lines, size_t target_count, size_t reserve_capacity, u32 source_line_base)
+{
+	if (!source_lines.empty())
+		return;
+	if (reserve_capacity > target_count)
+		source_lines.reserve(reserve_capacity);
+	for (size_t i = 0; i < target_count; ++i)
+		source_lines.push_back((u32)(i + 1 + source_line_base));
+}
+
 static bool TargetFieldIsZero(const EcInt& v)
 {
 	return (v.data[0] | v.data[1] | v.data[2] | v.data[3] | v.data[4]) == 0;
@@ -84,6 +94,8 @@ static void MapTargetBatchByOffset(std::vector<EcPoint>& points, EcPoint& offset
 void TTargetSet::Clear()
 {
 	Targets.clear();
+	SourceLines.clear();
+	DenseSourceLineBase = 0;
 	LastError.clear();
 }
 
@@ -193,7 +205,14 @@ bool TTargetSet::LoadFromFile(const char* fn, EcInt& start)
 		{
 			TTargetPoint rec;
 			pending_points[i].SaveToBuffer64(rec.p);
-			rec.source_line = pending_lines[i];
+			if (Targets.empty() && SourceLines.empty())
+				DenseSourceLineBase = pending_lines[i] - 1;
+			u32 dense_source_line = (u32)Targets.size() + 1 + DenseSourceLineBase;
+			if (!SourceLines.empty() || (pending_lines[i] != dense_source_line))
+			{
+				MaterializeSourceLines(SourceLines, Targets.size(), Targets.capacity(), DenseSourceLineBase);
+				SourceLines.push_back(pending_lines[i]);
+			}
 			Targets.push_back(rec);
 		}
 		pending_points.clear();
@@ -214,6 +233,8 @@ bool TTargetSet::LoadFromFile(const char* fn, EcInt& start)
 		{
 			LastError = "invalid public key at line " + std::to_string(line_no);
 			Targets.clear();
+			SourceLines.clear();
+			DenseSourceLineBase = 0;
 			return false;
 		}
 
@@ -253,5 +274,34 @@ EcPoint TTargetSet::GetPoint(u32 index) const
 
 u32 TTargetSet::GetSourceLine(u32 index) const
 {
-	return Targets[index].source_line;
+	if (SourceLines.empty())
+		return index + 1 + DenseSourceLineBase;
+	return SourceLines[index];
+}
+
+size_t TTargetSet::TargetRecordBytes() const
+{
+	return sizeof(TTargetPoint);
+}
+
+size_t TTargetSet::ExplicitSourceLineBytes() const
+{
+	return SourceLines.size() * sizeof(u32);
+}
+
+size_t TTargetSet::TargetStorageBytes() const
+{
+	return (Targets.size() * sizeof(TTargetPoint)) + ExplicitSourceLineBytes();
+}
+
+const char* TTargetSet::SourceLineStorageMode() const
+{
+	if (!SourceLines.empty())
+		return "explicit_u32";
+	return DenseSourceLineBase ? "dense_index_plus_base" : "dense_index_plus_one";
+}
+
+u32 TTargetSet::SourceLineBase() const
+{
+	return SourceLines.empty() ? DenseSourceLineBase : 0;
 }

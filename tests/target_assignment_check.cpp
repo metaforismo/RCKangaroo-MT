@@ -18,6 +18,7 @@ int main()
 {
 	InitEc();
 
+	require(sizeof(TTargetPoint) == 64, "target record must store only the affine point");
 	require(TTargetSet::MapActiveWildTargetId(0, 0, 10) == 0, "zero active slots must map safely");
 	require(TTargetSet::MapActiveWildTargetId(0, 4, 8) == 0, "single gpu map slot 0");
 	require(TTargetSet::MapActiveWildTargetId(1, 4, 8) == 2, "single gpu map slot 1");
@@ -85,6 +86,11 @@ int main()
 	TTargetSet loaded;
 	require(loaded.LoadFromFile(target_path, start), "target set with start offset must load");
 	require(loaded.Count() == 2, "target set with start offset must preserve target count");
+	require(loaded.TargetRecordBytes() == 64, "target set record bytes must stay compact full-point storage");
+	require(loaded.TargetStorageBytes() == loaded.Count() * 64, "header-only source lines must avoid side storage");
+	require(loaded.ExplicitSourceLineBytes() == 0, "header-only source lines must stay dense with a base");
+	require(std::string(loaded.SourceLineStorageMode()) == "dense_index_plus_base", "header-only target file must report based dense source-line storage");
+	require(loaded.SourceLineBase() == 2, "header-only target file must record the source-line base");
 	EcPoint got0 = loaded.GetPoint(0);
 	EcPoint got1 = loaded.GetPoint(1);
 	require(got0.IsEqual(expected0), "batched target start mapping must match legacy add for target 0");
@@ -114,6 +120,41 @@ int main()
 	require(large_loaded.GetSourceLine(0) == 2, "large batch first source line must survive");
 	require(large_loaded.GetSourceLine(boundary_index) == boundary_index + 2, "large batch boundary source line must survive");
 	require(large_loaded.GetSourceLine(large_count - 1) == large_count + 1, "large batch final source line must survive");
+	std::remove(target_path);
+
+	{
+		std::ofstream out(target_path);
+		out << "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798\n";
+		out << "0379BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798\n";
+	}
+	EcInt zero;
+	zero.SetZero();
+	TTargetSet dense_loaded;
+	require(dense_loaded.LoadFromFile(target_path, zero), "dense target file must load");
+	require(dense_loaded.Count() == 2, "dense target file must preserve target count");
+	require(dense_loaded.GetSourceLine(0) == 1, "dense source line 0 must be reconstructed from index");
+	require(dense_loaded.GetSourceLine(1) == 2, "dense source line 1 must be reconstructed from index");
+	require(dense_loaded.TargetStorageBytes() == dense_loaded.Count() * 64, "dense target file must avoid source-line side storage");
+	require(dense_loaded.ExplicitSourceLineBytes() == 0, "dense target file must not allocate explicit source lines");
+	require(std::string(dense_loaded.SourceLineStorageMode()) == "dense_index_plus_one", "dense target file must report dense source-line storage");
+	require(dense_loaded.SourceLineBase() == 0, "dense target file must report zero source-line base");
+	std::remove(target_path);
+
+	{
+		std::ofstream out(target_path);
+		out << "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798\n";
+		out << "# middle comment forces non-dense lines\n";
+		out << "0379BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798\n";
+	}
+	TTargetSet sparse_lines_loaded;
+	require(sparse_lines_loaded.LoadFromFile(target_path, zero), "non-dense source-line target file must load");
+	require(sparse_lines_loaded.Count() == 2, "non-dense source-line target file must preserve target count");
+	require(sparse_lines_loaded.GetSourceLine(0) == 1, "non-dense first source line must survive");
+	require(sparse_lines_loaded.GetSourceLine(1) == 3, "non-dense second source line must survive");
+	require(sparse_lines_loaded.TargetStorageBytes() == (sparse_lines_loaded.Count() * 64) + (sparse_lines_loaded.Count() * sizeof(u32)), "non-dense source lines must use side storage");
+	require(sparse_lines_loaded.ExplicitSourceLineBytes() == sparse_lines_loaded.Count() * sizeof(u32), "non-dense source lines must materialize explicit lines");
+	require(std::string(sparse_lines_loaded.SourceLineStorageMode()) == "explicit_u32", "non-dense target file must report explicit source-line storage");
+	require(sparse_lines_loaded.SourceLineBase() == 0, "explicit source-line storage must report zero dense base");
 	std::remove(target_path);
 
 	DeInitEc();

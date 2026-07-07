@@ -258,6 +258,11 @@ static std::string TargetSetLoadBenchJson(unsigned int iterations, unsigned int 
 	u64 checksum = 0x6D2B79F5D34A5E91ULL;
 	u64 operations = 0;
 	unsigned int loaded_count = 0;
+	size_t target_record_bytes = sizeof(TTargetPoint);
+	size_t target_storage_bytes = 0;
+	size_t explicit_source_line_bytes = 0;
+	const char* source_line_storage = "dense_index_plus_one";
+	u32 source_line_base = 0;
 
 	auto t0 = std::chrono::steady_clock::now();
 	auto t1 = t0;
@@ -273,6 +278,11 @@ static std::string TargetSetLoadBenchJson(unsigned int iterations, unsigned int 
 				break;
 			}
 			loaded_count = target_set.Count();
+			target_record_bytes = target_set.TargetRecordBytes();
+			target_storage_bytes = target_set.TargetStorageBytes();
+			explicit_source_line_bytes = target_set.ExplicitSourceLineBytes();
+			source_line_storage = target_set.SourceLineStorageMode();
+			source_line_base = target_set.SourceLineBase();
 			if (loaded_count != target_count)
 			{
 				correctness = false;
@@ -318,6 +328,12 @@ static std::string TargetSetLoadBenchJson(unsigned int iterations, unsigned int 
 	out << "\"iterations\":" << iterations << ",";
 	out << "\"target_count\":" << target_count << ",";
 	out << "\"loaded_count\":" << loaded_count << ",";
+	out << "\"target_record_layout\":\"affine_xy256\",";
+	out << "\"target_record_bytes\":" << target_record_bytes << ",";
+	out << "\"target_storage_bytes\":" << target_storage_bytes << ",";
+	out << "\"source_line_storage\":\"" << source_line_storage << "\",";
+	out << "\"source_line_base\":" << source_line_base << ",";
+	out << "\"explicit_source_line_bytes\":" << explicit_source_line_bytes << ",";
 	out << "\"start_scalar\":\"0x" << std::hex << start_scalar << std::dec << "\",";
 	out << "\"seconds\":" << seconds << ",";
 	out << "\"targets_per_sec\":" << targets_per_sec << ",";

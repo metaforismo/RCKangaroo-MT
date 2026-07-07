@@ -54,7 +54,30 @@ distance metric. It is a candidate filter, not a promotion gate.
 
 ## Latest Accepted Change
 
-2026-07-07: lazy deterministic filler x-key storage for physical
+2026-07-07: dense source-line storage for real target files.
+
+- Change: real target records now store only the full 64-byte affine point.
+  Source lines are reconstructed as `index + 1` for stripped files or
+  `index + 1 + source_line_base` for header-only/comment-offset files; only
+  non-dense files allocate an explicit `u32` source-line side array.
+- Correctness oracle: `GetPoint()` still returns the full affine point, and
+  `GetSourceLine()` is covered for stripped, header-only, and middle-comment
+  non-dense files. The `target-set-load-bench` checksum stayed
+  `0x1b6099d07874199b` on the 1,048,576-target compressed header fixture.
+- Scale effect: 25,005,000 stripped/header-only targets avoid about
+  `100020000` bytes of per-target source-line storage versus the old
+  68-byte record layout. The 1,048,576-target fixture reports
+  `target_storage_bytes=67108864`, `source_line_storage=dense_index_plus_base`,
+  `source_line_base=1`, and `explicit_source_line_bytes=0`.
+- Speed evidence: the adjacent 1,048,576-target compressed loader run measured
+  `200658.748317` targets/sec versus the pre-change baseline
+  `198868.683259`, with the same checksum. Treat this as a loader memory win;
+  it is not a Metal walk or GKeys/s claim.
+- Rejected boundary: do not default to `x+parity` target storage yet. It saves
+  more memory but would require field square-root decompression when active
+  wild targets are materialized, so it risks slowing real solver startup.
+
+Earlier 2026-07-07: lazy deterministic filler x-key storage for physical
 distinct-miss parity target tables.
 
 - Change: the tag32 parity target table still stores all bucket entries, tags,

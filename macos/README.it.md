@@ -282,7 +282,12 @@ non-zero, usa:
 
 Il comando riporta `operation=target_set_load` e `targets_per_sec`. Isola la
 fase di startup che mappa le public key sottraendo `start*G`; non e' un
-benchmark del kangaroo walk Metal o dei GKeys/s.
+benchmark del kangaroo walk Metal o dei GKeys/s. Riporta anche
+`target_record_bytes`, `target_storage_bytes`, `source_line_storage`,
+`source_line_base` ed `explicit_source_line_bytes`. I file stripped densi usano
+`dense_index_plus_one`; i file con solo un offset iniziale da header/commenti
+usano `dense_index_plus_base`; i file con righe sorgente non dense usano
+`explicit_u32` e preservano esattamente il vecchio reporting per-target.
 
 Per file target molto grandi, l'output `--uncompressed` puo' caricarsi piu'
 velocemente anche se occupa piu' spazio su disco:
