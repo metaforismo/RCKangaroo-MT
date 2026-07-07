@@ -220,6 +220,29 @@ assert "required metric target_lookup_checksum expected 0xabc got 0xdef" in requ
 assert "required metric dp_count expected 1053 got 990" in required_metric_row["reason"]
 assert "required metric jump_histogram_max_deviation_ppm expected <= 1000 got 1200" in required_metric_row["reason"]
 
+paired_baseline_required_metric_row = runner.build_benchmark_row(
+    experiment=dict(
+        experiment,
+        required_metrics={
+            "target_lookup_checksum": "0xabc",
+            "dp_count": 1053,
+        },
+    ),
+    metrics=dict(metrics, ops_per_sec=200.0, target_lookup_checksum="0xabc", dp_count=1053),
+    budget_sec=5,
+    commit="abc129",
+    machine="test-machine",
+    previous=None,
+    paired_baseline=dict(metrics, ops_per_sec=100.0, target_lookup_checksum="0xdef", dp_count=1053),
+    paired_baseline_ref="main",
+    timestamp="2026-01-01T00:00:07Z",
+)
+assert paired_baseline_required_metric_row["status"] == "discard"
+assert paired_baseline_required_metric_row["paired_speedup"] == 2.0
+assert paired_baseline_required_metric_row["paired_baseline_required_metrics_passed"] is False
+assert "paired baseline failed required metrics" in paired_baseline_required_metric_row["reason"]
+assert "required metric target_lookup_checksum expected 0xabc got 0xdef" in paired_baseline_required_metric_row["reason"]
+
 lookup_samples = [
     dict(metrics, operation="target_lookup_exact256", lookups_per_sec=10.0, ops_per_sec=0.0),
     dict(metrics, operation="target_lookup_exact256", lookups_per_sec=20.0, ops_per_sec=0.0),

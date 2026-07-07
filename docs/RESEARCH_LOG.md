@@ -7636,7 +7636,8 @@ These did not pass the performance gate or had a correctness/architecture issue:
   require exact fields or numeric min/max bounds in addition to benchmark
   internal `correctness=true`; a row with mismatched required metrics records
   `benchmark_correctness=true`, `required_metrics_passed=false`, and fails that
-  fixed gate.
+  fixed gate. Paired baselines are checked against the same required metrics
+  before their speed can be used.
 - The 1M fast falsifier and 25M canonical fixed-round physical distinct-miss
   Metal experiments now require their current `jump_mixer`, `jump_schedule`,
   `target_lookup_checksum`, `dp_checksum`, `dp_distance_checksum`, `dp_count`,

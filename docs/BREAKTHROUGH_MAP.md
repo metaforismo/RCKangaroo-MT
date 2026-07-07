@@ -70,7 +70,9 @@ Canonical oracle rule: fixed-oracle 1M and 25M experiments define
 `required_metrics` for the jump mixer/schedule, target checksum, DP checksum,
 DP distance checksum, DP count, hit count, and false-positive count. If any
 required metric changes, the row is not a speed comparison for that experiment.
-Create a separate experiment for solver-equivalent schedule or mixer variants.
+Paired baselines must satisfy the same required metrics before their speed is
+usable. Create a separate experiment for solver-equivalent schedule or mixer
+variants.
 
 ## Latest Accepted Change
 
@@ -78,9 +80,10 @@ Create a separate experiment for solver-equivalent schedule or mixer variants.
 
 - Change: autoresearch experiments can now declare `required_metrics`. The
   runner marks rows as failed for that gate when the benchmark is internally
-  correct but the fixed oracle changed. The 1M fast falsifier and 25M canonical
-  Metal gates now require their current mixer, schedule, checksums, DP counts,
-  hit counts, and false-positive counts.
+  correct but the fixed oracle changed, and paired baselines must satisfy the
+  same required metrics before their speed is used. The 1M fast falsifier and
+  25M canonical Metal gates now require their current mixer, schedule,
+  checksums, DP counts, hit counts, and false-positive counts.
 - Motivation: a lighter jump-mixer scout can be internally correct while
   changing the random walk. That is a new solver-equivalent experiment, not an
   apples-to-apples speedup on the canonical gate.

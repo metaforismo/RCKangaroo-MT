@@ -230,14 +230,17 @@ def build_benchmark_row(
     paired_usable = False
     paired_baseline_spread_too_high = False
     paired_baseline_spread_ratio = 1.0
+    paired_baseline_required_failures: list[str] = []
     if paired_baseline is not None:
         paired_ops = float(paired_baseline.get("ops_per_sec", 0.0))
         paired_baseline_spread_ratio = float(paired_baseline.get("sample_spread_ratio", 1.0) or 1.0)
         paired_baseline_spread_too_high = max_spread_ratio > 0.0 and paired_baseline_spread_ratio > max_spread_ratio
+        paired_baseline_required_failures = required_metric_failures(experiment, paired_baseline)
         paired_usable = (
             bool(paired_baseline.get("correctness"))
             and not bool(paired_baseline.get("skipped"))
             and paired_ops > 0.0
+            and not paired_baseline_required_failures
         )
 
     if skipped:
@@ -245,6 +248,8 @@ def build_benchmark_row(
     elif not correctness:
         status = "crash"
     elif spread_too_high:
+        status = "discard"
+    elif paired_baseline is not None and paired_baseline_required_failures:
         status = "discard"
     elif paired_usable and paired_baseline_spread_too_high:
         status = "discard"
@@ -293,6 +298,11 @@ def build_benchmark_row(
         spread_reason = f"paired baseline sample spread ratio {paired_baseline_spread_ratio:.6f} exceeds max {max_spread_ratio:.6f}"
         row["reason"] = f"{reason}; {spread_reason}" if reason else spread_reason
         row["paired_baseline_sample_spread_ratio"] = paired_baseline_spread_ratio
+    if paired_baseline is not None and paired_baseline_required_failures:
+        reason = str(row.get("reason", ""))
+        required_reason = "paired baseline failed required metrics: " + "; ".join(paired_baseline_required_failures)
+        row["reason"] = f"{reason}; {required_reason}" if reason else required_reason
+        row["paired_baseline_required_metrics_passed"] = False
     if required_failures:
         reason = str(row.get("reason", ""))
         required_reason = "; ".join(required_failures)

@@ -19,6 +19,9 @@ internally correct but a required metric changes, the row records
 `benchmark_correctness=true`, `required_metrics_passed=false`, and fails that
 gate. Use this for canonical checksum/DP gates; create a separate experiment
 when a candidate intentionally changes the walk, schedule, mixer, or oracle.
+Paired baselines are checked against the same required metrics before their
+speed can be used, so a stale or different-oracle baseline cannot make a
+candidate look like a valid speedup.
 
 Benchmark rows append `-dirty` to the short commit label whenever `git status --porcelain` is non-empty, so uncommitted candidates cannot be confused with reproducible clean commits.
 
