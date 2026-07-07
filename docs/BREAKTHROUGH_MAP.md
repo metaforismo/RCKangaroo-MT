@@ -92,6 +92,10 @@ Do not repeat these without new compiler evidence or a different oracle:
   `-O3`, `-O2`, `-Os`, forced unroll, disabled unroll, and disabled vectorizers
   all preserved the 1M fixed-round oracle but did not beat the current flag
   stably.
+- Forcing source-shape changes around the fixed-round XYZZ helper without new
+  compiler evidence. `static inline`, `always_inline`, and internal
+  `bool`/`uint`/`uchar` infinity-flag rewrites preserved the oracle but slowed
+  the 1M fixed-round gate sharply.
 
 ## Promising Directions
 

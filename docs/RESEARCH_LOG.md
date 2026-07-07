@@ -207,6 +207,28 @@ GPU work should use Metal.
   `398608489045.704651`. Keep `MACOS_METAL_FLAGS ?= -finline-functions` and
   require a paired 25M gate before touching the sidecar default again.
 
+### 2026-07-07 Metal XYZZ Helper Codegen Scout
+
+- Rejected four temporary sidecar-only source-shape variants for the fixed-round
+  XYZZ walk helper. This was a no-repo-edit scout built from extracted
+  `MetalFieldKernels.h` with the normal `-finline-functions` sidecar flag, then
+  run through the 1M fixed-round physical `distinct-misses` gate. Every variant
+  preserved the medium oracle (`target_lookup_checksum=0xcb38405cd10f441d`,
+  `dp_checksum=0xbd17120591af6f74`, `dp_distance_checksum=0x9eca239fc5687305`,
+  `dp_count=1053`, `hit_count=64`, `correctness=true`), so the rejection is
+  strictly performance/codegen, not correctness.
+- Baseline extracted sidecar measured
+  `setup_inclusive_wall_distance_per_sec=401101023328.744570` with
+  `walk_wall_seconds=1.283575`. Changing the plain XYZZ helpers to
+  `static inline` dropped to `290617293031.179570`; forcing
+  `__attribute__((always_inline))` on `xyzz_walk_pow2_u32_distance` collapsed to
+  `122932017854.446820`; changing the internal `XyzzDistanceValue.inf` field
+  from `bool` to `uint` measured `124977044702.261960`, and changing it to
+  `uchar` measured `101904591438.649730`. Do not promote inline/type-shape
+  changes around the fixed-round XYZZ helper without real Metal compiler
+  evidence; these variants likely worsen register pressure or inlining
+  decisions on M3.
+
 ### 2026-07-03 Power2 Shift Distance Scout
 
 - Rejected a tableless distance variant for the 2048-step fixed-round Metal
