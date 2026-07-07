@@ -163,8 +163,9 @@ Do not repeat these without new compiler evidence or a different oracle:
 - Broad no-copy walk-buffer rewrites. The current fixed-round path already uses
   no-copy buffers where they survived gates.
 - Direct-filling fixed-round batched round starts to avoid per-round temporary
-  vectors. Correct on the 1M oracle, but repeat paired confirmation was noisy
-  and failed the gate.
+  vectors. Correct on the 1M oracle, and it can lower
+  `round_sample_build_seconds`, but repeat paired confirmation failed the
+  primary wall metric. Latest guarded rerun: `0.999964x` and `0.999170x`.
 - Changing the opt-in Metal sidecar flags away from `-finline-functions`.
   `-O3`, `-O2`, `-Os`, forced unroll, disabled unroll, and disabled vectorizers
   all preserved the 1M fixed-round oracle but did not beat the current flag

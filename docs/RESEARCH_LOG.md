@@ -204,6 +204,16 @@ GPU work should use Metal.
   `sample_spread_ratio=1.732139` above the 1.5 limit.
 - The code was removed; keep the current fixed-round setup unless a larger gate
   proves otherwise.
+- Re-ran the same idea after the same-tree noise guard at `56f4646-dirty`.
+  The candidate still preserved the exact 1M physical distinct-miss oracle and
+  often reduced `round_sample_build_seconds` into the `0.00016..0.00062s`
+  band, but the setup-inclusive wall metric did not improve. Confirmation 1
+  measured candidate `466874249977.017334` versus paired baseline
+  `466891184454.238770` (`paired_speedup=0.999964`); confirmation 2 measured
+  candidate `463031178204.484436` versus paired baseline
+  `463415900839.467590` (`paired_speedup=0.999170`). The prototype was again
+  reverted. Do not promote host setup micro-cleanups unless the primary
+  `setup_inclusive_wall_distance_per_sec` gate clears.
 
 ### 2026-07-07 Fixed-Round Metal Threadgroup Attribute Scout
 
