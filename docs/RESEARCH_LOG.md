@@ -146,6 +146,23 @@ GPU work should use Metal.
 
 ## Recent Rejected Experiments
 
+### 2026-07-07 Fixed-Round Metal Threadgroup Attribute Scout
+
+- Rejected adding `[[max_total_threads_per_threadgroup(128)]]` to the
+  fixed-round XYZZ `steps=2048` store-round Metal kernel. The hypothesis was
+  that the M3 compiler might reduce register or occupancy uncertainty when the
+  source declares the same 128-thread limit used by the gate.
+- The candidate compiled with the local Metal toolchain and preserved the 1M
+  fixed-round distinct-miss oracle:
+  `target_lookup_checksum=0xcb38405cd10f441d`,
+  `dp_checksum=0xbd17120591af6f74`, `dp_distance_checksum=0x9eca239fc5687305`,
+  `dp_count=1053`, `hit_count=64`, and `correctness=true`. It did not change
+  the runtime-reported `max_threads_per_threadgroup`, which stayed `1024`.
+- Adjacent clean baseline `b312971` beat the candidate on the new medium gate:
+  baseline `setup_inclusive_wall_distance_per_sec=452853121872.096558` versus
+  candidate `437626785863.870789`. The attribute was removed; do not retry this
+  source-level hint unless Metal compiler output shows a different codegen path.
+
 ### 2026-07-03 Power2 Shift Distance Scout
 
 - Rejected a tableless distance variant for the 2048-step fixed-round Metal
