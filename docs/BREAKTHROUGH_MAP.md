@@ -190,6 +190,10 @@ Do not repeat these without new compiler evidence or a different oracle:
   was correct and one paired 1M physical distinct-miss gate measured
   `1.007896x`, but that is below the 1% promotion threshold and was not
   repeat-confirmed; the code was reverted and only the evidence row was kept.
+- Rewriting the fixed-round XYZZ store-round path to avoid the outer
+  `XyzzDistanceValue` struct return. The candidate preserved the 1M physical
+  distinct-miss oracle, but paired confirmations were `0.991582x` and
+  `1.007707x`, so the source was reverted.
 - Promoting `--walk-round-mode persistent` as the fixed-round default from the
   1M physical distinct-miss gate. A same-tree command A/B stayed correct, but
   persistent lost both confirmations: `0.973113x` and `0.971031x` versus the

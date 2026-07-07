@@ -258,6 +258,21 @@ GPU work should use Metal.
   promotion threshold and not repeat-confirmed, so the code change was
   reverted and only the evidence row was kept.
 
+### 2026-07-07 Fixed-Round XYZZ In-Place Return Scout
+
+- Rejected an in-place fixed-round XYZZ helper that avoided the outer
+  `XyzzDistanceValue` return in `xyzz_store_round_pow2_u32_distance`. The
+  candidate preserved the 1M fixed-round physical distinct-miss oracle:
+  `target_lookup_checksum=0xcb38405cd10f441d`,
+  `dp_checksum=0xbd17120591af6f74`,
+  `dp_distance_checksum=0x9eca239fc5687305`, `dp_count=1053`,
+  `hit_count=64`, `filter_false_positive_count=28`, and `correctness=true`.
+- The paired 1M gate ended `discard` in both confirmations:
+  `0.991582x` and `1.007707x` setup-inclusive wall distance/sec versus
+  `HEAD`. This suggests the outer struct return is not the current Metal
+  bottleneck, or the compiler already scalarizes it well enough. The code was
+  reverted and only the evidence rows were kept.
+
 ### 2026-07-07 Fixed-Round Direct Round-Start Fill
 
 - Rejected direct-fill construction for fixed-round batched round starts. The
