@@ -278,6 +278,26 @@ GPU work should use Metal.
   unless Metal codegen evidence shows lower register pressure for the hot
   fixed-round XYZZ module.
 
+### 2026-07-07 Xorshift Jump-Mixer Scout
+
+- Rejected a temporary `xorshift64_scout` replacement for the dynamic jump
+  mixer before promoting it to an autoresearch experiment. The scout changed
+  the Metal dynamic mixer and CPU replay from the avalanche multiply to a
+  shift/xor-only sequence, with JSON labeled as `jump_mixer=xorshift64_scout`.
+- A direct 1M fixed-round physical distinct-miss smoke stayed internally
+  correct and had a healthy jump histogram
+  (`jump_histogram_max_deviation_ppm=487`), but changed the walk oracle as
+  expected (`target_lookup_checksum=0xfe06735ffcbb2ac1`,
+  `dp_checksum=0x44156ecaa30e44ab`, `dp_distance_checksum=0xaf3e78c2dbbaba51`,
+  `dp_count=990`, `hit_count=16`, `correctness=true`) and reported weak
+  setup-inclusive wall distance/sec (`69689224087.391113`) on the smoke shape.
+- The paired runner correctly failed existing source guards that require the
+  default avalanche mixer markers. Because the speed signal was already poor,
+  the source and tests were not converted to an opt-in mixer experiment. Keep
+  avalanche64 as the default; revisit lighter jump mixers only as explicit
+  opt-in solver-equivalent schedules with updated source guards, histogram
+  limits, DP-density checks, and paired gates.
+
 ### 2026-07-07 Fixed-Round XYZZ In-Place Return Scout
 
 - Rejected an in-place fixed-round XYZZ helper that avoided the outer

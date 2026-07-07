@@ -215,6 +215,11 @@ Do not repeat these without new compiler evidence or a different oracle:
   `mul256_by_64_values` helper. The candidate preserved the 1M physical
   distinct-miss oracle, but paired confirmations were slower and the final
   recorded speedup was `0.821769x`; the code was reverted.
+- Replacing the avalanche64 dynamic jump mixer with a shift/xor-only
+  `xorshift64_scout`. A direct smoke was internally correct and histogram-flat,
+  but changed the walk oracle, lowered DP count, and produced weak
+  setup-inclusive wall distance/sec; source guards correctly blocked treating
+  it as the default.
 - Rewriting the fixed-round XYZZ store-round path to avoid the outer
   `XyzzDistanceValue` struct return. The candidate preserved the 1M physical
   distinct-miss oracle, but paired confirmations were `0.991582x` and
