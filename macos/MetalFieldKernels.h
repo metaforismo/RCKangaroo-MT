@@ -2624,11 +2624,12 @@ static inline ushort target_lookup_filter_tag16_mixed(ulong hash) {
 }
 
 static inline ulong target_lookup_bloom64_mask(ulong hash) {
+  // Keep the blocked Bloom bits independent from the low hash bits used as the word slot.
   ulong mask = 0;
-  mask |= 1UL << ((hash >> 12) & 63UL);
-  mask |= 1UL << ((hash >> 24) & 63UL);
-  mask |= 1UL << ((hash >> 36) & 63UL);
-  mask |= 1UL << ((hash >> 48) & 63UL);
+  mask |= 1UL << ((hash >> 25) & 63UL);
+  mask |= 1UL << ((hash >> 34) & 63UL);
+  mask |= 1UL << ((hash >> 43) & 63UL);
+  mask |= 1UL << ((hash >> 52) & 63UL);
   return mask;
 }
 

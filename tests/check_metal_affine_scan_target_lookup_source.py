@@ -451,6 +451,12 @@ if "kernel void target_lookup_bloom64_hash_filter_distinct_misses256" not in met
     raise SystemExit("missing generated-miss bloom64 hash-filter Metal kernel")
 if "target_lookup_bloom64_mask(hash)" not in metal_kernels:
     raise SystemExit("bloom64 hash-filter kernel should derive blocked masks from query hashes")
+if "hash >> 25" not in metal_kernels or "hash >> 34" not in metal_kernels or "hash >> 43" not in metal_kernels or "hash >> 52" not in metal_kernels:
+    raise SystemExit("bloom64 mask should draw from high hash bits that do not overlap the word-slot bits")
+if metal_kernels.count("mask |= 1UL <<") != 4:
+    raise SystemExit("bloom64 mask should set four in-word bits per target/query")
+if "hash >> 12" in metal_kernels:
+    raise SystemExit("bloom64 mask should not reuse low slot-overlap hash bits")
 
 parity_builder_start = kernels.index("static bool BuildTargetLookupTag32ParityTableFromKeysParallelInsert")
 parity_builder_end = kernels.index("static void BuildTargetLookupQueries", parity_builder_start)

@@ -211,6 +211,35 @@ GPU work should use Metal.
   threshold. Keep Bloom64 as a diagnostic memory/filter knob, not as the
   fixed-round MacBook Air M3 default.
 
+### 2026-07-07 Bloom64 Mask Independence Audit
+
+- Found a real source-level issue in the diagnostic blocked Bloom64 filter:
+  the first mask bit used `hash >> 12`, while the Bloom word slot uses low
+  hash bits. At 1M and larger target counts, part of that bit selector is fixed
+  by the selected word, so the filter had less independent entropy than the
+  apparent four in-word bits. The opt-in Bloom64 path now derives its four mask
+  bits from higher hash windows (`25/34/43/52`) and the source guard rejects
+  reintroducing the low `hash >> 12` selector.
+- Correctness stayed intact on the 1M fixed-round physical distinct-miss oracle:
+  `target_lookup_checksum=0xcb38405cd10f441d`,
+  `dp_checksum=0xbd17120591af6f74`,
+  `dp_distance_checksum=0x9eca239fc5687305`, `dp_count=1053`,
+  `hit_count=64`, and `correctness=true`.
+- The high-bit mask improved the diagnostic Bloom64 false-positive profile but
+  did not clear the setup-inclusive speed gate against tag16. False positives
+  dropped from the previous Bloom64 `10075` to `5749`, while tag16 remained at
+  `28`. Confirmation 1 measured Bloom64 `461315284181.527527` versus tag16
+  `468635337352.135315` (`paired_speedup=0.984380`). Confirmation 2 measured
+  Bloom64 `466302611631.635559` versus tag16 `463444729650.196045`
+  (`paired_speedup=1.006167`), still below the 1% promotion threshold.
+- Rejected follow-up mask variants after direct smokes on the same command and
+  oracle: odd-step k8 double hashing worsened to `12709` false positives;
+  direct high-window k8 reached `5002` false positives but weak wall score;
+  secondary-mix k8 reached `4746` false positives but added 64-bit mix cost;
+  cheap mixed-slot k4 reached `5584` false positives and doubled GPU filter
+  time. Do not promote any of these without a new paired gate and a reason the
+  lookup path, not the walk, has become the bottleneck.
+
 ### 2026-07-07 Fixed-Round Direct Round-Start Fill
 
 - Rejected direct-fill construction for fixed-round batched round starts. The

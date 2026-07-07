@@ -169,7 +169,15 @@ Do not repeat these without new compiler evidence or a different oracle:
 - Promoting Bloom64 as the fixed-round physical distinct-miss default.
   Correct and half the tag16 filter bytes on the 1M gate, but it raised false
   positives from `28` to `10075`; paired confirmations were `0.981014x` and
-  `1.006939x`, below the 1% promotion threshold.
+  `1.006939x`, below the 1% promotion threshold. The later high-bit mask
+  independence fix improves the opt-in diagnostic path to `5749` false
+  positives, but still failed default promotion with `0.984380x` and
+  `1.006167x`.
+- Retuning Bloom64 with k8/double-hash/secondary-mix/cheap-mixed-slot variants.
+  All preserved the 1M oracle in direct smokes, but they either raised false
+  positives or added enough GPU filter cost to lose wall-time. Latest observed
+  false positives: odd-step k8 `12709`, direct high-window k8 `5002`,
+  secondary-mix k8 `4746`, cheap mixed-slot k4 `5584`.
 - Changing the opt-in Metal sidecar flags away from `-finline-functions`.
   `-O3`, `-O2`, `-Os`, forced unroll, disabled unroll, and disabled vectorizers
   all preserved the 1M fixed-round oracle but did not beat the current flag

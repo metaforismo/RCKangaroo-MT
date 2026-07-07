@@ -2963,11 +2963,12 @@ static uint16_t TargetLookupFilterTag16Mixed(uint64_t hash)
 
 static uint64_t TargetLookupBloom64Mask(uint64_t hash)
 {
+	// Keep the blocked Bloom bits independent from the low hash bits used as the word slot.
 	uint64_t mask = 0;
-	mask |= 1ULL << ((hash >> 12) & 63ULL);
-	mask |= 1ULL << ((hash >> 24) & 63ULL);
-	mask |= 1ULL << ((hash >> 36) & 63ULL);
-	mask |= 1ULL << ((hash >> 48) & 63ULL);
+	mask |= 1ULL << ((hash >> 25) & 63ULL);
+	mask |= 1ULL << ((hash >> 34) & 63ULL);
+	mask |= 1ULL << ((hash >> 43) & 63ULL);
+	mask |= 1ULL << ((hash >> 52) & 63ULL);
 	return mask;
 }
 
