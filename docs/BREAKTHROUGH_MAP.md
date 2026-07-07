@@ -173,6 +173,10 @@ Do not repeat these without new compiler evidence or a different oracle:
   compiler evidence. `static inline`, `always_inline`, and internal
   `bool`/`uint`/`uchar` infinity-flag rewrites preserved the oracle but slowed
   the 1M fixed-round gate sharply.
+- Promoting `--walk-round-mode persistent` as the fixed-round default from the
+  1M physical distinct-miss gate. A same-tree command A/B stayed correct, but
+  persistent lost both confirmations: `0.973113x` and `0.971031x` versus the
+  explicit independent baseline.
 
 ## Promising Directions
 
@@ -211,9 +215,11 @@ These are the remaining high-leverage areas.
 4. Persistent solver pipeline.
 
    Keeping walker state resident across packet rounds is solver-like, but prior
-   persistent variants were close and noisy. Future work should use the physical
-   distinct-miss gate, order-reversed pairs, cooldown, and exact cumulative
-   distance checks.
+   persistent variants were close and noisy. The 2026-07-07 same-tree 1M
+   command A/B rejected persistent as the current fixed-round default, so future
+   work should change the underlying pipeline or solver cadence rather than
+   merely rerunning the same mode. Use the physical distinct-miss gate,
+   order-reversed pairs, cooldown, and exact cumulative distance checks.
 
 5. Metal compiler/codegen evidence.
 

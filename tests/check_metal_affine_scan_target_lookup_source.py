@@ -1242,4 +1242,50 @@ check_experiment(
     "setup_inclusive_ops_per_sec",
 )
 
+persistent_1m_baseline_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-rounds-bench",
+    "--iterations",
+    "32768",
+    "--steps",
+    "2048",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "6",
+    "--target-count",
+    "1048576",
+    "--hits",
+    "32",
+    "--lookup-repeat",
+    "1024",
+    "--lookup-query-mode",
+    "distinct-misses",
+    "--rounds",
+    "2",
+    "--lookup-tg-limit",
+    "512",
+    "--jump-schedule",
+    "power2",
+    "--walk-round-mode",
+    "independent",
+]
+persistent_1m_command = persistent_1m_baseline_command[:-1] + ["persistent"]
+persistent_1m_experiment = Path(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter1m_rounds_persistent_distinct_misses_distance.json"
+)
+if not persistent_1m_experiment.exists():
+    raise SystemExit("missing persistent fixed-round 1M A/B autoresearch experiment")
+persistent_1m_payload = json.loads(persistent_1m_experiment.read_text(encoding="utf-8"))
+if persistent_1m_payload.get("paired_baseline_command") != persistent_1m_baseline_command:
+    raise SystemExit("persistent fixed-round 1M A/B should compare against explicit independent walk baseline")
+if persistent_1m_payload.get("bench_command") != persistent_1m_command:
+    raise SystemExit("persistent fixed-round 1M A/B should run the persistent walk candidate")
+if persistent_1m_payload.get("metric") != "setup_inclusive_wall_distance_per_sec":
+    raise SystemExit("persistent fixed-round 1M A/B should optimize setup-inclusive wall distance/sec")
+if int(persistent_1m_payload.get("sample_runs", 0)) < 3:
+    raise SystemExit("persistent fixed-round 1M A/B should keep sample_runs >= 3")
+if float(persistent_1m_payload.get("cooldown_sec", 0.0)) < 3.0:
+    raise SystemExit("persistent fixed-round 1M A/B should cool down between paired samples")
+
 print("metal affine-scan target lookup source ok")

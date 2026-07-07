@@ -162,6 +162,30 @@ GPU work should use Metal.
 
 ## Recent Rejected Experiments
 
+### 2026-07-07 Persistent Fixed-Round 1M Command A/B
+
+- Added
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter1m_rounds_persistent_distinct_misses_distance`
+  as an explicit same-tree command A/B: paired baseline uses
+  `--walk-round-mode independent`, candidate uses `--walk-round-mode
+  persistent`, and the metric remains
+  `setup_inclusive_wall_distance_per_sec`.
+- The experiment is valid under the same-tree guard because the paired
+  baseline command differs from the candidate command. It is not a same-code
+  noise sentinel.
+- Correctness stayed intact for the persistent candidate with
+  `target_lookup_checksum=0xdd2a2f23ab08c29b`,
+  `dp_checksum=0x629ee4b4c12210d6`,
+  `dp_distance_checksum=0xa5baca18c951809a`, `dp_count=1052`,
+  `hit_count=64`, and `correctness=true`.
+- Performance rejected the candidate in both confirmations. Confirmation 1
+  measured persistent `454793026992.796143` versus independent baseline
+  `467358937649.384888` (`paired_speedup=0.973113`). Confirmation 2 measured
+  persistent `448823710354.973206` versus independent baseline
+  `462213442985.241516` (`paired_speedup=0.971031`). Keep persistent as an
+  opt-in solver-like probe, not as the fixed-round default or a 25M promotion
+  candidate from this evidence.
+
 ### 2026-07-07 Fixed-Round Direct Round-Start Fill
 
 - Rejected direct-fill construction for fixed-round batched round starts. The
