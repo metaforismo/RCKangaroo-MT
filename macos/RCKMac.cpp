@@ -175,10 +175,12 @@ static bool KangarooJumpScheduleIsPortfolio(KangarooJumpSchedule schedule)
 	return schedule == KangarooJumpSchedule::Scaled4ProbePower2;
 }
 
-static unsigned int KangarooPortfolioProbeMaxSteps(unsigned int max_steps)
+static unsigned int KangarooPortfolioProbeMaxSteps(unsigned int max_steps, unsigned int requested_probe_steps = 0)
 {
 	if (!max_steps)
 		return 0;
+	if (requested_probe_steps)
+		return requested_probe_steps < max_steps ? requested_probe_steps : max_steps;
 	unsigned int probe = max_steps / 200;
 	if (probe < 10000)
 		probe = 10000;
@@ -1533,7 +1535,7 @@ static KangarooSingleBenchReference MeasureSingleTargetKangarooSmall(unsigned in
 	return reference;
 }
 
-std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps, const char* jump_schedule_name, unsigned int key_offset)
+std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps, const char* jump_schedule_name, unsigned int key_offset, unsigned int portfolio_probe_steps)
 {
 	if (!iterations)
 		iterations = 1;
@@ -1572,7 +1574,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	KangarooJumpTable jumps;
 	KangarooJumpTable probe_jumps;
 	KangarooJumpTable fallback_jumps;
-	unsigned int probe_max_steps = KangarooPortfolioProbeMaxSteps(max_steps);
+	unsigned int probe_max_steps = KangarooPortfolioProbeMaxSteps(max_steps, portfolio_probe_steps);
 	bool use_portfolio = KangarooJumpScheduleIsPortfolio(jump_schedule);
 	if (limit && correctness)
 	{
@@ -1701,7 +1703,7 @@ std::string RCKJacobianKangarooSmallBenchJson(unsigned int iterations, unsigned 
 	return out.str();
 }
 
-std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int target_count, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps, const char* jump_schedule_name, unsigned int key_offset)
+std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsigned int min_ms, unsigned int target_count, unsigned int range_bits, unsigned int jump_count, unsigned int dp_bits, unsigned int max_steps, const char* jump_schedule_name, unsigned int key_offset, unsigned int portfolio_probe_steps)
 {
 	if (!iterations)
 		iterations = 1;
@@ -1740,7 +1742,7 @@ std::string RCKJacobianKangarooMultiSmallBenchJson(unsigned int iterations, unsi
 	KangarooJumpTable jumps;
 	KangarooJumpTable probe_jumps;
 	KangarooJumpTable fallback_jumps;
-	unsigned int probe_max_steps = KangarooPortfolioProbeMaxSteps(max_steps);
+	unsigned int probe_max_steps = KangarooPortfolioProbeMaxSteps(max_steps, portfolio_probe_steps);
 	bool use_portfolio = KangarooJumpScheduleIsPortfolio(jump_schedule);
 	if (limit && correctness)
 	{

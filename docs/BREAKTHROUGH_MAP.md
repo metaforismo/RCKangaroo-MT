@@ -88,6 +88,10 @@ Do not repeat these without new compiler evidence or a different oracle:
   DP density, false positives, and exact target checksums visible.
 - Broad no-copy walk-buffer rewrites. The current fixed-round path already uses
   no-copy buffers where they survived gates.
+- Changing the opt-in Metal sidecar flags away from `-finline-functions`.
+  `-O3`, `-O2`, `-Os`, forced unroll, disabled unroll, and disabled vectorizers
+  all preserved the 1M fixed-round oracle but did not beat the current flag
+  stably.
 
 ## Promising Directions
 
@@ -109,10 +113,12 @@ These are the remaining high-leverage areas.
 
    Current opt-in CPU-tiny surface: `--jump-schedule scaled4-probe-power2`
    first tests a short `scaled4-balanced` schedule and then falls back to
-   16-jump `power2`. It is promising for target-window/portfolio research
+   16-jump `power2`. `--portfolio-probe-steps N` can sweep the probe length
+   without recompiling. It is promising for target-window/portfolio research
    because lower and middle tiny-range offsets solve much faster while high
-   offsets remain correct through fallback. It is not a Metal default and must
-   be swept across low/mid/high offsets before any larger solver claim.
+   offsets remain correct through fallback. It is not a Metal default, and the
+   automatic probe length must not be changed unless a broad offset sweep beats
+   the current rule without creating new late-probe misses.
 
 3. GPU-side affine normalization.
 

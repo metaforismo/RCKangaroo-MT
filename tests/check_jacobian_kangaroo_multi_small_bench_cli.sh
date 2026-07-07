@@ -55,6 +55,17 @@ case "$portfolio_high_output" in
 		;;
 esac
 
+portfolio_override_output="$(./macos/rck_macos jacobian-kangaroo-multi-small-bench --target-count 16 --iterations 1 --min-ms 0 --range 20 --jumps 4 --dp-bits 4 --max-steps 2000000 --jump-schedule scaled4-probe-power2 --key-offset 900000 --portfolio-probe-steps 5000 2>&1)"
+case "$portfolio_override_output" in
+	*"\"operation\":\"jacobian_kangaroo_multi_small\""*"\"jump_schedule\":\"scaled4_probe_power2\""*"\"portfolio_probe_max_steps\":5000"*"\"portfolio_fallback_runs\":1"*"\"key_offset\":900000"*"\"expected_private_key\":\"0xdbba2\""*"\"found_target_index\":15"*"\"found_private_key\":\"0xdbba2\""*"\"correctness\":true"*)
+		;;
+	*)
+		printf '%s\n' "$portfolio_override_output"
+		printf '%s\n' "unexpected scaled4-probe-power2 multi-target override output"
+		exit 1
+		;;
+esac
+
 invalid_output="$(./macos/rck_macos jacobian-kangaroo-multi-small-bench --target-count 16 --iterations 1 --min-ms 0 --range 20 --jumps 16 --dp-bits 4 --max-steps 500000 --jump-schedule scaled4-balanced 2>&1)"
 case "$invalid_output" in
 	*"\"jump_schedule\":\"scaled4_balanced\""*"\"correctness\":false"*"\"reason\":\"jump schedule requires --jumps 4\""*)

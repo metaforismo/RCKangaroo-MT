@@ -105,6 +105,22 @@ GPU work should use Metal.
   solved with `20034` DPs. Treat this as a target-window/adaptive-scheduling
   research surface for the tiny solver, not as a Metal walk breakthrough or a
   general default schedule.
+- Added opt-in `--portfolio-probe-steps N` for the two tiny CPU kangaroo bench
+  commands so portfolio probe length can be swept without recompiling. The
+  default remains the previous automatic rule and existing JSON still reports
+  the effective `portfolio_probe_max_steps`, so the probe cost stays visible.
+  A 35-offset multi-target sweep over `range=20`, `target_count=16`,
+  `dp_bits=4`, and `max_steps=2000000` rejected changing the default to `7500`:
+  `7500` beat the automatic 10k probe in 18 offsets and tied in 16, but it
+  missed an offset where the automatic probe solved (`key_offset=63`,
+  `auto10000 last_dp_count=9079` versus `p7500 last_dp_count=41491` through
+  fallback). Keep the option as a research/tuning knob; do not claim a default
+  speedup from it. The added autoresearch high-offset gate compares the
+  automatic portfolio rule with explicit `--portfolio-probe-steps 5000`; on the
+  direct fixture it preserved correctness and reduced wasted fallback cost
+  (`last_dp_count=30654`, `last_portfolio_probe_dp_count=10620` for automatic
+  versus `last_dp_count=25345`, `last_portfolio_probe_dp_count=5311` for 5000),
+  but both remain behind adjacent `power2` on that high-offset point.
 
 ### 2026-07-03 Persistent Fixed-Round Direct Store Boundaries
 
@@ -162,6 +178,34 @@ GPU work should use Metal.
   baseline `setup_inclusive_wall_distance_per_sec=452853121872.096558` versus
   candidate `437626785863.870789`. The attribute was removed; do not retry this
   source-level hint unless Metal compiler output shows a different codegen path.
+
+### 2026-07-07 Metal Sidecar Compiler Flag Sweep
+
+- Rejected changing the opt-in Metal sidecar compiler flags away from the kept
+  `-finline-functions` baseline. The local Metal Toolchain was present
+  (`xcrun --find metal` and `xcrun --find metallib` both resolved), so this was
+  a real Apple toolchain scout rather than a skipped sandbox run. Temporary
+  sidecars were built from the extracted `MetalFieldKernels.h` source and run
+  through the 1M fixed-round physical `distinct-misses` gate.
+- Every variant preserved the medium oracle
+  (`target_lookup_checksum=0xcb38405cd10f441d`,
+  `dp_checksum=0xbd17120591af6f74`, `dp_distance_checksum=0x9eca239fc5687305`,
+  `dp_count=1053`, `hit_count=64`, `correctness=true`,
+  `threads_per_threadgroup=128`), but none beat the current flag stably. First
+  pass setup-inclusive wall distance/sec: `-finline-functions`
+  `455476661392.085449`, no flags `448304548804.996887`,
+  `-O3 -finline-functions` `446002006897.549316`, `-O2 -finline-functions`
+  `417400044786.797974`, `-Os -finline-functions` `264406954338.801178`,
+  `-finline-functions -fno-unroll-loops` `432622038131.416626`,
+  `-finline-functions -funroll-loops` `397103825048.510376`, and
+  `-finline-functions -fno-vectorize -fno-slp-vectorize`
+  `373811829221.704468`.
+- A reverse mini-check stayed noisy and did not rescue another flag:
+  `-O3 -finline-functions` `386018703255.856445`, no flags
+  `219061738142.617401`, `-finline-functions` `346495639340.937561` then
+  `412182328629.959473`, and `-finline-functions -fno-unroll-loops`
+  `398608489045.704651`. Keep `MACOS_METAL_FLAGS ?= -finline-functions` and
+  require a paired 25M gate before touching the sidecar default again.
 
 ### 2026-07-03 Power2 Shift Distance Scout
 

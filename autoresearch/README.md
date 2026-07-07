@@ -20,6 +20,14 @@ Use a paired baseline when local CPU load is noisy and a candidate should be com
 python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi_small --budget-sec 5 --paired-baseline-ref main
 ```
 
+For the opt-in tiny-solver portfolio schedule, the high-offset probe-budget
+gate compares the automatic `scaled4-probe-power2` rule against an explicit
+first-stage budget:
+
+```sh
+python3 autoresearch/runner.py --experiment jacobian_kangaroo_multi16_small_portfolio_probe5000_high_offset --budget-sec 30 --paired-baseline-ref main
+```
+
 With `--paired-baseline-ref`, the runner creates a temporary detached worktree for that ref, runs the same correctness checks, and by default runs each pair as baseline then candidate. Set `paired_order: "alternate"` in an experiment to run odd samples candidate-first; use this for thermal-sensitive Metal probes where always heating the candidate after the baseline could bias a close decision. The JSON row records `paired_baseline_ref`, `paired_order`, `paired_baseline_ops_per_sec`, and `paired_speedup`; keep/discard uses the paired baseline when it is correct and not skipped, otherwise it falls back to previous kept rows.
 
 Experiments usually name a Make target with `bench_target`. For parameterized
