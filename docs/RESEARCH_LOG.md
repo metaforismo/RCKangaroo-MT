@@ -7630,6 +7630,24 @@ These did not pass the performance gate or had a correctness/architecture issue:
   `paired_speedup` is still discarded when the paired baseline spread ratio is
   `3.0` under a configured maximum of `2.0`.
 
+### Canonical Required-Metrics Guard
+
+- Added `required_metrics` support to autoresearch. An experiment can now
+  require exact fields or numeric min/max bounds in addition to benchmark
+  internal `correctness=true`; a row with mismatched required metrics records
+  `benchmark_correctness=true`, `required_metrics_passed=false`, and fails that
+  fixed gate.
+- The 1M fast falsifier and 25M canonical fixed-round physical distinct-miss
+  Metal experiments now require their current `jump_mixer`, `jump_schedule`,
+  `target_lookup_checksum`, `dp_checksum`, `dp_distance_checksum`, `dp_count`,
+  `hit_count`, and `filter_false_positive_count`. This prevents a changed
+  schedule or mixer from being compared under the same canonical experiment
+  name.
+- Motivation: the rejected `xorshift64_scout` mixer was internally correct but
+  changed the walk oracle. Such work should use a separate solver-equivalent
+  experiment with its own histogram and DP-density checks, not claim a speedup
+  on the default `avalanche64` canonical gate.
+
 ## Cleanup Policy
 
 - After a feature is merged to `main` and pushed, remove only its clean accepted

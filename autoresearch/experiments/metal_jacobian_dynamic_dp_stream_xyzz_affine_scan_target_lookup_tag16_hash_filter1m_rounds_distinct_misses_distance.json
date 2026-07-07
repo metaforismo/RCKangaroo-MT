@@ -28,6 +28,16 @@
     "--jump-schedule",
     "power2"
   ],
+  "required_metrics": {
+    "jump_mixer": "avalanche64",
+    "jump_schedule": "power2",
+    "target_lookup_checksum": "0xcb38405cd10f441d",
+    "dp_checksum": "0xbd17120591af6f74",
+    "dp_distance_checksum": "0x9eca239fc5687305",
+    "dp_count": 1053,
+    "hit_count": 64,
+    "filter_false_positive_count": 28
+  },
   "metric": "setup_inclusive_wall_distance_per_sec",
   "min_improvement_ratio": 0.01,
   "max_sample_spread_ratio": 1.5,

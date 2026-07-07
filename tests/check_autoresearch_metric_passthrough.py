@@ -189,6 +189,37 @@ assert paired_baseline_spread_row["paired_speedup"] == 1.1
 assert paired_baseline_spread_row["paired_baseline_sample_spread_ratio"] == 3.0
 assert "paired baseline sample spread ratio 3.000000 exceeds max 2.000000" in paired_baseline_spread_row["reason"]
 
+required_metric_row = runner.build_benchmark_row(
+    experiment=dict(
+        experiment,
+        required_metrics={
+            "target_lookup_checksum": "0xabc",
+            "dp_count": 1053,
+            "jump_histogram_max_deviation_ppm": {"max": 1000},
+        },
+    ),
+    metrics=dict(
+        metrics,
+        target_lookup_checksum="0xdef",
+        dp_count=990,
+        jump_histogram_max_deviation_ppm=1200,
+    ),
+    budget_sec=5,
+    commit="abc128",
+    machine="test-machine",
+    previous=None,
+    paired_baseline=None,
+    paired_baseline_ref="",
+    timestamp="2026-01-01T00:00:06Z",
+)
+assert required_metric_row["status"] == "crash"
+assert required_metric_row["correctness"] is False
+assert required_metric_row["benchmark_correctness"] is True
+assert required_metric_row["required_metrics_passed"] is False
+assert "required metric target_lookup_checksum expected 0xabc got 0xdef" in required_metric_row["reason"]
+assert "required metric dp_count expected 1053 got 990" in required_metric_row["reason"]
+assert "required metric jump_histogram_max_deviation_ppm expected <= 1000 got 1200" in required_metric_row["reason"]
+
 lookup_samples = [
     dict(metrics, operation="target_lookup_exact256", lookups_per_sec=10.0, ops_per_sec=0.0),
     dict(metrics, operation="target_lookup_exact256", lookups_per_sec=20.0, ops_per_sec=0.0),

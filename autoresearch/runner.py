@@ -168,6 +168,27 @@ def confirmation_status(rows: list[dict]) -> str:
     return "discard"
 
 
+def required_metric_failures(experiment: dict, metrics: dict) -> list[str]:
+    required = experiment.get("required_metrics", {})
+    if not isinstance(required, dict):
+        raise ValueError("required_metrics must be an object")
+
+    failures: list[str] = []
+    for key, expected in required.items():
+        actual = metrics.get(key)
+        if isinstance(expected, dict):
+            actual_value = float(actual) if actual is not None else None
+            min_value = expected.get("min")
+            max_value = expected.get("max")
+            if min_value is not None and (actual_value is None or actual_value < float(min_value)):
+                failures.append(f"required metric {key} expected >= {min_value} got {actual}")
+            if max_value is not None and (actual_value is None or actual_value > float(max_value)):
+                failures.append(f"required metric {key} expected <= {max_value} got {actual}")
+        elif actual != expected:
+            failures.append(f"required metric {key} expected {expected} got {actual}")
+    return failures
+
+
 def apply_confirmation_policy(rows: list[dict]) -> None:
     status = confirmation_status(rows)
     run_count = len(rows)
@@ -194,7 +215,9 @@ def build_benchmark_row(
     timestamp: str,
 ) -> dict:
     skipped = bool(metrics.get("skipped"))
-    correctness = bool(metrics.get("correctness"))
+    benchmark_correctness = bool(metrics.get("correctness"))
+    required_failures = required_metric_failures(experiment, metrics)
+    correctness = benchmark_correctness and not required_failures
     backend = str(metrics.get("backend", "unknown"))
     operation = str(metrics.get("operation", "unknown"))
     ops_per_sec = float(metrics.get("ops_per_sec", 0.0))
@@ -270,6 +293,12 @@ def build_benchmark_row(
         spread_reason = f"paired baseline sample spread ratio {paired_baseline_spread_ratio:.6f} exceeds max {max_spread_ratio:.6f}"
         row["reason"] = f"{reason}; {spread_reason}" if reason else spread_reason
         row["paired_baseline_sample_spread_ratio"] = paired_baseline_spread_ratio
+    if required_failures:
+        reason = str(row.get("reason", ""))
+        required_reason = "; ".join(required_failures)
+        row["reason"] = f"{reason}; {required_reason}" if reason else required_reason
+        row["benchmark_correctness"] = benchmark_correctness
+        row["required_metrics_passed"] = False
     if paired_baseline is not None and same_tree_paired_baseline:
         reason = str(row.get("reason", ""))
         same_tree_reason = "paired baseline ref resolves to the same clean candidate tree and benchmark command; treating this row as a noise sentinel"

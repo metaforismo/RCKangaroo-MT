@@ -12,6 +12,14 @@ The runner executes correctness checks before benchmarks. Experiments may set `s
 
 Noisy Metal experiments may set `max_sample_spread_ratio`. When the max/min ratio of the scored metric exceeds that threshold, a correctness-preserving row is still logged but forced to `status=discard`. Use this for heavy MacBook Air gates where thermal throttling can otherwise make one lucky sample look like a promotion candidate.
 
+Fixed-oracle experiments may set `required_metrics`. These are exact expected
+JSON fields, or numeric `{ "min": ..., "max": ... }` bounds, that must hold in
+addition to the benchmark's own `correctness=true`. If the benchmark is
+internally correct but a required metric changes, the row records
+`benchmark_correctness=true`, `required_metrics_passed=false`, and fails that
+gate. Use this for canonical checksum/DP gates; create a separate experiment
+when a candidate intentionally changes the walk, schedule, mixer, or oracle.
+
 Benchmark rows append `-dirty` to the short commit label whenever `git status --porcelain` is non-empty, so uncommitted candidates cannot be confused with reproducible clean commits.
 
 Use a paired baseline when local CPU load is noisy and a candidate should be compared against a fresh build of another ref in the same run:
