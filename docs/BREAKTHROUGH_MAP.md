@@ -166,6 +166,10 @@ Do not repeat these without new compiler evidence or a different oracle:
   vectors. Correct on the 1M oracle, and it can lower
   `round_sample_build_seconds`, but repeat paired confirmation failed the
   primary wall metric. Latest guarded rerun: `0.999964x` and `0.999170x`.
+- Promoting Bloom64 as the fixed-round physical distinct-miss default.
+  Correct and half the tag16 filter bytes on the 1M gate, but it raised false
+  positives from `28` to `10075`; paired confirmations were `0.981014x` and
+  `1.006939x`, below the 1% promotion threshold.
 - Changing the opt-in Metal sidecar flags away from `-finline-functions`.
   `-O3`, `-O2`, `-Os`, forced unroll, disabled unroll, and disabled vectorizers
   all preserved the 1M fixed-round oracle but did not beat the current flag

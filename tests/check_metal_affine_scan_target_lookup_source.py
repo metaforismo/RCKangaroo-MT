@@ -1208,6 +1208,47 @@ check_experiment(
     "setup_inclusive_wall_distance_per_sec",
 )
 
+rounds_distinct_misses_1m_bloom64_command = [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-rounds-bench",
+    "--iterations",
+    "32768",
+    "--steps",
+    "2048",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "6",
+    "--target-count",
+    "1048576",
+    "--hits",
+    "32",
+    "--lookup-repeat",
+    "1024",
+    "--lookup-query-mode",
+    "distinct-misses",
+    "--lookup-filter-mode",
+    "bloom64",
+    "--rounds",
+    "2",
+    "--lookup-tg-limit",
+    "512",
+    "--jump-schedule",
+    "power2",
+]
+bloom64_1m_experiment = Path(
+    "autoresearch/experiments/metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_bloom64_hash_filter1m_rounds_distinct_misses_distance.json"
+)
+if not bloom64_1m_experiment.exists():
+    raise SystemExit("missing fixed-round Bloom64 1M A/B autoresearch experiment")
+bloom64_1m_payload = json.loads(bloom64_1m_experiment.read_text(encoding="utf-8"))
+if bloom64_1m_payload.get("paired_baseline_command") != rounds_distinct_misses_1m_command:
+    raise SystemExit("fixed-round Bloom64 1M A/B should compare against explicit tag16 baseline")
+if bloom64_1m_payload.get("bench_command") != rounds_distinct_misses_1m_bloom64_command:
+    raise SystemExit("fixed-round Bloom64 1M A/B should run the Bloom64 distinct-miss candidate")
+if bloom64_1m_payload.get("metric") != "setup_inclusive_wall_distance_per_sec":
+    raise SystemExit("fixed-round Bloom64 1M A/B should optimize setup-inclusive wall distance/sec")
+
 m3_auto_repeat_tag16_mix_command = [
     "./macos/rck_macos",
     "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-target-lookup-tag32-bench",

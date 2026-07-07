@@ -186,6 +186,31 @@ GPU work should use Metal.
   opt-in solver-like probe, not as the fixed-round default or a 25M promotion
   candidate from this evidence.
 
+### 2026-07-07 Bloom64 Fixed-Round 1M Command A/B
+
+- Added
+  `metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_bloom64_hash_filter1m_rounds_distinct_misses_distance`
+  as an explicit command A/B: paired baseline uses the current tag16 physical
+  distinct-miss filter, candidate adds `--lookup-filter-mode bloom64`, and the
+  metric remains `setup_inclusive_wall_distance_per_sec`.
+- Correctness stayed intact with the exact 1M physical distinct-miss oracle:
+  `target_lookup_checksum=0xcb38405cd10f441d`,
+  `dp_checksum=0xbd17120591af6f74`,
+  `dp_distance_checksum=0x9eca239fc5687305`, `dp_count=1053`,
+  `hit_count=64`, and `correctness=true`.
+- Bloom64 reduced `target_filter_bucket_bytes` from `4194304` to `2097152`
+  (`bytes_per_target=2.0`), but the coarser blocked filter raised
+  `filter_false_positive_count` from `28` to `10075`. That moved work into
+  exact CPU verification (`lookup_exact_seconds` around `0.00065..0.00104s`
+  on the recorded rows) and erased the memory win for this gate.
+- Performance rejected the candidate. Confirmation 1 measured Bloom64
+  `459491148585.177246` versus tag16 baseline `468383826713.786499`
+  (`paired_speedup=0.981014`). Confirmation 2 measured Bloom64
+  `467648911837.260681` versus tag16 baseline `464426050563.574463`
+  (`paired_speedup=1.006939`), which is below the configured 1% improvement
+  threshold. Keep Bloom64 as a diagnostic memory/filter knob, not as the
+  fixed-round MacBook Air M3 default.
+
 ### 2026-07-07 Fixed-Round Direct Round-Start Fill
 
 - Rejected direct-fill construction for fixed-round batched round starts. The
