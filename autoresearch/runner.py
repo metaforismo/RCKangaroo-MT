@@ -95,6 +95,26 @@ def git_commit(cwd: Path = ROOT) -> str:
     return commit
 
 
+def git_tree_id(cwd: Path = ROOT, ref: str = "HEAD") -> str:
+    proc = run_command(["git", "rev-parse", f"{ref}^{{tree}}"], timeout=10, cwd=cwd)
+    if proc.returncode != 0:
+        return ""
+    return proc.stdout.strip()
+
+
+def git_worktree_dirty(cwd: Path = ROOT) -> bool:
+    proc = run_command(["git", "status", "--porcelain"], timeout=10, cwd=cwd)
+    return proc.returncode != 0 or bool(proc.stdout.strip())
+
+
+def same_clean_tree(baseline_cwd: Path, candidate_cwd: Path) -> bool:
+    if git_worktree_dirty(candidate_cwd):
+        return False
+    baseline_tree = git_tree_id(baseline_cwd)
+    candidate_tree = git_tree_id(candidate_cwd)
+    return bool(baseline_tree and candidate_tree and baseline_tree == candidate_tree)
+
+
 def best_previous(experiment_name: str, backend: str, operation: str) -> float | None:
     if not RESULTS.exists():
         return None
@@ -182,6 +202,7 @@ def build_benchmark_row(
     max_spread_ratio = float(experiment.get("max_sample_spread_ratio", 0.0) or 0.0)
     sample_spread_ratio = float(metrics.get("sample_spread_ratio", 1.0) or 1.0)
     spread_too_high = max_spread_ratio > 0.0 and sample_spread_ratio > max_spread_ratio
+    same_tree_paired_baseline = bool(metrics.get("same_tree_paired_baseline"))
     paired_ops: float | None = None
     paired_usable = False
     if paired_baseline is not None:
@@ -197,6 +218,8 @@ def build_benchmark_row(
     elif not correctness:
         status = "crash"
     elif spread_too_high:
+        status = "discard"
+    elif paired_usable and same_tree_paired_baseline:
         status = "discard"
     elif paired_usable:
         status = "keep" if ops_per_sec > paired_ops * (1.0 + min_ratio) else "discard"
@@ -236,6 +259,11 @@ def build_benchmark_row(
         reason = str(row.get("reason", ""))
         spread_reason = f"sample spread ratio {sample_spread_ratio:.6f} exceeds max {max_spread_ratio:.6f}"
         row["reason"] = f"{reason}; {spread_reason}" if reason else spread_reason
+    if paired_baseline is not None and same_tree_paired_baseline:
+        reason = str(row.get("reason", ""))
+        same_tree_reason = "paired baseline ref resolves to the same clean candidate tree; treating this row as a noise sentinel"
+        row["reason"] = f"{reason}; {same_tree_reason}" if reason else same_tree_reason
+        row["same_tree_paired_baseline"] = True
     if paired_baseline is not None:
         row.update(
             {
@@ -360,6 +388,9 @@ def run_paired_baseline_and_candidate_confirmations(experiment: dict, timeout: i
         if add.returncode != 0:
             raise RuntimeError(add.stdout)
         try:
+            same_tree_paired_baseline = same_clean_tree(worktree_path, candidate_cwd)
+            if same_tree_paired_baseline:
+                print("paired baseline resolves to the same clean candidate tree; rows will be discarded as noise sentinels")
             check = run_command(["make", "macos-check"], timeout=timeout, cwd=worktree_path)
             if check.returncode != 0:
                 raise RuntimeError(check.stdout)
@@ -370,7 +401,10 @@ def run_paired_baseline_and_candidate_confirmations(experiment: dict, timeout: i
             for confirmation_index in range(max(1, confirm_runs)):
                 if confirm_runs > 1:
                     print(f"confirmation run {confirmation_index + 1}/{confirm_runs}:")
-                confirmation_metrics.append(run_paired_experiment_samples(experiment, timeout, worktree_path, candidate_cwd, build=False))
+                baseline_metrics, candidate_metrics = run_paired_experiment_samples(experiment, timeout, worktree_path, candidate_cwd, build=False)
+                if same_tree_paired_baseline:
+                    candidate_metrics["same_tree_paired_baseline"] = True
+                confirmation_metrics.append((baseline_metrics, candidate_metrics))
             return confirmation_metrics
         finally:
             remove = run_command(["git", "worktree", "remove", "--force", str(worktree_path)], timeout=timeout)

@@ -80,6 +80,34 @@ assert git_call_args == [
     ["git", "status", "--porcelain"],
 ]
 
+same_tree_git_calls: list[tuple[Path, list[str]]] = []
+same_tree_dirty = False
+
+
+def fake_same_tree_git_command(args: list[str], timeout: int, cwd: Path = runner.ROOT) -> subprocess.CompletedProcess[str]:
+    same_tree_git_calls.append((cwd, args))
+    if args == ["git", "status", "--porcelain"]:
+        return subprocess.CompletedProcess(args, 0, stdout=" M touched.cpp\n" if same_tree_dirty else "")
+    if args == ["git", "rev-parse", "HEAD^{tree}"]:
+        return subprocess.CompletedProcess(args, 0, stdout="same-tree\n")
+    raise AssertionError(f"unexpected same-tree git command: {args!r}")
+
+
+runner.run_command = fake_same_tree_git_command
+try:
+    assert runner.same_clean_tree(Path("/tmp/baseline"), Path("/tmp/candidate")) is True
+    same_tree_dirty = True
+    assert runner.same_clean_tree(Path("/tmp/baseline"), Path("/tmp/candidate")) is False
+finally:
+    runner.run_command = original_run_command
+
+assert same_tree_git_calls == [
+    (Path("/tmp/candidate"), ["git", "status", "--porcelain"]),
+    (Path("/tmp/baseline"), ["git", "rev-parse", "HEAD^{tree}"]),
+    (Path("/tmp/candidate"), ["git", "rev-parse", "HEAD^{tree}"]),
+    (Path("/tmp/candidate"), ["git", "status", "--porcelain"]),
+]
+
 paired_row = runner.build_benchmark_row(
     experiment=dict(experiment, cooldown_sec=3),
     metrics=dict(metrics, ops_per_sec=84.0),
@@ -97,6 +125,22 @@ assert paired_row["paired_order"] == "baseline_first"
 assert paired_row["paired_baseline_ops_per_sec"] == 80.0
 assert paired_row["paired_speedup"] == 1.05
 assert paired_row["cooldown_sec"] == 3.0
+
+same_tree_paired_row = runner.build_benchmark_row(
+    experiment=dict(experiment, cooldown_sec=3),
+    metrics=dict(metrics, ops_per_sec=840.0, same_tree_paired_baseline=True),
+    budget_sec=5,
+    commit="abc124",
+    machine="test-machine",
+    previous=100.0,
+    paired_baseline=dict(metrics, ops_per_sec=80.0),
+    paired_baseline_ref="HEAD",
+    timestamp="2026-01-01T00:00:01Z",
+)
+assert same_tree_paired_row["status"] == "discard"
+assert same_tree_paired_row["same_tree_paired_baseline"] is True
+assert same_tree_paired_row["paired_speedup"] == 10.5
+assert "same clean candidate tree" in same_tree_paired_row["reason"]
 
 samples = [
     dict(metrics, iterations=5, seconds=0.10, ops_per_sec=50.0),
@@ -573,6 +617,11 @@ def fake_paired_confirmation_runner(args: list[str], timeout: int, cwd: Path = r
         return subprocess.CompletedProcess(args, 0, stdout="added baseline\n")
     if args[:3] == ["git", "worktree", "remove"]:
         return subprocess.CompletedProcess(args, 0, stdout="removed baseline\n")
+    if args == ["git", "status", "--porcelain"]:
+        return subprocess.CompletedProcess(args, 0, stdout="")
+    if args == ["git", "rev-parse", "HEAD^{tree}"]:
+        label = "baseline" if cwd.name == "baseline" else "candidate"
+        return subprocess.CompletedProcess(args, 0, stdout=f"{label}-tree\n")
     if args == ["make", "macos-check"]:
         return subprocess.CompletedProcess(args, 0, stdout="checked baseline\n")
     if args == ["make", "macos-build"]:

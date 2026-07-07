@@ -7414,6 +7414,28 @@ These did not pass the performance gate or had a correctness/architecture issue:
   multi-target loader memory reduction, not a Metal GKeys/s claim and not a
   mathematical kangaroo breakthrough.
 
+### Same-Tree Paired Baseline Noise Guard
+
+- A clean same-code `HEAD` versus `HEAD` fast-falsifier scout on the 1M Metal
+  physical distinct-miss gate produced an apparent `keep` even though no code
+  changed: candidate
+  `setup_inclusive_wall_distance_per_sec=458033093273.016968`, paired baseline
+  `445924603229.232971`, `paired_speedup=1.027154`.
+- The semantic oracle was unchanged
+  (`target_lookup_checksum=0xcb38405cd10f441d`,
+  `dp_checksum=0xbd17120591af6f74`,
+  `dp_distance_checksum=0x9eca239fc5687305`, `dp_count=1053`,
+  `hit_count=64`, `correctness=true`), proving that the apparent win was
+  timing/order/thermal noise, not a real kangaroo improvement.
+- The misleading generated `keep` row was removed from
+  `autoresearch/results.tsv` and `autoresearch/benchmarks.jsonl` so it cannot
+  become a future `best_previous` threshold. The runner now marks identical
+  clean-tree paired baselines with `same_tree_paired_baseline=true` and forces
+  `status=discard`, preserving the row only as a noise sentinel when such a run
+  is intentionally recorded.
+- This is a methodology hardening change. It does not improve Metal throughput,
+  but it protects future GPU and math experiments from self-comparison noise.
+
 ## Cleanup Policy
 
 - After a feature is merged to `main` and pushed, remove only its clean accepted

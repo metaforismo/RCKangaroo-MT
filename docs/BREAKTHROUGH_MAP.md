@@ -52,9 +52,28 @@ This 1M-target gate keeps the same fixed-round `2048/dp6`, physical
 distinct-miss lookup, exact target verification, and setup-inclusive wall
 distance metric. It is a candidate filter, not a promotion gate.
 
+Same-tree paired baseline rule: if `--paired-baseline-ref` resolves to the same
+clean candidate tree, the runner must record the row as `discard` with
+`same_tree_paired_baseline=true`. Such a row is a noise sentinel, not a speed
+candidate, and must not become a best previous score.
+
 ## Latest Accepted Change
 
-2026-07-07: dense source-line storage for real target files.
+2026-07-07: same-tree paired baseline guard for autoresearch.
+
+- Change: paired autoresearch now compares the baseline worktree tree id with
+  the clean candidate tree id. If they are identical, candidate rows are
+  forced to `discard`, even when timing noise makes the candidate appear faster.
+- Motivation: a same-code `HEAD` versus `HEAD` 1M Metal fast-falsifier scout
+  produced an apparent `keep` at
+  `setup_inclusive_wall_distance_per_sec=458033093273.016968` versus paired
+  baseline `445924603229.232971` (`paired_speedup=1.027154`) with identical
+  oracle fields. That is thermal/order noise, not an optimization.
+- Scope: this is a benchmark integrity improvement. It does not claim a new
+  GKeys/s or distance/sec speedup, but it prevents false promotions from
+  polluting `best_previous` and future gates.
+
+Earlier 2026-07-07: dense source-line storage for real target files.
 
 - Change: real target records now store only the full 64-byte affine point.
   Source lines are reconstructed as `index + 1` for stripped files or
@@ -214,5 +233,6 @@ Every speed candidate must answer:
 - Did the candidate keep the canonical checksum fields stable or explain why a
   solver-equivalent oracle changed?
 - Did it run paired against current `main`, preferably with alternate order?
+- Did the paired baseline resolve to a different clean tree than the candidate?
 - Did it improve setup-inclusive wall distance/sec, not just a submetric?
 - Did the research log record both the positive and negative evidence?
