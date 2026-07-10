@@ -47,25 +47,38 @@ def parse_last_json(stdout: str) -> dict:
     raise ValueError("benchmark output did not contain a JSON line")
 
 
-def host_load_snapshot() -> dict:
+def host_load_snapshot(phase: str = "start") -> dict:
+    if phase not in {"start", "end"}:
+        raise ValueError(f"unsupported host-load phase: {phase}")
     logical_cpus = max(1, int(os.cpu_count() or 1))
     try:
         load_1m = float(os.getloadavg()[0])
     except (AttributeError, OSError):
         load_1m = 0.0
     return {
-        "host_load_1m_start": load_1m,
+        f"host_load_1m_{phase}": load_1m,
         "host_logical_cpu_count": logical_cpus,
-        "host_load_per_cpu_start": load_1m / logical_cpus,
+        f"host_load_per_cpu_{phase}": load_1m / logical_cpus,
     }
 
 
-def host_load_failure(experiment: dict, snapshot: dict) -> str:
+def host_load_failure(experiment: dict, snapshot: dict, phase: str = "start") -> str:
     max_load_per_cpu = float(experiment.get("max_host_load_per_cpu", 0.0) or 0.0)
-    actual = float(snapshot.get("host_load_per_cpu_start", 0.0) or 0.0)
+    actual = float(snapshot.get(f"host_load_per_cpu_{phase}", 0.0) or 0.0)
     if max_load_per_cpu > 0.0 and actual > max_load_per_cpu:
-        return f"host load per CPU {actual:.3f} exceeds max {max_load_per_cpu:.3f}"
+        return f"host load per CPU at {phase} {actual:.3f} exceeds max {max_load_per_cpu:.3f}"
     return ""
+
+
+def apply_host_load_end_policy(rows: list[dict], experiment: dict, snapshot: dict) -> None:
+    failure = host_load_failure(experiment, snapshot, phase="end")
+    for row in rows:
+        row.update(snapshot)
+        if not failure or row.get("status") in {"crash", "skip"}:
+            continue
+        reason = str(row.get("reason", ""))
+        row["reason"] = f"{reason}; {failure}" if reason else failure
+        row["status"] = "discard"
 
 
 def aggregate_metric_samples(samples: list[dict], metric_name: str = "ops_per_sec") -> dict:
@@ -562,6 +575,9 @@ def main() -> int:
     except Exception as exc:
         print(f"failed to parse benchmark JSON: {exc}", file=sys.stderr)
         return 1
+
+    end_load = host_load_snapshot(phase="end")
+    apply_host_load_end_policy(rows, experiment, end_load)
 
     if confirm_runs > 1:
         apply_confirmation_policy(rows)

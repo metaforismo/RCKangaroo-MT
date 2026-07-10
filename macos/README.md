@@ -90,6 +90,14 @@ Run the Metal smoke test:
 
 If no Metal device is visible in the current execution environment, the command reports a skip instead of failing. On a normal Apple Silicon runtime with device access, it compiles and runs a minimal Metal compute kernel.
 
+Run the Metal multi-target relation bridge check:
+
+```sh
+./macos/rck_macos metal-multi-target-relation-test
+```
+
+This correctness test advances real secp256k1 XYZZ walkers on Metal, preserves each compact affine DP record's original walker index beside x, y parity, and distance, derives signed WILD1/WILD2 cross-target equations, recovers a centered scalar from a negative relation cycle, and verifies the final candidate with `candidate*G == target`. It also exercises the parallel 8,192-state affine compactor and checks record ordering. The production benchmark path leaves the optional index output disabled; this command establishes the metadata and mathematical bridge but is not yet a persistent full-range Metal solver or a GKeys/s claim.
+
 Run the Metal secp256k1 field-add, field-sub, field-double, field-mul4, field-neg, field-mul, field-square, and fused field-square-mul checks and benchmarks:
 
 ```sh

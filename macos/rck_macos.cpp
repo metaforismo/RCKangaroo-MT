@@ -78,6 +78,7 @@ static void PrintUsage()
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-inplace-test\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-inplace-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N]\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-test\n");
+	printf("  rck_macos metal-multi-target-relation-test\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-bench --iterations N [--steps N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N] [--jump-schedule power2|scaled4-balanced]\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-chain-bench --iterations N [--steps N] [--packets N] [--jumps N] [--dp-bits N] [--min-ms N] [--tg-limit N] [--jump-schedule power2|scaled4-balanced]\n");
 	printf("  rck_macos metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench --iterations N [--steps N] [--packets N] [--rounds N] [--jumps N] [--dp-bits N] [--tg-limit N] [--jump-schedule power2|scaled4-balanced]\n");
@@ -1823,6 +1824,21 @@ int main(int argc, char* argv[])
 			else
 			{
 				printf("metal jacobian dynamic dp stream XYZZ failed: %s\n", error.c_str());
+				rc = 1;
+			}
+		}
+	}
+	else if (strcmp(argv[1], "metal-multi-target-relation-test") == 0)
+	{
+		if (RCKMetalMultiTargetRelationSelfTest(error))
+			printf("metal multi-target signed relation ok\n");
+		else
+		{
+			if (error == "no Metal device available")
+				printf("metal multi-target signed relation skipped: %s\n", error.c_str());
+			else
+			{
+				printf("metal multi-target signed relation failed: %s\n", error.c_str());
 				rc = 1;
 			}
 		}

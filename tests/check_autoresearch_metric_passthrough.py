@@ -44,12 +44,20 @@ load_snapshot = {
 assert runner.host_load_failure({"max_host_load_per_cpu": 4.0}, load_snapshot) == ""
 assert runner.host_load_failure({}, load_snapshot) == ""
 assert runner.host_load_failure({"max_host_load_per_cpu": 1.5}, load_snapshot) == (
-    "host load per CPU 2.000 exceeds max 1.500"
+    "host load per CPU at start 2.000 exceeds max 1.500"
 )
 live_load_snapshot = runner.host_load_snapshot()
 assert live_load_snapshot["host_logical_cpu_count"] >= 1
 assert live_load_snapshot["host_load_1m_start"] >= 0.0
 assert live_load_snapshot["host_load_per_cpu_start"] >= 0.0
+end_load_snapshot = {
+    "host_load_1m_end": 24.0,
+    "host_logical_cpu_count": 8,
+    "host_load_per_cpu_end": 3.0,
+}
+assert runner.host_load_failure(
+    {"max_host_load_per_cpu": 1.0}, end_load_snapshot, phase="end"
+) == "host load per CPU at end 3.000 exceeds max 1.000"
 metrics.update(load_snapshot)
 
 row = runner.build_benchmark_row(
@@ -74,6 +82,21 @@ assert row["cooldown_sec"] == 0.0
 assert row["host_load_1m_start"] == 16.0
 assert row["host_logical_cpu_count"] == 8
 assert row["host_load_per_cpu_start"] == 2.0
+
+host_load_rows = [dict(row, status="keep", reason="")]
+runner.apply_host_load_end_policy(
+    host_load_rows,
+    {"max_host_load_per_cpu": 1.0},
+    end_load_snapshot,
+)
+assert host_load_rows[0]["status"] == "discard"
+assert host_load_rows[0]["host_load_1m_end"] == 24.0
+assert host_load_rows[0]["host_load_per_cpu_end"] == 3.0
+assert host_load_rows[0]["reason"] == "host load per CPU at end 3.000 exceeds max 1.000"
+
+unlimited_load_rows = [dict(row, status="keep", reason="")]
+runner.apply_host_load_end_policy(unlimited_load_rows, {}, end_load_snapshot)
+assert unlimited_load_rows[0]["status"] == "keep"
 
 git_call_args: list[list[str]] = []
 

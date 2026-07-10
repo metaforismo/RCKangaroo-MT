@@ -105,6 +105,9 @@ required_host_markers = (
     "RunJacobianDynamicDpStreamXyzzPersistentChainKernel",
     "CpuXyzzBatchAffineDpScan",
     "CpuXyzzBatchAffineDpScanParallel",
+    "dp_indices_out",
+    "RCKMetalMultiTargetRelationSelfTest",
+    "TMultiTargetRelationGraph",
     "chunk_products",
     "chunk_inv_products",
     "dp_keys_by_index",
@@ -177,6 +180,7 @@ for marker in (
     "RCKMetalJacobianDynamicDpStreamXyzzChainBenchJson",
     "RCKMetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson",
     "RCKMetalJacobianDynamicDpStreamXyzzAffineScanBenchJson",
+    "RCKMetalMultiTargetRelationSelfTest",
 ):
     if marker not in header_source:
         raise SystemExit("missing XYZZ header marker: " + marker)
@@ -187,11 +191,13 @@ for marker in (
     "metal-jacobian-dynamic-dp-stream-xyzz-chain-bench",
     "metal-jacobian-dynamic-dp-stream-xyzz-persistent-chain-bench",
     "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-bench",
+    "metal-multi-target-relation-test",
     "RCKMetalJacobianDynamicDpStreamXyzzSelfTest",
     "RCKMetalJacobianDynamicDpStreamXyzzBenchJson",
     "RCKMetalJacobianDynamicDpStreamXyzzChainBenchJson",
     "RCKMetalJacobianDynamicDpStreamXyzzPersistentChainBenchJson",
     "RCKMetalJacobianDynamicDpStreamXyzzAffineScanBenchJson",
+    "RCKMetalMultiTargetRelationSelfTest",
 ):
     if marker not in cli_source:
         raise SystemExit("missing XYZZ CLI marker: " + marker)

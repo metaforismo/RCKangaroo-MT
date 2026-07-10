@@ -68,9 +68,12 @@ even when the candidate median appears faster. A noisy depressed baseline is not
 promotion evidence.
 
 Host-load rule: the strict 131k, 1M, and 25M M3 gates refuse to start when the
-one-minute load average exceeds `4.0` per logical CPU. Valid rows record
-`host_load_1m_start`, `host_logical_cpu_count`, and
-`host_load_per_cpu_start`. This is a contention guard, not a speed metric.
+one-minute load average exceeds `1.0` per logical CPU. Valid rows record both
+the start and end snapshots as `host_load_1m_{start,end}` and
+`host_load_per_cpu_{start,end}`, plus `host_logical_cpu_count`. A row is forced
+to `discard` if the end snapshot exceeds the same limit, even when timing and
+correctness would otherwise keep it. This is a contention guard, not a speed
+metric.
 
 Canonical oracle rule: fixed-oracle 1M and 25M experiments define
 `required_metrics` for the jump mixer/schedule, target checksum, DP checksum,
@@ -398,8 +401,15 @@ These are the remaining high-leverage areas.
    `TMultiTargetRelationGraph`: a signed 320-bit union-find with affine
    potentials, path compression, union by rank, exact signed division by two,
    and explicit outcomes for merged, consistent, solved, and invalid cycles.
-   It remains disconnected from the default solver until DP orientation
-   metadata and full candidate verification are integrated.
+   Metal DP normalization can now optionally preserve each compact record's
+   original walker index beside x, y parity, and distance. The
+   `metal-multi-target-relation-test` command runs real M3 Metal walkers,
+   validates serial and parallel compaction order, maps walker metadata to
+   WILD1/WILD2 signed edges, recovers a scalar from a negative cycle, and
+   verifies the candidate with secp256k1 multiplication. The normal benchmark
+   path does not request the optional index vector. This is a correctness bridge
+   rather than a speed claim: persistent production rounds still need to assign
+   real target IDs and wild signs and retain the graph across DP batches.
 
 ## Promotion Checklist
 
@@ -415,7 +425,6 @@ Every speed candidate must answer:
 - Did the paired baseline resolve to a different clean tree, or is it an
   explicit same-tree command A/B via `paired_baseline_command`?
 - Did it improve setup-inclusive wall distance/sec, not just a submetric?
-- Did the host-load preflight pass both before the correctness suite and
-  immediately before timing, so the recorded load describes the benchmark
-  rather than an earlier machine state?
+- Did the host-load preflight pass before the correctness suite and immediately
+  before timing, and did the end-of-run load gate also pass?
 - Did the research log record both the positive and negative evidence?

@@ -40,8 +40,8 @@ def main() -> int:
             failures.append(f"{path.relative_to(ROOT)} sample_runs={sample_runs}, expected >= 3")
         if data.get("name") == "metal_jacobian_jump_walk_dp" and sample_runs < 5:
             failures.append(f"{path.relative_to(ROOT)} sample_runs={sample_runs}, expected >= 5 for primary Metal DP gate")
-        if data.get("name") in strict_load_gates and float(data.get("max_host_load_per_cpu", 0.0)) != 4.0:
-            failures.append(f"{path.relative_to(ROOT)} max_host_load_per_cpu should be 4.0")
+        if data.get("name") in strict_load_gates and float(data.get("max_host_load_per_cpu", 0.0)) != 1.0:
+            failures.append(f"{path.relative_to(ROOT)} max_host_load_per_cpu should be 1.0")
 
     check_command_backed_gate(
         failures,

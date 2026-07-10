@@ -84,8 +84,8 @@ benchforge-rckmetal-leaderboard:
 benchforge-rckmetal-report:
 	$(BENCHFORGE_RCKMETAL) export-site
 
-MACOS_SRC := macos/rck_macos.cpp macos/RCKMac.cpp macos/CpuField.cpp macos/MetalSmoke.mm macos/MetalField.mm Ec.cpp utils.cpp TargetSet.cpp
-MACOS_HEADERS := macos/RCKMac.h macos/CpuField.h macos/MetalSmoke.h macos/MetalField.h macos/MetalFieldKernels.h Ec.h utils.h TargetSet.h
+MACOS_SRC := macos/rck_macos.cpp macos/RCKMac.cpp macos/CpuField.cpp macos/MetalSmoke.mm macos/MetalField.mm Ec.cpp utils.cpp TargetSet.cpp MultiTargetRelations.cpp
+MACOS_HEADERS := macos/RCKMac.h macos/CpuField.h macos/MetalSmoke.h macos/MetalField.h macos/MetalFieldKernels.h Ec.h utils.h TargetSet.h MultiTargetRelations.h
 MACOS_METAL_BUILD_DIR := build/macos
 MACOS_METALLIB := macos/rck_macos.metallib
 MACOS_METALLIB_META := macos/rck_macos.metallib.meta
@@ -215,6 +215,7 @@ macos-check: check-host check-autoresearch check-quality-gates macos-lto-flags-c
 	sh tests/check_metal_dynamic_dp_stream_dp8_cli.sh
 	sh tests/check_metal_dynamic_dp_stream_inplace_cli.sh
 	sh tests/check_metal_dynamic_dp_stream_xyzz_cli.sh
+	sh tests/check_metal_multi_target_relation_cli.sh
 	sh tests/check_metal_target_lookup_cli.sh
 	sh tests/check_metal_target_lookup_compact_cli.sh
 	sh tests/check_metal_target_lookup_tag32_cli.sh

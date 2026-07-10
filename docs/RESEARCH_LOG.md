@@ -393,6 +393,42 @@ GPU work should use Metal.
   infrastructure. It does not yet change Metal GKeys/s or the default solver;
   the machine was under extreme external load, so no timing row was recorded.
 
+### 2026-07-10 Metal DP-to-Relation Bridge
+
+- Extended the host affine DP compactor with an optional walker-index output.
+  The serial and parallel paths emit the original index in the same compact
+  reverse order as x, y parity, and distance. Existing benchmark and solver
+  probes pass a null output and therefore do not allocate this metadata vector.
+- Added `metal-multi-target-relation-test`. It advances duplicated secp256k1
+  walkers through the real Metal XYZZ distance kernel, checks duplicate state
+  and distance equality, normalizes every endpoint at `dp_bits=0`, and maps
+  walker target ID plus WILD1/WILD2 sign into the 320-bit signed relation graph.
+  The test derives collision orientation from y parity, requires a solving
+  negative cycle, recovers centered scalar zero, shifts it into a bounded
+  interval, and verifies `candidate*G == target` with the real EC code.
+- The same command forces an 8,192-state affine scan to exercise the parallel
+  compactor and checks every emitted index and distance against its source
+  walker. This protects metadata alignment independently of the four-record
+  mathematical fixture.
+- The 1M fixed-round physical distinct-miss paired gate preserved every exact
+  oracle in both confirmations:
+  `target_lookup_checksum=0xcb38405cd10f441d`,
+  `dp_checksum=0xbd17120591af6f74`,
+  `dp_distance_checksum=0x9eca239fc5687305`, `dp_count=1053`,
+  `hit_count=64`, and `filter_false_positive_count=28`. No speed conclusion is
+  valid: confirmation two had candidate spread `1.552706` and paired-baseline
+  spread `2.113140`, while host load later rose above 30 on eight logical CPUs.
+  Both ledger rows remain honest `discard` evidence.
+- Hardened autoresearch from that failure mode. The strict M3 gates now require
+  load per logical CPU at or below `1.0`, record start and end snapshots, and
+  force a discard when the end snapshot exceeds the limit. Unit tests cover the
+  end-load rejection. This prevents a quiet preflight followed by mid-run
+  contention from becoming promotion evidence.
+- This is the first real GPU-to-mathematical-recovery bridge, not yet a full
+  multi-target Metal solver or a GKeys/s improvement. The next production step
+  is persistent DP ingestion with real target assignments and WILD signs across
+  rounds, followed by solve-probability and setup-inclusive throughput gates.
+
 ### 2026-07-07 Fixed-Round Walk Threadgroup Sweep
 
 - Rejected changing the fixed-round 2048-step XYZZ walk threadgroup policy

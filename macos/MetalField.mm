@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "Ec.h"
+#include "MultiTargetRelations.h"
 #include "macos/MetalFieldKernels.h"
 
 typedef std::array<uint64_t, 4> FieldElement;
@@ -10696,7 +10697,8 @@ static bool CpuXyzzBatchAffineDpScanParallelRange(const CpuXyzzPoint* points,
 	unsigned int* dp_count_out,
 	std::string& reason,
 	std::vector<TargetLookupKeyHost>* dp_keys_out,
-	std::vector<uint64_t>* dp_distances_out)
+	std::vector<uint64_t>* dp_distances_out,
+	std::vector<uint32_t>* dp_indices_out)
 {
 	if (point_count && (!points || !distances))
 	{
@@ -10707,6 +10709,8 @@ static bool CpuXyzzBatchAffineDpScanParallelRange(const CpuXyzzPoint* points,
 		dp_keys_out->clear();
 	if (dp_distances_out)
 		dp_distances_out->clear();
+	if (dp_indices_out)
+		dp_indices_out->clear();
 
 	unsigned int worker_count = ValidationWorkerCount(point_count);
 	if (worker_count <= 1 || point_count == 0)
@@ -10817,6 +10821,8 @@ static bool CpuXyzzBatchAffineDpScanParallelRange(const CpuXyzzPoint* points,
 				dp_keys_out->push_back(dp_keys_by_index[i]);
 			if (dp_distances_out)
 				dp_distances_out->push_back(distances[i]);
+			if (dp_indices_out)
+				dp_indices_out->push_back((uint32_t)i);
 		}
 		dp_checksum = MixCompactDpChecksum(dp_checksum, dp_terms[i], dp_flags[i], i);
 	}
@@ -10839,10 +10845,11 @@ static bool CpuXyzzBatchAffineDpScanRange(const CpuXyzzPoint* points,
 	unsigned int* dp_count_out,
 	std::string& reason,
 	std::vector<TargetLookupKeyHost>* dp_keys_out = NULL,
-	std::vector<uint64_t>* dp_distances_out = NULL)
+	std::vector<uint64_t>* dp_distances_out = NULL,
+	std::vector<uint32_t>* dp_indices_out = NULL)
 {
 	if (point_count >= 8192 && ValidationWorkerCount(point_count) > 1)
-		return CpuXyzzBatchAffineDpScanParallelRange(points, distances, point_count, dp_bits, dp_distance_checksum_out, dp_checksum_out, dp_count_out, reason, dp_keys_out, dp_distances_out);
+		return CpuXyzzBatchAffineDpScanParallelRange(points, distances, point_count, dp_bits, dp_distance_checksum_out, dp_checksum_out, dp_count_out, reason, dp_keys_out, dp_distances_out, dp_indices_out);
 
 	if (point_count && (!points || !distances))
 	{
@@ -10853,6 +10860,8 @@ static bool CpuXyzzBatchAffineDpScanRange(const CpuXyzzPoint* points,
 		dp_keys_out->clear();
 	if (dp_distances_out)
 		dp_distances_out->clear();
+	if (dp_indices_out)
+		dp_indices_out->clear();
 
 	const uint64_t dp_mask = ProjectiveDpMask(dp_bits);
 	const FieldElement one = CpuFieldOne();
@@ -10907,6 +10916,8 @@ static bool CpuXyzzBatchAffineDpScanRange(const CpuXyzzPoint* points,
 					}
 					if (dp_distances_out)
 						dp_distances_out->push_back(distances[i]);
+					if (dp_indices_out)
+						dp_indices_out->push_back((uint32_t)i);
 				}
 			}
 			if (dp_flag)
@@ -10940,14 +10951,205 @@ static bool CpuXyzzBatchAffineDpScan(const std::vector<CpuXyzzPoint>& points,
 	unsigned int* dp_count_out,
 	std::string& reason,
 	std::vector<TargetLookupKeyHost>* dp_keys_out = NULL,
-	std::vector<uint64_t>* dp_distances_out = NULL)
+	std::vector<uint64_t>* dp_distances_out = NULL,
+	std::vector<uint32_t>* dp_indices_out = NULL)
 {
 	if (points.size() != distances.size())
 	{
 		reason = "XYZZ affine scan state/distance size mismatch";
 		return false;
 	}
-	return CpuXyzzBatchAffineDpScanRange(points.data(), distances.data(), points.size(), dp_bits, dp_distance_checksum_out, dp_checksum_out, dp_count_out, reason, dp_keys_out, dp_distances_out);
+	return CpuXyzzBatchAffineDpScanRange(points.data(), distances.data(), points.size(), dp_bits, dp_distance_checksum_out, dp_checksum_out, dp_count_out, reason, dp_keys_out, dp_distances_out, dp_indices_out);
+}
+
+struct MetalRelationDpRecord
+{
+	TargetLookupKeyHost key;
+	uint64_t distance;
+	uint32_t target_id;
+	int wild_sign;
+};
+
+static bool RelationDpXEquals(const MetalRelationDpRecord& left, const MetalRelationDpRecord& right)
+{
+	return left.key.x[0] == right.key.x[0] &&
+		left.key.x[1] == right.key.x[1] &&
+		left.key.x[2] == right.key.x[2] &&
+		left.key.x[3] == right.key.x[3];
+}
+
+static EcInt RelationOffsetU64(const MetalRelationDpRecord& record_i,
+	const MetalRelationDpRecord& record_j,
+	int epsilon)
+{
+	EcInt offset;
+	offset.Set(record_i.distance);
+	if (epsilon < 0)
+		offset.Neg();
+	EcInt distance_j;
+	distance_j.Set(record_j.distance);
+	offset.Sub(distance_j);
+	if (record_j.wild_sign < 0)
+		offset.Neg();
+	return offset;
+}
+
+bool RCKMetalMultiTargetRelationSelfTest(std::string& error)
+{
+	const unsigned int walker_count = 4;
+	const unsigned int jump_count = 8;
+	const unsigned int steps_per_sample = 256;
+	std::vector<uint64_t> jump_distances;
+	std::vector<CpuAffinePoint> jumps;
+	BuildJacobianJumpDistances(jump_count, jump_distances);
+	BuildAffineJumpsFromDistances(jump_distances, jumps);
+
+	EcInt one;
+	one.Set(1);
+	EcPoint generator = Ec::MultiplyG(one);
+	CpuJacobianPoint start = CpuJacobianFromAffine(CpuAffineFromEcPoint(generator));
+	std::vector<CpuJacobianPoint> walkers(walker_count, start);
+	std::vector<CpuXyzzPoint> states;
+	std::vector<uint64_t> distances;
+	MetalDispatchStats dispatch_stats;
+	if (!RunJacobianDynamicXyzzDistanceKernel(walkers, jumps, jump_distances, steps_per_sample,
+		states, distances, error, NULL, 0, &dispatch_stats))
+		return false;
+	if (states.size() != walker_count || distances.size() != walker_count)
+	{
+		error = "Metal relation self-test output count mismatch";
+		return false;
+	}
+	for (unsigned int i = 1; i < walker_count; ++i)
+	{
+		if (!CpuXyzzMatches(states[0], states[i]) || distances[0] != distances[i])
+		{
+			error = "duplicated Metal walkers diverged";
+			return false;
+		}
+	}
+
+	uint64_t dp_distance_checksum = 0;
+	uint64_t dp_checksum = 0;
+	unsigned int dp_count = 0;
+	std::vector<TargetLookupKeyHost> keys;
+	std::vector<uint64_t> compact_distances;
+	std::vector<uint32_t> walker_indices;
+	std::string scan_reason;
+	if (!CpuXyzzBatchAffineDpScan(states, distances, 0, &dp_distance_checksum, &dp_checksum,
+		&dp_count, scan_reason, &keys, &compact_distances, &walker_indices))
+	{
+		error = scan_reason;
+		return false;
+	}
+	if (dp_count != walker_count || keys.size() != walker_count ||
+		compact_distances.size() != walker_count || walker_indices.size() != walker_count)
+	{
+		error = "Metal relation DP metadata count mismatch";
+		return false;
+	}
+	const size_t parallel_count = 8192;
+	std::vector<CpuXyzzPoint> parallel_states(parallel_count, states[0]);
+	std::vector<uint64_t> parallel_distances(parallel_count, distances[0]);
+	std::vector<TargetLookupKeyHost> parallel_keys;
+	std::vector<uint64_t> parallel_compact_distances;
+	std::vector<uint32_t> parallel_indices;
+	unsigned int parallel_dp_count = 0;
+	if (!CpuXyzzBatchAffineDpScan(parallel_states, parallel_distances, 0, NULL, NULL,
+		&parallel_dp_count, scan_reason, &parallel_keys, &parallel_compact_distances, &parallel_indices))
+	{
+		error = scan_reason;
+		return false;
+	}
+	if (parallel_dp_count != parallel_count || parallel_keys.size() != parallel_count ||
+		parallel_compact_distances.size() != parallel_count || parallel_indices.size() != parallel_count)
+	{
+		error = "parallel Metal relation DP metadata count mismatch";
+		return false;
+	}
+	for (size_t i = 0; i < parallel_count; ++i)
+	{
+		uint32_t expected_index = (uint32_t)(parallel_count - 1 - i);
+		if (parallel_indices[i] != expected_index || parallel_compact_distances[i] != parallel_distances[expected_index])
+		{
+			error = "parallel Metal relation DP metadata order mismatch";
+			return false;
+		}
+	}
+
+	const uint32_t target_ids[walker_count] = {0, 1, 2, 0};
+	const int wild_signs[walker_count] = {1, -1, 1, -1};
+	std::vector<MetalRelationDpRecord> seen;
+	TMultiTargetRelationGraph graph;
+	graph.Reset(3);
+	EcInt solved_root;
+	EcInt cycle_root;
+	bool solved = false;
+	unsigned int relation_count = 0;
+	for (size_t record_index = 0; record_index < keys.size(); ++record_index)
+	{
+		uint32_t walker_index = walker_indices[record_index];
+		if (walker_index >= walker_count || compact_distances[record_index] != distances[walker_index])
+		{
+			error = "Metal relation DP walker metadata misaligned";
+			return false;
+		}
+		MetalRelationDpRecord current = {keys[record_index], compact_distances[record_index],
+			target_ids[walker_index], wild_signs[walker_index]};
+		for (const MetalRelationDpRecord& prior : seen)
+		{
+			if (!RelationDpXEquals(prior, current))
+				continue;
+			int epsilon = prior.key.parity == current.key.parity ? 1 : -1;
+			int relation_sign = epsilon * prior.wild_sign * current.wild_sign;
+			EcInt relation_offset = RelationOffsetU64(prior, current, epsilon);
+			TRelationAddResult add_result = graph.AddRelation(prior.target_id, current.target_id,
+				relation_sign, relation_offset, &solved_root);
+			if (add_result == TRelationAddResult::InvalidCycle)
+			{
+				error = "Metal relation graph rejected an exact GPU collision";
+				return false;
+			}
+			relation_count++;
+			if (add_result == TRelationAddResult::SolvedCycle)
+			{
+				if (!solved)
+					cycle_root = solved_root;
+				solved = true;
+			}
+		}
+		seen.push_back(current);
+	}
+	if (!solved || relation_count < 3)
+	{
+		error = "Metal relation collisions did not produce the expected negative cycle";
+		return false;
+	}
+
+	TRelationToRoot target_relation = graph.RelationToRoot(0);
+	EcInt centered = cycle_root;
+	if (target_relation.sign < 0)
+		centered.Neg();
+	centered.Add(target_relation.offset);
+	EcInt centered_copy = centered;
+	if (!centered_copy.IsZero())
+	{
+		error = "Metal relation cycle recovered the wrong centered scalar";
+		return false;
+	}
+
+	EcInt half_range;
+	half_range.Set(100);
+	EcInt candidate = centered;
+	candidate.Add(half_range);
+	EcPoint expected_target = Ec::MultiplyG(half_range);
+	EcPoint candidate_point = Ec::MultiplyG(candidate);
+	if (!candidate_point.IsEqual(expected_target))
+	{
+		error = "Metal relation candidate failed final EC verification";
+		return false;
+	}
+	return true;
 }
 
 static bool ValidateDynamicDpStreamOutputs(const std::vector<CpuJacobianPoint>& p,

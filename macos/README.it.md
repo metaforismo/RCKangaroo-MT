@@ -90,6 +90,14 @@ Smoke test Metal:
 
 Se nell'ambiente corrente non e' visibile un device Metal, il comando segnala uno skip invece di fallire. Su un runtime Apple Silicon normale con accesso al device, compila ed esegue un kernel Metal minimo.
 
+Check del ponte Metal per relazioni multi-target:
+
+```sh
+./macos/rck_macos metal-multi-target-relation-test
+```
+
+Questo test di correttezza fa avanzare veri walker secp256k1 XYZZ su Metal, conserva per ogni record DP affine compatto l'indice del walker originario insieme a x, parita' y e distanza, deriva equazioni firmate cross-target WILD1/WILD2, recupera uno scalare centrato da un ciclo di relazioni negativo e verifica il candidato finale con `candidate*G == target`. Esercita anche il compattatore affine parallelo su 8.192 stati e controlla l'ordine dei record. Il percorso benchmark di produzione lascia disabilitato l'output opzionale degli indici; questo comando stabilisce il ponte tra metadati GPU e matematica, ma non e' ancora un solver Metal persistente full-range ne' un claim GKeys/s.
+
 Check e benchmark Metal per addizione, sottrazione, doubling, moltiplicazione per 4, negazione, moltiplicazione, quadrato e square-mul fuso nel campo secp256k1:
 
 ```sh
