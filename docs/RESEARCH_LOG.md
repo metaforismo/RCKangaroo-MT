@@ -79,6 +79,16 @@ GPU work should use Metal.
   setup-inclusive wall-distance gate at `273503001340.472534` versus paired
   baseline `269431527059.461395`, a `1.015111x` end-to-end speedup. Candidate
   sample spread was `1.048888`, below the gate's `1.5` limit.
+- The canonical 25,005,000-target paired gate preserved every exact oracle in
+  all six samples, including target/DP/distance checksums, `dp_count=4121`,
+  `hit_count=128`, and `correctness=true`. It did not confirm an end-to-end
+  speedup: candidate samples were `219.467B`, `404.202B`, and `207.530B`
+  distance/s; baseline samples were `193.084B`, `238.301B`, and `380.767B`.
+  Candidate median was `219.467B` versus baseline `238.301B`
+  (`0.920964x`). Candidate and baseline spreads were `1.947677` and
+  `1.972031`, both above the preregistered `1.5` limit, so the canonical row is
+  `status=discard`. This preserves the walk-level and 1M evidence but rules out
+  a supported 25M end-to-end speed claim.
 - Rejected the preceding AIR-guided `always_inline` scout. Although the Metal
   IR showed a remaining mixed-add call boundary and short paired samples all
   pointed positive, the 131k gate measured candidate median `69.645M` versus

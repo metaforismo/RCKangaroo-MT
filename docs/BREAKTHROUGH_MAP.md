@@ -101,10 +101,12 @@ cost; it does not replace the deterministic correctness checks.
   paired 1M physical distinct-miss gate also kept setup-inclusive wall distance
   at `273.503B` versus `269.432B` distance/s (`1.015111x`) with the complete
   multi-target oracle unchanged.
-- Scope: this is a real improvement to the dominant Metal walk arithmetic on
-  the MacBook Air M3. A paired canonical 25M setup-inclusive run is still
-  required before claiming the same percentage for complete 25M multi-target
-  jobs.
+- Scope: this is a measured improvement to the dominant Metal walk arithmetic
+  and the 1M end-to-end gate on the MacBook Air M3. The paired canonical 25M
+  run did not confirm an end-to-end gain: candidate median was `219.467B`
+  versus baseline `238.301B` distance/s (`0.920964x`), and candidate/baseline
+  spreads were `1.947677`/`1.972031`, both above the `1.5` limit. Do not claim
+  a 25M multi-target speedup from this change.
 
 Earlier 2026-07-07: bounded generated-miss positive buffers for Metal
 distinct-miss lookup.
