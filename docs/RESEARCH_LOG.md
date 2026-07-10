@@ -301,6 +301,18 @@ GPU work should use Metal.
   ratios were close; the full alternating median rejected it. The attribute
   was removed and the compiler-managed call boundary remains the default.
 
+### 2026-07-10 Shared-Multiplier Product Pair
+
+- Rejected a dual helper that interleaved `H*H^2` and `X*H^2`, the two XYZZ
+  products sharing `H^2`. The operation count and two modular reductions were
+  unchanged; the hypothesis was that independent 64-bit products could expose
+  more instruction-level parallelism.
+- AIR inlined the helper and grew textual IR by about 854 lines, increasing the
+  live set. The full 131k oracle stayed exact, but candidate median was
+  `52.737M` versus baseline `57.032M` steps/s (`0.924698x`). Candidate spread
+  was within the `1.15` limit; the baseline spread was `1.225523`, and the
+  candidate was already slower in every paired sample. The helper was removed.
+
 ### 2026-07-07 Fixed-Round Walk Threadgroup Sweep
 
 - Rejected changing the fixed-round 2048-step XYZZ walk threadgroup policy
