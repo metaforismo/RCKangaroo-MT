@@ -571,7 +571,52 @@ void EcInt::Mul_i64(EcInt& val, i64 multiplier)
 	Mul320_by_64(data, (u64)multiplier, data);
 }
 
-#define APPLY_DIV_SHIFT() kbnt -= index; val >>= index; matrix[0] <<= index; matrix[1] <<= index; 
+static inline u64 I64Bits(i64 value)
+{
+	u64 bits;
+	memcpy(&bits, &value, sizeof(bits));
+	return bits;
+}
+
+static inline i64 I64FromBits(u64 bits)
+{
+	i64 value;
+	memcpy(&value, &bits, sizeof(value));
+	return value;
+}
+
+static inline i64 I64WrapNeg(i64 value)
+{
+	return I64FromBits(0ULL - I64Bits(value));
+}
+
+static inline i64 I64WrapAdd(i64 left, i64 right)
+{
+	return I64FromBits(I64Bits(left) + I64Bits(right));
+}
+
+static inline i64 I64WrapMul(i64 left, i64 right)
+{
+	return I64FromBits(I64Bits(left) * I64Bits(right));
+}
+
+static inline i64 I64WrapShiftLeft(i64 value, int shift)
+{
+	return I64FromBits(I64Bits(value) << shift);
+}
+
+static inline i64 I64ArithmeticShiftRight(i64 value, int shift)
+{
+	if (!shift)
+		return value;
+	u64 bits = I64Bits(value);
+	u64 shifted = bits >> shift;
+	if (bits >> 63)
+		shifted |= UINT64_MAX << (64 - shift);
+	return I64FromBits(shifted);
+}
+
+#define APPLY_DIV_SHIFT() kbnt -= index; val = I64ArithmeticShiftRight(val, index); matrix[0] = I64WrapShiftLeft(matrix[0], index); matrix[1] = I64WrapShiftLeft(matrix[1], index);
 	
 // https://tches.iacr.org/index.php/TCHES/article/download/8298/7648/4494
 //a bit tricky
@@ -586,17 +631,17 @@ void DIV_62(i64& kbnt, i64 modp, i64 val, i64* matrix)
 		if (kbnt < 0)
 		{
 			kbnt = -kbnt;
-			i64 tmp = -modp; modp = val; val = tmp;
-			tmp = -matrix[0]; matrix[0] = matrix[2]; matrix[2] = tmp;
-			tmp = -matrix[1]; matrix[1] = matrix[3]; matrix[3] = tmp;
+			i64 tmp = I64WrapNeg(modp); modp = val; val = tmp;
+			tmp = I64WrapNeg(matrix[0]); matrix[0] = matrix[2]; matrix[2] = tmp;
+			tmp = I64WrapNeg(matrix[1]); matrix[1] = matrix[3]; matrix[3] = tmp;
 		}
 		int thr = cnt;
 		if ((kbnt + 1) < cnt)
 			thr = (int)(kbnt + 1);
-		i64 mul = (-modp * val) & ((UINT64_MAX >> (64 - thr)) & 0x07);
-		val += (modp * mul);
-		matrix[2] += (matrix[0] * mul);
-		matrix[3] += (matrix[1] * mul);
+		i64 mul = I64WrapMul(I64WrapNeg(modp), val) & ((UINT64_MAX >> (64 - thr)) & 0x07);
+		val = I64WrapAdd(val, I64WrapMul(modp, mul));
+		matrix[2] = I64WrapAdd(matrix[2], I64WrapMul(matrix[0], mul));
+		matrix[3] = I64WrapAdd(matrix[3], I64WrapMul(matrix[1], mul));
 		_BitScanForward64((DWORD*)&index, val | (1ull << cnt));
 		APPLY_DIV_SHIFT();
 		cnt -= index;

@@ -6,7 +6,9 @@
 
 #pragma once 
 
+#ifdef _MSC_VER
 #pragma warning(disable : 4996)
+#endif
 
 typedef unsigned long long u64;
 typedef long long i64;

@@ -394,6 +394,13 @@ These are the remaining high-leverage areas.
    graph memory, packet compatibility, and end-to-end solve probability still
    need measured gates before integration.
 
+   The first production-width prerequisite now exists as
+   `TMultiTargetRelationGraph`: a signed 320-bit union-find with affine
+   potentials, path compression, union by rank, exact signed division by two,
+   and explicit outcomes for merged, consistent, solved, and invalid cycles.
+   It remains disconnected from the default solver until DP orientation
+   metadata and full candidate verification are integrated.
+
 ## Promotion Checklist
 
 Every speed candidate must answer:

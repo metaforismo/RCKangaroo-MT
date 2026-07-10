@@ -370,6 +370,29 @@ GPU work should use Metal.
   union-find correctness over full-width distances, collision-rate evidence,
   memory cost, and an end-to-end solver oracle.
 
+### 2026-07-10 Production-Width Signed Relation Core
+
+- Added `TMultiTargetRelationGraph`, a sparse-ready signed union-find primitive
+  over the existing 320-bit `EcInt`. Each compressed path stores
+  `value=node_sign*root+offset`; union-by-rank correctly inverts affine edges
+  when the larger component is on the right. Cycle insertion distinguishes a
+  non-solving consistent cycle, an exact negative-sign solving cycle, and an
+  invalid inconsistent or odd-numerator cycle.
+- Nodes are allocated lazily by target ID. The oracle resets the graph with a
+  25,000,000-target capacity and verifies zero active nodes before insertion
+  and exactly two active nodes after one edge, avoiding dense per-target memory.
+- Extended the real EC oracle with rank-inversion, negative-root, odd-cycle,
+  positive-cycle, path-compression, and 270/280-bit cases. The focused target
+  passes optimized compilation, `-Wall -Wextra -Werror`, ASan, and UBSan.
+- UBSan exposed pre-existing signed-overflow undefined behavior in the safegcd
+  divstep implementation. Replaced intentional two's-complement overflow and
+  negative left shifts with explicit unsigned-bit wrap helpers and an explicit
+  arithmetic right shift. Portable EC vectors and the full macOS suite remain
+  exact. A source gate prevents the unsafe expressions from returning.
+- This improves correctness and establishes production-width mathematical
+  infrastructure. It does not yet change Metal GKeys/s or the default solver;
+  the machine was under extreme external load, so no timing row was recorded.
+
 ### 2026-07-07 Fixed-Round Walk Threadgroup Sweep
 
 - Rejected changing the fixed-round 2048-step XYZZ walk threadgroup policy

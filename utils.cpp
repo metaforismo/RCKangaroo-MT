@@ -251,7 +251,6 @@ u8* TFastBase::AddDataBlock(u8* data, int pos)
 
 u8* TFastBase::FindDataBlock(u8* data)
 {
-	bool res = false;
 	TListRec* list = &lists[data[0]][data[1]][data[2]];
 	int first = lower_bound(list, data[0], data + 3);
 	if (first == list->cnt)

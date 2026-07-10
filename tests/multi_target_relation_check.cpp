@@ -1,4 +1,5 @@
 #include "Ec.h"
+#include "MultiTargetRelations.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -77,6 +78,22 @@ static Relation make_collision_relation(
 	return relation;
 }
 
+static EcInt signed_ecint(i64 value)
+{
+	EcInt result;
+	result.Set((u64)(value < 0 ? -value : value));
+	if (value < 0)
+		result.Neg();
+	return result;
+}
+
+static void require_signed_ecint(const EcInt& actual, i64 expected, const char* message)
+{
+	EcInt wanted = signed_ecint(expected);
+	EcInt copy = actual;
+	require(copy.IsEqual(wanted), message);
+}
+
 int main()
 {
 	InitEc();
@@ -108,6 +125,84 @@ int main()
 		+ positive20.sign * edge12.offset + positive20.offset;
 	require(positive_sign == 1, "control cycle must have positive sign parity");
 	require(positive_offset == 0, "positive relation cycle must close without inventing a scalar");
+
+	TMultiTargetRelationGraph graph;
+	EcInt solved_root;
+	graph.Reset(25000000);
+	require(graph.Size() == 0, "large target capacity must not allocate untouched relation nodes");
+	require(graph.AddRelation(0, 24999999, 1, signed_ecint(17), &solved_root) == TRelationAddResult::Merged,
+		"sparse graph must accept an edge across the full target id range");
+	require(graph.Size() == 2, "one sparse edge must allocate only its two endpoint nodes");
+
+	graph.Reset(3);
+	solved_root.SetZero();
+	require(graph.AddRelation(0, 1, -1, signed_ecint(98), &solved_root) == TRelationAddResult::Merged,
+		"first signed relation must merge two target components");
+	require(graph.AddRelation(1, 2, -1, signed_ecint(144), &solved_root) == TRelationAddResult::Merged,
+		"second signed relation must extend the component");
+	require(graph.AddRelation(2, 0, -1, signed_ecint(120), &solved_root) == TRelationAddResult::SolvedCycle,
+		"negative signed cycle must solve its component root");
+	require_signed_ecint(solved_root, 37, "negative cycle must recover the exact root scalar");
+	TRelationToRoot relation2 = graph.RelationToRoot(2);
+	EcInt recovered2 = signed_ecint(relation2.sign < 0 ? -37 : 37);
+	recovered2.Add(relation2.offset);
+	require_signed_ecint(recovered2, 83, "compressed relation path must recover target 2");
+
+	graph.Reset(3);
+	require(graph.AddRelation(0, 1, -1, signed_ecint(98), &solved_root) == TRelationAddResult::Merged,
+		"positive-cycle control edge 1 must merge");
+	require(graph.AddRelation(1, 2, -1, signed_ecint(144), &solved_root) == TRelationAddResult::Merged,
+		"positive-cycle control edge 2 must merge");
+	require(graph.AddRelation(2, 0, 1, signed_ecint(-46), &solved_root) == TRelationAddResult::ConsistentCycle,
+		"positive cycle must not claim a scalar");
+	require(graph.AddRelation(2, 0, 1, signed_ecint(-45), &solved_root) == TRelationAddResult::InvalidCycle,
+		"inconsistent positive cycle must be rejected");
+
+	const i64 known_values[] = {11, -7, 23, 41, -13};
+	graph.Reset(5);
+	require(graph.AddRelation(1, 2, -1, signed_ecint(16), &solved_root) == TRelationAddResult::Merged,
+		"rank inversion setup edge 1 must merge");
+	require(graph.AddRelation(3, 4, -1, signed_ecint(28), &solved_root) == TRelationAddResult::Merged,
+		"rank inversion setup edge 2 must merge");
+	require(graph.AddRelation(1, 3, 1, signed_ecint(48), &solved_root) == TRelationAddResult::Merged,
+		"equal-rank components must merge");
+	require(graph.AddRelation(0, 1, -1, signed_ecint(4), &solved_root) == TRelationAddResult::Merged,
+		"lower-rank left component must merge through an inverted root relation");
+	for (u32 target = 0; target < 5; ++target)
+	{
+		TRelationToRoot relation = graph.RelationToRoot(target);
+		EcInt recovered = signed_ecint(relation.sign * known_values[relation.root]);
+		recovered.Add(relation.offset);
+		require_signed_ecint(recovered, known_values[target], "rank-aware path compression must preserve every target value");
+	}
+
+	graph.Reset(2);
+	EcInt high_offset;
+	high_offset.Set(1);
+	high_offset.ShiftLeft(280);
+	require(graph.AddRelation(0, 1, 1, high_offset, &solved_root) == TRelationAddResult::Merged,
+		"graph must preserve offsets wider than 256 bits");
+	EcInt negative_high = high_offset;
+	negative_high.Neg();
+	require(graph.AddRelation(1, 0, 1, negative_high, &solved_root) == TRelationAddResult::ConsistentCycle,
+		"wide reverse relation must close consistently");
+	graph.Reset(1);
+	EcInt twice_wide_root;
+	twice_wide_root.Set(1);
+	twice_wide_root.ShiftLeft(271);
+	require(graph.AddRelation(0, 0, -1, twice_wide_root, &solved_root) == TRelationAddResult::SolvedCycle,
+		"negative self-cycle must solve a root wider than 256 bits");
+	EcInt expected_wide_root;
+	expected_wide_root.Set(1);
+	expected_wide_root.ShiftLeft(270);
+	EcInt solved_root_copy = solved_root;
+	require(solved_root_copy.IsEqual(expected_wide_root), "wide negative cycle division by two must remain exact");
+	graph.Reset(1);
+	require(graph.AddRelation(0, 0, -1, signed_ecint(-74), &solved_root) == TRelationAddResult::SolvedCycle,
+		"negative root cycle must solve with arithmetic division");
+	require_signed_ecint(solved_root, -37, "negative cycle must preserve the root sign");
+	require(graph.AddRelation(0, 0, -1, signed_ecint(-73), &solved_root) == TRelationAddResult::InvalidCycle,
+		"odd cycle numerator must not be truncated into a candidate");
 
 	std::printf("multi-target signed relation oracle ok\n");
 	return 0;
