@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import statistics
 import subprocess
@@ -44,6 +45,27 @@ def parse_last_json(stdout: str) -> dict:
         if line.startswith("{") and line.endswith("}"):
             return json.loads(line)
     raise ValueError("benchmark output did not contain a JSON line")
+
+
+def host_load_snapshot() -> dict:
+    logical_cpus = max(1, int(os.cpu_count() or 1))
+    try:
+        load_1m = float(os.getloadavg()[0])
+    except (AttributeError, OSError):
+        load_1m = 0.0
+    return {
+        "host_load_1m_start": load_1m,
+        "host_logical_cpu_count": logical_cpus,
+        "host_load_per_cpu_start": load_1m / logical_cpus,
+    }
+
+
+def host_load_failure(experiment: dict, snapshot: dict) -> str:
+    max_load_per_cpu = float(experiment.get("max_host_load_per_cpu", 0.0) or 0.0)
+    actual = float(snapshot.get("host_load_per_cpu_start", 0.0) or 0.0)
+    if max_load_per_cpu > 0.0 and actual > max_load_per_cpu:
+        return f"host load per CPU {actual:.3f} exceeds max {max_load_per_cpu:.3f}"
+    return ""
 
 
 def aggregate_metric_samples(samples: list[dict], metric_name: str = "ops_per_sec") -> dict:
@@ -474,17 +496,29 @@ def main() -> int:
     experiment = load_experiment(args.experiment)
     timeout = max(60, args.budget_sec * 12)
     confirm_runs = max(1, args.confirm_runs)
+    initial_load = host_load_snapshot()
+    load_failure = host_load_failure(experiment, initial_load)
+    if load_failure:
+        print(f"host load gate: {load_failure}; no benchmark row written", file=sys.stderr)
+        return 2
 
     check = run_command(["make", "macos-check"], timeout=timeout)
     if check.returncode != 0:
         print(check.stdout)
         return check.returncode
 
+    start_load = host_load_snapshot()
+    load_failure = host_load_failure(experiment, start_load)
+    if load_failure:
+        print(f"host load gate after correctness check: {load_failure}; no benchmark row written", file=sys.stderr)
+        return 2
+
     rows: list[dict] = []
     try:
         if args.paired_baseline_ref:
             paired_runs = run_paired_baseline_and_candidate_confirmations(experiment, timeout, args.paired_baseline_ref, ROOT, confirm_runs)
             for paired_baseline, metrics in paired_runs:
+                metrics.update(start_load)
                 backend = str(metrics.get("backend", "unknown"))
                 operation = str(metrics.get("operation", "unknown"))
                 previous = best_previous(experiment["name"], backend, operation)
@@ -507,6 +541,7 @@ def main() -> int:
                 if confirm_runs > 1:
                     print(f"confirmation run {confirmation_index + 1}/{confirm_runs}:")
                 metrics = run_experiment_samples(experiment, timeout, ROOT)
+                metrics.update(start_load)
                 backend = str(metrics.get("backend", "unknown"))
                 operation = str(metrics.get("operation", "unknown"))
                 previous = best_previous(experiment["name"], backend, operation)

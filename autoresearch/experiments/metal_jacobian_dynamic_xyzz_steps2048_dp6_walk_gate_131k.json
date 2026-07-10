@@ -33,6 +33,7 @@
   "metric": "gpu_ops_per_sec",
   "min_improvement_ratio": 0.01,
   "max_sample_spread_ratio": 1.15,
+  "max_host_load_per_cpu": 4.0,
   "sample_runs": 3,
   "paired_order": "alternate",
   "cooldown_sec": 10

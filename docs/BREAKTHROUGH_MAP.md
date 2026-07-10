@@ -67,6 +67,11 @@ must discard the candidate and record `paired_baseline_sample_spread_ratio`,
 even when the candidate median appears faster. A noisy depressed baseline is not
 promotion evidence.
 
+Host-load rule: the strict 131k, 1M, and 25M M3 gates refuse to start when the
+one-minute load average exceeds `4.0` per logical CPU. Valid rows record
+`host_load_1m_start`, `host_logical_cpu_count`, and
+`host_load_per_cpu_start`. This is a contention guard, not a speed metric.
+
 Canonical oracle rule: fixed-oracle 1M and 25M experiments define
 `required_metrics` for the jump mixer/schedule, target checksum, DP checksum,
 DP distance checksum, DP count, hit count, and false-positive count. If any
@@ -385,4 +390,7 @@ Every speed candidate must answer:
 - Did the paired baseline resolve to a different clean tree, or is it an
   explicit same-tree command A/B via `paired_baseline_command`?
 - Did it improve setup-inclusive wall distance/sec, not just a submetric?
+- Did the host-load preflight pass both before the correctness suite and
+  immediately before timing, so the recorded load describes the benchmark
+  rather than an earlier machine state?
 - Did the research log record both the positive and negative evidence?

@@ -28,6 +28,11 @@ def check_command_backed_gate(
 
 def main() -> int:
     failures: list[str] = []
+    strict_load_gates = {
+        "metal_jacobian_dynamic_xyzz_steps2048_dp6_walk_gate_131k",
+        "metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter1m_rounds_distinct_misses_distance",
+        "metal_jacobian_dynamic_dp_stream_xyzz_affine_scan_target_lookup_tag16_hash_filter25m_rounds_distinct_misses_distance",
+    }
     for path in sorted(EXPERIMENTS.glob("metal_*.json")):
         data = json.loads(path.read_text(encoding="utf-8"))
         sample_runs = int(data.get("sample_runs", 0))
@@ -35,6 +40,8 @@ def main() -> int:
             failures.append(f"{path.relative_to(ROOT)} sample_runs={sample_runs}, expected >= 3")
         if data.get("name") == "metal_jacobian_jump_walk_dp" and sample_runs < 5:
             failures.append(f"{path.relative_to(ROOT)} sample_runs={sample_runs}, expected >= 5 for primary Metal DP gate")
+        if data.get("name") in strict_load_gates and float(data.get("max_host_load_per_cpu", 0.0)) != 4.0:
+            failures.append(f"{path.relative_to(ROOT)} max_host_load_per_cpu should be 4.0")
 
     check_command_backed_gate(
         failures,

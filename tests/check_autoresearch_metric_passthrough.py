@@ -36,6 +36,22 @@ metrics = {
     "target_throughput_vs_single": 16.0,
 }
 
+load_snapshot = {
+    "host_load_1m_start": 16.0,
+    "host_logical_cpu_count": 8,
+    "host_load_per_cpu_start": 2.0,
+}
+assert runner.host_load_failure({"max_host_load_per_cpu": 4.0}, load_snapshot) == ""
+assert runner.host_load_failure({}, load_snapshot) == ""
+assert runner.host_load_failure({"max_host_load_per_cpu": 1.5}, load_snapshot) == (
+    "host load per CPU 2.000 exceeds max 1.500"
+)
+live_load_snapshot = runner.host_load_snapshot()
+assert live_load_snapshot["host_logical_cpu_count"] >= 1
+assert live_load_snapshot["host_load_1m_start"] >= 0.0
+assert live_load_snapshot["host_load_per_cpu_start"] >= 0.0
+metrics.update(load_snapshot)
+
 row = runner.build_benchmark_row(
     experiment=experiment,
     metrics=metrics,
@@ -55,6 +71,9 @@ assert row["target_throughput_vs_single"] == 16.0
 assert row["commit"] == "abc123"
 assert row["machine"] == "test-machine"
 assert row["cooldown_sec"] == 0.0
+assert row["host_load_1m_start"] == 16.0
+assert row["host_logical_cpu_count"] == 8
+assert row["host_load_per_cpu_start"] == 2.0
 
 git_call_args: list[list[str]] = []
 

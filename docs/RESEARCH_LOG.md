@@ -313,6 +313,42 @@ GPU work should use Metal.
   was within the `1.15` limit; the baseline spread was `1.225523`, and the
   candidate was already slower in every paired sample. The helper was removed.
 
+### 2026-07-10 Outlined Rare XYZZ Doubling Path
+
+- Rejected `noinline` on `jacobian_double_xyzz_values`. The hypothesis was
+  unusually strong at the code-shape level: the rare `H=0` doubling body moved
+  out of the hot mixed-add, whose optimized AIR body fell from roughly 1430 to
+  716 lines, while the exact exceptional branch and formula remained intact.
+- Every sample preserved the full 131k CPU replay oracle. Performance did not
+  survive the strict gate. The first row was discarded with candidate/baseline
+  spreads `1.254950`/`2.345320`. A preregistered two-confirmation follow-up was
+  also discarded: confirmation 1 had spreads `2.190828`/`1.772288`, and
+  confirmation 2 measured `52.834M` versus `54.912M` steps/s (`0.962157x`)
+  with spreads `2.519214`/`1.620709`. The M3 Air changed frequency regimes
+  repeatedly, and the outlined call did not produce stable evidence. Restore
+  the inline exceptional path.
+- A follow-up `__builtin_expect(H == 0, false)` scout was stopped before a
+  performance gate. AIR attached `branch_weights 1:2000` but automatically
+  outlined the doubling into the same call shape as the rejected `noinline`
+  candidate, so it was a mechanical duplicate rather than a new hypothesis.
+
+### 2026-07-10 Strict Host-Load Preflight
+
+- Added a fail-fast host-load guard to the promotion-critical 131k walk, 1M
+  physical distinct-miss, and canonical 25M gates. The runner records the
+  one-minute load average, logical CPU count, and load per CPU in valid rows,
+  and writes no benchmark row when `host_load_per_cpu_start > 4.0`.
+- This was motivated by direct evidence, not an attempt to rescue a candidate:
+  the rejected rare-path runs coincided with an Xcode/iOS Simulator test,
+  another `pytest` process near 70% CPU, Android Emulator, and other workloads.
+  The observed load average was `485.59`, about `60.7` per logical CPU, while
+  the exact same binaries swung between roughly `45M` and `121M` steps/s.
+  Existing noisy discard rows remain in the ledger unchanged.
+- The runner checks the gate twice: once before the potentially expensive
+  correctness suite and again immediately before timing. Only the second,
+  benchmark-adjacent snapshot is attached to result rows, avoiding stale load
+  telemetry when host conditions change during the suite.
+
 ### 2026-07-07 Fixed-Round Walk Threadgroup Sweep
 
 - Rejected changing the fixed-round 2048-step XYZZ walk threadgroup policy
