@@ -288,6 +288,19 @@ GPU work should use Metal.
   spreads were also `1.404189` and `1.496475`, both above the strict `1.15`
   limit. The unrolled spelling was reverted; keep the compiler-managed loops.
 
+### 2026-07-10 Selective Wide-Multiply Inlining
+
+- Rejected `always_inline` on `field_mul_wide_values`. AIR confirmed that this
+  removed the two helper calls inside the fused product difference while
+  leaving the larger XYZZ mixed-add out of line; textual IR grew by about 367
+  lines, so this was materially narrower than the previously rejected whole
+  mixed-add inlining scout.
+- The 131k walk oracle and CPU replay remained exact in all six samples.
+  Candidate median was `56.257M` versus baseline `63.992M` steps/s
+  (`0.879121x`). The candidate was slower even though its first two paired
+  ratios were close; the full alternating median rejected it. The attribute
+  was removed and the compiler-managed call boundary remains the default.
+
 ### 2026-07-07 Fixed-Round Walk Threadgroup Sweep
 
 - Rejected changing the fixed-round 2048-step XYZZ walk threadgroup policy
