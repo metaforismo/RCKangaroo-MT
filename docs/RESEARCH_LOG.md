@@ -32,6 +32,40 @@ GPU work should use Metal.
 
 ## Recent Kept Experiments
 
+### 2026-07-10 Fused XYZZ Product Difference
+
+- Kept a point-formula-level Metal optimization for the dominant XYZZ mixed
+  add. The final ordinate update is
+  `Y3 = r * (v - X3) - Y * H^3`. The old path performed two independently
+  reduced field multiplications and then a field subtraction. The new
+  `field_mul_sub_values` helper forms both exact 512-bit products, subtracts
+  them before reduction, adds `p^2` only when the wide difference is negative,
+  and performs one modular reduction. Since `p^2 = 0 (mod p)`, this preserves
+  the exact secp256k1 result while removing one reduction per kangaroo step.
+- The new 131,072-walker autoresearch gate matches the canonical 25M fixed-round
+  walker count and validates every final XYZZ state by CPU replay. All paired
+  rows preserved `dp_checksum=0x54ccada61fd1edbc`,
+  `dp_distance_checksum=0xf31d7766e1607041`, `dp_count=2087`, the exact jump
+  histogram, and `correctness=true`. Candidate GPU throughput was
+  `69.800M`, `73.644M`, and `77.681M` steps/s; baseline was `61.135M`,
+  `66.810M`, and `68.958M`. Median speedup was `1.102294x`, with candidate
+  spread `1.112904`, below the preregistered `1.15` limit, so the row is
+  `status=keep`.
+- The canonical-shape paired 1M physical distinct-miss gate also preserved the
+  complete multi-target oracle: `target_lookup_checksum=0xcb38405cd10f441d`,
+  `dp_checksum=0xbd17120591af6f74`,
+  `dp_distance_checksum=0x9eca239fc5687305`, `dp_count=1053`, `hit_count=64`,
+  `filter_false_positive_count=28`, and `correctness=true`. It kept the
+  setup-inclusive wall-distance gate at `273503001340.472534` versus paired
+  baseline `269431527059.461395`, a `1.015111x` end-to-end speedup. Candidate
+  sample spread was `1.048888`, below the gate's `1.5` limit.
+- Rejected the preceding AIR-guided `always_inline` scout. Although the Metal
+  IR showed a remaining mixed-add call boundary and short paired samples all
+  pointed positive, the 131k gate measured candidate median `69.645M` versus
+  baseline `95.575M` steps/s and exceeded both spread limits. The attribute was
+  reverted. This confirms that reducing arithmetic is materially different
+  from merely expanding the helper into the register-heavy kernel.
+
 ### 2026-07-07 Bounded Generated-Miss Positive Buffers
 
 - Kept a bounded positive-output buffer for generated distinct-miss Metal

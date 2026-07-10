@@ -173,6 +173,49 @@ static inline void field_mul_values(ulong a0, ulong a1, ulong a2, ulong a3,
   reduce512_mod_p(buff, r0, r1, r2, r3);
 }
 
+static inline void field_mul_wide_values(ulong a0, ulong a1, ulong a2, ulong a3,
+                                         ulong b0, ulong b1, ulong b2, ulong b3,
+                                         thread ulong* buff) {
+  thread ulong bv[4] = {b0, b1, b2, b3};
+  thread ulong tmp[5] = {0, 0, 0, 0, 0};
+  mul256_by_64(bv, a0, buff);
+  mul256_by_64(bv, a1, tmp);
+  add320_to_256(buff + 1, tmp);
+  mul256_by_64(bv, a2, tmp);
+  add320_to_256(buff + 2, tmp);
+  mul256_by_64(bv, a3, tmp);
+  add320_to_256(buff + 3, tmp);
+}
+
+static inline void field_mul_sub_values(ulong a0, ulong a1, ulong a2, ulong a3,
+                                        ulong b0, ulong b1, ulong b2, ulong b3,
+                                        ulong c0, ulong c1, ulong c2, ulong c3,
+                                        ulong d0, ulong d1, ulong d2, ulong d3,
+                                        thread ulong& r0, thread ulong& r1,
+                                        thread ulong& r2, thread ulong& r3) {
+  thread ulong lhs[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  thread ulong rhs[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  field_mul_wide_values(a0, a1, a2, a3, b0, b1, b2, b3, lhs);
+  field_mul_wide_values(c0, c1, c2, c3, d0, d1, d2, d3, rhs);
+
+  ulong borrow = 0;
+  for (uint i = 0; i < 8; i++)
+    borrow = sub_borrow(borrow, lhs[i], rhs[i], lhs[i]);
+
+  if (borrow) {
+    // Add p^2 after a negative wide subtraction; p^2 is zero modulo p.
+    const ulong p_squared[8] = {
+      0x000007A2000E90A1UL, 0x0000000000000001UL, 0, 0,
+      0xFFFFFFFDFFFFF85EUL, 0xFFFFFFFFFFFFFFFFUL,
+      0xFFFFFFFFFFFFFFFFUL, 0xFFFFFFFFFFFFFFFFUL
+    };
+    ulong carry = 0;
+    for (uint i = 0; i < 8; i++)
+      carry = add_carry(carry, lhs[i], p_squared[i], lhs[i]);
+  }
+  reduce512_mod_p(lhs, r0, r1, r2, r3);
+}
+
 static inline void field_square_values(ulong a0, ulong a1, ulong a2, ulong a3,
                                        thread ulong& r0, thread ulong& r1,
                                        thread ulong& r2, thread ulong& r3) {
@@ -661,7 +704,6 @@ static inline XyzzValue jacobian_add_affine_xyzz_values(ulong x0, ulong x1, ulon
   ulong x30 = 0, x31 = 0, x32 = 0, x33 = 0;
   ulong two_v0 = 0, two_v1 = 0, two_v2 = 0, two_v3 = 0;
   ulong v_minus_x0 = 0, v_minus_x1 = 0, v_minus_x2 = 0, v_minus_x3 = 0;
-  ulong y_mul_hhh0 = 0, y_mul_hhh1 = 0, y_mul_hhh2 = 0, y_mul_hhh3 = 0;
   ulong y30 = 0, y31 = 0, y32 = 0, y33 = 0;
   ulong zz_out0 = 0, zz_out1 = 0, zz_out2 = 0, zz_out3 = 0;
   ulong zzz_out0 = 0, zzz_out1 = 0, zzz_out2 = 0, zzz_out3 = 0;
@@ -674,9 +716,11 @@ static inline XyzzValue jacobian_add_affine_xyzz_values(ulong x0, ulong x1, ulon
   field_double_values(v0, v1, v2, v3, two_v0, two_v1, two_v2, two_v3);
   field_sub_values(x30, x31, x32, x33, two_v0, two_v1, two_v2, two_v3, x30, x31, x32, x33);
   field_sub_values(v0, v1, v2, v3, x30, x31, x32, x33, v_minus_x0, v_minus_x1, v_minus_x2, v_minus_x3);
-  field_mul_values(r0, r1, r2, r3, v_minus_x0, v_minus_x1, v_minus_x2, v_minus_x3, y30, y31, y32, y33);
-  field_mul_values(y0, y1, y2, y3, hhh0, hhh1, hhh2, hhh3, y_mul_hhh0, y_mul_hhh1, y_mul_hhh2, y_mul_hhh3);
-  field_sub_values(y30, y31, y32, y33, y_mul_hhh0, y_mul_hhh1, y_mul_hhh2, y_mul_hhh3, y30, y31, y32, y33);
+  field_mul_sub_values(r0, r1, r2, r3,
+                       v_minus_x0, v_minus_x1, v_minus_x2, v_minus_x3,
+                       y0, y1, y2, y3,
+                       hhh0, hhh1, hhh2, hhh3,
+                       y30, y31, y32, y33);
   field_mul_values(zz0, zz1, zz2, zz3, hh0, hh1, hh2, hh3, zz_out0, zz_out1, zz_out2, zz_out3);
   field_mul_values(zzz0, zzz1, zzz2, zzz3, hhh0, hhh1, hhh2, hhh3, zzz_out0, zzz_out1, zzz_out2, zzz_out3);
   out.x0 = x30; out.x1 = x31; out.x2 = x32; out.x3 = x33;

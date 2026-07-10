@@ -1,0 +1,39 @@
+{
+  "name": "metal_jacobian_dynamic_xyzz_steps2048_dp6_walk_gate_131k",
+  "description": "Large validated Metal XYZZ 2048-step dp6 walk gate matching the 25M fixed-round walker count",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-bench",
+    "--iterations",
+    "131072",
+    "--steps",
+    "2048",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "6",
+    "--min-ms",
+    "0",
+    "--jump-schedule",
+    "power2",
+    "--tg-limit",
+    "128"
+  ],
+  "required_metrics": {
+    "jump_mixer": "avalanche64",
+    "jump_schedule": "power2",
+    "dp_checksum": "0x54ccada61fd1edbc",
+    "dp_distance_checksum": "0xf31d7766e1607041",
+    "dp_count": 2087,
+    "jump_histogram_min_bucket": 16771410,
+    "jump_histogram_max_bucket": 16782260,
+    "jump_histogram_max_deviation_ppm": 346
+  },
+  "metric": "gpu_ops_per_sec",
+  "min_improvement_ratio": 0.01,
+  "max_sample_spread_ratio": 1.15,
+  "sample_runs": 3,
+  "paired_order": "alternate",
+  "cooldown_sec": 10
+}

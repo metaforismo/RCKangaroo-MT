@@ -1,0 +1,39 @@
+{
+  "name": "metal_jacobian_dynamic_xyzz_steps2048_dp6_walk_gate",
+  "description": "Validated Metal XYZZ 2048-step dp6 walk gate for mechanism-level arithmetic and code-generation changes",
+  "build_target": "macos-build",
+  "bench_command": [
+    "./macos/rck_macos",
+    "metal-jacobian-dynamic-dp-stream-xyzz-affine-scan-bench",
+    "--iterations",
+    "32768",
+    "--steps",
+    "2048",
+    "--jumps",
+    "16",
+    "--dp-bits",
+    "6",
+    "--min-ms",
+    "0",
+    "--jump-schedule",
+    "power2",
+    "--tg-limit",
+    "128"
+  ],
+  "required_metrics": {
+    "jump_mixer": "avalanche64",
+    "jump_schedule": "power2",
+    "dp_checksum": "0x3f104d05ebba588a",
+    "dp_distance_checksum": "0xb6a4ae454b38bdea",
+    "dp_count": 526,
+    "jump_histogram_min_bucket": 4191260,
+    "jump_histogram_max_bucket": 4197079,
+    "jump_histogram_max_deviation_ppm": 726
+  },
+  "metric": "gpu_ops_per_sec",
+  "min_improvement_ratio": 0.01,
+  "max_sample_spread_ratio": 1.15,
+  "sample_runs": 3,
+  "paired_order": "alternate",
+  "cooldown_sec": 3
+}

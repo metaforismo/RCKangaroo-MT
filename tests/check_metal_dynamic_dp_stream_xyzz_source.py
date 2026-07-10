@@ -12,6 +12,10 @@ makefile = Path("Makefile").read_text()
 required_kernel_markers = (
     "struct XyzzValue",
     "jacobian_add_affine_xyzz_values",
+    "field_mul_wide_values",
+    "field_mul_sub_values",
+    "0x000007A2000E90A1UL",
+    "0xFFFFFFFDFFFFF85EUL",
     "field_mul_values(zz0, zz1, zz2, zz3, hh0, hh1, hh2, hh3, zz_out0",
     "field_mul_values(zzz0, zzz1, zzz2, zzz3, hhh0, hhh1, hhh2, hhh3, zzz_out0",
     "kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp8_pow2_u32_distance",
@@ -39,6 +43,31 @@ required_kernel_markers = (
 for marker in required_kernel_markers:
     if marker not in kernel_source:
         raise SystemExit("missing XYZZ kernel marker: " + marker)
+
+xyzz_helper_start = kernel_source.index("static inline XyzzValue jacobian_add_affine_xyzz_values")
+xyzz_helper_end = kernel_source.index("\nkernel void jacobian_add_affine", xyzz_helper_start)
+xyzz_helper_body = kernel_source[xyzz_helper_start:xyzz_helper_end]
+if "field_mul_sub_values(r0, r1, r2, r3" not in xyzz_helper_body:
+    raise SystemExit("XYZZ mixed add must fuse the final product subtraction before reduction")
+if "y_mul_hhh" in xyzz_helper_body:
+    raise SystemExit("XYZZ mixed add still performs the separately reduced y*H^3 product")
+if kernel_source.count("field_mul_sub_values(") != 2:
+    raise SystemExit("fused product subtraction must remain scoped to the XYZZ mixed add")
+
+p_squared_limbs = (
+    0x000007A2000E90A1,
+    0x0000000000000001,
+    0,
+    0,
+    0xFFFFFFFDFFFFF85E,
+    0xFFFFFFFFFFFFFFFF,
+    0xFFFFFFFFFFFFFFFF,
+    0xFFFFFFFFFFFFFFFF,
+)
+p_squared = sum(limb << (64 * index) for index, limb in enumerate(p_squared_limbs))
+secp256k1_p = (1 << 256) - (1 << 32) - 977
+if p_squared != secp256k1_p * secp256k1_p:
+    raise SystemExit("fused product subtraction p^2 constant is incorrect")
 
 xyzz_kernel_start = kernel_source.index(
     "kernel void jacobian_affine_walk_dynamic_dp_stream_xyzz_steps256_dp8_pow2_u32_distance"

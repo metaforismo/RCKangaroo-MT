@@ -77,8 +77,31 @@ variants.
 
 ## Latest Accepted Change
 
-2026-07-07: bounded generated-miss positive buffers for Metal distinct-miss
-lookup.
+2026-07-10: fused 512-bit product difference in the Metal XYZZ mixed add.
+
+- Change: the `Y3 = r * (v - X3) - Y * H^3` update now forms both exact
+  512-bit products, subtracts before reduction, conditionally adds `p^2`, and
+  reduces once. This removes one field reduction per kangaroo step without
+  changing the walk, jump schedule, DP rule, or target lookup.
+- Correctness oracle: the 131k walk gate preserved
+  `dp_checksum=0x54ccada61fd1edbc`,
+  `dp_distance_checksum=0xf31d7766e1607041`, `dp_count=2087`, the full jump
+  histogram, and `correctness=true`. The direct 1M fixed-round physical
+  distinct-miss run also preserved its canonical target, DP, hit, and
+  false-positive oracle.
+- Speed evidence: paired alternating 131k samples measured candidate median
+  `73.643730M` versus baseline `66.809514M` GPU steps/s, a `1.102294x` speedup.
+  Candidate spread was `1.112904`, inside the preregistered `1.15` limit. The
+  paired 1M physical distinct-miss gate also kept setup-inclusive wall distance
+  at `273.503B` versus `269.432B` distance/s (`1.015111x`) with the complete
+  multi-target oracle unchanged.
+- Scope: this is a real improvement to the dominant Metal walk arithmetic on
+  the MacBook Air M3. A paired canonical 25M setup-inclusive run is still
+  required before claiming the same percentage for complete 25M multi-target
+  jobs.
+
+Earlier 2026-07-07: bounded generated-miss positive buffers for Metal
+distinct-miss lookup.
 
 - Change: generated distinct-miss Metal filter kernels now separate
   `query_count` from positive-output capacity. The default capacity is bounded
