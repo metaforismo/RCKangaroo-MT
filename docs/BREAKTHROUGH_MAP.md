@@ -31,7 +31,7 @@ The current oracle to preserve is:
 - `dp_distance_checksum=0x894123b96acf0de5`
 - `dp_count=4121`
 - `hit_count=128`
-- `filter_false_positive_count=414`
+- `400 <= filter_false_positive_count <= 450`
 - `correctness=true`
 
 Primary score: `setup_inclusive_wall_distance_per_sec`.
@@ -74,6 +74,12 @@ required metric changes, the row is not a speed comparison for that experiment.
 Paired baselines must satisfy the same required metrics before their speed is
 usable. Create a separate experiment for solver-equivalent schedule or mixer
 variants.
+
+The 25M false-positive oracle is a narrow range rather than an exact count.
+Parallel target-table insertion can retain a different colliding 16-bit tag and
+has produced counts `409`, `412`, and `414` with identical exact target, DP,
+distance, and hit oracles. The range guards filter quality and exact-verification
+cost; it does not replace the deterministic correctness checks.
 
 ## Latest Accepted Change
 

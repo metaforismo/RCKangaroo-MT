@@ -32,6 +32,26 @@ GPU work should use Metal.
 
 ## Recent Kept Experiments
 
+### 2026-07-10 Canonical 25M False-Positive Oracle Hardening
+
+- Replaced the canonical 25M gate's exact
+  `filter_false_positive_count=414` requirement with the bounded oracle
+  `400..450`. Parallel insertion into the target table can retain different
+  colliding 16-bit tags, so this diagnostic count is not deterministic even
+  when the exact target table and walk are unchanged. Historical canonical
+  runs have reported `409`, `412`, and `414`.
+- The interrupted baseline sample that exposed the issue preserved
+  `target_lookup_checksum=0x5c90bdf7f12141b9`,
+  `dp_checksum=0x7f111e78c67b5c18`,
+  `dp_distance_checksum=0x894123b96acf0de5`, `dp_count=4121`,
+  `hit_count=128`, and `correctness=true`, while reporting
+  `filter_false_positive_count=409`. The run was stopped before candidate
+  measurement because the old exact requirement guaranteed a non-comparable
+  row.
+- Exact lookup, walk, distance, DP, and hit oracles remain unchanged. The narrow
+  range continues to reject material filter-quality regressions while allowing
+  benign insertion-order variance.
+
 ### 2026-07-10 Fused XYZZ Product Difference
 
 - Kept a point-formula-level Metal optimization for the dominant XYZZ mixed

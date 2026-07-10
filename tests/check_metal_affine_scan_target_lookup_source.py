@@ -1210,7 +1210,7 @@ check_required_metrics(
         "dp_distance_checksum": "0x894123b96acf0de5",
         "dp_count": 4121,
         "hit_count": 128,
-        "filter_false_positive_count": 414,
+        "filter_false_positive_count": {"min": 400, "max": 450},
     },
 )
 
