@@ -259,6 +259,35 @@ GPU work should use Metal.
 
 ## Recent Rejected Experiments
 
+### 2026-07-10 Branchless XYZZ Product-Difference Correction
+
+- Rejected replacing the conditional `p^2` correction in
+  `field_mul_sub_values` with an always-executed masked carry chain. AIR
+  inspection confirmed that the candidate removed the borrow branch, both
+  eight-limb loops, and the 64-byte `p_squared` temporary while preserving the
+  exact identity `a*b - c*d + borrow*p^2 (mod p)`.
+- The 131k walk oracle stayed exact in every sample:
+  `dp_checksum=0x54ccada61fd1edbc`,
+  `dp_distance_checksum=0xf31d7766e1607041`, `dp_count=2087`, the jump
+  histogram, and `correctness=true` all matched the baseline.
+- Performance rejected it. Candidate median was `122.242M` versus baseline
+  `124.847M` steps/s (`0.979136x`), and the candidate spread was `2.546120`,
+  above the `1.15` limit. The always-executed carry work did not repay the
+  removed branch and was reverted; the next scout isolates fixed-chain
+  unrolling while retaining the conditional correction.
+
+### 2026-07-10 Unrolled XYZZ Product-Difference Carry Chains
+
+- Rejected explicitly unrolling the eight-limb subtraction and conditional
+  `p^2` addition while retaining the baseline borrow branch. AIR confirmed that
+  the candidate removed both dynamic loops and the temporary constant array,
+  isolating unrolling from the preceding branchless experiment.
+- All samples preserved the exact 131k walk oracle and CPU replay. Candidate
+  median was `125.979M` versus baseline `126.385M` steps/s
+  (`0.996791x`), so there was no performance gain. Candidate and baseline
+  spreads were also `1.404189` and `1.496475`, both above the strict `1.15`
+  limit. The unrolled spelling was reverted; keep the compiler-managed loops.
+
 ### 2026-07-07 Fixed-Round Walk Threadgroup Sweep
 
 - Rejected changing the fixed-round 2048-step XYZZ walk threadgroup policy
