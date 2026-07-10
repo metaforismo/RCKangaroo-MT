@@ -376,6 +376,24 @@ These are the remaining high-leverage areas.
    `jacobian_affine_walk_dynamic_xyzz_steps2048_pow2_u32_distance` module is
    visible and can be filtered for codegen diffs before spending long gates.
 
+6. Signed cross-target wild relation graph.
+
+   A wild state for target `i` is `(sigma_i * a_i + d_i)G`, where `a_i` is
+   the target scalar centered at the half range and `sigma_i` is `+1` for
+   WILD1 or `-1` for WILD2. If records `i` and `j` collide in x, their points
+   differ by an orientation `epsilon` in `{+1,-1}`, yielding the exact relation
+   `a_j = (epsilon*sigma_i*sigma_j)*a_i + sigma_j*(epsilon*d_i-d_j)`.
+   The current solver discards this information when target IDs differ.
+
+   A signed union-find can retain these equations. A cycle whose composed sign
+   is `-1` determines a centered scalar by `2*a=C`; a `+1` cycle is only a
+   consistency check. One y-parity bit per DP distinguishes equal from opposite
+   points without a scalar multiplication, and can potentially be packed into
+   the existing type byte. This is now protected by an exhaustive deterministic
+   EC oracle, but it is not yet a production speed claim: collision frequency,
+   graph memory, packet compatibility, and end-to-end solve probability still
+   need measured gates before integration.
+
 ## Promotion Checklist
 
 Every speed candidate must answer:

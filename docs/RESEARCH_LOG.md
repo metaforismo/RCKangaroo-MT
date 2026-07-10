@@ -349,6 +349,27 @@ GPU work should use Metal.
   benchmark-adjacent snapshot is attached to result rows, avoiding stale load
   telemetry when host conditions change during the suite.
 
+### 2026-07-10 Cross-Target Signed Relation Oracle
+
+- Audited the actual multi-target start convention and collision database. A
+  WILD1 record for target `i` represents `(a_i+d_i)G`; WILD2 represents
+  `(-a_i+d_i)G`, where `a_i=k_i-H`. The database matches only x coordinates,
+  so a collision has an equal/opposite orientation `epsilon`.
+- Derived the exact reusable edge
+  `a_j=(epsilon*sigma_i*sigma_j)*a_i+sigma_j*(epsilon*d_i-d_j)`. The current
+  `CheckNewPoints` path drops every such wild-wild collision when target IDs
+  differ. Composing these affine signed edges around a negative-sign cycle
+  yields `2*a=C` and therefore a candidate key without a tame anchor; a
+  positive-sign cycle gives no key and must remain only a consistency check.
+- Added `tests/multi_target_relation_check.cpp`, which uses the real secp256k1
+  EC implementation to test all eight WILD1/WILD2 and equal/opposite cases,
+  proves that one y-parity bit recovers `epsilon`, validates a recovering
+  negative cycle, and rejects key recovery from a positive cycle.
+- This is a mathematical oracle and integration prerequisite, not a throughput
+  result. Production work remains gated on DP packet compatibility, signed
+  union-find correctness over full-width distances, collision-rate evidence,
+  memory cost, and an end-to-end solver oracle.
+
 ### 2026-07-07 Fixed-Round Walk Threadgroup Sweep
 
 - Rejected changing the fixed-round 2048-step XYZZ walk threadgroup policy
